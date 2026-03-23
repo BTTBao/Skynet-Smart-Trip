@@ -1,0 +1,12 @@
+D:\4_Projects\Skynet-Smart-Trip\backend\SmartTrip.Domain\bin\Debug\net8.0\SmartTrip.Domain.deps.json
+D:\4_Projects\Skynet-Smart-Trip\backend\SmartTrip.Domain\bin\Debug\net8.0\SmartTrip.Domain.dll
+D:\4_Projects\Skynet-Smart-Trip\backend\SmartTrip.Domain\bin\Debug\net8.0\SmartTrip.Domain.pdb
+D:\4_Projects\Skynet-Smart-Trip\backend\SmartTrip.Domain\obj\Debug\net8.0\SmartTrip.Domain.GeneratedMSBuildEditorConfig.editorconfig
+D:\4_Projects\Skynet-Smart-Trip\backend\SmartTrip.Domain\obj\Debug\net8.0\SmartTrip.Domain.AssemblyInfoInputs.cache
+D:\4_Projects\Skynet-Smart-Trip\backend\SmartTrip.Domain\obj\Debug\net8.0\SmartTrip.Domain.AssemblyInfo.cs
+D:\4_Projects\Skynet-Smart-Trip\backend\SmartTrip.Domain\obj\Debug\net8.0\SmartTrip.Domain.csproj.CoreCompileInputs.cache
+D:\4_Projects\Skynet-Smart-Trip\backend\SmartTrip.Domain\obj\Debug\net8.0\SmartTrip.Domain.sourcelink.json
+D:\4_Projects\Skynet-Smart-Trip\backend\SmartTrip.Domain\obj\Debug\net8.0\SmartTrip.Domain.dll
+D:\4_Projects\Skynet-Smart-Trip\backend\SmartTrip.Domain\obj\Debug\net8.0\refint\SmartTrip.Domain.dll
+D:\4_Projects\Skynet-Smart-Trip\backend\SmartTrip.Domain\obj\Debug\net8.0\SmartTrip.Domain.pdb
+D:\4_Projects\Skynet-Smart-Trip\backend\SmartTrip.Domain\obj\Debug\net8.0\ref\SmartTrip.Domain.dll

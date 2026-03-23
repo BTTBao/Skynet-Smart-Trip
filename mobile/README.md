@@ -1,6 +1,6 @@
-# mobile_app
+# mobile
 
-A new Flutter project.
+A new SkynetSmartTrip project.
 
 ## Getting Started
 
