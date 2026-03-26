@@ -10,14 +10,14 @@ class SettingsView extends StatefulWidget {
 class _SettingsViewState extends State<SettingsView> {
   bool _pushNotificationEnabled = true;
   bool _emailOfferEnabled = false;
+  bool _darkModeEnabled = false;
 
   @override
   Widget build(BuildContext context) {
-    // Primary color from Tailwind config
     const primaryColor = Color(0xFF80ed99);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8F9FA), // Slightly grey background for sections
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -35,166 +35,123 @@ class _SettingsViewState extends State<SettingsView> {
           ),
         ),
         centerTitle: true,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: Colors.grey[100],
-            height: 1,
-          ),
-        ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 100), // Space for bottom nav
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile Preview Section
-            Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(24),
-              color: primaryColor.withOpacity(0.05),
-              child: Row(
-                children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: primaryColor.withOpacity(0.3),
-                        width: 2,
-                      ),
-                      image: const DecorationImage(
-                        image: NetworkImage(
-                            'https://lh3.googleusercontent.com/aida-public/AB6AXuAVjJ0XqPfTeih5p1pWe6rjguUON84aP7_na4mYzWQouZJh_0R24vN4KM5lVesTjg3GhFCtWVQoCcYTLD4ptHQNdCy7D3FPevAwHUfepqYJxxlolvfQ0XyhTg0CUFoyvNZ8yw7oPaJo0al8qvYLAHtbzNf5f9qzT5w6lpCFKePRVLF9XW8UbiLNVyreufaeKXkXqQEkzxP6F4sIS4lUMHeJj-M5T1yiLG6iDORvjUI3ogpTwNj3kKxIZnyRzGnrxvuf9rWkWjY_gmSw'),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Minh Tuấn',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Thành viên Bạc • Chỉnh sửa hồ sơ',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            // Section: Tài khoản & Bảo mật
+            _buildSectionHeader('Tài khoản & Bảo mật'),
+            _buildSectionContainer([
+              _buildNavigationItem(
+                icon: Icons.lock_outline,
+                title: 'Đổi mật khẩu',
+                iconColor: Colors.blueAccent,
+                onTap: () {},
               ),
-            ),
+              _buildDivider(),
+              _buildNavigationItem(
+                icon: Icons.verified_user_outlined,
+                title: 'Xác minh danh tính',
+                trailingText: 'Đã xác minh',
+                iconColor: primaryColor,
+                onTap: () {},
+              ),
+              _buildDivider(),
+              _buildNavigationItem(
+                icon: Icons.vibration,
+                title: 'Xác thực 2 lớp',
+                trailingText: 'Bật',
+                iconColor: Colors.orange,
+                onTap: () {},
+              ),
+            ]),
 
-            // Category: Thông báo
+            // Section: Thông báo
             _buildSectionHeader('Thông báo'),
-            _buildSwitchItem(
-              icon: Icons.notifications_none,
-              title: 'Thông báo đẩy',
-              value: _pushNotificationEnabled,
-              onChanged: (val) => setState(() => _pushNotificationEnabled = val),
-              iconColor: primaryColor,
-            ),
-            _buildSwitchItem(
-              icon: Icons.mail_outline,
-              title: 'Ưu đãi qua Email',
-              value: _emailOfferEnabled,
-              onChanged: (val) => setState(() => _emailOfferEnabled = val),
-              iconColor: primaryColor,
-            ),
+            _buildSectionContainer([
+              _buildSwitchItem(
+                icon: Icons.notifications_none,
+                title: 'Thông báo đẩy',
+                value: _pushNotificationEnabled,
+                onChanged: (val) => setState(() => _pushNotificationEnabled = val),
+                iconColor: Colors.purpleAccent,
+              ),
+              _buildDivider(),
+              _buildSwitchItem(
+                icon: Icons.mail_outline,
+                title: 'Ưu đãi qua Email',
+                value: _emailOfferEnabled,
+                onChanged: (val) => setState(() => _emailOfferEnabled = val),
+                iconColor: Colors.teal,
+              ),
+            ]),
 
-            const SizedBox(height: 16),
-
-            // Category: Tùy chỉnh
+            // Section: Tùy chỉnh
             _buildSectionHeader('Tùy chỉnh'),
-            _buildNavigationItem(
-              icon: Icons.translate,
-              title: 'Ngôn ngữ',
-              trailingText: 'Tiếng Việt',
-              iconColor: primaryColor,
-              onTap: () {},
-            ),
-            _buildNavigationItem(
-              icon: Icons.payments_outlined,
-              title: 'Đơn vị tiền tệ',
-              trailingText: 'VND',
-              iconColor: primaryColor,
-              onTap: () {},
-            ),
+            _buildSectionContainer([
+              _buildNavigationItem(
+                icon: Icons.translate,
+                title: 'Ngôn ngữ',
+                trailingText: 'Tiếng Việt',
+                iconColor: primaryColor,
+                onTap: () {},
+              ),
+              _buildDivider(),
+              _buildNavigationItem(
+                icon: Icons.payments_outlined,
+                title: 'Đơn vị tiền tệ',
+                trailingText: 'VND',
+                iconColor: Colors.green,
+                onTap: () {},
+              ),
+              _buildDivider(),
+              _buildSwitchItem(
+                icon: Icons.dark_mode_outlined,
+                title: 'Chế độ tối',
+                value: _darkModeEnabled,
+                onChanged: (val) => setState(() => _darkModeEnabled = val),
+                iconColor: Colors.indigo,
+              ),
+            ]),
 
-            const SizedBox(height: 16),
+            // Section: Hỗ trợ
+            _buildSectionHeader('Hỗ trợ'),
+            _buildSectionContainer([
+              _buildNavigationItem(
+                icon: Icons.help_outline,
+                title: 'Trung tâm trợ giúp',
+                iconColor: Colors.blue,
+                onTap: () {},
+              ),
+              _buildDivider(),
+              _buildNavigationItem(
+                icon: Icons.bug_report_outlined,
+                title: 'Báo cáo lỗi',
+                iconColor: Colors.redAccent,
+                onTap: () {},
+              ),
+              _buildDivider(),
+              _buildNavigationItem(
+                icon: Icons.info_outline,
+                title: 'Về Skynet Smart Trip',
+                iconColor: Colors.grey,
+                onTap: () {},
+              ),
+            ]),
 
-            // Category: Bảo mật
-            _buildSectionHeader('Bảo mật'),
-            _buildNavigationItem(
-              icon: Icons.lock_outline,
-              title: 'Quyền riêng tư',
-              iconColor: primaryColor,
-              onTap: () {},
-            ),
-            _buildNavigationItem(
-              icon: Icons.shield_outlined,
-              title: 'Điều khoản dịch vụ',
-              iconColor: primaryColor,
-              onTap: () {},
-            ),
-
-            // Logout Button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
-              child: Column(
-                children: [
-                  InkWell(
-                    onTap: () {},
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50.withOpacity(0.5),
-                        border: Border.all(color: Colors.red.shade100),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.logout, color: Colors.red.shade400, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Đăng xuất tài khoản',
-                            style: TextStyle(
-                              color: Colors.red.shade400,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'PHIÊN BẢN 4.2.0 (BUILD 124)',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 32),
+            Center(
+              child: Text(
+                'PHIÊN BẢN 4.2.0 (BUILD 124)',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey.shade400,
+                  letterSpacing: 1.5,
+                ),
               ),
             ),
+            const SizedBox(height: 48),
           ],
         ),
       ),
@@ -203,16 +160,43 @@ class _SettingsViewState extends State<SettingsView> {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
       child: Text(
         title.toUpperCase(),
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.bold,
-          color: Colors.grey.shade400,
-          letterSpacing: 1.5,
+          color: Colors.grey.shade500,
+          letterSpacing: 1.2,
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionContainer(List<Widget> children) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Divider(
+      height: 1,
+      indent: 56,
+      endIndent: 16,
+      color: Colors.grey.shade50,
     );
   }
 
@@ -223,36 +207,24 @@ class _SettingsViewState extends State<SettingsView> {
     required ValueChanged<bool> onChanged,
     required Color iconColor,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => onChanged(!value),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Row(
-            children: [
-              Icon(icon, color: iconColor),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              Switch(
-                value: value,
-                onChanged: onChanged,
-                activeColor: Colors.white,
-                activeTrackColor: iconColor,
-                inactiveThumbColor: Colors.white,
-                inactiveTrackColor: Colors.grey.shade200,
-              ),
-            ],
-          ),
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: iconColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
         ),
+        child: Icon(icon, color: iconColor, size: 20),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+      ),
+      trailing: Switch.adaptive(
+        value: value,
+        onChanged: onChanged,
+        activeColor: const Color(0xFF80ed99),
       ),
     );
   }
@@ -264,43 +236,32 @@ class _SettingsViewState extends State<SettingsView> {
     required Color iconColor,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Row(
-            children: [
-              Icon(icon, color: iconColor),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              if (trailingText != null) ...[
-                Text(
-                  trailingText,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade500,
-                  ),
-                ),
-                const SizedBox(width: 4),
-              ],
-              Icon(
-                Icons.chevron_right,
-                color: Colors.grey.shade400,
-                size: 20,
-              ),
-            ],
-          ),
+    return ListTile(
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: iconColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
         ),
+        child: Icon(icon, color: iconColor, size: 20),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (trailingText != null)
+            Text(
+              trailingText,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+            ),
+          const SizedBox(width: 4),
+          Icon(Icons.chevron_right, color: Colors.grey.shade300, size: 20),
+        ],
       ),
     );
   }

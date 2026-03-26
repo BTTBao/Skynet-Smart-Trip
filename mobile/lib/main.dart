@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'views/profile/test_navigation_view.dart';
+import 'views/main_shell.dart';
 import 'providers/profile_provider.dart';
 
 void main() {
@@ -25,7 +25,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Public Sans',
       ),
-      home: const TestNavigationView(),
+      home: const MainShell(),
     );
   }
 }
