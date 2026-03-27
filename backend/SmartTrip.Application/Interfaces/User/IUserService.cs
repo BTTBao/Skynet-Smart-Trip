@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using SmartTrip.Application.DTOs.User;
 
-namespace SmartTrip.Application.Interfaces.User
+namespace SmartTrip.Application.Interfaces.User;
+
+public interface IUserService
 {
-    internal class IUserService
-    {
-    }
+    Task<UserDto?> GetUserProfileAsync(int userId);
+    Task<bool> UpdateUserProfileAsync(int userId, UserDto userDto);
 }
