@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/profile_provider.dart';
 import 'profile/profile_view.dart';
+import 'chatbot/chatbot_view.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -15,8 +16,9 @@ class _MainShellState extends State<MainShell> {
 
   // Danh sách các trang chính của ứng dụng
   // Hiện tại chỉ có 1  tab "Cài đặt", sau này thêm tab khác vào đây
-  final List<Widget> _pages = const [
+  final List<Widget> _pages = [
     _PlaceholderPage(label: 'Trang chủ', icon: Icons.home_outlined),
+    ChatbotView(), // Tích hợp Chatbot vào tab 2
     _PlaceholderPage(label: 'Khám phá', icon: Icons.explore_outlined),
     _PlaceholderPage(label: 'Đặt chỗ', icon: Icons.bookmark_outline),
     ProfileView(),
@@ -58,9 +60,10 @@ class _MainShellState extends State<MainShell> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildNavItem(0, Icons.home_outlined, Icons.home, 'Trang chủ', primaryColor),
-                _buildNavItem(1, Icons.explore_outlined, Icons.explore, 'Khám phá', primaryColor),
-                _buildNavItem(2, Icons.bookmark_outline, Icons.bookmark, 'Đặt chỗ', primaryColor),
-                _buildNavItem(3, Icons.settings_outlined, Icons.settings, 'Cài đặt', primaryColor),
+                _buildNavItem(1, Icons.chat_bubble_outline, Icons.chat_bubble, 'Sky Chat', primaryColor),
+                _buildNavItem(2, Icons.explore_outlined, Icons.explore, 'Khám phá', primaryColor),
+                _buildNavItem(3, Icons.bookmark_outline, Icons.bookmark, 'Đặt chỗ', primaryColor),
+                _buildNavItem(4, Icons.settings_outlined, Icons.settings, 'Cài đặt', primaryColor),
               ],
             ),
           ),

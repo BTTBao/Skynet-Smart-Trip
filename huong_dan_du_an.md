@@ -196,7 +196,7 @@ Controllers/
 └── NotificationController.cs
 ```
 
-**Ví dụ** `DestinationController.cs`:
+**Ví dụ** `DestinationController.cs`
 ```csharp
 [ApiController]
 [Route("api/[controller]")]

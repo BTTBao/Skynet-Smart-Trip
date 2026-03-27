@@ -21,7 +21,7 @@ class ProfileProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      _profileData = await _apiService.getProfileData();
+      _profileData = await _apiService.getProfile();
     } catch (e) {
       _error = e.toString();
     } finally {
