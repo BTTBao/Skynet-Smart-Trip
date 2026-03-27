@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'views/main_shell.dart';
 import 'providers/providers.dart';
+import 'views/trip/trip_ui_preview_view.dart';
 
 void main() {
   runApp(
@@ -28,7 +28,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Public Sans',
       ),
-      home: const MainShell(),
+      home: const TripUiPreviewView(),
     );
   }
 }
