@@ -4,9 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SmartTrip.Infrastructure.ExternalServices.Payment
+namespace SmartTrip.Application.Interfaces.Auth
 {
-    internal class VnPayService
+    public interface ITokenService
     {
+        string GenerateToken(string email);
     }
 }

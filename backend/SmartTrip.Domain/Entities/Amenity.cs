@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SmartTrip.Domain.Entities;
 
-public partial class Amenity
+public class Amenity
 {
-    public int AmenityId { get; set; }
+    public int Id { get; set; }
 
     public string? Name { get; set; }
 
@@ -13,3 +13,5 @@ public partial class Amenity
 
     public virtual ICollection<Hotel> Hotels { get; set; } = new List<Hotel>();
 }
+
+
