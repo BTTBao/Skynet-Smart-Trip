@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore;
-
-namespace SmartTrip.Domain.Entities;
+﻿namespace SmartTrip.Domain.Entities;
 
 public partial class ApplicationDbContext : DbContext
 {

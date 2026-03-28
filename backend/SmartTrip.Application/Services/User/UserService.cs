@@ -1,7 +1,6 @@
 using SmartTrip.Application.DTOs.User;
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace SmartTrip.Application.Services.User;
 
