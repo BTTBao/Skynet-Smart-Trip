@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SmartTrip.Domain.Entities;
 
-public partial class Notification
+public class Notification
 {
-    public int NotiId { get; set; }
+    public int Id { get; set; }
 
     public int? UserId { get; set; }
 
@@ -19,3 +19,5 @@ public partial class Notification
 
     public virtual User? User { get; set; }
 }
+
+

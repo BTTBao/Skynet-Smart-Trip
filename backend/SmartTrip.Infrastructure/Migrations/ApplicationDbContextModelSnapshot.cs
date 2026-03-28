@@ -39,11 +39,11 @@ namespace SmartTrip.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Amenity", b =>
                 {
-                    b.Property<int>("AmenityId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AmenityId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("IconUrl")
                         .HasMaxLength(255)
@@ -54,18 +54,18 @@ namespace SmartTrip.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.HasKey("AmenityId");
+                    b.HasKey("Id");
 
                     b.ToTable("Amenities");
                 });
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.BlogPost", b =>
                 {
-                    b.Property<int>("PostId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PostId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("AuthorId")
                         .HasColumnType("int");
@@ -79,7 +79,7 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<DateTime?>("PublishedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
+                        .HasDefaultValueSql("GETDATE()");
 
                     b.Property<string>("ThumbnailUrl")
                         .HasMaxLength(255)
@@ -90,7 +90,7 @@ namespace SmartTrip.Infrastructure.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
-                    b.HasKey("PostId");
+                    b.HasKey("Id");
 
                     b.HasIndex("AuthorId");
 
@@ -101,11 +101,11 @@ namespace SmartTrip.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.BusCompany", b =>
                 {
-                    b.Property<int>("CompanyId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CompanyId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Hotline")
                         .HasMaxLength(20)
@@ -121,18 +121,18 @@ namespace SmartTrip.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.HasKey("CompanyId");
+                    b.HasKey("Id");
 
                     b.ToTable("BusCompanies");
                 });
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.BusSchedule", b =>
                 {
-                    b.Property<int>("ScheduleId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ScheduleId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime?>("ArrivalTime")
                         .HasColumnType("datetime");
@@ -158,7 +158,7 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<int?>("TotalSeats")
                         .HasColumnType("int");
 
-                    b.HasKey("ScheduleId");
+                    b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
 
@@ -171,11 +171,11 @@ namespace SmartTrip.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Destination", b =>
                 {
-                    b.Property<int>("DestId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("DestId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("CoverImageUrl")
                         .HasMaxLength(255)
@@ -195,18 +195,18 @@ namespace SmartTrip.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.HasKey("DestId");
+                    b.HasKey("Id");
 
                     b.ToTable("Destinations");
                 });
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Gallery", b =>
                 {
-                    b.Property<int>("PhotoId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PhotoId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("ImageUrl")
                         .HasMaxLength(255)
@@ -216,22 +216,22 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<int?>("ReferenceId")
                         .HasColumnType("int");
 
-                    b.Property<string>("ReferenceType")
+                    b.Property<int?>("ReferenceType")
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("int");
 
-                    b.HasKey("PhotoId");
+                    b.HasKey("Id");
 
                     b.ToTable("Galleries");
                 });
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Hotel", b =>
                 {
-                    b.Property<int>("HotelId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("HotelId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Address")
                         .HasMaxLength(255)
@@ -256,7 +256,7 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<int?>("StarRating")
                         .HasColumnType("int");
 
-                    b.HasKey("HotelId");
+                    b.HasKey("Id");
 
                     b.HasIndex("DestinationId");
 
@@ -265,11 +265,11 @@ namespace SmartTrip.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Invoice", b =>
                 {
-                    b.Property<int>("InvoiceId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InvoiceId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("InvoiceNumber")
                         .HasMaxLength(50)
@@ -279,7 +279,7 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<DateTime?>("IssuedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
+                        .HasDefaultValueSql("GETDATE()");
 
                     b.Property<string>("PdfUrl")
                         .HasMaxLength(255)
@@ -292,29 +292,29 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<int?>("TripId")
                         .HasColumnType("int");
 
-                    b.HasKey("InvoiceId");
+                    b.HasKey("Id");
 
-                    b.HasIndex("TripId");
-
-                    b.HasIndex(new[] { "InvoiceNumber" }, "UQ__INVOICES__8081A63A2087F6B0")
+                    b.HasIndex("InvoiceNumber")
                         .IsUnique()
                         .HasFilter("[InvoiceNumber] IS NOT NULL");
+
+                    b.HasIndex("TripId");
 
                     b.ToTable("Invoices");
                 });
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Notification", b =>
                 {
-                    b.Property<int>("NotiId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("NotiId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
+                        .HasDefaultValueSql("GETDATE()");
 
                     b.Property<bool?>("IsRead")
                         .ValueGeneratedOnAdd()
@@ -331,7 +331,7 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
 
-                    b.HasKey("NotiId");
+                    b.HasKey("Id");
 
                     b.HasIndex("UserId");
 
@@ -340,11 +340,11 @@ namespace SmartTrip.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Payment", b =>
                 {
-                    b.Property<int>("PaymentId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PaymentId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal?>("Amount")
                         .HasColumnType("decimal(18, 2)");
@@ -352,15 +352,15 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<DateTime?>("PaidAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
+                        .HasDefaultValueSql("GETDATE()");
 
-                    b.Property<string>("PaymentMethod")
+                    b.Property<int?>("PaymentMethod")
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("int");
 
-                    b.Property<string>("Status")
+                    b.Property<int?>("Status")
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("int");
 
                     b.Property<string>("TransactionId")
                         .HasMaxLength(100)
@@ -370,7 +370,7 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<int?>("TripId")
                         .HasColumnType("int");
 
-                    b.HasKey("PaymentId");
+                    b.HasKey("Id");
 
                     b.HasIndex("TripId");
 
@@ -379,11 +379,11 @@ namespace SmartTrip.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Promotion", b =>
                 {
-                    b.Property<int>("PromoId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PromoId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Code")
                         .HasMaxLength(50)
@@ -407,9 +407,9 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<DateTime?>("ValidUntil")
                         .HasColumnType("datetime");
 
-                    b.HasKey("PromoId");
+                    b.HasKey("Id");
 
-                    b.HasIndex(new[] { "Code" }, "UQ__PROMOTIO__357D4CF99F93BAFB")
+                    b.HasIndex("Code")
                         .IsUnique()
                         .HasFilter("[Code] IS NOT NULL");
 
@@ -418,11 +418,11 @@ namespace SmartTrip.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Review", b =>
                 {
-                    b.Property<int>("ReviewId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReviewId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Comment")
                         .HasColumnType("nvarchar(max)");
@@ -430,7 +430,7 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
+                        .HasDefaultValueSql("GETDATE()");
 
                     b.Property<int?>("Rating")
                         .HasColumnType("int");
@@ -438,9 +438,9 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<int?>("TargetId")
                         .HasColumnType("int");
 
-                    b.Property<string>("TargetType")
+                    b.Property<int?>("TargetType")
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("int");
 
                     b.Property<int?>("TripId")
                         .HasColumnType("int");
@@ -448,7 +448,7 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
 
-                    b.HasKey("ReviewId");
+                    b.HasKey("Id");
 
                     b.HasIndex("TripId");
 
@@ -459,11 +459,11 @@ namespace SmartTrip.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Room", b =>
                 {
-                    b.Property<int>("RoomId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RoomId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("AvailableQty")
                         .HasColumnType("int");
@@ -484,7 +484,7 @@ namespace SmartTrip.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.HasKey("RoomId");
+                    b.HasKey("Id");
 
                     b.HasIndex("HotelId");
 
@@ -493,11 +493,11 @@ namespace SmartTrip.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Seat", b =>
                 {
-                    b.Property<int>("SeatId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SeatId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("ScheduleId")
                         .HasColumnType("int");
@@ -511,9 +511,9 @@ namespace SmartTrip.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("AVAILABLE");
+                        .HasDefaultValue("Available");
 
-                    b.HasKey("SeatId");
+                    b.HasKey("Id");
 
                     b.HasIndex("ScheduleId");
 
@@ -522,16 +522,16 @@ namespace SmartTrip.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Trip", b =>
                 {
-                    b.Property<int>("TripId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TripId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
+                        .HasDefaultValueSql("GETDATE()");
 
                     b.Property<int?>("DestinationId")
                         .HasColumnType("int");
@@ -546,7 +546,7 @@ namespace SmartTrip.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)")
-                        .HasDefaultValue("DRAFT");
+                        .HasDefaultValue("Draft");
 
                     b.Property<string>("Title")
                         .HasMaxLength(200)
@@ -565,7 +565,7 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
 
-                    b.HasKey("TripId");
+                    b.HasKey("Id");
 
                     b.HasIndex("DestinationId");
 
@@ -576,11 +576,11 @@ namespace SmartTrip.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.TripItinerary", b =>
                 {
-                    b.Property<int>("ItineraryId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ItineraryId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<double?>("BookedCommissionRate")
                         .HasColumnType("float");
@@ -599,14 +599,14 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<int?>("ServiceId")
                         .HasColumnType("int");
 
-                    b.Property<string>("ServiceType")
+                    b.Property<int?>("ServiceType")
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("int");
 
                     b.Property<int?>("TripId")
                         .HasColumnType("int");
 
-                    b.HasKey("ItineraryId");
+                    b.HasKey("Id");
 
                     b.HasIndex("TripId");
 
@@ -615,17 +615,17 @@ namespace SmartTrip.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.User", b =>
                 {
-                    b.Property<int>("UserId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UserId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("AuthProvider")
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("LOCAL");
+                        .HasDefaultValue("Local");
 
                     b.Property<string>("AvatarUrl")
                         .HasMaxLength(255)
@@ -635,7 +635,7 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
+                        .HasDefaultValueSql("GETDATE()");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -666,16 +666,16 @@ namespace SmartTrip.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("USER");
+                        .HasDefaultValue("User");
 
                     b.Property<string>("SocialId")
                         .HasMaxLength(255)
                         .IsUnicode(false)
                         .HasColumnType("varchar(255)");
 
-                    b.HasKey("UserId");
+                    b.HasKey("Id");
 
-                    b.HasIndex(new[] { "Email" }, "UQ__USERS__AB6E61648136EE68")
+                    b.HasIndex("Email")
                         .IsUnique();
 
                     b.ToTable("Users");
@@ -683,11 +683,11 @@ namespace SmartTrip.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.UserWallet", b =>
                 {
-                    b.Property<int>("WalletId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WalletId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<decimal?>("Balance")
                         .ValueGeneratedOnAdd()
@@ -702,7 +702,7 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
 
-                    b.HasKey("WalletId");
+                    b.HasKey("Id");
 
                     b.HasIndex("UserId");
 
@@ -720,14 +720,14 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
+                        .HasDefaultValueSql("GETDATE()");
 
                     b.Property<int?>("ItemId")
                         .HasColumnType("int");
 
-                    b.Property<string>("ItemType")
+                    b.Property<int?>("ItemType")
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("int");
 
                     b.Property<int?>("UserId")
                         .HasColumnType("int");

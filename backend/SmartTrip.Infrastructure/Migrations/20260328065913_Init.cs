@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace SmartTrip.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,21 +15,21 @@ namespace SmartTrip.Infrastructure.Migrations
                 name: "Amenities",
                 columns: table => new
                 {
-                    AmenityId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     IconUrl = table.Column<string>(type: "varchar(255)", unicode: false, maxLength: 255, nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Amenities", x => x.AmenityId);
+                    table.PrimaryKey("PK_Amenities", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
                 name: "BusCompanies",
                 columns: table => new
                 {
-                    CompanyId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Hotline = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: true),
@@ -37,14 +37,14 @@ namespace SmartTrip.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_BusCompanies", x => x.CompanyId);
+                    table.PrimaryKey("PK_BusCompanies", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
                 name: "Destinations",
                 columns: table => new
                 {
-                    DestId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -53,29 +53,29 @@ namespace SmartTrip.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Destinations", x => x.DestId);
+                    table.PrimaryKey("PK_Destinations", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
                 name: "Galleries",
                 columns: table => new
                 {
-                    PhotoId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    ReferenceType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    ReferenceType = table.Column<int>(type: "int", maxLength: 50, nullable: true),
                     ReferenceId = table.Column<int>(type: "int", nullable: true),
                     ImageUrl = table.Column<string>(type: "varchar(255)", unicode: false, maxLength: 255, nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Galleries", x => x.PhotoId);
+                    table.PrimaryKey("PK_Galleries", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
                 name: "Promotions",
                 columns: table => new
                 {
-                    PromoId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Code = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: true),
                     DiscountPercent = table.Column<double>(type: "float", nullable: true),
@@ -86,36 +86,36 @@ namespace SmartTrip.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Promotions", x => x.PromoId);
+                    table.PrimaryKey("PK_Promotions", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
                 name: "Users",
                 columns: table => new
                 {
-                    UserId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Email = table.Column<string>(type: "varchar(100)", unicode: false, maxLength: 100, nullable: false),
                     PasswordHash = table.Column<string>(type: "varchar(255)", unicode: false, maxLength: 255, nullable: true),
                     FullName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Phone = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: true),
                     AvatarUrl = table.Column<string>(type: "varchar(255)", unicode: false, maxLength: 255, nullable: true),
-                    AuthProvider = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true, defaultValue: "LOCAL"),
+                    AuthProvider = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true, defaultValue: "Local"),
                     SocialId = table.Column<string>(type: "varchar(255)", unicode: false, maxLength: 255, nullable: true),
-                    Role = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true, defaultValue: "USER"),
+                    Role = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true, defaultValue: "User"),
                     IsActive = table.Column<bool>(type: "bit", nullable: true, defaultValue: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "(getdate())")
+                    CreatedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "GETDATE()")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Users", x => x.UserId);
+                    table.PrimaryKey("PK_Users", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
                 name: "BusSchedules",
                 columns: table => new
                 {
-                    ScheduleId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     CompanyId = table.Column<int>(type: "int", nullable: true),
                     FromDestId = table.Column<int>(type: "int", nullable: true),
@@ -128,29 +128,29 @@ namespace SmartTrip.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_BusSchedules", x => x.ScheduleId);
+                    table.PrimaryKey("PK_BusSchedules", x => x.Id);
                     table.ForeignKey(
                         name: "FK_BusSchedules_BusCompanies_CompanyId",
                         column: x => x.CompanyId,
                         principalTable: "BusCompanies",
-                        principalColumn: "CompanyId");
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_BusSchedules_Destinations_FromDestId",
                         column: x => x.FromDestId,
                         principalTable: "Destinations",
-                        principalColumn: "DestId");
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_BusSchedules_Destinations_ToDestId",
                         column: x => x.ToDestId,
                         principalTable: "Destinations",
-                        principalColumn: "DestId");
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "Hotels",
                 columns: table => new
                 {
-                    HotelId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     DestinationId = table.Column<int>(type: "int", nullable: true),
                     Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
@@ -161,69 +161,69 @@ namespace SmartTrip.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Hotels", x => x.HotelId);
+                    table.PrimaryKey("PK_Hotels", x => x.Id);
                     table.ForeignKey(
                         name: "FK_Hotels_Destinations_DestinationId",
                         column: x => x.DestinationId,
                         principalTable: "Destinations",
-                        principalColumn: "DestId");
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "BlogPosts",
                 columns: table => new
                 {
-                    PostId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     AuthorId = table.Column<int>(type: "int", nullable: true),
                     DestinationId = table.Column<int>(type: "int", nullable: true),
                     Title = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
                     ContentHtml = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ThumbnailUrl = table.Column<string>(type: "varchar(255)", unicode: false, maxLength: 255, nullable: true),
-                    PublishedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "(getdate())")
+                    PublishedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "GETDATE()")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_BlogPosts", x => x.PostId);
+                    table.PrimaryKey("PK_BlogPosts", x => x.Id);
                     table.ForeignKey(
                         name: "FK_BlogPosts_Destinations_DestinationId",
                         column: x => x.DestinationId,
                         principalTable: "Destinations",
-                        principalColumn: "DestId");
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_BlogPosts_Users_AuthorId",
                         column: x => x.AuthorId,
                         principalTable: "Users",
-                        principalColumn: "UserId");
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "Notifications",
                 columns: table => new
                 {
-                    NotiId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<int>(type: "int", nullable: true),
                     Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
                     Message = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     IsRead = table.Column<bool>(type: "bit", nullable: true, defaultValue: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "(getdate())")
+                    CreatedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "GETDATE()")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Notifications", x => x.NotiId);
+                    table.PrimaryKey("PK_Notifications", x => x.Id);
                     table.ForeignKey(
                         name: "FK_Notifications_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
-                        principalColumn: "UserId");
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "Trips",
                 columns: table => new
                 {
-                    TripId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<int>(type: "int", nullable: true),
                     DestinationId = table.Column<int>(type: "int", nullable: true),
@@ -232,29 +232,29 @@ namespace SmartTrip.Infrastructure.Migrations
                     EndDate = table.Column<DateOnly>(type: "date", nullable: true),
                     TotalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: true, defaultValue: 0m),
                     TotalProfit = table.Column<decimal>(type: "decimal(18,2)", nullable: true, defaultValue: 0m),
-                    Status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true, defaultValue: "DRAFT"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "(getdate())")
+                    Status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true, defaultValue: "Draft"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "GETDATE()")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Trips", x => x.TripId);
+                    table.PrimaryKey("PK_Trips", x => x.Id);
                     table.ForeignKey(
                         name: "FK_Trips_Destinations_DestinationId",
                         column: x => x.DestinationId,
                         principalTable: "Destinations",
-                        principalColumn: "DestId");
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_Trips_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
-                        principalColumn: "UserId");
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "UserWallets",
                 columns: table => new
                 {
-                    WalletId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<int>(type: "int", nullable: true),
                     Balance = table.Column<decimal>(type: "decimal(18,2)", nullable: true, defaultValue: 0m),
@@ -262,12 +262,12 @@ namespace SmartTrip.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_UserWallets", x => x.WalletId);
+                    table.PrimaryKey("PK_UserWallets", x => x.Id);
                     table.ForeignKey(
                         name: "FK_UserWallets_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
-                        principalColumn: "UserId");
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -277,9 +277,9 @@ namespace SmartTrip.Infrastructure.Migrations
                     WishId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<int>(type: "int", nullable: true),
-                    ItemType = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
+                    ItemType = table.Column<int>(type: "int", maxLength: 20, nullable: true),
                     ItemId = table.Column<int>(type: "int", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "(getdate())")
+                    CreatedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "GETDATE()")
                 },
                 constraints: table =>
                 {
@@ -288,27 +288,27 @@ namespace SmartTrip.Infrastructure.Migrations
                         name: "FK_Wishlists_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
-                        principalColumn: "UserId");
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "Seats",
                 columns: table => new
                 {
-                    SeatId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     ScheduleId = table.Column<int>(type: "int", nullable: true),
                     SeatNumber = table.Column<string>(type: "varchar(10)", unicode: false, maxLength: 10, nullable: true),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true, defaultValue: "AVAILABLE")
+                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true, defaultValue: "Available")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Seats", x => x.SeatId);
+                    table.PrimaryKey("PK_Seats", x => x.Id);
                     table.ForeignKey(
                         name: "FK_Seats_BusSchedules_ScheduleId",
                         column: x => x.ScheduleId,
                         principalTable: "BusSchedules",
-                        principalColumn: "ScheduleId");
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -325,19 +325,19 @@ namespace SmartTrip.Infrastructure.Migrations
                         name: "FK_HotelAmenityMapping_Amenities_AmenityId",
                         column: x => x.AmenityId,
                         principalTable: "Amenities",
-                        principalColumn: "AmenityId");
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_HotelAmenityMapping_Hotels_HotelId",
                         column: x => x.HotelId,
                         principalTable: "Hotels",
-                        principalColumn: "HotelId");
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "Rooms",
                 columns: table => new
                 {
-                    RoomId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     HotelId = table.Column<int>(type: "int", nullable: true),
                     RoomType = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
@@ -348,97 +348,97 @@ namespace SmartTrip.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Rooms", x => x.RoomId);
+                    table.PrimaryKey("PK_Rooms", x => x.Id);
                     table.ForeignKey(
                         name: "FK_Rooms_Hotels_HotelId",
                         column: x => x.HotelId,
                         principalTable: "Hotels",
-                        principalColumn: "HotelId");
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "Invoices",
                 columns: table => new
                 {
-                    InvoiceId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     TripId = table.Column<int>(type: "int", nullable: true),
                     InvoiceNumber = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: true),
                     TaxAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     PdfUrl = table.Column<string>(type: "varchar(255)", unicode: false, maxLength: 255, nullable: true),
-                    IssuedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "(getdate())")
+                    IssuedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "GETDATE()")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Invoices", x => x.InvoiceId);
+                    table.PrimaryKey("PK_Invoices", x => x.Id);
                     table.ForeignKey(
                         name: "FK_Invoices_Trips_TripId",
                         column: x => x.TripId,
                         principalTable: "Trips",
-                        principalColumn: "TripId");
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "Payments",
                 columns: table => new
                 {
-                    PaymentId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     TripId = table.Column<int>(type: "int", nullable: true),
-                    PaymentMethod = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    PaymentMethod = table.Column<int>(type: "int", maxLength: 50, nullable: true),
                     TransactionId = table.Column<string>(type: "varchar(100)", unicode: false, maxLength: 100, nullable: true),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    Status = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    PaidAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "(getdate())")
+                    Status = table.Column<int>(type: "int", maxLength: 50, nullable: true),
+                    PaidAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "GETDATE()")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Payments", x => x.PaymentId);
+                    table.PrimaryKey("PK_Payments", x => x.Id);
                     table.ForeignKey(
                         name: "FK_Payments_Trips_TripId",
                         column: x => x.TripId,
                         principalTable: "Trips",
-                        principalColumn: "TripId");
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "Reviews",
                 columns: table => new
                 {
-                    ReviewId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<int>(type: "int", nullable: true),
                     TripId = table.Column<int>(type: "int", nullable: true),
-                    TargetType = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
+                    TargetType = table.Column<int>(type: "int", maxLength: 20, nullable: true),
                     TargetId = table.Column<int>(type: "int", nullable: true),
                     Rating = table.Column<int>(type: "int", nullable: true),
                     Comment = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "(getdate())")
+                    CreatedAt = table.Column<DateTime>(type: "datetime", nullable: true, defaultValueSql: "GETDATE()")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Reviews", x => x.ReviewId);
+                    table.PrimaryKey("PK_Reviews", x => x.Id);
                     table.ForeignKey(
                         name: "FK_Reviews_Trips_TripId",
                         column: x => x.TripId,
                         principalTable: "Trips",
-                        principalColumn: "TripId");
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_Reviews_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
-                        principalColumn: "UserId");
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
                 name: "TripItineraries",
                 columns: table => new
                 {
-                    ItineraryId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     TripId = table.Column<int>(type: "int", nullable: true),
                     DayNumber = table.Column<int>(type: "int", nullable: true),
-                    ServiceType = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
+                    ServiceType = table.Column<int>(type: "int", maxLength: 20, nullable: true),
                     ServiceId = table.Column<int>(type: "int", nullable: true),
                     Quantity = table.Column<int>(type: "int", nullable: true, defaultValue: 1),
                     BookedPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
@@ -446,12 +446,12 @@ namespace SmartTrip.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_TripItineraries", x => x.ItineraryId);
+                    table.PrimaryKey("PK_TripItineraries", x => x.Id);
                     table.ForeignKey(
                         name: "FK_TripItineraries_Trips_TripId",
                         column: x => x.TripId,
                         principalTable: "Trips",
-                        principalColumn: "TripId");
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateIndex(
@@ -490,16 +490,16 @@ namespace SmartTrip.Infrastructure.Migrations
                 column: "DestinationId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Invoices_TripId",
-                table: "Invoices",
-                column: "TripId");
-
-            migrationBuilder.CreateIndex(
-                name: "UQ__INVOICES__8081A63A2087F6B0",
+                name: "IX_Invoices_InvoiceNumber",
                 table: "Invoices",
                 column: "InvoiceNumber",
                 unique: true,
                 filter: "[InvoiceNumber] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Invoices_TripId",
+                table: "Invoices",
+                column: "TripId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Notifications_UserId",
@@ -512,7 +512,7 @@ namespace SmartTrip.Infrastructure.Migrations
                 column: "TripId");
 
             migrationBuilder.CreateIndex(
-                name: "UQ__PROMOTIO__357D4CF99F93BAFB",
+                name: "IX_Promotions_Code",
                 table: "Promotions",
                 column: "Code",
                 unique: true,
@@ -554,7 +554,7 @@ namespace SmartTrip.Infrastructure.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "UQ__USERS__AB6E61648136EE68",
+                name: "IX_Users_Email",
                 table: "Users",
                 column: "Email",
                 unique: true);

@@ -38,15 +38,23 @@ namespace SmartTrip.API.Controllers
             {
                 access_token = result.Token,
                 token_type = "Bearer",
-                expires_in = 3600 // Thực tế bạn nên đưa Expire ra Result Dto luôn nếu muốn chuẩn hơn.
+                expires_in = result.ExpiresIn
             });
         }
 
         [HttpPost("register")]
         [AllowAnonymous]
-        public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
-            var result = await _authService.RegisterAsync(request);
+            var registerDto = new RegisterRequestDto
+            {
+                Email = request.Email,
+                Password = request.Password,
+                FullName = request.FullName,
+                Phone = request.Phone
+            };
+
+            var result = await _authService.RegisterAsync(registerDto);
 
             if (!result.IsSuccess)
             {
@@ -58,20 +66,30 @@ namespace SmartTrip.API.Controllers
 
         [HttpPost("forgot-password")]
         [AllowAnonymous]
-        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto request)
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
         {
-            // Luôn trả về OK để không lộ lọt rò rỉ Email đang tồn tại ở hệ thống,
-            // dù email có tồn tại hay không.
-            await _authService.ForgotPasswordAsync(request);
+            var forgotPasswordDto = new ForgotPasswordRequestDto
+            {
+                Email = request.Email
+            };
 
-            return Ok(new { message = "Nếu email hợp lệ, một liên kết sẽ gửi đến hòm thư của bạn." });
+            await _authService.ForgotPasswordAsync(forgotPasswordDto);
+
+            return Ok(new { message = "Nếu email hợp lệ, một liên kết sẽ được gửi đến hòm thư của bạn." });
         }
 
         [HttpPost("reset-password")]
         [AllowAnonymous]
-        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDto request)
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
         {
-            var success = await _authService.ResetPasswordAsync(request);
+            var resetPasswordDto = new ResetPasswordRequestDto
+            {
+                Email = request.Email,
+                Token = request.Token,
+                NewPassword = request.NewPassword
+            };
+
+            var success = await _authService.ResetPasswordAsync(resetPasswordDto);
 
             if (!success)
                 return BadRequest(new { message = "Yêu cầu đặt lại mật khẩu không hợp lệ hoặc đã hết hạn." });
@@ -83,7 +101,6 @@ namespace SmartTrip.API.Controllers
         [Authorize]
         public IActionResult GetProfile()
         {
-            // Lấy email từ token gửi lên
             var email = User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Email)?.Value;
 
             return Ok(new

@@ -34,7 +34,6 @@ namespace SmartTrip.Application.Services
                 return new AuthResultDto { IsSuccess = false, ErrorMessage = "Tài khoản đã bị khóa." };
             }
 
-            // Dùng BCrypt để verify mật khẩu
             bool isPasswordValid = VerifyPassword(request.Password, user.PasswordHash);
 
             if (!isPasswordValid)
@@ -42,39 +41,35 @@ namespace SmartTrip.Application.Services
                 return new AuthResultDto { IsSuccess = false, ErrorMessage = "Mật khẩu không chính xác." };
             }
 
-            // Mật khẩu đúng -> AuthService tự sinh token thông qua TokenService
-            string jwtToken = _tokenService.GenerateToken(user.Email);  // Hoặc đổi truyền UserId sang tuỳ bạn
+            string jwtToken = _tokenService.GenerateToken(user.Email);
 
             return new AuthResultDto
             {
                 IsSuccess = true,
-                Token = jwtToken // Trả trực tiếp Token ra ngoài
+                Token = jwtToken 
             };
         }
 
         public async Task<AuthResultDto> RegisterAsync(RegisterRequestDto request)
         {
-            // Kiểm tra email tồn tại chưa
             var existingUser = await _userRepository.GetUserByEmailAsync(request.Email);
             if (existingUser != null)
             {
                 return new AuthResultDto { IsSuccess = false, ErrorMessage = "Email đã được sử dụng." };
             }
 
-            // Mã hoá mật khẩu
             string hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
-            // Tạo đối tượng User
             var newUser = new User
             {
                 Email = request.Email,
                 PasswordHash = hashedPassword,
                 FullName = request.FullName,
                 Phone = request.Phone,
-                Role = UserRole.User.ToString(), // Gán quyền MẶC ĐỊNH
+                Role = UserRole.User, 
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
-                AuthProvider = "Local" // Phân biệt với Google/Facebook login
+                AuthProvider = AuthProvider.Local 
             };
 
             bool isCreated = await _userRepository.AddUserAsync(newUser);
@@ -84,7 +79,6 @@ namespace SmartTrip.Application.Services
                 return new AuthResultDto { IsSuccess = false, ErrorMessage = "Lỗi khi lưu vào cơ sở dữ liệu." };
             }
 
-            // (Tuỳ chọn) Gửi mail Welcome
             _ = _emailService.SendEmailAsync(newUser.Email, "Chào mừng đến với SmartTrip", $"Xin chào {newUser.FullName}, tài khoản của bạn đã được tạo thành công.");
 
             return new AuthResultDto { IsSuccess = true };
@@ -95,16 +89,10 @@ namespace SmartTrip.Application.Services
             var user = await _userRepository.GetUserByEmailAsync(request.Email);
             if (user == null || user.IsActive == false)
             {
-                return false; // Tránh lộ thông tin email có tồn tại hay không cho hacker
+                return false; 
             }
 
-            // Sinh Reset Token bảo mật. (Cách đơn giản: dùng một JWT ngắn hạn, hoặc Random String lưu vào Cache/DB).
-            // Ở đây mình ví dụ sinh chuỗi ngẫu nhiên (nếu dùng DB, bạn nên có cột ResetPasswordToken ở Entity User).
-            // VD tạm: Ta gửi link có 1 token giả lập.
             string resetToken = Guid.NewGuid().ToString();
-
-            // TODO: Ở hệ thống thực, cần lưu resetToken vào cache (Redis) với hạn 15 phút kèm theo email,
-            // HOẶC thêm 2 trường `ResetToken` và `ResetTokenExpiry` vào table `User` và lưu csdl.
 
             string resetLink = $"https://yourfrontend.com/reset-password?email={user.Email}&token={resetToken}";
             string mailContent = $"Vui lòng click vào link sau để đặt lại mật khẩu của bạn: <a href='{resetLink}'>Đặt lại mật khẩu</a>";
@@ -119,13 +107,7 @@ namespace SmartTrip.Application.Services
             var user = await _userRepository.GetUserByEmailAsync(request.Email);
             if (user == null) return false;
 
-            // TODO: Verify cái `request.Token` với Database/Cache xem còn hạn không và có khớp không.
-            // if (user.ResetToken != request.Token || user.ResetTokenExpiry < DateTime.UtcNow) return false;
-
-            // Cập nhật pass mới
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
-            // Xóa token đi (để dùng 1 lần)
-            // user.ResetToken = null;
 
             return await _userRepository.UpdateUserAsync(user);
         }

@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SmartTrip.Domain.Entities;
 
-public partial class BusCompany
+public class BusCompany
 {
-    public int CompanyId { get; set; }
+    public int Id { get; set; }
 
     public string? Name { get; set; }
 
@@ -15,3 +15,5 @@ public partial class BusCompany
 
     public virtual ICollection<BusSchedule> BusSchedules { get; set; } = new List<BusSchedule>();
 }
+
+

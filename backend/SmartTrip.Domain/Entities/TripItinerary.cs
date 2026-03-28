@@ -1,17 +1,18 @@
-﻿using System;
+using SmartTrip.Domain.Enums;
+using System;
 using System.Collections.Generic;
 
 namespace SmartTrip.Domain.Entities;
 
-public partial class TripItinerary
+public class TripItinerary
 {
-    public int ItineraryId { get; set; }
+    public int Id { get; set; }
 
     public int? TripId { get; set; }
 
     public int? DayNumber { get; set; }
 
-    public string? ServiceType { get; set; }
+    public TripServiceType? ServiceType { get; set; }
 
     public int? ServiceId { get; set; }
 
@@ -23,3 +24,6 @@ public partial class TripItinerary
 
     public virtual Trip? Trip { get; set; }
 }
+
+
+

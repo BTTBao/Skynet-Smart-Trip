@@ -3,7 +3,7 @@
     public interface IUserRepository
     {
         Task<Domain.Entities.User?> GetUserByEmailAsync(string email);
-        Task<bool> AddUserAsync(Domain.Entities.User user); // Trả về true nếu thành công
+        Task<bool> AddUserAsync(Domain.Entities.User user);
         Task<bool> UpdateUserAsync(Domain.Entities.User user);
     }
 }
