@@ -1,0 +1,8 @@
+{
+  "userId": 1,
+  "destinationId": 1,
+  "title": "Test Trip From API",
+  "startDate": "2026-04-01",
+  "endDate": "2026-04-05",
+  "status": "DRAFT"
+}

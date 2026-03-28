@@ -27,8 +27,8 @@ class TripUiPreviewView extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           _PreviewCard(
-            title: 'Chuyến đi của tôi',
-            subtitle: 'Danh sách chuyến đi với nút + nổi để tạo mới.',
+            title: 'Chuyen di cua toi',
+            subtitle: 'Danh sach chuyen di voi nut tao moi.',
             icon: Icons.luggage_rounded,
             onTap: () {
               Navigator.of(context).push(
@@ -38,8 +38,8 @@ class TripUiPreviewView extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _PreviewCard(
-            title: 'Tạo chuyến đi mới',
-            subtitle: 'UI form khởi tạo chuyến đi theo mockup.',
+            title: 'Tao chuyen di moi',
+            subtitle: 'Form tao trip va goi API tao moi.',
             icon: Icons.add_road_rounded,
             onTap: () {
               Navigator.of(context).push(
@@ -49,16 +49,17 @@ class TripUiPreviewView extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _PreviewCard(
-            title: 'Lịch trình chi tiết',
-            subtitle: 'UI timeline chi tiết cho từng ngày trong chuyến đi.',
+            title: 'Lich trinh chi tiet',
+            subtitle: 'Mo nhanh man hinh chi tiet bang trip id = 1.',
             icon: Icons.route_rounded,
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => TripItineraryDetailView(
-                    tripTitle: 'Khám phá Đà Nẵng - Hội An',
-                    startDate: DateTime(2024, 5, 15),
-                    endDate: DateTime(2024, 5, 18),
+                    tripId: 1,
+                    tripTitle: 'Trip #1',
+                    startDate: DateTime(2026, 4, 1),
+                    endDate: DateTime(2026, 4, 3),
                   ),
                 ),
               );

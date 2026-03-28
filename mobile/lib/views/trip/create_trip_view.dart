@@ -1,19 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import 'trip_ui_constants.dart';
-import 'trip_itinerary_detail_view.dart';
+import '../../models/create_trip_request.dart';
+import '../../models/update_trip_request.dart';
+import '../../providers/trip_provider.dart';
 import '../../widgets/trip/widgets.dart';
+import 'trip_itinerary_detail_view.dart';
+import 'trip_ui_constants.dart';
 
 class CreateTripView extends StatefulWidget {
-  const CreateTripView({super.key});
+  final int? editTripId;
+  final String? initialTitle;
+  final String? initialDestination;
+  final DateTime? initialStartDate;
+  final DateTime? initialEndDate;
+
+  const CreateTripView({
+    super.key,
+    this.editTripId,
+    this.initialTitle,
+    this.initialDestination,
+    this.initialStartDate,
+    this.initialEndDate,
+  });
 
   @override
   State<CreateTripView> createState() => _CreateTripViewState();
 }
 
 class _CreateTripViewState extends State<CreateTripView> {
-  final _tripNameController = TextEditingController();
-  final _destinationController = TextEditingController();
+  late final TextEditingController _tripNameController;
+  late final TextEditingController _destinationController;
 
   DateTime? _startDate;
   DateTime? _endDate;
@@ -23,11 +40,28 @@ class _CreateTripViewState extends State<CreateTripView> {
   bool _endDateTouched = false;
 
   @override
+  void initState() {
+    super.initState();
+    _tripNameController = TextEditingController(text: widget.initialTitle);
+    _destinationController = TextEditingController(text: widget.initialDestination);
+    _startDate = widget.initialStartDate;
+    _endDate = widget.initialEndDate;
+    if (widget.editTripId != null) {
+      _tripNameTouched = true;
+      _destinationTouched = true;
+      _startDateTouched = true;
+      _endDateTouched = true;
+    }
+  }
+
+  @override
   void dispose() {
     _tripNameController.dispose();
     _destinationController.dispose();
     super.dispose();
   }
+
+  bool get _isEditMode => widget.editTripId != null;
 
   DateTime get _today {
     final now = DateTime.now();
@@ -36,53 +70,51 @@ class _CreateTripViewState extends State<CreateTripView> {
 
   String? get _tripNameValidation {
     if (_tripNameController.text.trim().isEmpty) {
-      return 'Nhập tên chuyến đi';
+      return 'Nhap ten chuyen di';
     }
     return null;
   }
 
   String? get _destinationValidation {
     if (_destinationController.text.trim().isEmpty) {
-      return 'Nhập địa điểm';
+      return 'Nhap diem den';
     }
     return null;
   }
 
   String? get _startDateValidation {
     if (_startDate == null) {
-      return 'Chọn ngày đi';
+      return 'Chon ngay di';
     }
-    if (_startDate!.isBefore(_today)) {
-      return 'Ngày đi không được ở quá khứ';
+    // Only validate past date for NEW trips
+    if (!_isEditMode && _startDate!.isBefore(_today)) {
+      return 'Ngay di khong duoc o qua khu';
     }
     return null;
   }
 
   String? get _endDateValidation {
     if (_endDate == null) {
-      return 'Chọn ngày về';
+      return 'Chon ngay ve';
     }
-    if (_endDate!.isBefore(_today)) {
-      return 'Ngày về không được ở quá khứ';
+    if (!_isEditMode && _endDate!.isBefore(_today)) {
+      return 'Ngay ve khong duoc o qua khu';
     }
     if (_startDate == null) {
-      return 'Chọn ngày đi trước';
+      return 'Chon ngay di truoc';
     }
     if (_endDate!.isBefore(_startDate!)) {
-      return 'Ngày về không được nhỏ hơn ngày đi';
+      return 'Ngay ve khong duoc nho hon ngay di';
     }
     if (_endDate!.difference(_startDate!).inDays > 30) {
-      return 'Ngày về không được lớn hơn ngày đi quá 30 ngày';
+      return 'Ngay ve khong duoc lon hon ngay di qua 30 ngay';
     }
     return null;
   }
 
   String? get _tripNameError => _tripNameTouched ? _tripNameValidation : null;
-
   String? get _destinationError => _destinationTouched ? _destinationValidation : null;
-
   String? get _startDateError => _startDateTouched ? _startDateValidation : null;
-
   String? get _endDateError => _endDateTouched ? _endDateValidation : null;
 
   bool get _isFormValid {
@@ -97,7 +129,7 @@ class _CreateTripViewState extends State<CreateTripView> {
     final initialDate = isStartDate
         ? _startDate ?? today
         : _endDate ?? _startDate ?? today;
-    final firstDate = isStartDate ? today : (_startDate ?? today);
+    final firstDate = _isEditMode ? DateTime(2000) : (isStartDate ? today : (_startDate ?? today));
     final lastDate = isStartDate
         ? DateTime(today.year + 5, today.month, today.day)
         : (_startDate?.add(const Duration(days: 30)) ??
@@ -105,7 +137,7 @@ class _CreateTripViewState extends State<CreateTripView> {
 
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: initialDate,
+      initialDate: initialDate.isBefore(firstDate) ? firstDate : initialDate,
       firstDate: firstDate,
       lastDate: lastDate,
       builder: (context, child) {
@@ -142,18 +174,70 @@ class _CreateTripViewState extends State<CreateTripView> {
     });
   }
 
-  void _openTripDetail() {
+  Future<void> _handleSave() async {
     if (!_isFormValid || _startDate == null || _endDate == null) {
       return;
     }
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => TripItineraryDetailView(
-          tripTitle: _tripNameController.text.trim(),
+    final tripProvider = context.read<TripProvider>();
+    
+    if (_isEditMode) {
+      final success = await tripProvider.updateTrip(
+        widget.editTripId!,
+        UpdateTripRequest(
+          title: _tripNameController.text.trim(),
+          destinationName: _destinationController.text.trim(),
           startDate: _startDate!,
           endDate: _endDate!,
-          travelerInitial: _tripNameController.text.trim()[0].toUpperCase(),
+        ),
+      );
+
+      if (!mounted) return;
+
+      if (success) {
+        Navigator.of(context).maybePop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Da cap nhat chuyen di.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tripProvider.error ?? 'Cap nhat that bai.')),
+        );
+      }
+      return;
+    }
+
+    final createdTrip = await tripProvider.createTrip(
+      CreateTripRequest(
+        userId: 1,
+        title: _tripNameController.text.trim(),
+        destinationName: _destinationController.text.trim(),
+        startDate: _startDate!,
+        endDate: _endDate!,
+        status: 'DRAFT',
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (createdTrip == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tripProvider.error ?? 'Khong tao duoc chuyen di.')),
+      );
+      return;
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => TripItineraryDetailView(
+          tripId: createdTrip.tripId,
+          tripTitle: createdTrip.title,
+          startDate: createdTrip.startDate,
+          endDate: createdTrip.endDate,
+          travelerInitial:
+              createdTrip.title.isEmpty ? 'T' : createdTrip.title[0].toUpperCase(),
         ),
       ),
     );
@@ -161,6 +245,8 @@ class _CreateTripViewState extends State<CreateTripView> {
 
   @override
   Widget build(BuildContext context) {
+    final isSubmitting = context.watch<TripProvider>().isSubmitting;
+
     return Scaffold(
       backgroundColor: TripUiColors.background,
       body: SafeArea(
@@ -170,17 +256,17 @@ class _CreateTripViewState extends State<CreateTripView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TripScreenHeader(
-                title: 'Tạo chuyến đi mới',
+                title: _isEditMode ? 'Chinh sua chuyen di' : 'Tao chuyen di moi',
                 onBack: () => Navigator.of(context).maybePop(),
               ),
               const SizedBox(height: 16),
               const CreateTripHeroCard(),
               const SizedBox(height: 16),
-              const TripSectionLabel('Tên chuyến đi'),
+              const TripSectionLabel('Ten chuyen di'),
               const SizedBox(height: 8),
               CreateTripEditableInput(
                 controller: _tripNameController,
-                hintText: 'Nhập tên chuyến đi của bạn...',
+                hintText: 'Nhap ten chuyen di cua ban...',
                 onChanged: (_) {
                   setState(() {
                     _tripNameTouched = true;
@@ -195,7 +281,7 @@ class _CreateTripViewState extends State<CreateTripView> {
                 children: [
                   Expanded(
                     child: CreateTripDateField(
-                      label: 'Ngày đi',
+                      label: 'Ngay di',
                       date: _startDate,
                       onTap: () => _pickDate(isStartDate: true),
                       errorText: _startDateError,
@@ -204,7 +290,7 @@ class _CreateTripViewState extends State<CreateTripView> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: CreateTripDateField(
-                      label: 'Ngày về',
+                      label: 'Ngay ve',
                       date: _endDate,
                       onTap: () => _pickDate(isStartDate: false),
                       errorText: _endDateError,
@@ -213,11 +299,11 @@ class _CreateTripViewState extends State<CreateTripView> {
                 ],
               ),
               const SizedBox(height: 16),
-              const TripSectionLabel('Điểm đến'),
+              const TripSectionLabel('Diem den'),
               const SizedBox(height: 8),
               CreateTripEditableInput(
                 controller: _destinationController,
-                hintText: 'Nhập địa điểm...',
+                hintText: 'Nhap diem den...',
                 onChanged: (_) {
                   setState(() {
                     _destinationTouched = true;
@@ -232,8 +318,8 @@ class _CreateTripViewState extends State<CreateTripView> {
                   Expanded(
                     child: TripOptionCard(
                       icon: Icons.group_outlined,
-                      title: 'Bạn đồng hành',
-                      subtitle: 'Thêm người đi cùng',
+                      title: 'Ban dong hanh',
+                      subtitle: 'Them nguoi di cung',
                       iconBackground: Color(0xFFE7FFF0),
                       iconColor: TripUiColors.primaryGreen,
                     ),
@@ -242,8 +328,8 @@ class _CreateTripViewState extends State<CreateTripView> {
                   Expanded(
                     child: TripOptionCard(
                       icon: Icons.account_balance_wallet_outlined,
-                      title: 'Ngân sách',
-                      subtitle: 'Thiết lập chi tiêu',
+                      title: 'Ngan sach',
+                      subtitle: 'Thiet lap chi tieu',
                       iconBackground: Color(0xFFE8FBFF),
                       iconColor: Color(0xFF35B4CF),
                     ),
@@ -254,9 +340,9 @@ class _CreateTripViewState extends State<CreateTripView> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: _isFormValid ? _openTripDetail : null,
+                  onPressed: _isFormValid && !isSubmitting ? _handleSave : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isFormValid
+                    backgroundColor: _isFormValid && !isSubmitting
                         ? TripUiColors.primaryGreen
                         : const Color(0xFFBFC7CE),
                     foregroundColor: Colors.white,
@@ -268,14 +354,25 @@ class _CreateTripViewState extends State<CreateTripView> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  icon: const Text(
-                    'Tạo chuyến đi',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  icon: isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          _isEditMode ? 'Luu thay doi' : 'Tao chuyen di',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                  label: Icon(
+                    isSubmitting ? Icons.hourglass_top_rounded : Icons.arrow_forward_rounded,
                   ),
-                  label: const Icon(Icons.arrow_forward_rounded),
                 ),
               ),
             ],

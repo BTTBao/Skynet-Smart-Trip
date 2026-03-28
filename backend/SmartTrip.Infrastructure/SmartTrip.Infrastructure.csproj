@@ -24,7 +24,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SmartTrip.Application\SmartTrip.Application.csproj" />
     <ProjectReference Include="..\SmartTrip.Domain\SmartTrip.Domain.csproj" />
   </ItemGroup>
 

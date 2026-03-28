@@ -18,6 +18,9 @@ class TripTimeline extends StatelessWidget {
         final entry = entries[index];
         final isLast = index == entries.length - 1;
         final connectorHeight = entry.imageColors == null ? 146.0 : 220.0;
+        final headerLabel = entry.time.trim().isEmpty
+            ? entry.sectionTitle.toUpperCase()
+            : '${entry.time} • ${entry.sectionTitle.toUpperCase()}';
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,7 +63,7 @@ class TripTimeline extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${entry.time} • ${entry.sectionTitle.toUpperCase()}',
+                      headerLabel,
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,

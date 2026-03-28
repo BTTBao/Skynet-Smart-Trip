@@ -1,7 +1,8 @@
+using SmartTrip.Application.Interfaces.Trip;
 using SmartTrip.Application.Interfaces.User;
+using SmartTrip.Application.Services.Trip;
 using SmartTrip.Application.Services.User;
-using SmartTrip.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
+using SmartTrip.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,14 +10,18 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<ITripServiceOptionService, TripServiceOptionService>();
+builder.Services.AddScoped<IItineraryService, ItineraryService>();
+builder.Services.AddScoped<ITripService, TripService>();
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+});
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
-//builder.Services.AddDbContext<ApplicationDbContext>(options =>
-//    options.UseSqlServer(builder.Configuration.GetConnectionString("SmartTrip")));
 
 var app = builder.Build();
 
@@ -27,6 +32,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors();
 app.UseAuthorization();
 
 app.MapControllers();

@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/edit_itinerary_activity.dart';
 import '../../models/edit_itinerary_favorite.dart';
 import '../../models/edit_itinerary_service_type.dart';
 import '../../models/trip_timeline_entry.dart';
+import '../../providers/trip_provider.dart';
 import '../../widgets/trip/widgets.dart';
 import 'edit_itinerary_view_data.dart';
 import 'trip_ui_constants.dart';
@@ -11,11 +12,13 @@ import 'trip_ui_constants.dart';
 class EditItineraryView extends StatefulWidget {
   const EditItineraryView({
     super.key,
+    required this.tripId,
     required this.tripTitle,
     required this.travelerInitial,
     required this.entries,
   });
 
+  final int tripId;
   final String tripTitle;
   final String travelerInitial;
   final List<TripTimelineEntry> entries;
@@ -35,7 +38,21 @@ class _EditItineraryViewState extends State<EditItineraryView> {
         : widget.entries.map(_mapTimelineEntryToActivity).toList();
   }
 
-  void _removeActivity(int index) {
+  Future<void> _removeActivity(int index) async {
+    final activity = _activities[index];
+    if (activity.itineraryId != null) {
+      final tripProvider = context.read<TripProvider>();
+      final success = await tripProvider.deleteItinerary(activity.itineraryId!);
+      if (!mounted) return;
+      
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tripProvider.error ?? 'Xóa dịch vụ thất bại.')),
+        );
+        return;
+      }
+    }
+
     setState(() {
       _activities.removeAt(index);
     });
@@ -118,16 +135,22 @@ class _EditItineraryViewState extends State<EditItineraryView> {
                 ],
               ),
               const SizedBox(height: 10),
-              ...List.generate(_activities.length, (index) {
-                final activity = _activities[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: EditItineraryActivityCard(
-                    activity: activity,
-                    onDelete: () => _removeActivity(index),
-                  ),
-                );
-              }),
+              if (context.watch<TripProvider>().isSubmitting)
+                const Center(child: Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: CircularProgressIndicator(),
+                ))
+              else
+                ...List.generate(_activities.length, (index) {
+                  final activity = _activities[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: EditItineraryActivityCard(
+                      activity: activity,
+                      onDelete: () => _removeActivity(index),
+                    ),
+                  );
+                }),
               const SizedBox(height: 18),
               const EditItinerarySectionHeader(title: 'Thêm dịch vụ mới'),
               const SizedBox(height: 12),
@@ -170,8 +193,9 @@ class _EditItineraryViewState extends State<EditItineraryView> {
                 child: ElevatedButton.icon(
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Đã lưu lịch trình.')),
+                      const SnackBar(content: Text('Chức năng cập nhật số lượng sẽ có trong phiên bản tới.')),
                     );
+                    Navigator.of(context).maybePop();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF7BE495),
@@ -182,9 +206,9 @@ class _EditItineraryViewState extends State<EditItineraryView> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  icon: const Icon(Icons.save_outlined),
+                  icon: const Icon(Icons.check_circle_outline_rounded),
                   label: const Text(
-                    'Lưu lịch trình',
+                    'Hoàn tất chỉnh sửa',
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 15,
@@ -201,6 +225,8 @@ class _EditItineraryViewState extends State<EditItineraryView> {
 
   EditItineraryActivity _mapTimelineEntryToActivity(TripTimelineEntry entry) {
     return EditItineraryActivity(
+      itineraryId: entry.itineraryId,
+      dayNumber: entry.dayNumber,
       title: entry.caption,
       location: entry.description,
       timeRange: '${entry.time} - ${_buildEndTime(entry.time)}',
