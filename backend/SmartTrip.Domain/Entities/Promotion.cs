@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SmartTrip.Domain.Entities;
 
-public partial class Promotion
+public class Promotion
 {
-    public int PromoId { get; set; }
+    public int Id { get; set; }
 
     public string? Code { get; set; }
 
@@ -19,3 +19,5 @@ public partial class Promotion
 
     public int? UsedCount { get; set; }
 }
+
+

@@ -1,0 +1,35 @@
+# Bỏ qua thư mục dependencies khổng lồ của Node
+node_modules/
+
+# Bỏ qua các thư mục build cục bộ
+dist/
+build/
+out/
+
+# Bỏ qua log files của npm/yarn
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+
+# Bỏ qua thư mục Git
+.git/
+.gitignore
+
+# Bỏ qua các file cấu hình IDE và editor
+.vscode/
+.idea/
+
+# Bỏ qua file môi trường cục bộ chứa thông tin nhạy cảm
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Bỏ qua OS generated files
+.DS_Store
+Thumbs.db
+
+# Bỏ qua chính file Docker
+Dockerfile*
+.dockerignore
