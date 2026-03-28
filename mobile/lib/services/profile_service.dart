@@ -4,8 +4,12 @@ import '../models/user_profile.dart';
 import 'api_service.dart';
 
 class ProfileService extends ApiService {
+  Uri _buildUserUri(String userId) => Uri.parse('$baseUrl/user/$userId');
+
+  Uri _buildUploadAvatarUri(String userId) =>
+      Uri.parse('$baseUrl/user/$userId/upload-avatar');
   // Giả lập chế độ Mock (Để bạn vẫn chạy được app khi chưa có DB thật)
-  final bool _useMock = true; 
+  final bool _useMock = false; 
 
   Future<UserProfile?> getProfile() async {
     if (_useMock) {
@@ -26,7 +30,7 @@ class ProfileService extends ApiService {
       // CODE CHO BACKEND THẬT .NET
       try {
         final response = await http.get(
-          Uri.parse('$baseUrl/profile'),
+          _buildUserUri('1'),
           headers: await getHeaders(),
         );
         return UserProfile.fromJson(handleResponse(response));
@@ -43,13 +47,38 @@ class ProfileService extends ApiService {
     } else {
       // CODE CHO BACKEND THẬT .NET
       try {
+        final userId = profile.id.isNotEmpty ? profile.id : '1';
         final response = await http.put(
-          Uri.parse('$baseUrl/profile/update'),
+          _buildUserUri(userId),
           headers: await getHeaders(),
           body: jsonEncode(profile.toJson()),
         );
         handleResponse(response);
         return true;
+      } catch (e) {
+        rethrow;
+      }
+    }
+  }
+
+  Future<String?> uploadAvatar(String filePath, {String userId = '1'}) async {
+    if (_useMock) {
+      await Future.delayed(const Duration(seconds: 1));
+      return 'https://i.pravatar.cc/150?u=mock_upload';
+    } else {
+      try {
+        var request = http.MultipartRequest(
+          'POST',
+          _buildUploadAvatarUri(userId),
+        );
+        
+        request.files.add(await http.MultipartFile.fromPath('file', filePath));
+        
+        var streamedResponse = await request.send();
+        var response = await http.Response.fromStream(streamedResponse);
+        
+        final data = handleResponse(response);
+        return data['avatarUrl'];
       } catch (e) {
         rethrow;
       }

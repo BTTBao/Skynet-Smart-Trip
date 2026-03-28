@@ -3,7 +3,9 @@ import 'package:http/http.dart' as http;
 
 abstract class ApiService {
   // Thay url này bằng URL thực tế của Backend .NET của bạn
-  final String baseUrl = "https://api.skynet-smart-trip.com/api";
+  // Thay url này bằng URL thực tế của Backend .NET. 
+  // Dùng 10.0.2.2 (Android Emulator) hoặc localhost (iOS Simulator/Windows)
+  final String baseUrl = "http://10.0.2.2:5110/api"; 
 
   Future<Map<String, String>> getHeaders() async {
     // Trong tương lai sẽ lấy token từ SecureStorage ở đây

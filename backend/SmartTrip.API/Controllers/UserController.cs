@@ -24,10 +24,29 @@ public class UserController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [HttpPatch("{id}")]
     public async Task<IActionResult> UpdateProfile(int id, [FromBody] UserDto userDto)
     {
+        if (userDto == null)
+            return BadRequest("Du lieu cap nhat khong hop le");
+
+        if (string.IsNullOrWhiteSpace(userDto.Name))
+            return BadRequest("Ten nguoi dung khong duoc de trong");
+
         var result = await _userService.UpdateUserProfileAsync(id, userDto);
         if (!result) return BadRequest("Không thể cập nhật hồ sơ");
         return Ok(new { message = "Cập nhật thành công" });
+    }
+
+    [HttpPost("{id}/upload-avatar")]
+    public async Task<IActionResult> UploadAvatar(int id, IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest("Vui lòng chọn ảnh");
+
+        var avatarUrl = await _userService.UploadAvatarAsync(id, file);
+        if (avatarUrl == null) return NotFound("Người dùng không tồn tại");
+
+        return Ok(new { avatarUrl });
     }
 }

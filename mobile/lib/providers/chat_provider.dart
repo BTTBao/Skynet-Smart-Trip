@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/chat_message.dart';
+import '../services/chat_service.dart';
 
 class ChatProvider with ChangeNotifier {
+  final ChatService _chatService = ChatService();
+  
   final List<ChatMessage> _messages = [
     ChatMessage(
       text: 'Xin chào! Tôi là Sky - trợ lý du lịch thông minh của Skynet. Tôi có thể giúp gì cho bạn hôm nay?',
@@ -26,15 +29,12 @@ class ChatProvider with ChangeNotifier {
     ));
     notifyListeners();
 
-    // Giả lập trạng thái Bot đang trả lời
+    // Trạng thái Bot đang trả lời
     _isTyping = true;
     notifyListeners();
 
-    // Giả lập delay từ AI
-    await Future.delayed(const Duration(seconds: 2));
-
-    // Phản hồi giả lập (Sẽ thay bằng API thật sau)
-    String botResponse = _getMockResponse(text);
+    // Gọi API thật từ Backend
+    String botResponse = await _chatService.getBotResponse(text);
 
     _messages.add(ChatMessage(
       text: botResponse,
@@ -44,19 +44,6 @@ class ChatProvider with ChangeNotifier {
 
     _isTyping = false;
     notifyListeners();
-  }
-
-  String _getMockResponse(String userText) {
-    userText = userText.toLowerCase();
-    if (userText.contains('đà lạt')) {
-      return 'Đà Lạt mùa này rất đẹp! Bạn nên ghé thăm Thung lũng Tình yêu và thưởng thức lẩu gà lá é nhé.';
-    } else if (userText.contains('thời tiết')) {
-      return 'Hiện tại thời tiết ở các điểm du lịch chính đang khá thuận lợi. Bạn muốn kiểm tra cụ thể ở đâu?';
-    } else if (userText.contains('khách sạn')) {
-      return 'Tôi có thể giúp bạn tìm khách sạn phù hợp. Bạn dự định đi vào ngày nào và ngân sách khoảng bao nhiêu?';
-    } else {
-      return 'Cảm ơn bạn! Tôi đang xử lý thông tin. Bạn có muốn biết thêm về các tour du lịch hot nhất hiện nay không?';
-    }
   }
 
   void clearChat() {
