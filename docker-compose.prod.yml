@@ -1,0 +1,41 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: skynet_sqlserver_prod
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${DB_PASSWORD}
+      - MSSQL_PID=Express # Trên production có thể cân nhắc bản Express để nhẹ hơn
+    ports:
+      - "${DB_PORT}:1433"
+    volumes:
+      - sqlserver_data_prod:/var/opt/mssql
+    restart: always
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: skynet_backend_prod
+    ports:
+      - "${API_PORT}:8080" 
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNET_ENV}
+      - ConnectionStrings__SmartTrip=Server=sqlserver,1434;Database=${DB_NAME};User Id=sa;Password=${DB_PASSWORD};TrustServerCertificate=True;
+    depends_on:
+      - sqlserver
+    restart: always
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: skynet_web_prod
+    ports:
+      - "${WEB_PORT}:80" # Nginx phục vụ ở cổng 80
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  sqlserver_data_prod:
