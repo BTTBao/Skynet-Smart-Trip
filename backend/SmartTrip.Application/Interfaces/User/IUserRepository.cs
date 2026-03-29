@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace SmartTrip.Application.Interfaces.User
+﻿namespace SmartTrip.Application.Interfaces.User
 {
-    internal class IUserRepository
+    public interface IUserRepository
     {
+        Task<Domain.Entities.User?> GetUserByEmailAsync(string email);
+        Task<bool> AddUserAsync(Domain.Entities.User user);
+        Task<bool> UpdateUserAsync(Domain.Entities.User user);
     }
 }

@@ -1,11 +1,12 @@
-﻿using System;
+using SmartTrip.Domain.Enums;
+using System;
 using System.Collections.Generic;
 
 namespace SmartTrip.Domain.Entities;
 
-public partial class Trip
+public class Trip
 {
-    public int TripId { get; set; }
+    public int Id { get; set; }
 
     public int? UserId { get; set; }
 
@@ -21,7 +22,7 @@ public partial class Trip
 
     public decimal? TotalProfit { get; set; }
 
-    public string? Status { get; set; }
+    public TripStatus? Status { get; set; }
 
     public DateTime? CreatedAt { get; set; }
 
@@ -37,3 +38,6 @@ public partial class Trip
 
     public virtual User? User { get; set; }
 }
+
+
+

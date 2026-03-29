@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SmartTrip.Domain.Entities;
 
-public partial class UserWallet
+public class UserWallet
 {
-    public int WalletId { get; set; }
+    public int Id { get; set; }
 
     public int? UserId { get; set; }
 
@@ -15,3 +15,5 @@ public partial class UserWallet
 
     public virtual User? User { get; set; }
 }
+
+

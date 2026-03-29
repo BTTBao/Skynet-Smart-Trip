@@ -14,7 +14,7 @@ final upcomingTrips = [
     imageGradient: const [Color(0xFF65C3D6), Color(0xFF2E7DA2)],
     avatarColors: const [Color(0xFFC57D56), Color(0xFF2D6CDF), Color(0xFF6ED89A)],
     startDate: DateTime(2024, 7, 16),
-    endDate:  DateTime(2024, 7, 20),
+    endDate:  DateTime(2024, 7, 20), tripId: 0, status: '', itineraryCount: 0,
   ),
   MyTripSummary(
     title: 'Hạ Long Kỳ Thú',
@@ -27,7 +27,7 @@ final upcomingTrips = [
     imageGradient: const [Color(0xFF8FCF95), Color(0xFF2C7A7B)],
     avatarColors: const [Color(0xFFE59E63), Color(0xFF4DA3FF), Color(0xFF34D399)],
     startDate: DateTime(2024, 9, 2),
-    endDate: DateTime(2024, 9, 5),
+    endDate: DateTime(2024, 9, 5), tripId: 0, status: '', itineraryCount: 0,
   ),
 ];
 
@@ -43,6 +43,6 @@ final completedTrips = [
     imageGradient: const [Color(0xFF9CC7E7), Color(0xFF5B87AA)],
     avatarColors: const [Color(0xFFD97706), Color(0xFF2563EB), Color(0xFF10B981)],
     startDate: DateTime(2024, 5, 12),
-    endDate:  DateTime(2024, 5, 14),
+    endDate:  DateTime(2024, 5, 14), tripId: 0, status: '', itineraryCount: 0,
   ),
 ];

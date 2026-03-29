@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 
 namespace SmartTrip.Application.DTOs.Auth
 {
-    internal class LoginRequestDto
+    public class LoginRequestDto
     {
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
     }
 }
