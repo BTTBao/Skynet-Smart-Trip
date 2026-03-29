@@ -8,6 +8,6 @@ namespace SmartTrip.Application.Interfaces.Auth
 {
     public interface ITokenService
     {
-        string GenerateToken(string email);
+        string GenerateToken(string email, int expireMinutes);
     }
 }

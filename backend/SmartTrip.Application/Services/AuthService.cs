@@ -1,4 +1,10 @@
-﻿using SmartTrip.Application.DTOs.Auth;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using SmartTrip.Application.DTOs.Auth;
+using SmartTrip.Application.DTOs.Auth.ForgotPassword;
+using SmartTrip.Application.DTOs.Auth.Login;
+using SmartTrip.Application.DTOs.Auth.Register;
+using SmartTrip.Application.DTOs.Auth.ResetPassword;
 using SmartTrip.Application.Interfaces.Auth;
 using SmartTrip.Application.Interfaces.Email;
 using SmartTrip.Application.Interfaces.User;
@@ -12,45 +18,49 @@ namespace SmartTrip.Application.Services
         private readonly IUserRepository _userRepository;
         private readonly ITokenService _tokenService;
         private readonly IEmailService _emailService;
+        private readonly IConfiguration _configuration;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(IUserRepository userRepository, ITokenService tokenService, IEmailService emailService)
+        public AuthService(
+            IUserRepository userRepository, 
+            ITokenService tokenService, 
+            IEmailService emailService, 
+            IConfiguration configuration, ILogger<AuthService> logger)
         {
             _userRepository = userRepository;
             _tokenService = tokenService;
             _emailService = emailService;
+            _configuration = configuration;
+            _logger = logger;
         }
 
-        public async Task<AuthResultDto> LoginAsync(LoginRequestDto request)
+        public async Task<AuthResultDto> LoginAsync(LoginRequest request)
         {
             var user = await _userRepository.GetUserByEmailAsync(request.Email);
 
-            if (user == null)
+            if (user == null || !VerifyPassword(request.Password, user.PasswordHash))
             {
-                return new AuthResultDto { IsSuccess = false, ErrorMessage = "Tài khoản không tồn tại." };
+                return new AuthResultDto { IsSuccess = false, ErrorMessage = "Email hoặc mật khẩu không chính xác." };
             }
 
             if (user.IsActive == false)
             {
-                return new AuthResultDto { IsSuccess = false, ErrorMessage = "Tài khoản đã bị khóa." };
+                return new AuthResultDto { IsSuccess = false, ErrorMessage = "Tài khoản của bạn đã bị khóa." };
             }
 
-            bool isPasswordValid = VerifyPassword(request.Password, user.PasswordHash);
+            int expireMinutes = int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "60");
 
-            if (!isPasswordValid)
-            {
-                return new AuthResultDto { IsSuccess = false, ErrorMessage = "Mật khẩu không chính xác." };
-            }
-
-            string jwtToken = _tokenService.GenerateToken(user.Email);
+            string jwtToken = _tokenService.GenerateToken(user.Email, expireMinutes);
 
             return new AuthResultDto
             {
                 IsSuccess = true,
-                Token = jwtToken 
+                Token = jwtToken,
+                ExpiresIn = expireMinutes * 60
             };
         }
 
-        public async Task<AuthResultDto> RegisterAsync(RegisterRequestDto request)
+        public async Task<AuthResultDto> RegisterAsync(RegisterRequest request)
         {
             var existingUser = await _userRepository.GetUserByEmailAsync(request.Email);
             if (existingUser != null)
@@ -79,12 +89,12 @@ namespace SmartTrip.Application.Services
                 return new AuthResultDto { IsSuccess = false, ErrorMessage = "Lỗi khi lưu vào cơ sở dữ liệu." };
             }
 
-            _ = _emailService.SendEmailAsync(newUser.Email, "Chào mừng đến với SmartTrip", $"Xin chào {newUser.FullName}, tài khoản của bạn đã được tạo thành công.");
+            await SendWelcomeEmailAsync(newUser);
 
             return new AuthResultDto { IsSuccess = true };
         }
 
-        public async Task<bool> ForgotPasswordAsync(ForgotPasswordRequestDto request)
+        public async Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request)
         {
             var user = await _userRepository.GetUserByEmailAsync(request.Email);
             if (user == null || user.IsActive == false)
@@ -102,7 +112,7 @@ namespace SmartTrip.Application.Services
             return true;
         }
 
-        public async Task<bool> ResetPasswordAsync(ResetPasswordRequestDto request)
+        public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request)
         {
             var user = await _userRepository.GetUserByEmailAsync(request.Email);
             if (user == null) return false;
@@ -124,6 +134,22 @@ namespace SmartTrip.Application.Services
             catch (BCrypt.Net.SaltParseException)
             {
                 return false;
+            }
+        }
+
+        private async Task SendWelcomeEmailAsync(User user)
+        {
+            try
+            {
+                await _emailService.SendEmailAsync(
+                    user.Email,
+                    "Chào mừng đến với SmartTrip",
+                    $"Xin chào {user.FullName}, tài khoản của bạn đã được tạo thành công."
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Gửi email chào mừng thất bại cho {Email}", user.Email);
             }
         }
     }
