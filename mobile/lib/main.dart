@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'views/main_shell.dart';
 import 'providers/providers.dart';
-import 'views/trip/trip_ui_preview_view.dart';
 
 void main() {
   runApp(
@@ -9,7 +9,6 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
-        ChangeNotifierProvider(create: (_) => TripProvider()),
       ],
       child: const MyApp(),
     ),
@@ -29,7 +28,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Public Sans',
       ),
-      home: const TripUiPreviewView(),
+      home: const MainShell(),
     );
   }
 }
