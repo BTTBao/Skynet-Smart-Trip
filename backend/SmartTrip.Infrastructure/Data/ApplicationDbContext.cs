@@ -1,9 +1,8 @@
 namespace SmartTrip.Domain.Entities;
 
 using Microsoft.EntityFrameworkCore;
-using SmartTrip.Application;
 
-public partial class ApplicationDbContext : DbContext, IApplicationDbContext
+public partial class ApplicationDbContext : DbContext
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
