@@ -14,10 +14,10 @@ public class TripService : ITripService
     private const string PaidStatus = "PAID";
     private const string CancelledStatus = "CANCELLED";
 
-    private readonly ApplicationDbContext _context;
+    private readonly IApplicationDbContext _context;
     private readonly IItineraryService _itineraryService;
 
-    public TripService(ApplicationDbContext context, IItineraryService itineraryService)
+    public TripService(IApplicationDbContext context, IItineraryService itineraryService)
     {
         _context = context;
         _itineraryService = itineraryService;
@@ -37,7 +37,7 @@ public class TripService : ITripService
             .ThenByDescending(trip => trip.CreatedAt)
             .Select(trip => new
             {
-                trip.TripId,
+                TripId = trip.Id,
                 trip.UserId,
                 trip.DestinationId,
                 DestinationName = trip.Destination != null ? trip.Destination.Name : null,
@@ -86,7 +86,7 @@ public class TripService : ITripService
             .AsNoTracking()
             .Include(item => item.Destination)
             .Include(item => item.TripItineraries)
-            .FirstOrDefaultAsync(item => item.TripId == tripId);
+            .FirstOrDefaultAsync(item => item.Id == tripId);
 
         if (trip == null)
         {
@@ -95,7 +95,7 @@ public class TripService : ITripService
 
         var itineraryItems = trip.TripItineraries
             .OrderBy(item => item.DayNumber ?? int.MaxValue)
-            .ThenBy(item => item.ItineraryId)
+            .ThenBy(item => item.Id)
             .ToList();
 
         var itineraries = new List<TripItineraryDto>();
@@ -142,7 +142,7 @@ public class TripService : ITripService
         var trip = new TripEntity
         {
             UserId = request.UserId,
-            DestinationId = destination?.DestId,
+            DestinationId = destination?.Id,
             Title = request.Title.Trim(),
             StartDate = request.StartDate,
             EndDate = request.EndDate,

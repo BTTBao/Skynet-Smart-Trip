@@ -12,10 +12,10 @@ public class ItineraryService : IItineraryService
     private const string HotelServiceType = "HOTEL";
     private const string BusServiceType = "BUS";
 
-    private readonly ApplicationDbContext _context;
+    private readonly IApplicationDbContext _context;
     private readonly ITripServiceOptionService _optionService;
 
-    public ItineraryService(ApplicationDbContext context, ITripServiceOptionService optionService)
+    public ItineraryService(IApplicationDbContext context, ITripServiceOptionService optionService)
     {
         _context = context;
         _optionService = optionService;
@@ -30,7 +30,7 @@ public class ItineraryService : IItineraryService
 
         ValidateCreateItineraryRequest(request);
 
-        var trip = await _context.Trips.FirstOrDefaultAsync(item => item.TripId == tripId);
+        var trip = await _context.Trips.FirstOrDefaultAsync(item => item.Id == tripId);
         if (trip == null)
         {
             throw new KeyNotFoundException($"Trip {tripId} was not found.");
@@ -74,7 +74,7 @@ public class ItineraryService : IItineraryService
         {
             var hotel = await _context.Hotels
                 .AsNoTracking()
-                .FirstOrDefaultAsync(h => h.HotelId == itinerary.ServiceId.Value);
+                .FirstOrDefaultAsync(h => h.Id == itinerary.ServiceId.Value);
 
             if (hotel != null)
             {
@@ -94,7 +94,7 @@ public class ItineraryService : IItineraryService
                 .Include(s => s.Company)
                 .Include(s => s.FromDest)
                 .Include(s => s.ToDest)
-                .FirstOrDefaultAsync(s => s.ScheduleId == itinerary.ServiceId.Value);
+                .FirstOrDefaultAsync(s => s.Id == itinerary.ServiceId.Value);
 
             if (busSchedule != null)
             {
@@ -113,7 +113,7 @@ public class ItineraryService : IItineraryService
 
         return new TripItineraryDto
         {
-            ItineraryId = itinerary.ItineraryId,
+            ItineraryId = itinerary.Id,
             DayNumber = itinerary.DayNumber ?? 1,
             ServiceType = normalizedServiceType,
             ServiceId = itinerary.ServiceId,
@@ -135,7 +135,7 @@ public class ItineraryService : IItineraryService
 
         if (request.DayNumber.HasValue)
         {
-            var trip = await _context.Trips.FirstAsync(t => t.TripId == itinerary.TripId);
+            var trip = await _context.Trips.FirstAsync(t => t.Id == itinerary.TripId);
             ValidateDayNumber(trip, request.DayNumber.Value);
             itinerary.DayNumber = request.DayNumber.Value;
         }

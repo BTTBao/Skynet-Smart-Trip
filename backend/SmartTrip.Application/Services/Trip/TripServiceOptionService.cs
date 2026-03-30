@@ -11,9 +11,9 @@ public class TripServiceOptionService : ITripServiceOptionService
     private const string HotelServiceType = "HOTEL";
     private const string BusServiceType = "BUS";
 
-    private readonly ApplicationDbContext _context;
+    private readonly IApplicationDbContext _context;
 
-    public TripServiceOptionService(ApplicationDbContext context)
+    public TripServiceOptionService(IApplicationDbContext context)
     {
         _context = context;
     }
@@ -43,7 +43,7 @@ public class TripServiceOptionService : ITripServiceOptionService
             return hotels
                 .Select(hotel => new TripServiceOptionDto
                 {
-                    ServiceId = hotel.HotelId,
+                    ServiceId = hotel.Id,
                     ServiceType = HotelServiceType,
                     Title = hotel.Name,
                     Subtitle = string.Join(" • ", new[]
@@ -82,7 +82,7 @@ public class TripServiceOptionService : ITripServiceOptionService
         return busSchedules
             .Select(schedule => new TripServiceOptionDto
             {
-                ServiceId = schedule.ScheduleId,
+                ServiceId = schedule.Id,
                 ServiceType = BusServiceType,
                 Title = $"{(schedule.Company != null ? schedule.Company.Name : "Xe khach")} - {(schedule.FromDest != null ? schedule.FromDest.Name : "N/A")} -> {(schedule.ToDest != null ? schedule.ToDest.Name : "N/A")}",
                 Subtitle = BuildBusSubtitle(schedule),
@@ -102,7 +102,7 @@ public class TripServiceOptionService : ITripServiceOptionService
                 .AsNoTracking()
                 .Include(item => item.Destination)
                 .Include(item => item.Rooms)
-                .FirstOrDefaultAsync(item => item.HotelId == serviceId && item.IsAvailable != false);
+                .FirstOrDefaultAsync(item => item.Id == serviceId && item.IsAvailable != false);
 
             if (hotel == null)
             {
@@ -131,7 +131,7 @@ public class TripServiceOptionService : ITripServiceOptionService
             .Include(item => item.Company)
             .Include(item => item.FromDest)
             .Include(item => item.ToDest)
-            .FirstOrDefaultAsync(item => item.ScheduleId == serviceId);
+            .FirstOrDefaultAsync(item => item.Id == serviceId);
 
         if (busSchedule == null)
         {
@@ -140,7 +140,7 @@ public class TripServiceOptionService : ITripServiceOptionService
 
         return new TripServiceOptionDto
         {
-            ServiceId = busSchedule.ScheduleId,
+            ServiceId = busSchedule.Id,
             ServiceType = BusServiceType,
             Title = $"{(busSchedule.Company != null ? busSchedule.Company.Name : "Xe khach")} - {(busSchedule.FromDest != null ? busSchedule.FromDest.Name : "N/A")} -> {(busSchedule.ToDest != null ? busSchedule.ToDest.Name : "N/A")}",
             Subtitle = BuildBusSubtitle(busSchedule),
