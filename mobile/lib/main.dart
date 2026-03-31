@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'views/main_shell.dart';
+import 'views/auth/splash_screen.dart';
 import 'providers/providers.dart';
+import 'providers/auth_provider.dart';
 
 void main() {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
       ],
@@ -28,7 +31,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Public Sans',
       ),
-      home: const MainShell(),
+      home: const SplashScreen(),
     );
   }
 }

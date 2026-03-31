@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/profile_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../widgets/widgets.dart';
+import '../auth/login_screen.dart';
 import 'edit_profile_view.dart';
 import 'settings_view.dart';
 import 'favorites_view.dart';
@@ -317,9 +319,13 @@ class _ProfileViewState extends State<ProfileView> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
           ElevatedButton(
             onPressed: () {
-              context.read<ProfileProvider>().logout();
+              context.read<AuthProvider>().logout();
               Navigator.pop(ctx);
-              Navigator.pop(context);
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+              );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Đăng xuất', style: TextStyle(color: Colors.white)),

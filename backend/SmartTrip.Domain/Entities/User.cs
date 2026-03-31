@@ -26,6 +26,22 @@ public class User
 
     public bool? IsActive { get; set; }
 
+    public bool IsEmailVerified { get; set; } = false;
+
+    public string? EmailVerificationToken { get; set; }
+
+    public DateTime? EmailVerificationTokenExpiry { get; set; }
+
+    public string? PasswordResetToken { get; set; }
+
+    public DateTime? PasswordResetTokenExpiry { get; set; }
+
+    public string? RefreshToken { get; set; }
+
+    public DateTime? RefreshTokenExpiry { get; set; }
+
+    public DateTime? LastLoginAt { get; set; }
+
     public DateTime? CreatedAt { get; set; }
 
     public virtual ICollection<BlogPost> BlogPosts { get; set; } = new List<BlogPost>();
@@ -40,6 +56,3 @@ public class User
 
     public virtual ICollection<Wishlist> Wishlists { get; set; } = new List<Wishlist>();
 }
-
-
-
