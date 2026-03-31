@@ -1,10 +1,3 @@
-<<<<<<< Updated upstream
-=======
-using System;
-using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore;
-
->>>>>>> Stashed changes
 namespace SmartTrip.Domain.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -35,14 +28,9 @@ public partial class ApplicationDbContext : DbContext
     public virtual DbSet<User> Users { get; set; }
     public virtual DbSet<UserWallet> UserWallets { get; set; }
     public virtual DbSet<Wishlist> Wishlists { get; set; }
+    public virtual DbSet<ChatHistory> ChatHistories { get; set; }
+    public virtual DbSet<UserPreference> UserPreferences { get; set; }
 
-<<<<<<< Updated upstream
-=======
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Server=MYLOVE\\SQLEXPRESS;Database=SkynetSmartTrip;Trusted_Connection=True;TrustServerCertificate=True;");
-
->>>>>>> Stashed changes
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Amenity>(entity =>
@@ -225,6 +213,29 @@ public partial class ApplicationDbContext : DbContext
             entity.Property(e => e.ItemType).HasMaxLength(20);
 
             entity.HasOne(d => d.User).WithMany(p => p.Wishlists).HasForeignKey(d => d.UserId);
+        });
+
+        modelBuilder.Entity<ChatHistory>(entity =>
+        {
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.Property(e => e.UserMessage).IsRequired();
+            entity.Property(e => e.BotResponse).IsRequired();
+            entity.Property(e => e.ResponseType).HasMaxLength(50);
+            entity.Property(e => e.DetectedIntent).HasMaxLength(50);
+            entity.Property(e => e.SessionId).HasMaxLength(100).IsUnicode(false);
+
+            entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId);
+        });
+
+        modelBuilder.Entity<UserPreference>(entity =>
+        {
+            entity.Property(e => e.PreferenceKey).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.PreferenceValue).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+
+            entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId);
+
+            entity.HasIndex(e => new { e.UserId, e.PreferenceKey }).IsUnique();
         });
     }
 }

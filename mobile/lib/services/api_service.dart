@@ -1,11 +1,16 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 
 abstract class ApiService {
   // Thay url này bằng URL thực tế của Backend .NET của bạn
   // Thay url này bằng URL thực tế của Backend .NET. 
   // Dùng 10.0.2.2 (Android Emulator) hoặc localhost (iOS Simulator/Windows)
-  final String baseUrl = "http://10.0.2.2:5110/api"; 
+  static const String _configuredBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:5110/api',
+  );
+  static String? _workingBaseUrl;
 
   Future<Map<String, String>> getHeaders() async {
     // Trong tương lai sẽ lấy token từ SecureStorage ở đây

@@ -1,13 +1,8 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../models/user_profile.dart';
-import 'api_service.dart';
+import 'api_service_base.dart';
 
 class ProfileService extends ApiService {
-  Uri _buildUserUri(String userId) => Uri.parse('$baseUrl/user/$userId');
-
-  Uri _buildUploadAvatarUri(String userId) =>
-      Uri.parse('$baseUrl/user/$userId/upload-avatar');
   // Giả lập chế độ Mock (Để bạn vẫn chạy được app khi chưa có DB thật)
   final bool _useMock = false; 
 
@@ -29,10 +24,7 @@ class ProfileService extends ApiService {
     } else {
       // CODE CHO BACKEND THẬT .NET
       try {
-        final response = await http.get(
-          _buildUserUri('1'),
-          headers: await getHeaders(),
-        );
+        final response = await getWithFallback('/user/1');
         return UserProfile.fromJson(handleResponse(response));
       } catch (e) {
         rethrow;
@@ -48,9 +40,8 @@ class ProfileService extends ApiService {
       // CODE CHO BACKEND THẬT .NET
       try {
         final userId = profile.id.isNotEmpty ? profile.id : '1';
-        final response = await http.put(
-          _buildUserUri(userId),
-          headers: await getHeaders(),
+        final response = await putWithFallback(
+          '/user/$userId',
           body: jsonEncode(profile.toJson()),
         );
         handleResponse(response);
@@ -67,16 +58,12 @@ class ProfileService extends ApiService {
       return 'https://i.pravatar.cc/150?u=mock_upload';
     } else {
       try {
-        var request = http.MultipartRequest(
-          'POST',
-          _buildUploadAvatarUri(userId),
+        final response = await multipartPostWithFallback(
+          '/user/$userId/upload-avatar',
+          fileField: 'file',
+          filePath: filePath,
         );
-        
-        request.files.add(await http.MultipartFile.fromPath('file', filePath));
-        
-        var streamedResponse = await request.send();
-        var response = await http.Response.fromStream(streamedResponse);
-        
+
         final data = handleResponse(response);
         return data['avatarUrl'];
       } catch (e) {

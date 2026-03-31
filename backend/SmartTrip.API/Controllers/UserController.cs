@@ -23,6 +23,14 @@ public class UserController : ControllerBase
         return Ok(profile);
     }
 
+    [HttpGet("{id}/activity-history")]
+    public async Task<IActionResult> GetActivityHistory(int id)
+    {
+        var history = await _userService.GetActivityHistoryAsync(id);
+        if (history == null) return NotFound();
+        return Ok(history);
+    }
+
     [HttpPut("{id}")]
     [HttpPatch("{id}")]
     public async Task<IActionResult> UpdateProfile(int id, [FromBody] UserDto userDto)

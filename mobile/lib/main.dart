@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'views/main_shell.dart';
+import 'views/main_shell_docker.dart';
 import 'providers/providers.dart';
 
 void main() {
