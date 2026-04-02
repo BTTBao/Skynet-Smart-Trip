@@ -1,4 +1,4 @@
-﻿using SmartTrip.API.Middlewares;
+﻿﻿using SmartTrip.API.Middlewares;
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Infrastructure.Services.User;
 using SmartTrip.Application.Interfaces.Chat;
@@ -8,6 +8,8 @@ using SmartTrip.Application.Services.Trip;
 using SmartTrip.Application.Services;
 using SmartTrip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 
