@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SmartTrip.Application.DTOs.Trip;
+using SmartTrip.Application.Interfaces;
 using SmartTrip.Application.Interfaces.Trip;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
@@ -111,7 +112,7 @@ public class TripServiceOptionService : ITripServiceOptionService
 
             return new TripServiceOptionDto
             {
-                ServiceId = hotel.HotelId,
+                ServiceId = hotel.Id,
                 ServiceType = HotelServiceType,
                 Title = hotel.Name,
                 Subtitle = string.Join(" • ", new[]
@@ -165,6 +166,21 @@ public class TripServiceOptionService : ITripServiceOptionService
         {
             HotelServiceType => HotelServiceType,
             BusServiceType => BusServiceType,
+            _ => throw new ArgumentException("ServiceType must be HOTEL or BUS.")
+        };
+    }
+
+    public static TripServiceType ParseServiceTypeEnum(string? serviceType)
+    {
+        if (Enum.TryParse<TripServiceType>(serviceType, true, out var parsedServiceType))
+        {
+            return parsedServiceType;
+        }
+
+        return serviceType?.Trim().ToUpperInvariant() switch
+        {
+            HotelServiceType => TripServiceType.Hotel,
+            BusServiceType => TripServiceType.Bus,
             _ => throw new ArgumentException("ServiceType must be HOTEL or BUS.")
         };
     }

@@ -2,8 +2,7 @@ using SmartTrip.API.Middlewares;
 using SmartTrip.Application.Interfaces.Trip;
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Application.Services.Trip;
-using SmartTrip.Application.Services.User;
-using SmartTrip.Infrastructure;
+using SmartTrip.Application.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
