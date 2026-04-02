@@ -3,11 +3,15 @@ using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Infrastructure.Services.User;
 using SmartTrip.Application.Interfaces.Chat;
 using SmartTrip.Application.Services.Chat;
+using SmartTrip.Application.Interfaces.Trip;
+using SmartTrip.Application.Services.Trip;
+using SmartTrip.Application.Services;
 using SmartTrip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Controllers
 builder.Services.AddControllers();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IChatService, ChatService>();    
@@ -28,26 +32,37 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 
+// Dependency Injection (Services)
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ITripServiceOptionService, TripServiceOptionService>();
+builder.Services.AddScoped<IItineraryService, ItineraryService>();
+builder.Services.AddScoped<ITripService, TripService>();
+
+// Infrastructure
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
     });
 });
 
-builder.Services.AddEndpointsApiExplorer();
+// Swagger
 builder.Services.AddSwaggerConfiguration();
 
+// Application + Auth
 builder.Services.AddApplicationServices();
 builder.Services.AddJwtAuthentication(builder.Configuration);
-
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+// Middleware
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

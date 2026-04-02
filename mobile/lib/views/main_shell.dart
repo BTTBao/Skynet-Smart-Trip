@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/providers/profile_provider.dart';
+import 'package:provider/provider.dart';
 import 'profile/profile_view.dart';
 import 'chatbot/chatbot_view.dart';
 

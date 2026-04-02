@@ -9,6 +9,8 @@ abstract class ApiService {
     defaultValue: 'http://10.0.2.2:5110/api',
   );
 
+  String get configuredBaseUrl => _configuredBaseUrl;
+
   Map<String, String> get headers => const {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -36,6 +38,14 @@ abstract class ApiService {
     return _sendWithFallback((baseUrl) {
       return http
           .put(buildUri(baseUrl, path), headers: headers, body: body)
+          .timeout(const Duration(seconds: 10));
+    });
+  }
+
+  Future<http.Response> deleteWithFallback(String path) {
+    return _sendWithFallback((baseUrl) {
+      return http
+          .delete(buildUri(baseUrl, path), headers: headers)
           .timeout(const Duration(seconds: 10));
     });
   }
