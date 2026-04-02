@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SmartTrip.Application.DTOs.Trip;
+using SmartTrip.Application.Interfaces;
 using SmartTrip.Application.Interfaces.Trip;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
@@ -49,7 +50,7 @@ public class ItineraryService : IItineraryService
         {
             TripId = tripId,
             DayNumber = request.DayNumber,
-            ServiceType = normalizedServiceType,
+            ServiceType = TripServiceOptionService.ParseServiceTypeEnum(request.ServiceType),
             ServiceId = request.ServiceId,
             Quantity = request.Quantity,
             BookedPrice = request.BookedPrice ?? serviceOption.DefaultPrice ?? 0,
@@ -66,7 +67,7 @@ public class ItineraryService : IItineraryService
 
     public async Task<TripItineraryDto> MapItineraryAsync(TripItinerary itinerary)
     {
-        var normalizedServiceType = TripServiceOptionService.NormalizeServiceType(itinerary.ServiceType);
+        var normalizedServiceType = TripServiceOptionService.NormalizeServiceType(itinerary.ServiceType?.ToString());
         var serviceName = $"Service #{itinerary.ServiceId}";
         string? serviceSubtitle = null;
 
@@ -127,7 +128,7 @@ public class ItineraryService : IItineraryService
 
     public async Task<TripItineraryDto> UpdateItineraryAsync(int itineraryId, UpdateTripItineraryDto request)
     {
-        var itinerary = await _context.TripItineraries.FirstOrDefaultAsync(i => i.ItineraryId == itineraryId);
+        var itinerary = await _context.TripItineraries.FirstOrDefaultAsync(i => i.Id == itineraryId);
         if (itinerary == null)
         {
             throw new KeyNotFoundException($"Itinerary {itineraryId} was not found.");
@@ -155,7 +156,7 @@ public class ItineraryService : IItineraryService
 
     public async Task<bool> DeleteItineraryAsync(int itineraryId)
     {
-        var itinerary = await _context.TripItineraries.FirstOrDefaultAsync(i => i.ItineraryId == itineraryId);
+        var itinerary = await _context.TripItineraries.FirstOrDefaultAsync(i => i.Id == itineraryId);
         if (itinerary == null)
         {
             return false;
@@ -176,7 +177,7 @@ public class ItineraryService : IItineraryService
     {
         var trip = await _context.Trips
             .Include(item => item.TripItineraries)
-            .FirstAsync(item => item.TripId == tripId);
+            .FirstAsync(item => item.Id == tripId);
 
         trip.TotalAmount = trip.TripItineraries.Sum(item =>
             (item.BookedPrice ?? 0) * (item.Quantity ?? 1));

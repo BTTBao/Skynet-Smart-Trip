@@ -18,7 +18,8 @@ public static class ServiceExtensions
     {
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString("SmartTrip")));
-
+        services.AddScoped<IApplicationDbContext>(provider => 
+            provider.GetRequiredService<ApplicationDbContext>());
         return services;
     }
 

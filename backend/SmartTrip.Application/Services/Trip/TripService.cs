@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SmartTrip.Application.DTOs.Trip;
+using SmartTrip.Application.Interfaces;
 using SmartTrip.Application.Interfaces.Trip;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
@@ -68,7 +69,7 @@ public class TripService : ITripService
                 EndDate = trip.EndDate,
                 TotalAmount = trip.TotalAmount,
                 TotalProfit = trip.TotalProfit,
-                Status = NormalizeTripStatus(trip.Status),
+                Status = NormalizeTripStatus(trip.Status?.ToString()),
                 CreatedAt = trip.CreatedAt,
                 ItineraryCount = trip.ItineraryCount
             })
@@ -109,7 +110,7 @@ public class TripService : ITripService
 
         return new TripDetailDto
         {
-            TripId = trip.TripId,
+            TripId = trip.Id,
             UserId = trip.UserId,
             DestinationId = trip.DestinationId,
             DestinationName = trip.Destination?.Name,
@@ -120,7 +121,7 @@ public class TripService : ITripService
             EndDate = trip.EndDate,
             TotalAmount = trip.TotalAmount,
             TotalProfit = trip.TotalProfit,
-            Status = NormalizeTripStatus(trip.Status),
+            Status = NormalizeTripStatus(trip.Status?.ToString()),
             CreatedAt = trip.CreatedAt,
             ItineraryCount = itineraryItems.Count,
             Itineraries = itineraries
@@ -131,7 +132,7 @@ public class TripService : ITripService
     {
         ValidateCreateTripRequest(request);
 
-        var userExists = await _context.Users.AnyAsync(user => user.UserId == request.UserId);
+        var userExists = await _context.Users.AnyAsync(user => user.Id == request.UserId);
         if (!userExists)
         {
             throw new KeyNotFoundException($"User {request.UserId} was not found.");
@@ -146,7 +147,7 @@ public class TripService : ITripService
             Title = request.Title.Trim(),
             StartDate = request.StartDate,
             EndDate = request.EndDate,
-            Status = NormalizeTripStatus(request.Status),
+            Status = ParseTripStatus(request.Status),
             CreatedAt = DateTime.UtcNow,
             TotalAmount = 0,
             TotalProfit = 0
@@ -155,7 +156,7 @@ public class TripService : ITripService
         _context.Trips.Add(trip);
         await _context.SaveChangesAsync();
 
-        return await GetTripSummaryAsync(trip.TripId)
+        return await GetTripSummaryAsync(trip.Id)
             ?? throw new InvalidOperationException("Trip was created but could not be loaded.");
     }
 
@@ -163,10 +164,10 @@ public class TripService : ITripService
     {
         var trip = await _context.Trips
             .AsNoTracking()
-            .Where(item => item.TripId == tripId)
+            .Where(item => item.Id == tripId)
             .Select(item => new
             {
-                item.TripId,
+                TripId = item.Id,
                 item.UserId,
                 item.DestinationId,
                 DestinationName = item.Destination != null ? item.Destination.Name : null,
@@ -201,7 +202,7 @@ public class TripService : ITripService
             EndDate = trip.EndDate,
             TotalAmount = trip.TotalAmount,
             TotalProfit = trip.TotalProfit,
-            Status = NormalizeTripStatus(trip.Status),
+            Status = NormalizeTripStatus(trip.Status?.ToString()),
             CreatedAt = trip.CreatedAt,
             ItineraryCount = trip.ItineraryCount
         };
@@ -246,7 +247,7 @@ public class TripService : ITripService
 
     public async Task<TripSummaryDto> UpdateTripAsync(int tripId, UpdateTripDto request)
     {
-        var trip = await _context.Trips.FirstOrDefaultAsync(t => t.TripId == tripId);
+        var trip = await _context.Trips.FirstOrDefaultAsync(t => t.Id == tripId);
         if (trip == null)
         {
             throw new KeyNotFoundException($"Trip {tripId} was not found.");
@@ -255,17 +256,17 @@ public class TripService : ITripService
         if (request.Title != null) trip.Title = request.Title.Trim();
         if (request.StartDate.HasValue) trip.StartDate = request.StartDate.Value;
         if (request.EndDate.HasValue) trip.EndDate = request.EndDate.Value;
-        if (request.Status != null) trip.Status = NormalizeTripStatus(request.Status);
+        if (request.Status != null) trip.Status = ParseTripStatus(request.Status);
 
         if (request.DestinationId.HasValue || request.DestinationName != null)
         {
             var destination = await ResolveDestinationAsync(request.DestinationId, request.DestinationName);
-            trip.DestinationId = destination?.DestId;
+            trip.DestinationId = destination?.Id;
         }
 
         await _context.SaveChangesAsync();
 
-        return await GetTripSummaryAsync(trip.TripId)
+        return await GetTripSummaryAsync(trip.Id)
             ?? throw new InvalidOperationException("Trip was updated but could not be loaded.");
     }
 
@@ -308,6 +309,23 @@ public class TripService : ITripService
             PaidStatus => PaidStatus,
             CancelledStatus => CancelledStatus,
             _ => DraftStatus
+        };
+    }
+
+    private static TripStatus ParseTripStatus(string? status)
+    {
+        if (Enum.TryParse<TripStatus>(status, true, out var parsedStatus))
+        {
+            return parsedStatus;
+        }
+
+        return status?.Trim().ToUpperInvariant() switch
+        {
+            DraftStatus => TripStatus.Draft,
+            PendingStatus => TripStatus.Pending,
+            PaidStatus => TripStatus.Paid,
+            CancelledStatus => TripStatus.Cancelled,
+            _ => TripStatus.Draft
         };
     }
 }
