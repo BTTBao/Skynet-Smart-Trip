@@ -9,10 +9,13 @@ using SmartTrip.Application.Services;
 using SmartTrip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-
+// Load biến môi trường từ file .env
+DotNetEnv.Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Yêu cầu Configuration đọc thêm từ Environment Variables
+builder.Configuration.AddEnvironmentVariables();
 // Controllers
 builder.Services.AddControllers();
 builder.Services.AddScoped<IUserService, UserService>(); // đưa vào ServiceExtensions cho gọn
