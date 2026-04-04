@@ -54,7 +54,7 @@ class TestNavigationView extends StatelessWidget {
             title: '5. Lịch sử hoạt động (Activity History)',
             icon: Icons.history,
             subtitle: 'Activity History Screen',
-            destination: const ActivityHistoryView(),
+            destination: const ActivityHistoryView(userId: '1'),
             color: Colors.purple,
           ),
           const SizedBox(height: 32),
@@ -98,3 +98,4 @@ class TestNavigationView extends StatelessWidget {
     );
   }
 }
+

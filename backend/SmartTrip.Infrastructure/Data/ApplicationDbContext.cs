@@ -28,6 +28,8 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
     public virtual DbSet<User> Users { get; set; }
     public virtual DbSet<UserWallet> UserWallets { get; set; }
     public virtual DbSet<Wishlist> Wishlists { get; set; }
+    public virtual DbSet<ChatHistory> ChatHistories { get; set; }
+    public virtual DbSet<UserPreference> UserPreferences { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -211,6 +213,29 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.ItemType).HasMaxLength(20);
 
             entity.HasOne(d => d.User).WithMany(p => p.Wishlists).HasForeignKey(d => d.UserId);
+        });
+
+        modelBuilder.Entity<ChatHistory>(entity =>
+        {
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.Property(e => e.UserMessage).IsRequired();
+            entity.Property(e => e.BotResponse).IsRequired();
+            entity.Property(e => e.ResponseType).HasMaxLength(50);
+            entity.Property(e => e.DetectedIntent).HasMaxLength(50);
+            entity.Property(e => e.SessionId).HasMaxLength(100).IsUnicode(false);
+
+            entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId);
+        });
+
+        modelBuilder.Entity<UserPreference>(entity =>
+        {
+            entity.Property(e => e.PreferenceKey).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.PreferenceValue).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+
+            entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId);
+
+            entity.HasIndex(e => new { e.UserId, e.PreferenceKey }).IsUnique();
         });
     }
 }

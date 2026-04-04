@@ -189,7 +189,9 @@ class _ProfileViewState extends State<ProfileView> {
                                 onTap: () {
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(builder: (_) => const ActivityHistoryView()),
+                                    MaterialPageRoute(
+                                      builder: (_) => ActivityHistoryView(userId: user.id),
+                                    ),
                                   );
                                 },
                               ),
@@ -335,3 +337,4 @@ class _ProfileViewState extends State<ProfileView> {
     );
   }
 }
+

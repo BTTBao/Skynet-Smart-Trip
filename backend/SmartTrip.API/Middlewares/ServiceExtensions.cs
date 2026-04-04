@@ -3,12 +3,16 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using SmartTrip.Application.Interfaces.Chat;
 using SmartTrip.Application.Interfaces.Auth;
 using SmartTrip.Application.Interfaces.Email;
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Application.Services;
+using SmartTrip.Application.Services.Chat;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Infrastructure.Repositories;
+using SmartTrip.Infrastructure.Services.AI;
+using SmartTrip.Infrastructure.Services.User;
 using System.Text;
 
 namespace SmartTrip.API.Middlewares;
@@ -27,9 +31,14 @@ public static class ServiceExtensions
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IChatService, ChatService>();
+        services.AddScoped<IChatRepository, ChatRepository>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddSingleton<ITokenService, TokenService>();
         services.AddScoped<IEmailService, EmailService>();
+        services.AddHttpClient<IGrokAiService, GrokAiService>();
+        services.AddHttpContextAccessor();
 
         return services;
     }

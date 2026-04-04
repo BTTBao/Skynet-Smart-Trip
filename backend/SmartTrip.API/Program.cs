@@ -1,34 +1,48 @@
-using SmartTrip.API.Middlewares;
-using SmartTrip.Application.Interfaces.Trip;
+﻿﻿using SmartTrip.API.Middlewares;
 using SmartTrip.Application.Interfaces.User;
+using SmartTrip.Infrastructure.Services.User;
+using SmartTrip.Application.Interfaces.Chat;
+using SmartTrip.Application.Services.Chat;
+using SmartTrip.Application.Interfaces.Trip;
 using SmartTrip.Application.Services.Trip;
 using SmartTrip.Application.Services;
+using SmartTrip.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Controllers
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-
-// Dependency Injection (Services)
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<ITripServiceOptionService, TripServiceOptionService>();
-builder.Services.AddScoped<IItineraryService, ItineraryService>();
-builder.Services.AddScoped<ITripService, TripService>();
-
-// Infrastructure
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScoped<IUserService, UserService>(); // đưa vào ServiceExtensions cho gọn
+builder.Services.AddScoped<IChatService, ChatService>(); // đưa vào ServiceExtensions cho gọn
+builder.Services.AddHttpContextAccessor(); // Để lấy URL đầy đủ của ảnh
 
 // CORS
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
+    options.AddPolicy("AllowAll",
+        builder =>
+        {
+            builder.AllowAnyOrigin()
+                   .AllowAnyMethod()
+                   .AllowAnyHeader();   
+        });
 });
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("SmartTrip")));
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+
+// Dependency Injection (Services)
+builder.Services.AddScoped<IUserService, UserService>(); // đưa vào ServiceExtensions cho gọn
+builder.Services.AddScoped<ITripServiceOptionService, TripServiceOptionService>(); // đưa vào ServiceExtensions cho gọn
+builder.Services.AddScoped<IItineraryService, ItineraryService>(); // đưa vào ServiceExtensions cho gọn
+builder.Services.AddScoped<ITripService, TripService>(); // đưa vào ServiceExtensions cho gọn
+
+// Infrastructure
+builder.Services.AddInfrastructure(builder.Configuration);
 
 // Swagger
 builder.Services.AddSwaggerConfiguration();
@@ -49,9 +63,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors();
+app.UseCors("AllowAll");
 
-app.UseAuthentication();
+app.UseStaticFiles(); // Cho phép truy cập file trong wwwroot (ảnh đại diện)
+
 app.UseAuthorization();
 
 app.MapControllers();
