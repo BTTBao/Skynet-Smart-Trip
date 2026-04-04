@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../providers/profile_provider.dart';
 import 'profile/profile_view.dart';
 import 'chatbot/chatbot_view.dart';
+import 'bookings/my_bookings_screen.dart';
+import 'search/search_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -14,13 +16,11 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
-  // Danh sách các trang chính của ứng dụng
-  // Hiện tại chỉ có 1  tab "Cài đặt", sau này thêm tab khác vào đây
   final List<Widget> _pages = [
     _PlaceholderPage(label: 'Trang chủ', icon: Icons.home_outlined),
     ChatbotView(), // Tích hợp Chatbot vào tab 2
-    _PlaceholderPage(label: 'Khám phá', icon: Icons.explore_outlined),
-    _PlaceholderPage(label: 'Đặt chỗ', icon: Icons.bookmark_outline),
+    const SearchScreen(), // Màn hình tìm kiếm điểm đến
+    const MyBookingsScreen(), // Trỏ vào màn hình danh sách chuyến đi
     ProfileView(),
   ];
 
