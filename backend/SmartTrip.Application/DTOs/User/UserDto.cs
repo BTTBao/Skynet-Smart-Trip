@@ -7,9 +7,9 @@ public class UserDto
     public string Email { get; set; } = string.Empty;
     public string? Phone { get; set; }
     public string? AvatarUrl { get; set; }
-    public string MemberTier { get; set; } = "Gold Member";
-    public int TripsCount { get; set; } = 12;
-    public int Coins { get; set; } = 450;
-    public int Vouchers { get; set; } = 15;
+    public string MemberTier { get; set; } = "Member";
+    public int TripsCount { get; set; }
+    public int Coins { get; set; }
+    public int Vouchers { get; set; }
     public string? BirthDate { get; set; }
 }

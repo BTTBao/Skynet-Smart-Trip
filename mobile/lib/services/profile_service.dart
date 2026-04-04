@@ -1,11 +1,10 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../models/user_profile.dart';
-import 'api_service.dart';
+import 'api_service_base.dart';
 
 class ProfileService extends ApiService {
   // Giả lập chế độ Mock (Để bạn vẫn chạy được app khi chưa có DB thật)
-  final bool _useMock = true; 
+  final bool _useMock = false; 
 
   Future<UserProfile?> getProfile() async {
     if (_useMock) {
@@ -25,10 +24,7 @@ class ProfileService extends ApiService {
     } else {
       // CODE CHO BACKEND THẬT .NET
       try {
-        final response = await http.get(
-          Uri.parse('$baseUrl/profile'),
-          headers: await getHeaders(),
-        );
+        final response = await getWithFallback('/user/1');
         return UserProfile.fromJson(handleResponse(response));
       } catch (e) {
         rethrow;
@@ -43,13 +39,33 @@ class ProfileService extends ApiService {
     } else {
       // CODE CHO BACKEND THẬT .NET
       try {
-        final response = await http.put(
-          Uri.parse('$baseUrl/profile/update'),
-          headers: await getHeaders(),
+        final userId = profile.id.isNotEmpty ? profile.id : '1';
+        final response = await putWithFallback(
+          '/user/$userId',
           body: jsonEncode(profile.toJson()),
         );
         handleResponse(response);
         return true;
+      } catch (e) {
+        rethrow;
+      }
+    }
+  }
+
+  Future<String?> uploadAvatar(String filePath, {String userId = '1'}) async {
+    if (_useMock) {
+      await Future.delayed(const Duration(seconds: 1));
+      return 'https://i.pravatar.cc/150?u=mock_upload';
+    } else {
+      try {
+        final response = await multipartPostWithFallback(
+          '/user/$userId/upload-avatar',
+          fileField: 'file',
+          filePath: filePath,
+        );
+
+        final data = handleResponse(response);
+        return data['avatarUrl'];
       } catch (e) {
         rethrow;
       }
