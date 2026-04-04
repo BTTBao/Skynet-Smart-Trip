@@ -3,3 +3,8 @@ export 'profile/edit_profile_view.dart';
 export 'profile/settings_view.dart';
 export 'profile/favorites_view.dart';
 export 'profile/activity_history_view.dart';
+export 'trip/edit_itinerary_view.dart';
+export 'trip/create_trip_view.dart';
+export 'trip/my_trips_view.dart';
+export 'trip/trip_itinerary_detail_view.dart';
+export 'trip/trip_ui_preview_view.dart';

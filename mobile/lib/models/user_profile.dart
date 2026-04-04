@@ -53,7 +53,7 @@ class UserProfile {
   // Chuyển từ JSON (từ Backend .NET) sang Model
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
-      id: json['id']?.toString() ?? '',
+      id: (json['userId'] ?? json['id'])?.toString() ?? '',
       name: json['name'] ?? '',
       email: json['email'] ?? '',
       phone: json['phone'] ?? '',

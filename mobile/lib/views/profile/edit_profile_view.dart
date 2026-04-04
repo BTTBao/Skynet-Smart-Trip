@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../providers/profile_provider.dart';
 import '../../widgets/widgets.dart';
 
@@ -36,6 +37,37 @@ class _EditProfileViewState extends State<EditProfileView> {
     super.dispose();
   }
 
+  Future<void> _pickAndUploadImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: source,
+      imageQuality: 70, // Nén ảnh xuống 70% để tiết kiệm băng thông
+    );
+
+    if (image != null) {
+      final provider = Provider.of<ProfileProvider>(context, listen: false);
+      final success = await provider.uploadAvatar(image.path);
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tải ảnh đại diện thành công!'),
+            backgroundColor: Color(0xFF80ed99),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${provider.error ?? "Không thể tải ảnh lên"}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
   void _showImagePicker() {
     showModalBottomSheet(
       context: context,
@@ -57,9 +89,7 @@ class _EditProfileViewState extends State<EditProfileView> {
               title: const Text('Chọn từ thư viện'),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Đã chọn ảnh từ thư viện (Mock)')),
-                );
+                _pickAndUploadImage(ImageSource.gallery);
               },
             ),
             ListTile(
@@ -67,9 +97,7 @@ class _EditProfileViewState extends State<EditProfileView> {
               title: const Text('Chụp ảnh mới'),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Đã mở máy ảnh (Mock)')),
-                );
+                _pickAndUploadImage(ImageSource.camera);
               },
             ),
           ],
@@ -78,21 +106,40 @@ class _EditProfileViewState extends State<EditProfileView> {
     );
   }
 
-  void _saveProfile() {
+  Future<void> _saveProfile() async {
     if (_formKey.currentState!.validate()) {
       final provider = Provider.of<ProfileProvider>(context, listen: false);
-      provider.updateField('name', _nameController.text);
-      provider.updateField('email', _emailController.text);
-      provider.updateField('phone', _phoneController.text);
-      provider.updateField('birthDate', _birthDateController.text);
+      
+      final currentUser = provider.profileData;
+      if (currentUser == null) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cập nhật hồ sơ thành công!'),
-          backgroundColor: Color(0xFF80ed99),
-        ),
+      final updatedUser = currentUser.copyWith(
+        name: _nameController.text,
+        email: _emailController.text,
+        phone: _phoneController.text,
+        birthDate: _birthDateController.text,
       );
-      Navigator.pop(context);
+
+      final success = await provider.updateProfile(updatedUser);
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cập nhật hồ sơ thành công! (SQL Server)'),
+            backgroundColor: Color(0xFF80ed99),
+          ),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${provider.error ?? "Không thể lưu hồ sơ"}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 
@@ -116,12 +163,24 @@ class _EditProfileViewState extends State<EditProfileView> {
         ),
         centerTitle: true,
         actions: [
-          TextButton(
-            onPressed: _saveProfile,
-            child: const Text(
-              'Lưu',
-              style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 16),
-            ),
+          Consumer<ProfileProvider>(
+            builder: (context, provider, _) {
+              if (provider.isUpdating) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.only(right: 16.0),
+                    child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                );
+              }
+              return TextButton(
+                onPressed: _saveProfile,
+                child: const Text(
+                  'Lưu',
+                  style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              );
+            },
           ),
         ],
       ),

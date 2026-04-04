@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/profile_provider.dart';
 
 class ProfileAvatar extends StatelessWidget {
   final String avatarUrl;
@@ -38,17 +40,31 @@ class ProfileAvatar extends StatelessWidget {
                 )
               ],
             ),
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 4),
-                image: DecorationImage(
-                  image: NetworkImage(avatarUrl),
-                  fit: BoxFit.cover,
-                ),
-              ),
+            child: Consumer<ProfileProvider>(
+              builder: (context, provider, _) {
+                return Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 4),
+                    image: avatarUrl.isNotEmpty && !provider.isUploadingAvatar
+                        ? DecorationImage(
+                            image: avatarUrl.startsWith('http') 
+                                ? NetworkImage(avatarUrl) as ImageProvider
+                                : AssetImage(avatarUrl) as ImageProvider,
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: provider.isUploadingAvatar
+                      ? const Center(child: CircularProgressIndicator())
+                      : avatarUrl.isEmpty
+                          ? const Icon(Icons.person, size: 60, color: Colors.grey)
+                          : null,
+                );
+              },
             ),
           ),
           if (isEditing)

@@ -1,24 +1,60 @@
 import 'package:flutter/material.dart';
 import '../models/chat_message.dart';
+import '../models/chat_response.dart';
+import '../services/chat_service.dart';
 
 class ChatProvider with ChangeNotifier {
-  final List<ChatMessage> _messages = [
-    ChatMessage(
-      text: 'Xin chào! Tôi là Sky - trợ lý du lịch thông minh của Skynet. Tôi có thể giúp gì cho bạn hôm nay?',
-      sender: MessageSender.bot,
-      timestamp: DateTime.now(),
-    ),
-  ];
+  final ChatService _chatService = ChatService();
 
+  final List<ChatMessage> _messages = [];
   bool _isTyping = false;
+  List<QuickAction> _suggestions = [];
+  bool _isInitialized = false;
 
   List<ChatMessage> get messages => List.unmodifiable(_messages);
   bool get isTyping => _isTyping;
+  List<QuickAction> get suggestions => _suggestions;
+  bool get isInitialized => _isInitialized;
+  bool get hasMessages => _messages.isNotEmpty;
 
+  /// Initialize with welcome message and load suggestions
+  Future<void> initialize() async {
+    if (_isInitialized) return;
+    _isInitialized = true;
+
+    _messages.add(ChatMessage(
+      text: 'Xin chào! 👋 Tôi là Sky — trợ lý du lịch thông minh của Skynet.\n\nTôi có thể giúp bạn khám phá điểm đến, lập lịch trình, tìm khách sạn và nhiều hơn nữa. Hãy hỏi tôi bất cứ điều gì!',
+      sender: MessageSender.bot,
+      timestamp: DateTime.now(),
+    ));
+
+    // Load default suggestions
+    _suggestions = [
+      QuickAction(label: '🏖 Gợi ý điểm đến', icon: 'explore', actionPayload: 'Gợi ý cho tôi 3 điểm đến đẹp ở Việt Nam'),
+      QuickAction(label: '📋 Lập lịch trình', icon: 'calendar', actionPayload: 'Lập lịch trình du lịch Đà Lạt 3 ngày 2 đêm'),
+      QuickAction(label: '🏨 Tìm khách sạn', icon: 'hotel', actionPayload: 'Tìm khách sạn tốt nhất ở Phú Quốc'),
+      QuickAction(label: '☀️ Thời tiết', icon: 'weather', actionPayload: 'Thời tiết Đà Nẵng hôm nay thế nào?'),
+    ];
+
+    notifyListeners();
+
+    // Try to load suggestions from backend
+    try {
+      final serverSuggestions = await _chatService.getSuggestions();
+      if (serverSuggestions.isNotEmpty) {
+        _suggestions = serverSuggestions;
+        notifyListeners();
+      }
+    } catch (_) {
+      // Use defaults
+    }
+  }
+
+  /// Send a message and get structured AI response
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
-    // Thêm tin nhắn của người dùng
+    // Add user message
     _messages.add(ChatMessage(
       text: text,
       sender: MessageSender.user,
@@ -26,46 +62,34 @@ class ChatProvider with ChangeNotifier {
     ));
     notifyListeners();
 
-    // Giả lập trạng thái Bot đang trả lời
+    // Show typing indicator
     _isTyping = true;
     notifyListeners();
 
-    // Giả lập delay từ AI
-    await Future.delayed(const Duration(seconds: 2));
+    // Get AI response
+    ChatResponse botResponse = await _chatService.sendMessage(text);
 
-    // Phản hồi giả lập (Sẽ thay bằng API thật sau)
-    String botResponse = _getMockResponse(text);
+    // Create message from structured response
+    _messages.add(ChatMessage.fromResponse(botResponse));
 
-    _messages.add(ChatMessage(
-      text: botResponse,
-      sender: MessageSender.bot,
-      timestamp: DateTime.now(),
-    ));
+    // Update suggestions from response
+    if (botResponse.quickActions != null && botResponse.quickActions!.isNotEmpty) {
+      _suggestions = botResponse.quickActions!;
+    }
 
     _isTyping = false;
     notifyListeners();
   }
 
-  String _getMockResponse(String userText) {
-    userText = userText.toLowerCase();
-    if (userText.contains('đà lạt')) {
-      return 'Đà Lạt mùa này rất đẹp! Bạn nên ghé thăm Thung lũng Tình yêu và thưởng thức lẩu gà lá é nhé.';
-    } else if (userText.contains('thời tiết')) {
-      return 'Hiện tại thời tiết ở các điểm du lịch chính đang khá thuận lợi. Bạn muốn kiểm tra cụ thể ở đâu?';
-    } else if (userText.contains('khách sạn')) {
-      return 'Tôi có thể giúp bạn tìm khách sạn phù hợp. Bạn dự định đi vào ngày nào và ngân sách khoảng bao nhiêu?';
-    } else {
-      return 'Cảm ơn bạn! Tôi đang xử lý thông tin. Bạn có muốn biết thêm về các tour du lịch hot nhất hiện nay không?';
-    }
+  /// Handle quick action tap
+  void onQuickActionTap(QuickAction action) {
+    sendMessage(action.actionPayload);
   }
 
+  /// Clear chat and reset
   void clearChat() {
     _messages.clear();
-    _messages.add(ChatMessage(
-      text: 'Cuộc trò chuyện đã được làm mới. Sky có thể giúp gì thêm cho bạn?',
-      sender: MessageSender.bot,
-      timestamp: DateTime.now(),
-    ));
-    notifyListeners();
+    _isInitialized = false;
+    initialize();
   }
 }
