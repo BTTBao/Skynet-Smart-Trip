@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
 // 1. IMPORT FILE HOME_VIEW CỦA BẠN VÀO ĐÂY
 import 'views/home_view.dart'; 
+import 'package:provider/provider.dart';
+import 'views/main_shell.dart';
+import 'providers/providers.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -12,16 +23,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Travel App',
-      // Tắt cái dải băng đỏ chữ "Debug" ở góc trên bên phải cho đẹp
-      debugShowCheckedModeBanner: false, 
+      title: 'Skynet Smart Trip',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // Đổi seedColor sang màu xanh lá cho tone-sur-tone với app du lịch
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF80ed99)),
         useMaterial3: true,
+        fontFamily: 'Public Sans',
       ),
-      // 2. GẮN HOMEVIEW Ở ĐÂY ĐỂ NÓ CHẠY ĐẦU TIÊN
-      home: const HomeView(), 
+      home: const MainShell(),
     );
   }
 }
