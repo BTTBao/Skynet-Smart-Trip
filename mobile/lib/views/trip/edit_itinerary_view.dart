@@ -2,8 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/edit_itinerary_activity.dart';
-import '../../models/edit_itinerary_favorite.dart';
-import '../../models/edit_itinerary_service_type.dart';
 import '../../models/trip_timeline_entry.dart';
 import '../../providers/trip_provider.dart';
 import '../../widgets/trip/widgets.dart';

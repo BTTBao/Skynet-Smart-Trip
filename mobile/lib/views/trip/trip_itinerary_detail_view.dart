@@ -139,7 +139,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
         final resolvedEndDate = detail?.endDate ?? widget.endDate;
         final canRenderDays = resolvedStartDate != null && resolvedEndDate != null;
         final days = canRenderDays
-            ? _buildDays(resolvedStartDate!, resolvedEndDate!)
+            ? _buildDays(resolvedStartDate, resolvedEndDate)
             : const <TripDayItem>[];
 
         if (days.isNotEmpty && _selectedDayIndex >= days.length) {
@@ -269,7 +269,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
                         ItineraryHeroCard(
                           title: resolvedTitle,
                           dateRangeLabel: canRenderDays
-                              ? _dateRangeLabel(resolvedStartDate!, resolvedEndDate!)
+                              ? _dateRangeLabel(resolvedStartDate, resolvedEndDate)
                               : 'Dang cap nhat',
                         ),
                         const SizedBox(height: 14),

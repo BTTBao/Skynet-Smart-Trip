@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'views/main_shell.dart';
 import 'views/auth/splash_screen.dart';
 import 'providers/providers.dart';
 import 'providers/auth_provider.dart';
