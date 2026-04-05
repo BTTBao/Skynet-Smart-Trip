@@ -8,9 +8,8 @@ using SmartTrip.Application.Services.Trip;
 using SmartTrip.Application.Services;
 using SmartTrip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-
-
-
+using System.Text;
+LoadDotEnvIntoEnvironmentVariables(Directory.GetCurrentDirectory());
 var builder = WebApplication.CreateBuilder(args);
 
 // Controllers
@@ -80,3 +79,44 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static void LoadDotEnvIntoEnvironmentVariables(string startDirectory)
+{
+    var directory = new DirectoryInfo(startDirectory);
+
+    while (directory is not null)
+    {
+        var envPath = Path.Combine(directory.FullName, ".env");
+        if (File.Exists(envPath))
+        {
+            foreach (var rawLine in File.ReadAllLines(envPath, Encoding.UTF8))
+            {
+                var line = rawLine.Trim();
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
+                {
+                    continue;
+                }
+
+                var separatorIndex = line.IndexOf('=');
+                if (separatorIndex <= 0)
+                {
+                    continue;
+                }
+
+                var key = line[..separatorIndex].Trim();
+                var value = line[(separatorIndex + 1)..].Trim().Trim('"');
+
+                if (string.IsNullOrWhiteSpace(key) || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(key)))
+                {
+                    continue;
+                }
+
+                Environment.SetEnvironmentVariable(key, value);
+            }
+
+            return;
+        }
+
+        directory = directory.Parent;
+    }
+}
