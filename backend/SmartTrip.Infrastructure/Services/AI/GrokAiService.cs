@@ -36,7 +36,9 @@ public class GrokAiService : IGrokAiService
 
     public async Task<ChatResponseDto> GenerateResponseAsync(ChatContextDto context)
     {
-        if (string.IsNullOrWhiteSpace(_apiKey) || _apiKey == "YOUR_GROK_API_KEY")
+        if (string.IsNullOrWhiteSpace(_apiKey)
+            || _apiKey == "YOUR_GROK_API_KEY"
+            || _apiKey == "YOUR_GROQ_API_KEY")
         {
             return BuildFallbackResponse(context);
         }

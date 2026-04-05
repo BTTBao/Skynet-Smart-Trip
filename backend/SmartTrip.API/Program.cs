@@ -8,7 +8,6 @@ using SmartTrip.Application.Services.Trip;
 using SmartTrip.Application.Services;
 using SmartTrip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-
 var builder = WebApplication.CreateBuilder(args);
 LoadEnvFile(builder.Environment.ContentRootPath);
 
@@ -77,22 +76,18 @@ app.Run();
 
 static void LoadEnvFile(string contentRootPath)
 {
-    var candidatePaths = new[]
-    {
-        Path.Combine(contentRootPath, ".env"),
-        Path.Combine(contentRootPath, "..", ".env"),
-        Path.Combine(contentRootPath, "..", "..", ".env")
-    };
+    var directory = new DirectoryInfo(contentRootPath);
 
-    foreach (var candidatePath in candidatePaths)
+    while (directory is not null)
     {
-        var fullPath = Path.GetFullPath(candidatePath);
-        if (!File.Exists(fullPath))
+        var envPath = Path.Combine(directory.FullName, ".env");
+        if (!File.Exists(envPath))
         {
+            directory = directory.Parent;
             continue;
         }
 
-        DotNetEnv.Env.Load(fullPath);
-        break;
+        DotNetEnv.Env.NoClobber().Load(envPath);
+        return;
     }
 }
