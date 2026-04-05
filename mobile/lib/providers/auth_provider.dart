@@ -1,6 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../services/auth_service.dart';
+import '../services/auth_service_shared.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -49,8 +51,23 @@ class AuthProvider with ChangeNotifier {
   /// Kiểm tra trạng thái đăng nhập khi khởi động app.
   Future<void> checkAuthStatus() async {
     final token = await _storage.read(key: 'access_token');
-    _isAuthenticated = token != null && token.isNotEmpty;
-    notifyListeners();
+    if (token == null || token.isEmpty) {
+      _isAuthenticated = false;
+      notifyListeners();
+      return;
+    }
+
+    if (!_isJwtExpired(token)) {
+      _isAuthenticated = true;
+      notifyListeners();
+      return;
+    }
+
+    final refreshed = await refreshToken();
+    if (!refreshed) {
+      _isAuthenticated = false;
+      notifyListeners();
+    }
   }
 
   /// Đăng nhập bằng email + password.
@@ -153,6 +170,33 @@ class AuthProvider with ChangeNotifier {
       ]);
       _isAuthenticated = false;
       notifyListeners();
+    }
+  }
+
+  bool _isJwtExpired(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) {
+        return true;
+      }
+
+      final payload = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
+      final claims = jsonDecode(payload) as Map<String, dynamic>;
+      final exp = claims['exp'];
+      if (exp is! num) {
+        return true;
+      }
+
+      final expiry = DateTime.fromMillisecondsSinceEpoch(
+        exp.toInt() * 1000,
+        isUtc: true,
+      );
+
+      return DateTime.now().toUtc().isAfter(
+        expiry.subtract(const Duration(seconds: 30)),
+      );
+    } catch (_) {
+      return true;
     }
   }
 }

@@ -15,6 +15,7 @@ class MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     bool isUser = message.sender == MessageSender.user;
     const primaryColor = Color(0xFF80ed99);
+    final shouldShowTextBubble = message.text.trim().isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -37,8 +38,8 @@ class MessageBubble extends StatelessWidget {
             child: Column(
               crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
-                // Text bubble
-                _buildTextBubble(isUser, primaryColor),
+                if (shouldShowTextBubble)
+                  _buildTextBubble(isUser, primaryColor),
                 // Rich content (below text)
                 if (!isUser && message.richData != null)
                   _buildRichContent(),

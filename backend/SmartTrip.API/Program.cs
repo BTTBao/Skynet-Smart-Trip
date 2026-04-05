@@ -5,12 +5,16 @@ using SmartTrip.Application.Interfaces.Trip;
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Application.Services.Chat;
 using SmartTrip.Application.Services.Trip;
+using SmartTrip.Application.Services;
+using SmartTrip.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 using SmartTrip.Infrastructure.Services.User;
 
 // Load biến môi trường từ file .env
 DotNetEnv.Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
+LoadEnvFile(builder.Environment.ContentRootPath);
 
 // Yêu cầu Configuration đọc thêm từ Environment Variables
 builder.Configuration.AddEnvironmentVariables();
@@ -68,8 +72,27 @@ app.UseCors("AllowAll");
 
 app.UseStaticFiles(); // Cho phép truy cập file trong wwwroot (ảnh đại diện)
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
+
+static void LoadEnvFile(string contentRootPath)
+{
+    var directory = new DirectoryInfo(contentRootPath);
+
+    while (directory is not null)
+    {
+        var envPath = Path.Combine(directory.FullName, ".env");
+        if (!File.Exists(envPath))
+        {
+            directory = directory.Parent;
+            continue;
+        }
+
+        DotNetEnv.Env.NoClobber().Load(envPath);
+        return;
+    }
+}

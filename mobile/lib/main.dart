@@ -12,6 +12,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => TripProvider()),
       ],
       child: const MyApp(),
     ),

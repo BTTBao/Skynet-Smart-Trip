@@ -62,12 +62,14 @@ namespace SmartTrip.Application.Services.Email
 
         private async Task SendAsync(MimeMessage message)
         {
-            var host = _configuration["EmailSettings:SmtpHost"]
+            var host = NormalizeConfigValue(_configuration["EmailSettings:SmtpHost"])
                 ?? throw new InvalidOperationException("Missing EmailSettings:SmtpHost");
             var port = int.Parse(_configuration["EmailSettings:SmtpPort"] ?? "587");
-            var username = _configuration["EmailSettings:Username"]
+            var username = NormalizeConfigValue(_configuration["EmailSettings:Username"])
                 ?? throw new InvalidOperationException("Missing EmailSettings:Username");
-            var password = _configuration["EmailSettings:Password"]
+            var password = NormalizeSecretValue(
+                    _configuration["EmailSettings:Password"],
+                    collapseSpaces: host.Contains("gmail", StringComparison.OrdinalIgnoreCase))
                 ?? throw new InvalidOperationException("Missing EmailSettings:Password");
 
             using var client = new SmtpClient();
@@ -75,6 +77,27 @@ namespace SmartTrip.Application.Services.Email
             await client.AuthenticateAsync(username, password);
             await client.SendAsync(message);
             await client.DisconnectAsync(true);
+        }
+
+        private static string? NormalizeConfigValue(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            return value.Trim().Trim('"');
+        }
+
+        private static string? NormalizeSecretValue(string? value, bool collapseSpaces = false)
+        {
+            var normalized = NormalizeConfigValue(value);
+            if (normalized == null)
+            {
+                return null;
+            }
+
+            return collapseSpaces ? normalized.Replace(" ", string.Empty) : normalized;
         }
 
         // ──────────────────────────────────────────────

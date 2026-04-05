@@ -28,15 +28,17 @@ public class GrokAiService : IGrokAiService
     {
         _httpClient = httpClient;
         _logger = logger;
-        _apiKey = configuration["Grok:ApiKey"] ?? string.Empty;
-        _baseUrl = (configuration["Grok:BaseUrl"] ?? "https://api.groq.com/openai/v1").TrimEnd('/');
-        _model = configuration["Grok:Model"] ?? "openai/gpt-oss-120b";
+        _apiKey = NormalizeSecret(configuration["Grok:ApiKey"]) ?? string.Empty;
+        _baseUrl = (NormalizeConfigValue(configuration["Grok:BaseUrl"]) ?? "https://api.groq.com/openai/v1").TrimEnd('/');
+        _model = NormalizeConfigValue(configuration["Grok:Model"]) ?? "openai/gpt-oss-120b";
         _maxTokens = int.TryParse(configuration["Grok:MaxTokens"], out var maxTokens) ? maxTokens : 2048;
     }
 
     public async Task<ChatResponseDto> GenerateResponseAsync(ChatContextDto context)
     {
-        if (string.IsNullOrWhiteSpace(_apiKey) || _apiKey == "YOUR_GROK_API_KEY")
+        if (string.IsNullOrWhiteSpace(_apiKey)
+            || _apiKey == "YOUR_GROK_API_KEY"
+            || _apiKey == "YOUR_GROQ_API_KEY")
         {
             return BuildFallbackResponse(context);
         }
@@ -119,6 +121,8 @@ public class GrokAiService : IGrokAiService
   ""quickActions"": [{ ""label"": ""Goi y text"", ""icon"": ""explore|hotel|restaurant|calendar|weather|map"", ""actionPayload"": ""Cau gui khi user tap"" }]
 }");
         sb.AppendLine("Lua chon responseType dung voi ngu canh va luon kem 2-4 quickActions.");
+        sb.AppendLine("Nhan quick action co the ngan gon, nhung actionPayload phai la cau tieng Viet tu nhien ma nguoi dung thuc su se gui.");
+        sb.AppendLine("Tuyet doi khong tra ve ma ky thuat, token noi bo, hay chuoi dang SHOW_DETAILS_HOIAN, OPEN_HOTEL, DETAIL_ID_123.");
         sb.AppendLine("Ngu gon, huu ich, mang goc nhin local guide Viet Nam.");
 
         if (!string.IsNullOrWhiteSpace(context.DatabaseContext))
@@ -218,5 +222,26 @@ public class GrokAiService : IGrokAiService
             new() { Label = "Lap lich trinh", Icon = "calendar", ActionPayload = "Lap lich trinh du lich cho toi" },
             new() { Label = "Tim khach san", Icon = "hotel", ActionPayload = "Tim khach san tot nhat" }
         };
+    }
+
+    private static string? NormalizeConfigValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return value.Trim().Trim('"');
+    }
+
+    private static string? NormalizeSecret(string? value)
+    {
+        var normalized = NormalizeConfigValue(value);
+        if (normalized == null)
+        {
+            return null;
+        }
+
+        return normalized.Replace(" ", string.Empty);
     }
 }
