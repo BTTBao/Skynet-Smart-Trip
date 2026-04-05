@@ -8,16 +8,18 @@ using SmartTrip.Application.Services.Trip;
 using SmartTrip.Application.Services;
 using SmartTrip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using System.Text;
-LoadDotEnvIntoEnvironmentVariables(Directory.GetCurrentDirectory());
 var builder = WebApplication.CreateBuilder(args);
+LoadEnvFile(builder.Environment.ContentRootPath);
 
+// Yêu cầu Configuration đọc thêm từ Environment Variables
+builder.Configuration.AddEnvironmentVariables();
 // Controllers
 builder.Services.AddControllers();
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IChatService, ChatService>();    
+builder.Services.AddScoped<IUserService, UserService>(); // đưa vào ServiceExtensions cho gọn
+builder.Services.AddScoped<IChatService, ChatService>(); // đưa vào ServiceExtensions cho gọn
 builder.Services.AddHttpContextAccessor(); // Để lấy URL đầy đủ của ảnh
 
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
@@ -34,27 +36,18 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddEndpointsApiExplorer();
 
 // Dependency Injection (Services)
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<ITripServiceOptionService, TripServiceOptionService>();
-builder.Services.AddScoped<IItineraryService, ItineraryService>();
-builder.Services.AddScoped<ITripService, TripService>();
+builder.Services.AddScoped<IUserService, UserService>(); // đưa vào ServiceExtensions cho gọn
+builder.Services.AddScoped<ITripServiceOptionService, TripServiceOptionService>(); // đưa vào ServiceExtensions cho gọn
+builder.Services.AddScoped<IItineraryService, ItineraryService>(); // đưa vào ServiceExtensions cho gọn
+builder.Services.AddScoped<ITripService, TripService>(); // đưa vào ServiceExtensions cho gọn
 
 // Infrastructure
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// CORS
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
-
 // Swagger
 builder.Services.AddSwaggerConfiguration();
+
+builder.Services.AddCustomApiBehavior();
 
 // Application + Auth
 builder.Services.AddApplicationServices();
@@ -74,49 +67,27 @@ app.UseCors("AllowAll");
 
 app.UseStaticFiles(); // Cho phép truy cập file trong wwwroot (ảnh đại diện)
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
 
-static void LoadDotEnvIntoEnvironmentVariables(string startDirectory)
+static void LoadEnvFile(string contentRootPath)
 {
-    var directory = new DirectoryInfo(startDirectory);
+    var directory = new DirectoryInfo(contentRootPath);
 
     while (directory is not null)
     {
         var envPath = Path.Combine(directory.FullName, ".env");
-        if (File.Exists(envPath))
+        if (!File.Exists(envPath))
         {
-            foreach (var rawLine in File.ReadAllLines(envPath, Encoding.UTF8))
-            {
-                var line = rawLine.Trim();
-                if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
-                {
-                    continue;
-                }
-
-                var separatorIndex = line.IndexOf('=');
-                if (separatorIndex <= 0)
-                {
-                    continue;
-                }
-
-                var key = line[..separatorIndex].Trim();
-                var value = line[(separatorIndex + 1)..].Trim().Trim('"');
-
-                if (string.IsNullOrWhiteSpace(key) || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(key)))
-                {
-                    continue;
-                }
-
-                Environment.SetEnvironmentVariable(key, value);
-            }
-
-            return;
+            directory = directory.Parent;
+            continue;
         }
 
-        directory = directory.Parent;
+        DotNetEnv.Env.NoClobber().Load(envPath);
+        return;
     }
 }

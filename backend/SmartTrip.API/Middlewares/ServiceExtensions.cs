@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -89,6 +90,28 @@ public static class ServiceExtensions
                     Array.Empty<string>()
                 }
             });
+        });
+
+        return services;
+    }
+
+    public static IServiceCollection AddCustomApiBehavior(this IServiceCollection services)
+    {
+        services.Configure<ApiBehaviorOptions>(options =>
+        {
+            options.InvalidModelStateResponseFactory = context =>
+            {
+                var firstError = context.ModelState
+                    .Values
+                    .SelectMany(v => v.Errors)
+                    .FirstOrDefault()?.ErrorMessage;
+
+                return new BadRequestObjectResult(new
+                {
+                    success = false,
+                    message = firstError
+                });
+            };
         });
 
         return services;

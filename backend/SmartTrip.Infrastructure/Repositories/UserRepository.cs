@@ -13,24 +13,32 @@ namespace SmartTrip.Infrastructure.Repositories
             _dbContext = dbContext;
         }
 
-        public async Task<User?> GetUserByEmailAsync(string email)
-        {
-            return await _dbContext.Users
+        public async Task<User?> GetUserByEmailAsync(string email) =>
+            await _dbContext.Users
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
-        }
+
+        public async Task<User?> GetUserByResetTokenAsync(string token) =>
+            await _dbContext.Users
+                .FirstOrDefaultAsync(u => u.PasswordResetToken == token);
+
+        public async Task<User?> GetUserByRefreshTokenAsync(string token) =>
+            await _dbContext.Users
+                .FirstOrDefaultAsync(u => u.RefreshToken == token);
+
+        public async Task<User?> GetUserByVerificationTokenAsync(string token) =>
+            await _dbContext.Users
+                .FirstOrDefaultAsync(u => u.EmailVerificationToken == token);
 
         public async Task<bool> AddUserAsync(User user)
         {
             await _dbContext.Users.AddAsync(user);
-            var result = await _dbContext.SaveChangesAsync();
-            return result > 0;
+            return await _dbContext.SaveChangesAsync() > 0;
         }
 
         public async Task<bool> UpdateUserAsync(User user)
         {
             _dbContext.Users.Update(user);
-            var result = await _dbContext.SaveChangesAsync();
-            return result > 0;
+            return await _dbContext.SaveChangesAsync() > 0;
         }
     }
 }

@@ -8,56 +8,56 @@ services:
       - MSSQL_PID=Developer
     ports:
       - "${DB_PORT}:1433"
-    volumes:
+    volumes:0
       - sqlserver_data:/var/opt/mssql
-    healthcheck: 
+    healthcheck:
       test: ["CMD-SHELL", "bash -c '< /dev/tcp/127.0.0.1/1433'"]
       interval: 10s
       timeout: 3s
       retries: 10
 
-  backend:
-    image: mcr.microsoft.com/dotnet/sdk:8.0 # Dùng SDK để chạy lệnh watch
-    container_name: skynet_backend_dev
-    working_dir: /app/SmartTrip.API
-    ports:
-      - "${API_PORT}:8080" 
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__SmartTrip=Server=sqlserver,1433;Database=${DB_NAME};User Id=sa;Password=${DB_PASSWORD};TrustServerCertificate=True;
-      - DOTNET_USE_POLLING_FILE_WATCHER=1 # Hỗ trợ nhận diện thay đổi file trên Windows
-    volumes:
-      - ./backend:/app 
-      - nuget_cache:/root/.nuget/packages
-      - /app/SmartTrip.API/obj/ 
-      - /app/SmartTrip.API/bin/
-      - /app/SmartTrip.Application/bin/
-      - /app/SmartTrip.Application/obj/
-      - /app/SmartTrip.Domain/bin/
-      - /app/SmartTrip.Domain/obj/
-      - /app/SmartTrip.Infrastructure/bin/
-      - /app/SmartTrip.Infrastructure/obj/
-    command: dotnet watch run --urls http://0.0.0.0:8080 --no-launch-profile
-    depends_on:
-      sqlserver:
-        condition: service_healthy
+  # backend:
+  #   image: mcr.microsoft.com/dotnet/sdk:8.0 # Dùng SDK để chạy lệnh watch
+  #   container_name: skynet_backend_dev
+  #   working_dir: /app/SmartTrip.API
+  #   ports:
+  #     - "${API_PORT}:8080"
+  #   environment:
+  #     - ASPNETCORE_ENVIRONMENT=Development
+  #     - ConnectionStrings__SmartTrip=Server=sqlserver,1433;Database=${DB_NAME};User Id=sa;Password=${DB_PASSWORD};TrustServerCertificate=True;
+  #     - DOTNET_USE_POLLING_FILE_WATCHER=1 # Hỗ trợ nhận diện thay đổi file trên Windows
+  #   volumes:
+  #     - ./backend:/app
+  #     - nuget_cache:/root/.nuget/packages
+  #     - /app/SmartTrip.API/obj/
+  #     - /app/SmartTrip.API/bin/
+  #     - /app/SmartTrip.Application/bin/
+  #     - /app/SmartTrip.Application/obj/
+  #     - /app/SmartTrip.Domain/bin/
+  #     - /app/SmartTrip.Domain/obj/
+  #     - /app/SmartTrip.Infrastructure/bin/
+  #     - /app/SmartTrip.Infrastructure/obj/
+  #   command: dotnet watch run --urls http://0.0.0.0:8080 --no-launch-profile
+  #   depends_on:
+  #     sqlserver:
+  #       condition: service_healthy
 
-  web:
-    image: node:24-alpine # Dùng Node để chạy Vite Server
-    container_name: skynet_web_dev
-    working_dir: /app
-    ports:
-      - "${WEB_PORT}:5173" # Bộc lộ port mặc định của Vite
-    environment:
-      - CHOKIDAR_USEPOLLING=true # Hỗ trợ Vite nhận diện hot-reload trên WSL/Windows
-    volumes:
-      - ./web:/app # Bind mount mã nguồn React/Vite
-      - web_node_modules:/app/node_modules # Giữ node_modules riêng phân biệt với máy host
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
-    depends_on:
-      - backend
+  # web:
+  #   image: node:24-alpine # Dùng Node để chạy Vite Server
+  #   container_name: skynet_web_dev
+  #   working_dir: /app
+  #   ports:
+  #     - "${WEB_PORT}:5173" # Bộc lộ port mặc định của Vite
+  #   environment:
+  #     - CHOKIDAR_USEPOLLING=true # Hỗ trợ Vite nhận diện hot-reload trên WSL/Windows
+  #   volumes:
+  #     - ./web:/app # Bind mount mã nguồn React/Vite
+  #     - web_node_modules:/app/node_modules # Giữ node_modules riêng phân biệt với máy host
+  #   command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+  #   depends_on:
+  #     - backend
 
 volumes:
   sqlserver_data:
-  web_node_modules:
-  nuget_cache:
+  # web_node_modules:
+  # nuget_cache:
