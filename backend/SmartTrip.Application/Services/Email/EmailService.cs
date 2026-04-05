@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using MimeKit;
 using SmartTrip.Application.Interfaces.Email;
 
-namespace SmartTrip.Application.Services
+namespace SmartTrip.Application.Services.Email
 {
     public class EmailService : IEmailService
     {

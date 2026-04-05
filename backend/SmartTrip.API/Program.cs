@@ -1,13 +1,11 @@
-﻿﻿using SmartTrip.API.Middlewares;
-using SmartTrip.Application.Interfaces.User;
-using SmartTrip.Infrastructure.Services.User;
+﻿using Microsoft.EntityFrameworkCore;
+using SmartTrip.API.Middlewares;
 using SmartTrip.Application.Interfaces.Chat;
-using SmartTrip.Application.Services.Chat;
 using SmartTrip.Application.Interfaces.Trip;
+using SmartTrip.Application.Interfaces.User;
+using SmartTrip.Application.Services.Chat;
 using SmartTrip.Application.Services.Trip;
-using SmartTrip.Application.Services;
-using SmartTrip.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
+using SmartTrip.Infrastructure.Services.User;
 
 // Load biến môi trường từ file .env
 DotNetEnv.Env.Load();

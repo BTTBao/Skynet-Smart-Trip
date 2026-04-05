@@ -1,5 +1,8 @@
+using Google.Apis.Auth;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using SmartTrip.Application.Configurations;
 using SmartTrip.Application.DTOs.Auth;
 using SmartTrip.Application.DTOs.Auth.ForgotPassword;
 using SmartTrip.Application.DTOs.Auth.Login;
@@ -13,12 +16,13 @@ using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
 
-namespace SmartTrip.Application.Services
+namespace SmartTrip.Application.Services.Auth
 {
     public class AuthService : IAuthService
     {
         private readonly IUserRepository _userRepository;
         private readonly ITokenService _tokenService;
+        private readonly GoogleAuthSettings _googleSettings;
         private readonly IEmailService _emailService;
         private readonly IConfiguration _configuration;
         private readonly ILogger<AuthService> _logger;
@@ -32,12 +36,14 @@ namespace SmartTrip.Application.Services
         public AuthService(
             IUserRepository userRepository,
             ITokenService tokenService,
+            IOptions<GoogleAuthSettings> googleSettings,
             IEmailService emailService,
             IConfiguration configuration,
             ILogger<AuthService> logger)
         {
             _userRepository = userRepository;
             _tokenService = tokenService;
+            _googleSettings = googleSettings.Value;
             _emailService = emailService;
             _configuration = configuration;
             _logger = logger;
@@ -56,6 +62,81 @@ namespace SmartTrip.Application.Services
             if (!user.IsEmailVerified)
                 return Fail("Email chưa được xác thực. Vui lòng kiểm tra hòm thư và xác thực tài khoản.");
 
+            var accessToken = _tokenService.GenerateAccessToken(user, AccessTokenExpireMinutes);
+            var refreshToken = _tokenService.GenerateRefreshToken();
+
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(RefreshTokenExpireDays);
+            user.LastLoginAt = DateTime.UtcNow;
+
+            await _userRepository.UpdateUserAsync(user);
+
+            return new AuthResultDto
+            {
+                IsSuccess = true,
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                ExpiresIn = AccessTokenExpireMinutes * 60
+            };
+        }
+
+        public async Task<AuthResultDto> LoginWithGoogleAsync(GoogleLoginRequest request)
+        {
+            GoogleJsonWebSignature.Payload payload;
+
+            try
+            {
+                // Validate ID Token với Google
+                var validationSettings = new GoogleJsonWebSignature.ValidationSettings
+                {
+                    // So khớp Audience với tất cả Client IDs 
+                    Audience = _googleSettings.GoogleClientIds.GetAllIds()
+                };
+
+                payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, validationSettings);
+            }
+            catch (InvalidJwtException)
+            {
+                return Fail("Token Google không hợp lệ hoặc đã hết hạn.");
+            }
+
+            // tìm user theo email
+            var user = await _userRepository.GetUserByEmailAsync(payload.Email);
+
+            if (user == null)
+            {
+                // nếu user mới 
+                user = new User 
+                {
+                    Email = payload.Email,
+                    FullName = payload.Name,
+                    AvatarUrl = payload.Picture, 
+                    IsEmailVerified = payload.EmailVerified,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+
+                    AuthProvider = AuthProvider.Google,
+                    // payload.Subject chính là chuỗi ID duy nhất của Google cho user này
+                    SocialId = payload.Subject
+                };
+
+                await _userRepository.AddUserAsync(user); 
+            }
+            else
+            {
+                // user đã tồn tại
+                if (user.IsActive == false)
+                    return Fail("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ.");
+
+                if (string.IsNullOrEmpty(user.AuthProvider.ToString()) || user.AuthProvider != AuthProvider.Google)
+                {
+                    user.AuthProvider = AuthProvider.Google;
+                    user.SocialId = payload.Subject;
+                    user.IsEmailVerified = true; 
+                }
+            }
+
+            // generate access/refresh token 
             var accessToken = _tokenService.GenerateAccessToken(user, AccessTokenExpireMinutes);
             var refreshToken = _tokenService.GenerateRefreshToken();
 
@@ -254,5 +335,6 @@ namespace SmartTrip.Application.Services
                 _logger.LogError(ex, "Failed to send verification email to {Email}", user.Email);
             }
         }
+
     }
 }

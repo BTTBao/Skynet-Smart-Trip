@@ -11,6 +11,7 @@ namespace SmartTrip.Application.Interfaces.Auth
     public interface IAuthService
     {
         Task<AuthResultDto> LoginAsync(LoginRequest request);
+        Task<AuthResultDto> LoginWithGoogleAsync(GoogleLoginRequest request);
         Task<AuthResultDto> RegisterAsync(RegisterRequest request);
         Task ForgotPasswordAsync(ForgotPasswordRequest request);
         Task<bool> ResetPasswordAsync(ResetPasswordRequest request);

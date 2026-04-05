@@ -7,7 +7,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace SmartTrip.Application.Services
+namespace SmartTrip.Application.Services.Auth
 {
     public class TokenService : ITokenService
     {

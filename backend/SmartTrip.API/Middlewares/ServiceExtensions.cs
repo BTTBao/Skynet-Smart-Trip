@@ -3,12 +3,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using SmartTrip.Application.Interfaces.Chat;
+using SmartTrip.Application.Configurations;
 using SmartTrip.Application.Interfaces.Auth;
+using SmartTrip.Application.Interfaces.Chat;
 using SmartTrip.Application.Interfaces.Email;
 using SmartTrip.Application.Interfaces.User;
-using SmartTrip.Application.Services;
+using SmartTrip.Application.Services.Auth;
 using SmartTrip.Application.Services.Chat;
+using SmartTrip.Application.Services.Email;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Infrastructure.Repositories;
 using SmartTrip.Infrastructure.Services.AI;
@@ -25,6 +27,9 @@ public static class ServiceExtensions
             options.UseSqlServer(configuration.GetConnectionString("SmartTrip")));
         services.AddScoped<IApplicationDbContext>(provider => 
             provider.GetRequiredService<ApplicationDbContext>());
+
+        services.Configure<GoogleAuthSettings>(configuration.GetSection("GoogleAuthSettings"));
+
         return services;
     }
 
