@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../services/auth_service.dart';
+import '../services/auth_service_shared.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();

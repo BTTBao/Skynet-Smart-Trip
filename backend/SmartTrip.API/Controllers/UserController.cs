@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartTrip.Application.DTOs.User;
 using SmartTrip.Application.Interfaces.User;
+using System.Security.Claims;
 
 namespace SmartTrip.API.Controllers;
 
@@ -13,6 +15,51 @@ public class UserController : ControllerBase
     public UserController(IUserService userService)
     {
         _userService = userService;
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<IActionResult> GetCurrentProfile()
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var profile = await _userService.GetUserProfileAsync(userId.Value);
+        if (profile == null) return NotFound();
+        return Ok(profile);
+    }
+
+    [Authorize]
+    [HttpGet("me/activity-history")]
+    public async Task<IActionResult> GetCurrentActivityHistory()
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var history = await _userService.GetActivityHistoryAsync(userId.Value);
+        if (history == null) return NotFound();
+        return Ok(history);
+    }
+
+    [Authorize]
+    [HttpPut("me")]
+    [HttpPatch("me")]
+    public async Task<IActionResult> UpdateCurrentProfile([FromBody] UserDto userDto)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        return await UpdateProfile(userId.Value, userDto);
+    }
+
+    [Authorize]
+    [HttpPost("me/upload-avatar")]
+    public async Task<IActionResult> UploadCurrentAvatar(IFormFile file)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        return await UploadAvatar(userId.Value, file);
     }
 
     [HttpGet("{id}")]
@@ -56,5 +103,14 @@ public class UserController : ControllerBase
         if (avatarUrl == null) return NotFound("Người dùng không tồn tại");
 
         return Ok(new { avatarUrl });
+    }
+    private int? GetCurrentUserId()
+    {
+        var rawUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue(ClaimTypes.Name)
+            ?? User.FindFirstValue(ClaimTypes.Sid)
+            ?? User.FindFirstValue("sub");
+
+        return int.TryParse(rawUserId, out var userId) ? userId : null;
     }
 }
