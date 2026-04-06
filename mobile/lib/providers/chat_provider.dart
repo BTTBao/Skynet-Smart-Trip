@@ -83,7 +83,7 @@ class ChatProvider with ChangeNotifier {
 
   /// Handle quick action tap
   void onQuickActionTap(QuickAction action) {
-    sendMessage(action.actionPayload);
+    sendMessage(_resolveActionMessage(action));
   }
 
   /// Clear chat and reset
@@ -91,5 +91,25 @@ class ChatProvider with ChangeNotifier {
     _messages.clear();
     _isInitialized = false;
     initialize();
+  }
+
+  String _resolveActionMessage(QuickAction action) {
+    final payload = action.actionPayload.trim();
+    final label = action.label.trim();
+
+    if (payload.isEmpty) {
+      return label;
+    }
+
+    final looksLikeInternalCommand = RegExp(r'^[A-Z0-9_]+$').hasMatch(payload) ||
+        payload.startsWith('SHOW_') ||
+        payload.startsWith('OPEN_') ||
+        payload.startsWith('DETAIL_');
+
+    if (looksLikeInternalCommand) {
+      return label;
+    }
+
+    return payload;
   }
 }

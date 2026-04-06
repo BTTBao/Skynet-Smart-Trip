@@ -77,8 +77,11 @@ class DestinationCardBubble extends StatelessWidget {
                   Positioned(
                     bottom: 10,
                     left: 12,
+                    right: 12,
                     child: Text(
                       card.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -105,34 +108,31 @@ class DestinationCardBubble extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   const SizedBox(height: 8),
-                  Row(
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      if (card.rating != null) ...[
-                        Icon(Icons.star_rounded, size: 16, color: Colors.amber.shade600),
-                        const SizedBox(width: 2),
-                        Text(
-                          card.rating!.toStringAsFixed(1),
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.amber.shade800),
+                      if (card.rating != null)
+                        _buildMetaItem(
+                          icon: Icon(Icons.star_rounded, size: 16, color: Colors.amber.shade600),
+                          text: card.rating!.toStringAsFixed(1),
+                          textStyle: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.amber.shade800,
+                          ),
                         ),
-                        const SizedBox(width: 12),
-                      ],
-                      if (card.bestSeason != null) ...[
-                        const Icon(Icons.calendar_today_outlined, size: 13, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text(
-                          card.bestSeason!,
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      if (card.bestSeason != null)
+                        _buildMetaItem(
+                          icon: const Icon(Icons.calendar_today_outlined, size: 13, color: Colors.grey),
+                          text: card.bestSeason!,
                         ),
-                        const SizedBox(width: 12),
-                      ],
-                      if (card.estimatedBudget != null) ...[
-                        const Icon(Icons.payments_outlined, size: 13, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text(
-                          card.estimatedBudget!,
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      if (card.estimatedBudget != null)
+                        _buildMetaItem(
+                          icon: const Icon(Icons.payments_outlined, size: 13, color: Colors.grey),
+                          text: card.estimatedBudget!,
                         ),
-                      ],
                     ],
                   ),
                 ],
@@ -155,6 +155,25 @@ class DestinationCardBubble extends StatelessWidget {
     ];
     final index = name.hashCode.abs() % gradients.length;
     return gradients[index];
+  }
+
+  Widget _buildMetaItem({
+    required Widget icon,
+    required String text,
+    TextStyle textStyle = const TextStyle(fontSize: 12, color: Colors.grey),
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        icon,
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: textStyle,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
   }
 }
 

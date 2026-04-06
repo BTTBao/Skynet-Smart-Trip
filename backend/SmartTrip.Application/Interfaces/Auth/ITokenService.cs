@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using SmartTrip.Domain.Entities;
 
 namespace SmartTrip.Application.Interfaces.Auth
 {
     public interface ITokenService
     {
-        string GenerateToken(string email);
+        string GenerateAccessToken(Domain.Entities.User user, int expireMinutes);
+        string GenerateRefreshToken();
     }
 }

@@ -24,7 +24,7 @@ class ProfileService extends ApiService {
     } else {
       // CODE CHO BACKEND THẬT .NET
       try {
-        final response = await getWithFallback('/user/1');
+        final response = await getWithFallback('/user/me', requireAuth: true);
         return UserProfile.fromJson(handleResponse(response));
       } catch (e) {
         rethrow;
@@ -39,9 +39,9 @@ class ProfileService extends ApiService {
     } else {
       // CODE CHO BACKEND THẬT .NET
       try {
-        final userId = profile.id.isNotEmpty ? profile.id : '1';
         final response = await putWithFallback(
-          '/user/$userId',
+          '/user/me',
+          requireAuth: true,
           body: jsonEncode(profile.toJson()),
         );
         handleResponse(response);
@@ -59,9 +59,10 @@ class ProfileService extends ApiService {
     } else {
       try {
         final response = await multipartPostWithFallback(
-          '/user/$userId/upload-avatar',
+          '/user/me/upload-avatar',
           fileField: 'file',
           filePath: filePath,
+          requireAuth: true,
         );
 
         final data = handleResponse(response);

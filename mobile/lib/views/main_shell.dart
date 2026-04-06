@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/providers/profile_provider.dart';
 import 'package:provider/provider.dart';
-import 'profile/profile_view.dart';
+
 import 'chatbot/chatbot_view.dart';
+
 import 'bookings/my_bookings_screen.dart';
 import 'search/search_screen.dart';
+
+import 'profile/profile_view.dart';
+import 'trip/my_trips_view.dart';
+
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -17,17 +22,18 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = [
-    _PlaceholderPage(label: 'Trang chủ', icon: Icons.home_outlined),
-    ChatbotView(), // Tích hợp Chatbot vào tab 2
-    const SearchScreen(), // Màn hình tìm kiếm điểm đến
-    const MyBookingsScreen(), // Trỏ vào màn hình danh sách chuyến đi
+
+    const _PlaceholderPage(label: 'Trang chu', icon: Icons.home_outlined),
+    ChatbotView(),
+    const _PlaceholderPage(label: 'Kham pha', icon: Icons.explore_outlined),
+    const MyTripsView(),
+
     ProfileView(),
   ];
 
   @override
   void initState() {
     super.initState();
-    // Tải thông tin profile khi app khởi động
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<ProfileProvider>(context, listen: false).fetchProfile();
     });
@@ -50,7 +56,7 @@ class _MainShellState extends State<MainShell> {
               color: Colors.black.withOpacity(0.06),
               blurRadius: 16,
               offset: const Offset(0, -4),
-            )
+            ),
           ],
         ),
         child: SafeArea(
@@ -59,11 +65,11 @@ class _MainShellState extends State<MainShell> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(0, Icons.home_outlined, Icons.home, 'Trang chủ', primaryColor),
+                _buildNavItem(0, Icons.home_outlined, Icons.home, 'Trang chu', primaryColor),
                 _buildNavItem(1, Icons.chat_bubble_outline, Icons.chat_bubble, 'Sky Chat', primaryColor),
-                _buildNavItem(2, Icons.explore_outlined, Icons.explore, 'Khám phá', primaryColor),
-                _buildNavItem(3, Icons.bookmark_outline, Icons.bookmark, 'Đặt chỗ', primaryColor),
-                _buildNavItem(4, Icons.settings_outlined, Icons.settings, 'Cài đặt', primaryColor),
+                _buildNavItem(2, Icons.explore_outlined, Icons.explore, 'Kham pha', primaryColor),
+                _buildNavItem(3, Icons.bookmark_outline, Icons.bookmark, 'Chuyen di', primaryColor),
+                _buildNavItem(4, Icons.settings_outlined, Icons.settings, 'Cai dat', primaryColor),
               ],
             ),
           ),
@@ -108,7 +114,6 @@ class _MainShellState extends State<MainShell> {
   }
 }
 
-// Widget giữ chỗ cho các tab chưa phát triển
 class _PlaceholderPage extends StatelessWidget {
   final String label;
   final IconData icon;
@@ -135,7 +140,7 @@ class _PlaceholderPage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Đang phát triển...',
+              'Dang phat trien...',
               style: TextStyle(color: Colors.grey.shade400),
             ),
           ],

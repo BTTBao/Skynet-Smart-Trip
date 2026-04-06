@@ -25,7 +25,10 @@ class ProfileProvider with ChangeNotifier {
     try {
       _profileData = await _apiService.getProfile();
     } catch (e) {
-      _error = e.toString();
+      final message = e.toString().replaceFirst('Exception: ', '');
+      _error = message.contains('401')
+          ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+          : message;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -56,7 +59,10 @@ class ProfileProvider with ChangeNotifier {
       }
       return false;
     } catch (e) {
-      _error = e.toString();
+      final message = e.toString().replaceFirst('Exception: ', '');
+      _error = message.contains('401')
+          ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+          : message;
       return false;
     } finally {
       _isUpdating = false;
@@ -79,7 +85,10 @@ class ProfileProvider with ChangeNotifier {
       }
       return false;
     } catch (e) {
-      _error = e.toString();
+      final message = e.toString().replaceFirst('Exception: ', '');
+      _error = message.contains('401')
+          ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+          : message;
       return false;
     } finally {
       _isUploadingAvatar = false;

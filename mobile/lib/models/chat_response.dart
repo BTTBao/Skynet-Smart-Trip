@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Structured response from Sky Assistant backend.
 class ChatResponse {
   final String text;
@@ -21,26 +23,66 @@ class ChatResponse {
   }) : timestamp = timestamp ?? DateTime.now();
 
   factory ChatResponse.fromJson(Map<String, dynamic> json) {
+    final normalizedJson = _normalizeChatPayload(json);
+
     return ChatResponse(
-      text: json['text'] ?? '',
-      responseType: json['responseType'] ?? 'text',
-      destinationCards: json['destinationCards'] != null
-          ? (json['destinationCards'] as List).map((e) => DestinationCard.fromJson(e)).toList()
+      text: normalizedJson['text'] ?? '',
+      responseType: normalizedJson['responseType'] ?? 'text',
+      destinationCards: normalizedJson['destinationCards'] != null
+          ? (normalizedJson['destinationCards'] as List)
+              .map((e) => DestinationCard.fromJson(e))
+              .toList()
           : null,
-      suggestedItinerary: json['suggestedItinerary'] != null
-          ? SuggestedItinerary.fromJson(json['suggestedItinerary'])
+      suggestedItinerary: normalizedJson['suggestedItinerary'] != null
+          ? SuggestedItinerary.fromJson(normalizedJson['suggestedItinerary'])
           : null,
-      quickActions: json['quickActions'] != null
-          ? (json['quickActions'] as List).map((e) => QuickAction.fromJson(e)).toList()
+      quickActions: normalizedJson['quickActions'] != null
+          ? (normalizedJson['quickActions'] as List).map((e) => QuickAction.fromJson(e)).toList()
           : null,
-      weatherInfo: json['weatherInfo'] != null
-          ? WeatherInfo.fromJson(json['weatherInfo'])
+      weatherInfo: normalizedJson['weatherInfo'] != null
+          ? WeatherInfo.fromJson(normalizedJson['weatherInfo'])
           : null,
-      hotelCards: json['hotelCards'] != null
-          ? (json['hotelCards'] as List).map((e) => HotelCard.fromJson(e)).toList()
+      hotelCards: normalizedJson['hotelCards'] != null
+          ? (normalizedJson['hotelCards'] as List).map((e) => HotelCard.fromJson(e)).toList()
           : null,
-      timestamp: json['timestamp'] != null ? DateTime.tryParse(json['timestamp']) : null,
+      timestamp: normalizedJson['timestamp'] != null ? DateTime.tryParse(normalizedJson['timestamp']) : null,
     );
+  }
+
+  static Map<String, dynamic> _normalizeChatPayload(Map<String, dynamic> json) {
+    final normalized = Map<String, dynamic>.from(json);
+    final rawText = normalized['text'];
+
+    if (rawText is! String) {
+      return normalized;
+    }
+
+    final trimmed = rawText.trim();
+    if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
+      return normalized;
+    }
+
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is! Map<String, dynamic>) {
+        return normalized;
+      }
+
+      final merged = Map<String, dynamic>.from(normalized)..addAll(decoded);
+      final decodedText = decoded['text'];
+      final hasRichContent = (decoded['destinationCards'] is List && (decoded['destinationCards'] as List).isNotEmpty) ||
+          decoded['hotelCards'] is List ||
+          decoded['suggestedItinerary'] != null ||
+          decoded['weatherInfo'] != null;
+
+      if (hasRichContent && decodedText is String) {
+        merged['text'] = decodedText.trim();
+      }
+
+      return merged;
+    } catch (_) {
+      return normalized;
+    }
   }
 }
 
