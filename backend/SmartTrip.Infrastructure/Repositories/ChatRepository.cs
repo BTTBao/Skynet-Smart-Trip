@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SmartTrip.Application.DTOs.Chat;
 using SmartTrip.Application.Interfaces.Chat;
 using SmartTrip.Domain.Entities;
 
@@ -13,14 +14,60 @@ public class ChatRepository : IChatRepository
         _dbContext = dbContext;
     }
 
-    public async Task<List<ChatHistory>> GetChatHistoryAsync(int userId, int limit)
+    public async Task<List<ChatHistory>> GetChatHistoryAsync(int userId, string sessionId, int limit)
     {
         return await _dbContext.ChatHistories
-            .Where(h => h.UserId == userId)
+            .Where(h => h.UserId == userId && h.SessionId == sessionId)
             .OrderByDescending(h => h.CreatedAt)
             .Take(limit)
             .OrderBy(h => h.CreatedAt)
             .ToListAsync();
+    }
+
+    public async Task<string?> GetLatestSessionIdAsync(int userId)
+    {
+        return await _dbContext.ChatHistories
+            .Where(h => h.UserId == userId && h.SessionId != null && h.SessionId != "")
+            .OrderByDescending(h => h.CreatedAt)
+            .Select(h => h.SessionId)
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<List<ChatSessionSummaryDto>> GetChatSessionsAsync(int userId, int limit)
+    {
+        var histories = await _dbContext.ChatHistories
+            .Where(h => h.UserId == userId && h.SessionId != null && h.SessionId != "")
+            .OrderByDescending(h => h.CreatedAt)
+            .Select(h => new
+            {
+                h.SessionId,
+                h.CreatedAt,
+                h.UserMessage,
+                h.BotResponse
+            })
+            .ToListAsync();
+
+        return histories
+            .GroupBy(h => h.SessionId!)
+            .Select(group =>
+            {
+                var latest = group
+                    .OrderByDescending(item => item.CreatedAt)
+                    .First();
+
+                return new ChatSessionSummaryDto
+                {
+                    SessionId = group.Key,
+                    PreviewText = !string.IsNullOrWhiteSpace(latest.UserMessage)
+                        ? latest.UserMessage
+                        : latest.BotResponse,
+                    LastUpdatedAt = latest.CreatedAt,
+                    MessageCount = group.Count() * 2
+                };
+            })
+            .OrderByDescending(item => item.LastUpdatedAt)
+            .Take(limit)
+            .ToList();
     }
 
     public async Task SaveChatHistoryAsync(ChatHistory history)
@@ -29,10 +76,10 @@ public class ChatRepository : IChatRepository
         await _dbContext.SaveChangesAsync();
     }
 
-    public async Task ClearChatHistoryAsync(int userId)
+    public async Task ClearChatHistoryAsync(int userId, string? sessionId = null)
     {
         var histories = await _dbContext.ChatHistories
-            .Where(h => h.UserId == userId)
+            .Where(h => h.UserId == userId && (sessionId == null || h.SessionId == sessionId))
             .ToListAsync();
 
         _dbContext.ChatHistories.RemoveRange(histories);

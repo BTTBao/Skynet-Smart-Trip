@@ -17,12 +17,27 @@ public class ChatResponseDto
 {
     public string Text { get; set; } = string.Empty;
     public string ResponseType { get; set; } = "text";
+    public string? SessionId { get; set; }
     public List<DestinationCardDto>? DestinationCards { get; set; }
     public ItineraryDto? SuggestedItinerary { get; set; }
     public List<QuickActionDto>? QuickActions { get; set; }
     public WeatherInfoDto? WeatherInfo { get; set; }
     public List<HotelCardDto>? HotelCards { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+}
+
+public class ChatSessionHistoryDto
+{
+    public string? SessionId { get; set; }
+    public List<ChatHistoryItemDto> Messages { get; set; } = new();
+}
+
+public class ChatSessionSummaryDto
+{
+    public string SessionId { get; set; } = string.Empty;
+    public string PreviewText { get; set; } = string.Empty;
+    public DateTime LastUpdatedAt { get; set; }
+    public int MessageCount { get; set; }
 }
 
 // === DESTINATION CARD ===
@@ -134,4 +149,8 @@ public class ChatHistoryItemDto
 {
     public string Role { get; set; } = string.Empty; // "user" or "bot"
     public string Content { get; set; } = string.Empty;
+    public string? SessionId { get; set; }
+    public string? ResponseType { get; set; }
+    public DateTime Timestamp { get; set; }
+    public ChatResponseDto? ResponsePayload { get; set; }
 }

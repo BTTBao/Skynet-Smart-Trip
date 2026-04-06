@@ -4,6 +4,7 @@ import 'dart:convert';
 class ChatResponse {
   final String text;
   final String responseType;
+  final String? sessionId;
   final List<DestinationCard>? destinationCards;
   final SuggestedItinerary? suggestedItinerary;
   final List<QuickAction>? quickActions;
@@ -14,6 +15,7 @@ class ChatResponse {
   ChatResponse({
     required this.text,
     this.responseType = 'text',
+    this.sessionId,
     this.destinationCards,
     this.suggestedItinerary,
     this.quickActions,
@@ -28,6 +30,7 @@ class ChatResponse {
     return ChatResponse(
       text: normalizedJson['text'] ?? '',
       responseType: normalizedJson['responseType'] ?? 'text',
+      sessionId: normalizedJson['sessionId']?.toString(),
       destinationCards: normalizedJson['destinationCards'] != null
           ? (normalizedJson['destinationCards'] as List)
               .map((e) => DestinationCard.fromJson(e))
@@ -172,7 +175,7 @@ class QuickAction {
   final String icon;
   final String actionPayload;
 
-  QuickAction({
+  const QuickAction({
     required this.label,
     this.icon = 'chat',
     required this.actionPayload,

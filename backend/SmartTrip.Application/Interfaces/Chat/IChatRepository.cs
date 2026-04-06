@@ -6,9 +6,11 @@ namespace SmartTrip.Application.Interfaces.Chat;
 public interface IChatRepository
 {
     // Chat history
-    Task<List<ChatHistory>> GetChatHistoryAsync(int userId, int limit);
+    Task<List<ChatHistory>> GetChatHistoryAsync(int userId, string sessionId, int limit);
+    Task<string?> GetLatestSessionIdAsync(int userId);
+    Task<List<ChatSessionSummaryDto>> GetChatSessionsAsync(int userId, int limit);
     Task SaveChatHistoryAsync(ChatHistory history);
-    Task ClearChatHistoryAsync(int userId);
+    Task ClearChatHistoryAsync(int userId, string? sessionId = null);
 
     // Database context for AI
     Task<List<Destination>> GetDestinationsAsync(int limit = 20);

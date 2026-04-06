@@ -1,11 +1,13 @@
 using SmartTrip.Application.DTOs.Chat;
 using SmartTrip.Application.Interfaces.Chat;
 using SmartTrip.Domain.Entities;
+using System.Text.Json;
 
 namespace SmartTrip.Application.Services.Chat;
 
 public class ChatService : IChatService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly IGrokAiService _aiService;
     private readonly IChatRepository _chatRepo;
 
@@ -17,6 +19,8 @@ public class ChatService : IChatService
 
     public async Task<ChatResponseDto> GetAiResponseAsync(ChatRequestDto request)
     {
+        var normalizedSessionId = NormalizeSessionId(request.SessionId);
+
         // 1. Detect intent
         var intent = DetectIntent(request.Message);
 
@@ -27,7 +31,16 @@ public class ChatService : IChatService
         var history = new List<ChatHistoryItemDto>();
         if (request.UserId.HasValue)
         {
-            history = await GetChatHistoryAsync(request.UserId.Value, 10);
+            if (string.IsNullOrWhiteSpace(normalizedSessionId))
+            {
+                normalizedSessionId = GenerateSessionId();
+            }
+
+            var historyResult = await GetChatHistoryAsync(
+                request.UserId.Value,
+                normalizedSessionId,
+                10);
+            history = historyResult.Messages;
         }
 
         // 4. Build full context
@@ -35,7 +48,7 @@ public class ChatService : IChatService
         {
             UserMessage = request.Message,
             UserId = request.UserId,
-            SessionId = request.SessionId,
+            SessionId = normalizedSessionId,
             ConversationHistory = history,
             DetectedIntent = intent,
             DatabaseContext = dbContext,
@@ -48,33 +61,73 @@ public class ChatService : IChatService
 
         // 6. Enrich with database data if needed
         response = await EnrichWithDatabaseData(response, intent);
+        response.SessionId = normalizedSessionId;
 
         // 7. Save to history
         if (request.UserId.HasValue)
         {
-            await SaveChatHistory(request.UserId.Value, request.Message, response, intent, request.SessionId);
+            await SaveChatHistory(
+                request.UserId.Value,
+                request.Message,
+                response,
+                intent,
+                normalizedSessionId);
         }
 
         return response;
     }
 
-    public async Task<List<ChatHistoryItemDto>> GetChatHistoryAsync(int userId, int limit = 50)
+    public async Task<ChatSessionHistoryDto> GetChatHistoryAsync(
+        int userId,
+        string? sessionId = null,
+        int limit = 50)
     {
-        var histories = await _chatRepo.GetChatHistoryAsync(userId, limit);
+        var effectiveSessionId = NormalizeSessionId(sessionId)
+            ?? await _chatRepo.GetLatestSessionIdAsync(userId);
+
+        if (string.IsNullOrWhiteSpace(effectiveSessionId))
+        {
+            return new ChatSessionHistoryDto();
+        }
+
+        var histories = await _chatRepo.GetChatHistoryAsync(userId, effectiveSessionId, limit);
 
         var result = new List<ChatHistoryItemDto>();
         foreach (var h in histories)
         {
-            result.Add(new ChatHistoryItemDto { Role = "user", Content = h.UserMessage });
-            result.Add(new ChatHistoryItemDto { Role = "bot", Content = h.BotResponse });
+            result.Add(new ChatHistoryItemDto
+            {
+                Role = "user",
+                Content = h.UserMessage,
+                SessionId = h.SessionId,
+                Timestamp = h.CreatedAt
+            });
+            result.Add(new ChatHistoryItemDto
+            {
+                Role = "bot",
+                Content = h.BotResponse,
+                SessionId = h.SessionId,
+                ResponseType = h.ResponseType,
+                Timestamp = h.CreatedAt,
+                ResponsePayload = DeserializeResponsePayload(h.ResponseDataJson)
+            });
         }
 
-        return result;
+        return new ChatSessionHistoryDto
+        {
+            SessionId = effectiveSessionId,
+            Messages = result
+        };
     }
 
-    public async Task ClearChatHistoryAsync(int userId)
+    public async Task ClearChatHistoryAsync(int userId, string? sessionId = null)
     {
-        await _chatRepo.ClearChatHistoryAsync(userId);
+        await _chatRepo.ClearChatHistoryAsync(userId, NormalizeSessionId(sessionId));
+    }
+
+    public async Task<List<ChatSessionSummaryDto>> GetChatSessionsAsync(int userId, int limit = 20)
+    {
+        return await _chatRepo.GetChatSessionsAsync(userId, limit);
     }
 
     // ==========================================
@@ -211,6 +264,7 @@ public class ChatService : IChatService
             UserMessage = userMessage,
             BotResponse = response.Text,
             ResponseType = response.ResponseType,
+            ResponseDataJson = JsonSerializer.Serialize(response, JsonOptions),
             DetectedIntent = intent,
             SessionId = sessionId,
             CreatedAt = DateTime.UtcNow
@@ -222,5 +276,32 @@ public class ChatService : IChatService
     private static bool ContainsAny(string text, params string[] keywords)
     {
         return keywords.Any(k => text.Contains(k, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string GenerateSessionId()
+    {
+        return $"chat_{Guid.NewGuid():N}";
+    }
+
+    private static string? NormalizeSessionId(string? sessionId)
+    {
+        return string.IsNullOrWhiteSpace(sessionId) ? null : sessionId.Trim();
+    }
+
+    private static ChatResponseDto? DeserializeResponsePayload(string? payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<ChatResponseDto>(payload, JsonOptions);
+        }
+        catch
+        {
+            return null;
+        }
     }
 }
