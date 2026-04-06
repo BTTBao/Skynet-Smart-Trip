@@ -54,38 +54,66 @@ class ChatResponse {
 
   static Map<String, dynamic> _normalizeChatPayload(Map<String, dynamic> json) {
     final normalized = Map<String, dynamic>.from(json);
-    final rawText = normalized['text'];
+    final decodedPayload = _tryDecodeJsonMap(normalized['text']);
 
-    if (rawText is! String) {
+    if (decodedPayload == null) {
       return normalized;
     }
 
-    final trimmed = rawText.trim();
-    if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
-      return normalized;
+    final merged = Map<String, dynamic>.from(normalized)..addAll(decodedPayload);
+    final decodedText = decodedPayload['text'];
+
+    if (decodedText is String && decodedText.trim().isNotEmpty) {
+      merged['text'] = decodedText.trim();
+    } else if (_hasRichContent(decodedPayload)) {
+      merged['text'] = '';
     }
 
-    try {
-      final decoded = jsonDecode(trimmed);
-      if (decoded is! Map<String, dynamic>) {
-        return normalized;
+    return merged;
+  }
+
+  static Map<String, dynamic>? _tryDecodeJsonMap(dynamic value) {
+    dynamic current = value;
+
+    for (var attempt = 0; attempt < 2; attempt++) {
+      if (current is Map) {
+        return Map<String, dynamic>.from(current);
       }
 
-      final merged = Map<String, dynamic>.from(normalized)..addAll(decoded);
-      final decodedText = decoded['text'];
-      final hasRichContent = (decoded['destinationCards'] is List && (decoded['destinationCards'] as List).isNotEmpty) ||
-          decoded['hotelCards'] is List ||
-          decoded['suggestedItinerary'] != null ||
-          decoded['weatherInfo'] != null;
-
-      if (hasRichContent && decodedText is String) {
-        merged['text'] = decodedText.trim();
+      if (current is! String) {
+        return null;
       }
 
-      return merged;
-    } catch (_) {
-      return normalized;
+      final trimmed = current.trim();
+      if (!_looksLikeJsonObject(trimmed)) {
+        return null;
+      }
+
+      try {
+        current = jsonDecode(trimmed);
+      } catch (_) {
+        return null;
+      }
     }
+
+    if (current is Map) {
+      return Map<String, dynamic>.from(current);
+    }
+
+    return null;
+  }
+
+  static bool _looksLikeJsonObject(String text) {
+    return text.startsWith('{') && text.endsWith('}');
+  }
+
+  static bool _hasRichContent(Map<String, dynamic> payload) {
+    return (payload['destinationCards'] is List &&
+            (payload['destinationCards'] as List).isNotEmpty) ||
+        (payload['hotelCards'] is List &&
+            (payload['hotelCards'] as List).isNotEmpty) ||
+        payload['suggestedItinerary'] != null ||
+        payload['weatherInfo'] != null;
   }
 }
 

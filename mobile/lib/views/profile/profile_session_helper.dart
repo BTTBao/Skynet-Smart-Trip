@@ -15,6 +15,8 @@ Future<void> showSessionExpiredDialog(
     return;
   }
 
+  final rootNavigator = Navigator.of(context, rootNavigator: true);
+
   await showDialog<void>(
     context: context,
     barrierDismissible: false,
@@ -36,14 +38,14 @@ Future<void> showSessionExpiredDialog(
         actions: [
           FilledButton(
             onPressed: () async {
-              Navigator.of(dialogContext).pop();
+              Navigator.of(dialogContext, rootNavigator: true).pop();
               await context.read<AuthProvider>().logout();
               context.read<ChatProvider>().resetForSignedOutUser();
               context.read<ProfileProvider>().logout();
               if (!context.mounted) {
                 return;
               }
-              Navigator.of(context).pushAndRemoveUntil(
+              rootNavigator.pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const LoginScreen()),
                 (route) => false,
               );

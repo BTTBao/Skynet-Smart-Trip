@@ -15,7 +15,8 @@ class MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isUser = message.sender == MessageSender.user;
     const primaryColor = Color(0xFF80ed99);
-    final shouldShowTextBubble = message.text.trim().isNotEmpty;
+    final shouldShowTextBubble =
+        message.text.trim().isNotEmpty && !_shouldHideRawJsonText();
     final colorScheme = Theme.of(context).colorScheme;
     final botBubbleColor = Theme.of(context).brightness == Brightness.dark
         ? colorScheme.surfaceContainerHighest
@@ -67,6 +68,20 @@ class MessageBubble extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  bool _shouldHideRawJsonText() {
+    if (message.richData == null) {
+      return false;
+    }
+
+    final trimmed = message.text.trim();
+    return trimmed.startsWith('{') &&
+        trimmed.endsWith('}') &&
+        (trimmed.contains('"responseType"') ||
+            trimmed.contains('"suggestedItinerary"') ||
+            trimmed.contains('"destinationCards"') ||
+            trimmed.contains('"hotelCards"'));
   }
 
   Widget _buildTextBubble(bool isUser, Color primaryColor) {

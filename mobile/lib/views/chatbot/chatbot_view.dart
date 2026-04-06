@@ -45,6 +45,10 @@ class _ChatbotViewState extends State<ChatbotView> {
   Widget build(BuildContext context) {
     return Consumer<ChatProvider>(
       builder: (context, chatProvider, _) {
+        if (!chatProvider.hasSessionExpired && _handledSessionExpired) {
+          _handledSessionExpired = false;
+        }
+
         _handleSessionExpired(chatProvider);
 
         if (chatProvider.messages.isNotEmpty) {
