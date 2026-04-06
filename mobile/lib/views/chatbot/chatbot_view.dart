@@ -52,7 +52,7 @@ class _ChatbotViewState extends State<ChatbotView> {
         }
 
         return Scaffold(
-          backgroundColor: const Color(0xFFFAFAFA),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: Column(
             children: [
               _buildHeader(chatProvider),
@@ -70,7 +70,15 @@ class _ChatbotViewState extends State<ChatbotView> {
                   !chatProvider.isTyping &&
                   !chatProvider.isLoadingHistory)
                 const SizedBox(height: 6),
+              if (chatProvider.errorMessage != null &&
+                  !chatProvider.hasSessionExpired)
+                _ChatErrorBanner(
+                  message: chatProvider.errorMessage!,
+                  canRetry: chatProvider.canRetryLastPrompt,
+                  onRetry: chatProvider.retryLastPrompt,
+                ),
               ChatInput(
+                canSubmit: chatProvider.canSendMessage,
                 onSend: (text) => chatProvider.sendMessage(text),
               ),
             ],
@@ -176,7 +184,7 @@ class _ChatbotViewState extends State<ChatbotView> {
             ),
           ),
           IconButton(
-            onPressed: chatProvider.isLoadingSessions
+            onPressed: chatProvider.isLoadingSessions || chatProvider.isTyping
                 ? null
                 : () => _showSessionHistory(chatProvider),
             icon: Icon(
@@ -201,6 +209,10 @@ class _ChatbotViewState extends State<ChatbotView> {
   String _buildStatusText(ChatProvider chatProvider) {
     if (chatProvider.isLoadingHistory) {
       return 'Dang tai lich su...';
+    }
+    if (chatProvider.currentSessionId != null &&
+        chatProvider.currentSessionId!.isNotEmpty) {
+      return 'Dang xem doan chat da luu';
     }
     if (chatProvider.isTyping) {
       return 'Dang tra loi...';
@@ -359,6 +371,56 @@ class _EmptySessionState extends StatelessWidget {
             icon: const Icon(Icons.add_comment_outlined),
             label: const Text('Bat dau chat moi'),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChatErrorBanner extends StatelessWidget {
+  const _ChatErrorBanner({
+    required this.message,
+    required this.canRetry,
+    required this.onRetry,
+  });
+
+  final String message;
+  final bool canRetry;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4E5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFFD8A8)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            color: Color(0xFFD97706),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF9A3412),
+                fontSize: 13,
+              ),
+            ),
+          ),
+          if (canRetry)
+            TextButton(
+              onPressed: onRetry,
+              child: const Text('Thu lai'),
+            ),
         ],
       ),
     );

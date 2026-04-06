@@ -26,6 +26,8 @@ class ChatProvider with ChangeNotifier {
   int? _lastStatusCode;
   String? _currentSessionId;
   String? _activeUserKey;
+  String? _lastFailedPrompt;
+  bool _isViewingHistorySession = false;
 
   List<ChatMessage> get messages => List.unmodifiable(_messages);
   List<ChatSessionSummary> get sessions => List.unmodifiable(_sessions);
@@ -39,6 +41,13 @@ class ChatProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get hasSessionExpired => _lastStatusCode == 401;
   String? get currentSessionId => _currentSessionId;
+  String? get lastFailedPrompt => _lastFailedPrompt;
+  bool get isViewingHistorySession => _isViewingHistorySession;
+  bool get canRetryLastPrompt =>
+      _lastFailedPrompt != null &&
+      _lastFailedPrompt!.trim().isNotEmpty &&
+      !isTyping;
+  bool get canSendMessage => !isLoadingHistory;
 
   Future<void> initialize({bool forceRefresh = false}) async {
     final userChanged = await _syncActiveUser();
@@ -89,7 +98,10 @@ class ChatProvider with ChangeNotifier {
         sessionId: sessionId,
         limit: 50,
       );
-      _applyHistoryResult(result);
+      _applyHistoryResult(
+        result,
+        openedFromHistory: sessionId != null && sessionId.trim().isNotEmpty,
+      );
     } catch (error) {
       _setError(error);
       _messages.clear();
@@ -115,6 +127,7 @@ class ChatProvider with ChangeNotifier {
     }
 
     _clearError();
+    _isViewingHistorySession = false;
     _messages.add(
       ChatMessage(
         text: trimmed,
@@ -123,6 +136,7 @@ class ChatProvider with ChangeNotifier {
       ),
     );
     _isTyping = true;
+    _lastFailedPrompt = null;
     notifyListeners();
 
     try {
@@ -142,6 +156,7 @@ class ChatProvider with ChangeNotifier {
       await loadSessions(notify: false);
     } catch (error) {
       _setError(error);
+      _lastFailedPrompt = trimmed;
       _messages.add(
         ChatMessage(
           text: _buildFriendlyErrorMessage(error),
@@ -194,6 +209,7 @@ class ChatProvider with ChangeNotifier {
     }
 
     _currentSessionId = normalized;
+    _isViewingHistorySession = true;
     notifyListeners();
     await loadHistory(sessionId: normalized);
   }
@@ -201,6 +217,8 @@ class ChatProvider with ChangeNotifier {
   void startNewChat() {
     _messages.clear();
     _currentSessionId = null;
+    _isViewingHistorySession = false;
+    _lastFailedPrompt = null;
     _clearError();
     notifyListeners();
   }
@@ -213,6 +231,8 @@ class ChatProvider with ChangeNotifier {
     _isTyping = false;
     _isLoadingHistory = false;
     _isLoadingSessions = false;
+    _isViewingHistorySession = false;
+    _lastFailedPrompt = null;
     _clearError();
     _isInitialized = false;
     notifyListeners();
@@ -263,8 +283,12 @@ class ChatProvider with ChangeNotifier {
     } catch (_) {}
   }
 
-  void _applyHistoryResult(ChatHistoryResult result) {
+  void _applyHistoryResult(
+    ChatHistoryResult result, {
+    required bool openedFromHistory,
+  }) {
     _currentSessionId = result.sessionId;
+    _isViewingHistorySession = openedFromHistory;
     _messages
       ..clear()
       ..addAll(result.messages.map(ChatMessage.fromHistoryItem));
@@ -283,6 +307,8 @@ class ChatProvider with ChangeNotifier {
     _isTyping = false;
     _isLoadingHistory = false;
     _isLoadingSessions = false;
+    _isViewingHistorySession = false;
+    _lastFailedPrompt = null;
     _clearError();
     _isInitialized = false;
     notifyListeners();
@@ -325,15 +351,29 @@ class ChatProvider with ChangeNotifier {
     _lastStatusCode = null;
   }
 
+  Future<void> retryLastPrompt() async {
+    final failedPrompt = _lastFailedPrompt;
+    if (failedPrompt == null || failedPrompt.trim().isEmpty) {
+      return;
+    }
+
+    await sendMessage(failedPrompt);
+  }
+
   void _setError(Object error) {
     if (error is ApiException) {
       _lastStatusCode = error.statusCode;
-      _errorMessage = error.message;
+      _errorMessage = _mapErrorMessage(
+        error.message,
+        statusCode: error.statusCode,
+      );
       return;
     }
 
     _lastStatusCode = null;
-    _errorMessage = error.toString().replaceFirst('Exception: ', '');
+    _errorMessage = _mapErrorMessage(
+      error.toString().replaceFirst('Exception: ', ''),
+    );
   }
 
   String _buildFriendlyErrorMessage(Object error) {
@@ -342,6 +382,29 @@ class ChatProvider with ChangeNotifier {
     }
 
     return 'Sky dang gap su co ket noi. Ban thu lai trong it phut nua nhe.';
+  }
+
+  String _mapErrorMessage(String message, {int? statusCode}) {
+    if (statusCode == 401) {
+      return 'Phien dang nhap da het han. Vui long dang nhap lai.';
+    }
+
+    final lower = message.toLowerCase();
+    final looksLikeConnectionIssue =
+        lower.contains('timeout') ||
+        lower.contains('backend') ||
+        lower.contains('10.0.2.2') ||
+        lower.contains('localhost') ||
+        lower.contains('ket noi') ||
+        lower.contains('socket') ||
+        lower.contains('clientexception') ||
+        lower.contains('handshake');
+
+    if (looksLikeConnectionIssue || (statusCode != null && statusCode >= 500)) {
+      return 'Khong the ket noi toi tro ly luc nay. Ban thu lai sau it phut nhe.';
+    }
+
+    return message;
   }
 
   String _resolveActionMessage(QuickAction action) {

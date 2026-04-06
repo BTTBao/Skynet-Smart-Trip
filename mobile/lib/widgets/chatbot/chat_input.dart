@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 
 class ChatInput extends StatefulWidget {
   final Function(String) onSend;
+  final bool canSubmit;
 
-  const ChatInput({super.key, required this.onSend});
+  const ChatInput({
+    super.key,
+    required this.onSend,
+    this.canSubmit = true,
+  });
 
   @override
   State<ChatInput> createState() => _ChatInputState();
@@ -31,10 +36,17 @@ class _ChatInputState extends State<ChatInput> {
   }
 
   void _handleSend() {
-    if (_controller.text.trim().isNotEmpty) {
-      widget.onSend(_controller.text);
-      _controller.clear();
+    if (!widget.canSubmit) {
+      return;
     }
+
+    final text = _controller.text.trim();
+    if (text.isEmpty) {
+      return;
+    }
+
+    widget.onSend(text);
+    _controller.clear();
   }
 
   @override
@@ -42,7 +54,7 @@ class _ChatInputState extends State<ChatInput> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
@@ -75,7 +87,8 @@ class _ChatInputState extends State<ChatInput> {
                 ),
                 child: TextField(
                   controller: _controller,
-                  decoration: const InputDecoration(
+                  enabled: true,
+                  decoration: InputDecoration(
                     hintText: 'Hỏi Sky bất kỳ điều gì...',
                     border: InputBorder.none,
                     hintStyle: TextStyle(fontSize: 14, color: Colors.grey),
@@ -97,12 +110,12 @@ class _ChatInputState extends State<ChatInput> {
                 height: 40,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: _hasText
+                    colors: _hasText && widget.canSubmit
                         ? [const Color(0xFF80ed99), const Color(0xFF38ef7d)]
                         : [Colors.grey.shade300, Colors.grey.shade300],
                   ),
                   shape: BoxShape.circle,
-                  boxShadow: _hasText
+                  boxShadow: _hasText && widget.canSubmit
                       ? [
                           BoxShadow(
                             color: const Color(0xFF80ed99).withValues(alpha: 0.4),
@@ -114,7 +127,9 @@ class _ChatInputState extends State<ChatInput> {
                 ),
                 child: Icon(
                   Icons.send_rounded,
-                  color: _hasText ? Colors.white : Colors.grey.shade500,
+                  color: _hasText && widget.canSubmit
+                      ? Colors.white
+                      : Colors.grey.shade500,
                   size: 20,
                 ),
               ),
