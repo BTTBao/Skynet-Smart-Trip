@@ -158,10 +158,11 @@ public class GrokAiService : IGrokAiService
                 .GetProperty("message")
                 .GetProperty("content")
                 .GetString() ?? string.Empty;
+            var normalizedContent = NormalizeModelContent(content);
 
             try
             {
-                var structured = JsonSerializer.Deserialize<ChatResponseDto>(content, JsonOptions);
+                var structured = JsonSerializer.Deserialize<ChatResponseDto>(normalizedContent, JsonOptions);
                 if (structured != null)
                 {
                     structured.Timestamp = DateTime.UtcNow;
@@ -181,7 +182,7 @@ public class GrokAiService : IGrokAiService
 
             return new ChatResponseDto
             {
-                Text = content,
+                Text = normalizedContent,
                 ResponseType = "text",
                 QuickActions = BuildDefaultQuickActions(),
                 Timestamp = DateTime.UtcNow
@@ -207,10 +208,38 @@ public class GrokAiService : IGrokAiService
 
         return new ChatResponseDto
         {
-            Text = $"Sky dang tam thoi tra loi o che do fallback cho yeu cau: {context.UserMessage}",
+            Text = BuildFriendlyFallbackText(context),
             ResponseType = responseType,
             QuickActions = BuildDefaultQuickActions(),
             Timestamp = DateTime.UtcNow
+        };
+    }
+
+    private static string NormalizeModelContent(string content)
+    {
+        var trimmed = content.Trim();
+
+        if (trimmed.StartsWith("```", StringComparison.Ordinal))
+        {
+            trimmed = trimmed
+                .Replace("```json", string.Empty, StringComparison.OrdinalIgnoreCase)
+                .Replace("```", string.Empty, StringComparison.OrdinalIgnoreCase)
+                .Trim();
+        }
+
+        return trimmed;
+    }
+
+    private static string BuildFriendlyFallbackText(ChatContextDto context)
+    {
+        return context.DetectedIntent switch
+        {
+            "promotion_query" => "Minh dang chuyen sang che do tra loi tu du lieu he thong de goi y khuyen mai cho ban.",
+            "bus_query" => "Minh dang chuyen sang du lieu he thong de tim tuyen xe phu hop cho ban.",
+            "hotel_query" => "Minh dang lay nhanh danh sach khach san phu hop tu he thong.",
+            "itinerary_request" => "Minh dang dung du lieu san co de lap lich trinh tham khao cho ban.",
+            "budget_query" => "Minh dang tong hop chi phi tham khao tu du lieu he thong cho ban.",
+            _ => "Minh dang su dung du lieu san co cua he thong de ho tro ban ngay luc nay."
         };
     }
 
