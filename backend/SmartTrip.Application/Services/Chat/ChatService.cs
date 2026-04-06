@@ -22,9 +22,12 @@ public class ChatService : IChatService
     public async Task<ChatResponseDto> GetAiResponseAsync(ChatRequestDto request)
     {
         var normalizedSessionId = NormalizeSessionId(request.SessionId);
+        var userProfile = request.UserId.HasValue
+            ? await _chatRepo.GetUserPersonalizationAsync(request.UserId.Value)
+            : null;
 
         var intent = DetectIntent(request.Message);
-        var dbContext = await BuildDatabaseContext(request.Message, intent);
+        var dbContext = await BuildDatabaseContext(request.Message, intent, userProfile);
 
         var history = new List<ChatHistoryItemDto>();
         if (request.UserId.HasValue)
@@ -49,6 +52,9 @@ public class ChatService : IChatService
             ConversationHistory = history,
             DetectedIntent = intent,
             DatabaseContext = dbContext,
+            PreferredLanguage = userProfile?.PreferredLanguage ?? "vi",
+            PreferredCurrency = userProfile?.PreferredCurrency ?? "VND",
+            PersonalizationSummary = BuildPersonalizationSummary(userProfile),
             Latitude = request.Latitude,
             Longitude = request.Longitude
         };
@@ -58,12 +64,12 @@ public class ChatService : IChatService
 
         if (NeedsDeterministicFallback(response))
         {
-            response = await BuildDeterministicResponseAsync(intent, request.Message);
+            response = await BuildDeterministicResponseAsync(intent, request.Message, userProfile);
         }
 
-        response = await EnrichWithDatabaseData(response, intent, request.Message);
-        response = await AlignResponseToIntentAsync(response, intent, request.Message);
-        response = EnsureQuickActions(response, intent);
+        response = await EnrichWithDatabaseData(response, intent, request.Message, userProfile);
+        response = await AlignResponseToIntentAsync(response, intent, request.Message, userProfile);
+        response = EnsureQuickActions(response, intent, userProfile);
         response.SessionId = normalizedSessionId;
 
         if (request.UserId.HasValue)
@@ -172,12 +178,15 @@ public class ChatService : IChatService
         return "general";
     }
 
-    private async Task<string> BuildDatabaseContext(string message, string intent)
+    private async Task<string> BuildDatabaseContext(
+        string message,
+        string intent,
+        ChatUserProfileDto? userProfile)
     {
         var parts = new List<string>();
 
         var destinations = await _chatRepo.GetDestinationsAsync(20);
-        var matchedDestinations = FindMatchedDestinations(message, destinations);
+        var matchedDestinations = ResolveRelevantDestinations(message, destinations, userProfile);
 
         if (destinations.Any())
         {
@@ -194,7 +203,7 @@ public class ChatService : IChatService
             if (hotels.Any())
             {
                 var hotelList = string.Join("; ", hotels.Select(h =>
-                    $"{h.Name} ({h.StarRating} sao, {h.Destination?.Name ?? string.Empty}, tu {FormatCurrency(GetLowestHotelPrice(h))} / dem)"));
+                    $"{h.Name} ({h.StarRating} sao, {h.Destination?.Name ?? string.Empty}, tu {FormatCurrency(GetLowestHotelPrice(h), userProfile?.PreferredCurrency)} / dem)"));
                 parts.Add($"Khach san phu hop: {hotelList}");
             }
         }
@@ -208,7 +217,7 @@ public class ChatService : IChatService
             if (busSchedules.Any())
             {
                 var routeList = string.Join("; ", busSchedules.Select(schedule =>
-                    $"{schedule.FromDest?.Name ?? "?"} -> {schedule.ToDest?.Name ?? "?"} ({FormatCurrency(schedule.Price)}, {FormatDateTime(schedule.DepartureTime)})"));
+                    $"{schedule.FromDest?.Name ?? "?"} -> {schedule.ToDest?.Name ?? "?"} ({FormatCurrency(schedule.Price, userProfile?.PreferredCurrency)}, {FormatDateTime(schedule.DepartureTime)})"));
                 parts.Add($"Tuyen xe hien co: {routeList}");
             }
         }
@@ -219,7 +228,7 @@ public class ChatService : IChatService
             if (promotions.Any())
             {
                 var promotionList = string.Join("; ", promotions.Select(p =>
-                    $"{p.Code}: giam {p.DiscountPercent?.ToString("0") ?? "0"}% toi da {FormatCurrency(p.MaxDiscountAmount)}"));
+                    $"{p.Code}: giam {p.DiscountPercent?.ToString("0") ?? "0"}% toi da {FormatCurrency(p.MaxDiscountAmount, userProfile?.PreferredCurrency)}"));
                 parts.Add($"Khuyen mai dang hoat dong: {promotionList}");
             }
         }
@@ -230,10 +239,11 @@ public class ChatService : IChatService
     private async Task<ChatResponseDto> EnrichWithDatabaseData(
         ChatResponseDto response,
         string intent,
-        string userMessage)
+        string userMessage,
+        ChatUserProfileDto? userProfile)
     {
         var destinations = await _chatRepo.GetDestinationsAsync(20);
-        var matchedDestinations = FindMatchedDestinations(userMessage, destinations);
+        var matchedDestinations = ResolveRelevantDestinations(userMessage, destinations, userProfile);
 
         if (intent == "destination_query"
             && (response.DestinationCards == null || response.DestinationCards.Count == 0))
@@ -282,6 +292,8 @@ public class ChatService : IChatService
             var hotels = matchedDestinations.Any()
                 ? await _chatRepo.SearchDestinationsHotelsAsync(matchedDestinations.Select(d => d.Id), 3)
                 : await _chatRepo.GetAvailableHotelsAsync(3);
+            var destinationSummaryVi = string.Join(" va ", matchedDestinations.Take(2).Select(d => d.Name));
+            var destinationSummaryEn = string.Join(" and ", matchedDestinations.Take(2).Select(d => d.Name));
 
             if (hotels.Any())
             {
@@ -303,11 +315,21 @@ public class ChatService : IChatService
                     response.ResponseType = "hotel_list";
                 }
             }
+
+            response.Text = matchedDestinations.Any()
+                ? Localize(
+                    userProfile,
+                    $"Duoi day la mot so khach san phu hop voi chuyen di cua ban tai {destinationSummaryVi}.",
+                    $"Here are some recommended hotels for your trip in {destinationSummaryEn}.")
+                : Localize(
+                    userProfile,
+                    "Duoi day la mot so khach san phu hop voi chuyen di cua ban.",
+                    "Here are some recommended hotels for your trip.");
         }
 
         if (intent == "promotion_query")
         {
-            response.Text = await BuildPromotionSummaryAsync();
+            response.Text = await BuildPromotionSummaryAsync(userProfile);
             if (response.QuickActions == null || response.QuickActions.Count == 0)
             {
                 response.QuickActions = new List<QuickActionDto>
@@ -320,7 +342,7 @@ public class ChatService : IChatService
 
         if (intent == "bus_query")
         {
-            response.Text = await BuildBusSummaryAsync(response.Text, matchedDestinations);
+            response.Text = await BuildBusSummaryAsync(response.Text, matchedDestinations, userProfile);
             if (response.QuickActions == null || response.QuickActions.Count == 0)
             {
                 response.QuickActions = new List<QuickActionDto>
@@ -333,14 +355,14 @@ public class ChatService : IChatService
 
         if (intent == "budget_query")
         {
-            response.Text = await BuildBudgetSummaryAsync(response.Text, matchedDestinations, userMessage);
+            response.Text = await BuildBudgetSummaryAsync(response.Text, matchedDestinations, userMessage, userProfile);
             response.ResponseType = "text";
             response.WeatherInfo = null;
         }
 
         if (intent == "package_query")
         {
-            response.Text = await BuildPackageSummaryAsync(response.Text, matchedDestinations);
+            response.Text = await BuildPackageSummaryAsync(response.Text, matchedDestinations, userProfile);
             response.ResponseType = "destination_card";
             response.WeatherInfo = null;
             response.QuickActions = BuildPackageQuickActions(matchedDestinations.FirstOrDefault());
@@ -348,7 +370,7 @@ public class ChatService : IChatService
 
         if (intent == "itinerary_request" && response.SuggestedItinerary == null)
         {
-            response.SuggestedItinerary = await BuildSuggestedItineraryAsync(matchedDestinations);
+            response.SuggestedItinerary = await BuildSuggestedItineraryAsync(matchedDestinations, 3, userProfile);
             if (response.SuggestedItinerary != null && response.ResponseType == "text")
             {
                 response.ResponseType = "itinerary";
@@ -441,51 +463,66 @@ public class ChatService : IChatService
             || text.StartsWith("{", StringComparison.Ordinal);
     }
 
-    private async Task<ChatResponseDto> BuildDeterministicResponseAsync(string intent, string userMessage)
+    private async Task<ChatResponseDto> BuildDeterministicResponseAsync(
+        string intent,
+        string userMessage,
+        ChatUserProfileDto? userProfile)
     {
         var destinations = await _chatRepo.GetDestinationsAsync(20);
-        var matchedDestinations = FindMatchedDestinations(userMessage, destinations);
+        var matchedDestinations = ResolveRelevantDestinations(userMessage, destinations, userProfile);
 
         return intent switch
         {
             "promotion_query" => new ChatResponseDto
             {
-                Text = await BuildPromotionSummaryAsync(),
+                Text = await BuildPromotionSummaryAsync(userProfile),
                 ResponseType = "text"
             },
             "bus_query" => new ChatResponseDto
             {
-                Text = await BuildBusSummaryAsync(string.Empty, matchedDestinations),
+                Text = await BuildBusSummaryAsync(string.Empty, matchedDestinations, userProfile),
                 ResponseType = "text"
             },
             "budget_query" => new ChatResponseDto
             {
-                Text = await BuildBudgetSummaryAsync(string.Empty, matchedDestinations, userMessage),
+                Text = await BuildBudgetSummaryAsync(string.Empty, matchedDestinations, userMessage, userProfile),
                 ResponseType = "text"
             },
             "package_query" => new ChatResponseDto
             {
-                Text = await BuildPackageSummaryAsync(string.Empty, matchedDestinations),
+                Text = await BuildPackageSummaryAsync(string.Empty, matchedDestinations, userProfile),
                 ResponseType = "destination_card"
             },
             "itinerary_request" => new ChatResponseDto
             {
                 Text = "Minh da lap nhanh mot lich trinh tham khao de ban de hinh dung hon.",
                 ResponseType = "itinerary",
-                SuggestedItinerary = await BuildSuggestedItineraryAsync(matchedDestinations)
+                SuggestedItinerary = await BuildSuggestedItineraryAsync(matchedDestinations, 3, userProfile)
             },
             "hotel_query" => new ChatResponseDto
             {
                 Text = matchedDestinations.Any()
-                    ? $"Minh da loc nhanh mot so khach san phu hop tai {matchedDestinations[0].Name} cho ban."
-                    : "Minh da loc nhanh mot so khach san phu hop cho ban.",
+                    ? Localize(
+                        userProfile,
+                        $"Minh da loc nhanh mot so khach san phu hop tai {matchedDestinations[0].Name} cho ban.",
+                        $"Here are some recommended hotels for your {matchedDestinations[0].Name} trip.")
+                    : Localize(
+                        userProfile,
+                        "Minh da loc nhanh mot so khach san phu hop cho ban.",
+                        "Here are some recommended hotels for your trip."),
                 ResponseType = "hotel_list"
             },
             "destination_query" => new ChatResponseDto
             {
                 Text = matchedDestinations.Any()
-                    ? $"Minh da tong hop mot vai diem den lien quan den {matchedDestinations[0].Name} cho ban."
-                    : "Minh da tong hop mot vai diem den noi bat de ban tham khao.",
+                    ? Localize(
+                        userProfile,
+                        $"Minh da tong hop mot vai diem den lien quan den {matchedDestinations[0].Name} cho ban.",
+                        $"I gathered a few destination ideas related to {matchedDestinations[0].Name} for you.")
+                    : Localize(
+                        userProfile,
+                        "Minh da tong hop mot vai diem den noi bat de ban tham khao.",
+                        "I gathered a few destination ideas for your trip."),
                 ResponseType = "destination_card"
             },
             "weather_query" => new ChatResponseDto
@@ -495,19 +532,27 @@ public class ChatService : IChatService
             },
             _ => new ChatResponseDto
             {
-                Text = "Minh co the giup ban goi y diem den, tim khach san, xem tuyen xe, uoc tinh chi phi va lap lich trinh du lich.",
+                Text = Localize(
+                    userProfile,
+                    "Minh co the giup ban goi y diem den, tim khach san, xem tuyen xe, uoc tinh chi phi va lap lich trinh du lich.",
+                    "I can help with destinations, hotels, bus routes, travel budgets, and itineraries."),
                 ResponseType = "text"
             }
         };
     }
 
-    private ChatResponseDto EnsureQuickActions(ChatResponseDto response, string intent)
+    private ChatResponseDto EnsureQuickActions(
+        ChatResponseDto response,
+        string intent,
+        ChatUserProfileDto? userProfile)
     {
         response.Timestamp = response.Timestamp == default ? DateTime.UtcNow : response.Timestamp;
 
         if (response.QuickActions == null || response.QuickActions.Count == 0)
         {
-            response.QuickActions = BuildDefaultQuickActionsForIntent(intent);
+            response.QuickActions = intent == "package_query"
+                ? BuildPackageQuickActions(ResolvePreferredDestination(userProfile))
+                : BuildDefaultQuickActionsForIntent(intent);
         }
 
         return response;
@@ -516,10 +561,11 @@ public class ChatService : IChatService
     private async Task<ChatResponseDto> AlignResponseToIntentAsync(
         ChatResponseDto response,
         string intent,
-        string userMessage)
+        string userMessage,
+        ChatUserProfileDto? userProfile)
     {
         var destinations = await _chatRepo.GetDestinationsAsync(20);
-        var matchedDestinations = FindMatchedDestinations(userMessage, destinations);
+        var matchedDestinations = ResolveRelevantDestinations(userMessage, destinations, userProfile);
 
         switch (intent)
         {
@@ -527,7 +573,7 @@ public class ChatService : IChatService
                 response.ResponseType = "text";
                 response.WeatherInfo = null;
                 response.SuggestedItinerary = null;
-                response.Text = await BuildBudgetSummaryAsync(response.Text, matchedDestinations, userMessage);
+                response.Text = await BuildBudgetSummaryAsync(response.Text, matchedDestinations, userMessage, userProfile);
                 break;
 
             case "package_query":
@@ -539,15 +585,15 @@ public class ChatService : IChatService
                     response.DestinationCards = null;
                     response.HotelCards = null;
                 }
-                response.Text = await BuildPackageSummaryAsync(response.Text, matchedDestinations);
-                response.QuickActions = BuildPackageQuickActions(matchedDestinations.FirstOrDefault());
+                response.Text = await BuildPackageSummaryAsync(response.Text, matchedDestinations, userProfile);
+                response.QuickActions = BuildPackageQuickActions(matchedDestinations.FirstOrDefault() ?? ResolvePreferredDestination(userProfile));
                 break;
 
             case "bus_query":
                 response.ResponseType = "text";
                 response.WeatherInfo = null;
                 response.SuggestedItinerary = null;
-                response.Text = await BuildBusSummaryAsync(response.Text, matchedDestinations);
+                response.Text = await BuildBusSummaryAsync(response.Text, matchedDestinations, userProfile);
                 break;
 
             case "weather_query":
@@ -556,7 +602,7 @@ public class ChatService : IChatService
                 break;
 
             case "itinerary_request":
-                response = await EnsureValidItineraryAsync(response, matchedDestinations, userMessage);
+                response = await EnsureValidItineraryAsync(response, matchedDestinations, userMessage, userProfile);
                 break;
         }
 
@@ -566,6 +612,46 @@ public class ChatService : IChatService
     private static bool ContainsAny(string text, params string[] keywords)
     {
         return keywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string? BuildPersonalizationSummary(ChatUserProfileDto? userProfile)
+    {
+        if (userProfile == null)
+        {
+            return null;
+        }
+
+        var parts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(userProfile.DisplayName))
+        {
+            parts.Add($"Ten nguoi dung: {userProfile.DisplayName}");
+        }
+
+        parts.Add($"Ngon ngu ua thich: {userProfile.PreferredLanguage}");
+        parts.Add($"Tien te ua thich: {userProfile.PreferredCurrency}");
+
+        if (userProfile.TripsCount > 0)
+        {
+            parts.Add($"So chuyen di da co: {userProfile.TripsCount}");
+        }
+
+        if (userProfile.LoyaltyPoints > 0)
+        {
+            parts.Add($"Diem tich luy: {userProfile.LoyaltyPoints}");
+        }
+
+        if (userProfile.RecentDestinationNames.Count > 0)
+        {
+            parts.Add($"Diem den gan day: {string.Join(", ", userProfile.RecentDestinationNames)}");
+        }
+
+        if (userProfile.FavoriteHotelNames.Count > 0)
+        {
+            parts.Add($"Khach san yeu thich: {string.Join(", ", userProfile.FavoriteHotelNames)}");
+        }
+
+        return string.Join(" | ", parts);
     }
 
     private static List<Destination> FindMatchedDestinations(
@@ -589,7 +675,50 @@ public class ChatService : IChatService
             .ToList();
     }
 
-    private async Task<string> BuildPromotionSummaryAsync()
+    private static List<Destination> ResolveRelevantDestinations(
+        string message,
+        IEnumerable<Destination> destinations,
+        ChatUserProfileDto? userProfile)
+    {
+        var destinationList = destinations.ToList();
+        var matchedDestinations = FindMatchedDestinations(message, destinationList);
+        if (matchedDestinations.Count > 0)
+        {
+            return matchedDestinations;
+        }
+
+        if (userProfile == null || userProfile.PreferredDestinationNames.Count == 0)
+        {
+            return [];
+        }
+
+        var preferredNames = userProfile.PreferredDestinationNames
+            .Select(NormalizeText)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToHashSet();
+
+        return destinationList
+            .Where(destination => preferredNames.Contains(NormalizeText(destination.Name)))
+            .DistinctBy(destination => destination.Id)
+            .Take(3)
+            .ToList();
+    }
+
+    private static Destination? ResolvePreferredDestination(ChatUserProfileDto? userProfile)
+    {
+        var destinationName = userProfile?.PreferredDestinationNames.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(destinationName))
+        {
+            return null;
+        }
+
+        return new Destination
+        {
+            Name = destinationName
+        };
+    }
+
+    private async Task<string> BuildPromotionSummaryAsync(ChatUserProfileDto? userProfile)
     {
         var promotions = await _chatRepo.GetActivePromotionsAsync(5);
         if (!promotions.Any())
@@ -598,12 +727,15 @@ public class ChatService : IChatService
         }
 
         var lines = promotions.Select(p =>
-            $"- {p.Code}: giam {p.DiscountPercent?.ToString("0") ?? "0"}% toi da {FormatCurrency(p.MaxDiscountAmount)}");
+            $"- {p.Code}: giam {p.DiscountPercent?.ToString("0") ?? "0"}% toi da {FormatCurrency(p.MaxDiscountAmount, userProfile?.PreferredCurrency)}");
 
         return "Day la mot so khuyen mai dang hoat dong:\n" + string.Join("\n", lines);
     }
 
-    private async Task<string> BuildBusSummaryAsync(string fallbackText, List<Destination> matchedDestinations)
+    private async Task<string> BuildBusSummaryAsync(
+        string fallbackText,
+        List<Destination> matchedDestinations,
+        ChatUserProfileDto? userProfile)
     {
         var routes = await _chatRepo.GetBusSchedulesAsync(
             4,
@@ -617,7 +749,7 @@ public class ChatService : IChatService
         }
 
         var lines = routes.Select(route =>
-            $"- {route.FromDest?.Name ?? "?"} -> {route.ToDest?.Name ?? "?"}, {FormatDateTime(route.DepartureTime)}, gia tu {FormatCurrency(route.Price)}");
+            $"- {route.FromDest?.Name ?? "?"} -> {route.ToDest?.Name ?? "?"}, {FormatDateTime(route.DepartureTime)}, gia tu {FormatCurrency(route.Price, userProfile?.PreferredCurrency)}");
 
         return "Minh tim thay mot so tuyen xe phu hop:\n" + string.Join("\n", lines);
     }
@@ -625,7 +757,8 @@ public class ChatService : IChatService
     private async Task<string> BuildBudgetSummaryAsync(
         string fallbackText,
         List<Destination> matchedDestinations,
-        string requestText)
+        string requestText,
+        ChatUserProfileDto? userProfile)
     {
         var requestedDays = ExtractRequestedDays(requestText);
         if (requestedDays <= 0)
@@ -647,14 +780,14 @@ public class ChatService : IChatService
         if (hotels.Any())
         {
             var hotelText = string.Join("; ", hotels.Select(h =>
-                $"{h.Name} tu {FormatCurrency(GetEstimatedStayCost(GetLowestHotelPrice(h), requestedDays))} cho {requestedDays} ngay"));
+                $"{h.Name} tu {FormatCurrency(GetEstimatedStayCost(GetLowestHotelPrice(h), requestedDays), userProfile?.PreferredCurrency)} cho {requestedDays} ngay"));
             parts.Add($"Khach san: {hotelText}");
         }
 
         if (buses.Any())
         {
             var busText = string.Join("; ", buses.Select(b =>
-                $"{b.FromDest?.Name ?? "?"} -> {b.ToDest?.Name ?? "?"} tu {FormatCurrency(b.Price)}"));
+                $"{b.FromDest?.Name ?? "?"} -> {b.ToDest?.Name ?? "?"} tu {FormatCurrency(b.Price, userProfile?.PreferredCurrency)}"));
             parts.Add($"Di chuyen: {busText}");
         }
 
@@ -686,6 +819,13 @@ public class ChatService : IChatService
         return "Minh chua co du lieu thoi tiet thoi gian thuc luc nay. Neu ban muon, minh van co the goi y diem den, khach san va lich trinh tham khao.";
     }
 
+    private static string Localize(ChatUserProfileDto? userProfile, string vi, string en)
+    {
+        return string.Equals(userProfile?.PreferredLanguage, "en", StringComparison.OrdinalIgnoreCase)
+            ? en
+            : vi;
+    }
+
     private static List<QuickActionDto> BuildPackageQuickActions(Destination? destination)
     {
         if (destination?.Name is string destinationName && !string.IsNullOrWhiteSpace(destinationName))
@@ -704,7 +844,10 @@ public class ChatService : IChatService
         };
     }
 
-    private async Task<string> BuildPackageSummaryAsync(string fallbackText, List<Destination> matchedDestinations)
+    private async Task<string> BuildPackageSummaryAsync(
+        string fallbackText,
+        List<Destination> matchedDestinations,
+        ChatUserProfileDto? userProfile)
     {
         var destinationName = matchedDestinations.FirstOrDefault()?.Name;
         var promotions = await _chatRepo.GetActivePromotionsAsync(2);
@@ -723,18 +866,19 @@ public class ChatService : IChatService
     private async Task<ChatResponseDto> EnsureValidItineraryAsync(
         ChatResponseDto response,
         List<Destination> matchedDestinations,
-        string userMessage)
+        string userMessage,
+        ChatUserProfileDto? userProfile)
     {
         var requestedDays = ExtractRequestedDays(userMessage);
         var itinerary = response.SuggestedItinerary;
 
         if (itinerary == null || itinerary.TotalDays <= 0 || itinerary.Days.Count == 0)
         {
-            response.SuggestedItinerary = await BuildSuggestedItineraryAsync(matchedDestinations, requestedDays);
+            response.SuggestedItinerary = await BuildSuggestedItineraryAsync(matchedDestinations, requestedDays, userProfile);
         }
         else if (requestedDays > 0 && itinerary.TotalDays != requestedDays)
         {
-            response.SuggestedItinerary = await BuildSuggestedItineraryAsync(matchedDestinations, requestedDays);
+            response.SuggestedItinerary = await BuildSuggestedItineraryAsync(matchedDestinations, requestedDays, userProfile);
         }
 
         if (response.SuggestedItinerary != null)
@@ -769,7 +913,8 @@ public class ChatService : IChatService
 
     private async Task<ItineraryDto?> BuildSuggestedItineraryAsync(
         List<Destination> matchedDestinations,
-        int requestedDays = 3)
+        int requestedDays = 3,
+        ChatUserProfileDto? userProfile = null)
     {
         var destination = matchedDestinations.FirstOrDefault()
             ?? (await _chatRepo.GetDestinationsAsync(1)).FirstOrDefault();
@@ -787,7 +932,7 @@ public class ChatService : IChatService
             Destination = destination.Name,
             TotalDays = requestedDays,
             EstimatedBudget = hotels.Any()
-                ? $"Tu {FormatCurrency(GetEstimatedStayCost(GetLowestHotelPrice(hotels[0]), requestedDays))} cho {requestedDays} ngay"
+                ? $"Tu {FormatCurrency(GetEstimatedStayCost(GetLowestHotelPrice(hotels[0]), requestedDays), userProfile?.PreferredCurrency)} cho {requestedDays} ngay"
                 : "Lien he de nhan bao gia",
             TravelStyle = "Linh hoat",
             Days = BuildItineraryDays(destination, hotels.FirstOrDefault(), buses.FirstOrDefault(), requestedDays)
@@ -998,9 +1143,20 @@ public class ChatService : IChatService
         };
     }
 
-    private static string FormatCurrency(decimal? amount)
+    private static string FormatCurrency(decimal? amount, string? currency = "VND")
     {
-        return amount.HasValue ? $"{amount.Value:N0} VND" : "lien he";
+        if (!amount.HasValue)
+        {
+            return "lien he";
+        }
+
+        if (string.Equals(currency, "USD", StringComparison.OrdinalIgnoreCase))
+        {
+            var usdAmount = decimal.Round(amount.Value / 25000m, 0, MidpointRounding.AwayFromZero);
+            return $"~{usdAmount:N0} USD";
+        }
+
+        return $"{amount.Value:N0} VND";
     }
 
     private static string FormatDateTime(DateTime? dateTime)

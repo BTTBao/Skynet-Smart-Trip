@@ -110,7 +110,16 @@ public class GrokAiService : IGrokAiService
     {
         var sb = new StringBuilder();
         sb.AppendLine("Ban la Sky, tro ly du lich AI cua Skynet Smart Trip.");
-        sb.AppendLine("Luon tra loi bang tieng Viet, tru khi nguoi dung noi tieng Anh.");
+        if (string.Equals(context.PreferredLanguage, "en", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.AppendLine("Nguoi dung uu tien tieng Anh. Hay uu tien tra loi bang tieng Anh, tru khi nguoi dung chu dong viet tieng Viet.");
+        }
+        else
+        {
+            sb.AppendLine("Nguoi dung uu tien tieng Viet. Hay tra loi bang tieng Viet, tru khi nguoi dung ro rang muon tieng Anh.");
+        }
+
+        sb.AppendLine($"Tien te uu tien cua nguoi dung: {context.PreferredCurrency}.");
         sb.AppendLine("Tra loi bang JSON hop le theo schema sau, khong them markdown:");
         sb.AppendLine(@"{
   ""text"": ""Noi dung tra loi chinh"",
@@ -130,6 +139,14 @@ public class GrokAiService : IGrokAiService
             sb.AppendLine();
             sb.AppendLine("DATABASE CONTEXT:");
             sb.AppendLine(context.DatabaseContext);
+        }
+
+        if (!string.IsNullOrWhiteSpace(context.PersonalizationSummary))
+        {
+            sb.AppendLine();
+            sb.AppendLine("USER PROFILE CONTEXT:");
+            sb.AppendLine(context.PersonalizationSummary);
+            sb.AppendLine("Neu ngu canh phu hop, hay ca nhan hoa goi y theo so thich va lich su cua user, nhung khong duoc khang dinh sai du lieu khong co trong he thong.");
         }
 
         return sb.ToString();

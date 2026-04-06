@@ -141,8 +141,23 @@ public class ChatContextDto
     public List<ChatHistoryItemDto> ConversationHistory { get; set; } = new();
     public string? DetectedIntent { get; set; }
     public string? DatabaseContext { get; set; }
+    public string PreferredLanguage { get; set; } = "vi";
+    public string PreferredCurrency { get; set; } = "VND";
+    public string? PersonalizationSummary { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
+}
+
+public class ChatUserProfileDto
+{
+    public string? DisplayName { get; set; }
+    public string PreferredLanguage { get; set; } = "vi";
+    public string PreferredCurrency { get; set; } = "VND";
+    public int TripsCount { get; set; }
+    public int LoyaltyPoints { get; set; }
+    public List<string> RecentDestinationNames { get; set; } = new();
+    public List<string> FavoriteHotelNames { get; set; } = new();
+    public List<string> PreferredDestinationNames { get; set; } = new();
 }
 
 public class ChatHistoryItemDto

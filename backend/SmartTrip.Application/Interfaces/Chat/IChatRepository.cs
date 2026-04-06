@@ -19,4 +19,5 @@ public interface IChatRepository
     Task<List<BusSchedule>> GetBusSchedulesAsync(int limit = 10, IEnumerable<int>? destinationIds = null);
     Task<List<Promotion>> GetActivePromotionsAsync(int limit = 5);
     Task<int> GetBusScheduleCountAsync();
+    Task<ChatUserProfileDto?> GetUserPersonalizationAsync(int userId);
 }

@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+
+import '../../utils/app_text.dart';
 
 class ChatInput extends StatefulWidget {
   final Function(String) onSend;
@@ -66,7 +68,6 @@ class _ChatInputState extends State<ChatInput> {
       child: SafeArea(
         child: Row(
           children: [
-            // Voice / Attachment button
             Container(
               width: 40,
               height: 40,
@@ -74,10 +75,13 @@ class _ChatInputState extends State<ChatInput> {
                 color: Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Icon(Icons.mic_none_outlined, color: Colors.grey.shade500, size: 22),
+              child: Icon(
+                Icons.mic_none_outlined,
+                color: Colors.grey.shade500,
+                size: 22,
+              ),
             ),
             const SizedBox(width: 8),
-            // Text input
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -89,10 +93,13 @@ class _ChatInputState extends State<ChatInput> {
                   controller: _controller,
                   enabled: true,
                   decoration: InputDecoration(
-                    hintText: 'Hỏi Sky bất kỳ điều gì...',
+                    hintText: context.tr(
+                      vi: 'Hoi Sky bat ky dieu gi...',
+                      en: 'Ask Sky anything...',
+                    ),
                     border: InputBorder.none,
                     hintStyle: TextStyle(fontSize: 14, color: Colors.grey),
-                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   style: const TextStyle(fontSize: 14),
                   onSubmitted: (_) => _handleSend(),
@@ -101,7 +108,6 @@ class _ChatInputState extends State<ChatInput> {
               ),
             ),
             const SizedBox(width: 8),
-            // Send button
             GestureDetector(
               onTap: _handleSend,
               child: AnimatedContainer(

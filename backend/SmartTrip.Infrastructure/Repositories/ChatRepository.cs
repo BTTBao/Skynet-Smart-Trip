@@ -176,4 +176,87 @@ public class ChatRepository : IChatRepository
     {
         return await _dbContext.BusSchedules.CountAsync();
     }
+
+    public async Task<ChatUserProfileDto?> GetUserPersonalizationAsync(int userId)
+    {
+        var user = await _dbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null)
+        {
+            return null;
+        }
+
+        var preferences = await _dbContext.UserPreferences
+            .AsNoTracking()
+            .Where(p => p.UserId == userId)
+            .ToDictionaryAsync(p => p.PreferenceKey, p => p.PreferenceValue);
+
+        var recentDestinationNames = await _dbContext.Trips
+            .AsNoTracking()
+            .Where(t => t.UserId == userId && t.Destination != null)
+            .OrderByDescending(t => t.StartDate ?? DateOnly.MaxValue)
+            .ThenByDescending(t => t.CreatedAt ?? DateTime.MaxValue)
+            .Select(t => t.Destination!.Name)
+            .Distinct()
+            .Take(3)
+            .ToListAsync();
+
+        var favoriteHotels = await _dbContext.Wishlists
+            .AsNoTracking()
+            .Where(w => w.UserId == userId
+                && w.ItemType == SmartTrip.Domain.Enums.WishlistItemType.Hotel
+                && w.ItemId.HasValue)
+            .Join(
+                _dbContext.Hotels.AsNoTracking(),
+                wishlist => wishlist.ItemId!.Value,
+                hotel => hotel.Id,
+                (wishlist, hotel) => new
+                {
+                    hotel.Name,
+                    DestinationName = hotel.Destination != null ? hotel.Destination.Name : null
+                })
+            .Take(5)
+            .ToListAsync();
+
+        var loyaltyPoints = await _dbContext.UserWallets
+            .AsNoTracking()
+            .Where(w => w.UserId == userId)
+            .Select(w => w.LoyaltyPoints ?? 0)
+            .FirstOrDefaultAsync();
+
+        var tripsCount = await _dbContext.Trips
+            .AsNoTracking()
+            .CountAsync(t => t.UserId == userId);
+
+        var preferredDestinations = favoriteHotels
+            .Select(item => item.DestinationName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Cast<string>()
+            .Concat(recentDestinationNames)
+            .Distinct()
+            .Take(4)
+            .ToList();
+
+        return new ChatUserProfileDto
+        {
+            DisplayName = user.FullName,
+            PreferredLanguage = preferences.TryGetValue("language", out var language) && !string.IsNullOrWhiteSpace(language)
+                ? language.Trim().ToLowerInvariant()
+                : "vi",
+            PreferredCurrency = preferences.TryGetValue("currency", out var currency) && !string.IsNullOrWhiteSpace(currency)
+                ? currency.Trim().ToUpperInvariant()
+                : "VND",
+            TripsCount = tripsCount,
+            LoyaltyPoints = loyaltyPoints,
+            RecentDestinationNames = recentDestinationNames,
+            FavoriteHotelNames = favoriteHotels
+                .Select(item => item.Name)
+                .Distinct()
+                .Take(4)
+                .ToList(),
+            PreferredDestinationNames = preferredDestinations
+        };
+    }
 }
