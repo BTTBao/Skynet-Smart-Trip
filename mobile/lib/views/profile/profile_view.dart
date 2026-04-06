@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../models/user_profile.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart';
 import '../../providers/profile_provider.dart';
+import '../../utils/app_text.dart';
 import '../../widgets/widgets.dart';
 import '../auth/login_screen.dart';
 import 'activity_history_view.dart';
@@ -35,7 +37,7 @@ class _ProfileViewState extends State<ProfileView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Consumer<ProfileProvider>(
           builder: (context, provider, _) {
@@ -72,9 +74,9 @@ class _ProfileViewState extends State<ProfileView> {
                 children: [
                   Row(
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Ho so',
+                          context.tr(vi: 'Ho so', en: 'Profile'),
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
@@ -90,7 +92,8 @@ class _ProfileViewState extends State<ProfileView> {
                           );
                         },
                         icon: const Icon(Icons.edit_outlined),
-                        tooltip: 'Chinh sua ho so',
+                        tooltip:
+                            context.tr(vi: 'Chinh sua ho so', en: 'Edit profile'),
                       ),
                     ],
                   ),
@@ -101,7 +104,7 @@ class _ProfileViewState extends State<ProfileView> {
                     children: [
                       StatCard(
                         value: '${user.tripsCount}',
-                        label: 'Chuyen di',
+                        label: context.tr(vi: 'Chuyen di', en: 'Trips'),
                         color: primaryColor,
                         onTap: () {
                           Navigator.of(context).push(
@@ -114,50 +117,60 @@ class _ProfileViewState extends State<ProfileView> {
                       const SizedBox(width: 12),
                       StatCard(
                         value: '${user.coins}',
-                        label: 'Xu',
+                        label: context.tr(vi: 'Xu', en: 'Coins'),
                         color: Colors.orange,
                       ),
                       const SizedBox(width: 12),
                       StatCard(
                         value: '${user.vouchers}',
-                        label: 'Voucher',
+                        label: context.tr(vi: 'Voucher', en: 'Vouchers'),
                         color: Colors.pink,
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
-                  _SectionTitle(title: 'Thong tin tai khoan'),
+                  _SectionTitle(
+                    title: context.tr(
+                      vi: 'Thong tin tai khoan',
+                      en: 'Account info',
+                    ),
+                  ),
                   _CardSection(
                     children: [
                       _InfoTile(
                         icon: Icons.mail_outline,
-                        title: 'Email',
+                        title: context.tr(vi: 'Email', en: 'Email'),
                         subtitle: user.email,
-                        trailingText:
-                            user.isEmailVerified ? 'Da xac thuc' : 'Chua xac thuc',
+                        trailingText: user.isEmailVerified
+                            ? context.tr(vi: 'Da xac thuc', en: 'Verified')
+                            : context.tr(vi: 'Chua xac thuc', en: 'Not verified'),
                       ),
                       const Divider(height: 1),
                       _InfoTile(
                         icon: Icons.phone_outlined,
-                        title: 'So dien thoai',
-                        subtitle: user.phone.isEmpty ? 'Chua cap nhat' : user.phone,
+                        title: context.tr(vi: 'So dien thoai', en: 'Phone'),
+                        subtitle: user.phone.isEmpty
+                            ? context.tr(vi: 'Chua cap nhat', en: 'Not updated')
+                            : user.phone,
                       ),
                       const Divider(height: 1),
                       _InfoTile(
                         icon: Icons.cake_outlined,
-                        title: 'Ngay sinh',
-                        subtitle:
-                            user.birthDate.isEmpty ? 'Chua cap nhat' : user.birthDate,
+                        title: context.tr(vi: 'Ngay sinh', en: 'Birth date'),
+                        subtitle: user.birthDate.isEmpty
+                            ? context.tr(vi: 'Chua cap nhat', en: 'Not updated')
+                            : user.birthDate,
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
-                  _SectionTitle(title: 'Tien ich'),
+                  _SectionTitle(title: context.tr(vi: 'Tien ich', en: 'Utilities')),
                   _CardSection(
                     children: [
                       MenuItemTile(
                         icon: Icons.person_outline,
-                        title: 'Chinh sua ho so',
+                        title:
+                            context.tr(vi: 'Chinh sua ho so', en: 'Edit profile'),
                         color: primaryColor,
                         onTap: () {
                           Navigator.of(context).push(
@@ -170,7 +183,8 @@ class _ProfileViewState extends State<ProfileView> {
                       const MenuDivider(),
                       MenuItemTile(
                         icon: Icons.lock_outline,
-                        title: 'Doi mat khau',
+                        title:
+                            context.tr(vi: 'Doi mat khau', en: 'Change password'),
                         color: primaryColor,
                         onTap: () {
                           Navigator.of(context).push(
@@ -183,7 +197,7 @@ class _ProfileViewState extends State<ProfileView> {
                       const MenuDivider(),
                       MenuItemTile(
                         icon: Icons.favorite_outline,
-                        title: 'Dich vu yeu thich',
+                        title: context.tr(vi: 'Dich vu yeu thich', en: 'Favorites'),
                         color: primaryColor,
                         onTap: () {
                           Navigator.of(context).push(
@@ -196,7 +210,10 @@ class _ProfileViewState extends State<ProfileView> {
                       const MenuDivider(),
                       MenuItemTile(
                         icon: Icons.history,
-                        title: 'Lich su hoat dong',
+                        title: context.tr(
+                          vi: 'Lich su hoat dong',
+                          en: 'Activity history',
+                        ),
                         color: primaryColor,
                         onTap: () {
                           Navigator.of(context).push(
@@ -209,7 +226,7 @@ class _ProfileViewState extends State<ProfileView> {
                       const MenuDivider(),
                       MenuItemTile(
                         icon: Icons.settings_outlined,
-                        title: 'Cai dat',
+                        title: context.tr(vi: 'Cai dat', en: 'Settings'),
                         color: primaryColor,
                         onTap: () {
                           Navigator.of(context).push(
@@ -225,9 +242,9 @@ class _ProfileViewState extends State<ProfileView> {
                   OutlinedButton.icon(
                     onPressed: _confirmLogout,
                     icon: const Icon(Icons.logout),
-                    label: const Padding(
+                    label: Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text('Dang xuat'),
+                      child: Text(context.tr(vi: 'Dang xuat', en: 'Sign out')),
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red.shade600,
@@ -249,16 +266,21 @@ class _ProfileViewState extends State<ProfileView> {
           context: context,
           builder: (dialogContext) {
             return AlertDialog(
-              title: const Text('Dang xuat'),
-              content: const Text('Ban co chac muon dang xuat khoi tai khoan?'),
+              title: Text(context.tr(vi: 'Dang xuat', en: 'Sign out')),
+              content: Text(
+                context.tr(
+                  vi: 'Ban co chac muon dang xuat khoi tai khoan?',
+                  en: 'Do you want to sign out of this account?',
+                ),
+              ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: const Text('Huy'),
+                  child: Text(context.tr(vi: 'Huy', en: 'Cancel')),
                 ),
                 FilledButton(
                   onPressed: () => Navigator.of(dialogContext).pop(true),
-                  child: const Text('Dang xuat'),
+                  child: Text(context.tr(vi: 'Dang xuat', en: 'Sign out')),
                 ),
               ],
             );
@@ -275,6 +297,7 @@ class _ProfileViewState extends State<ProfileView> {
       return;
     }
 
+    context.read<ChatProvider>().resetForSignedOutUser();
     context.read<ProfileProvider>().logout();
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -371,11 +394,13 @@ class _CardSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.black26
+                : Colors.black12,
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
@@ -442,7 +467,7 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: 16),
             FilledButton(
               onPressed: onRetry,
-              child: const Text('Thu lai'),
+              child: Text(context.tr(vi: 'Thu lai', en: 'Retry')),
             ),
           ],
         ),

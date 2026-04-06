@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/activity_history.dart';
+import '../../providers/app_settings_provider.dart';
 import '../../services/activity_history_service.dart';
 import '../../services/api_service_base.dart';
+import '../../utils/app_text.dart';
 import '../../widgets/widgets.dart';
 import '../trip/trip_itinerary_detail_view.dart';
 import 'profile_session_helper.dart';
@@ -82,14 +85,14 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 0,
         scrolledUnderElevation: 0,
-        title: const Text(
-          'Lich su hoat dong',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          context.tr(vi: 'Lich su hoat dong', en: 'Activity history'),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
       body: _buildBody(),
@@ -116,7 +119,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: _fetchHistory,
-                child: const Text('Thu lai'),
+                child: Text(context.tr(vi: 'Thu lai', en: 'Retry')),
               ),
             ],
           ),
@@ -132,7 +135,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
     return Column(
       children: [
         Container(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -197,7 +200,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       ),
       label: Text(label),
       selectedColor: primaryColor.withOpacity(0.25),
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       labelStyle: const TextStyle(
         color: Colors.black87,
         fontWeight: FontWeight.w700,
@@ -217,29 +220,50 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       case _HistorySection.bookings:
         return _buildListOrEmpty<BookingHistoryItem>(
           items: history.bookings,
-          emptyTitle: 'Chua co booking',
-          emptySubtitle: 'Cac booking cua ban se hien thi tai day.',
+          emptyTitle: context.tr(vi: 'Chua co booking', en: 'No bookings yet'),
+          emptySubtitle: context.tr(
+            vi: 'Cac booking cua ban se hien thi tai day.',
+            en: 'Your bookings will appear here.',
+          ),
           itemBuilder: _buildBookingCard,
         );
       case _HistorySection.hotels:
         return _buildListOrEmpty<HotelHistoryItem>(
           items: history.hotels,
-          emptyTitle: 'Chua co lich su khach san',
-          emptySubtitle: 'Dat phong cua ban se hien thi tai day.',
+          emptyTitle: context.tr(
+            vi: 'Chua co lich su khach san',
+            en: 'No hotel history yet',
+          ),
+          emptySubtitle: context.tr(
+            vi: 'Dat phong cua ban se hien thi tai day.',
+            en: 'Your hotel bookings will appear here.',
+          ),
           itemBuilder: _buildHotelCard,
         );
       case _HistorySection.buses:
         return _buildListOrEmpty<BusHistoryItem>(
           items: history.buses,
-          emptyTitle: 'Chua co lich su ve xe',
-          emptySubtitle: 'Thong tin ve xe va hanh trinh se hien thi tai day.',
+          emptyTitle: context.tr(
+            vi: 'Chua co lich su ve xe',
+            en: 'No bus history yet',
+          ),
+          emptySubtitle: context.tr(
+            vi: 'Thong tin ve xe va hanh trinh se hien thi tai day.',
+            en: 'Your bus tickets and routes will appear here.',
+          ),
           itemBuilder: _buildBusCard,
         );
       case _HistorySection.payments:
         return _buildListOrEmpty<PaymentHistoryItem>(
           items: history.payments,
-          emptyTitle: 'Chua co lich su thanh toan',
-          emptySubtitle: 'Giao dich cua ban se hien thi tai day.',
+          emptyTitle: context.tr(
+            vi: 'Chua co lich su thanh toan',
+            en: 'No payment history yet',
+          ),
+          emptySubtitle: context.tr(
+            vi: 'Giao dich cua ban se hien thi tai day.',
+            en: 'Your transactions will appear here.',
+          ),
           itemBuilder: _buildPaymentCard,
         );
     }
@@ -260,7 +284,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
             icon: Icons.history,
             title: emptyTitle,
             subtitle: emptySubtitle,
-            buttonText: 'Lam moi',
+            buttonText: context.tr(vi: 'Lam moi', en: 'Refresh'),
             onButtonPressed: _fetchHistory,
           ),
         ],
@@ -286,9 +310,9 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       onTap: item.tripId > 0 ? () => _openTrip(item.tripId, item.title) : null,
       extraLines: [
         if ((item.invoiceNumber ?? '').isNotEmpty)
-          'Hoa don: ${item.invoiceNumber}',
+          '${context.tr(vi: 'Hoa don', en: 'Invoice')}: ${item.invoiceNumber}',
         if ((item.createdAt ?? '').isNotEmpty)
-          'Tao luc: ${_formatDateTime(item.createdAt)}',
+          '${context.tr(vi: 'Tao luc', en: 'Created at')}: ${_formatDateTime(item.createdAt)}',
       ],
     );
   }
@@ -302,8 +326,8 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       dateText: _joinDateRange(item.checkInDate, item.checkOutDate),
       onTap: item.tripId > 0 ? () => _openTrip(item.tripId, item.tripTitle) : null,
       extraLines: [
-        'Chuyen di: ${item.tripTitle}',
-        'So luong: ${item.quantity}',
+        '${context.tr(vi: 'Chuyen di', en: 'Trip')}: ${item.tripTitle}',
+        '${context.tr(vi: 'So luong', en: 'Quantity')}: ${item.quantity}',
       ],
     );
   }
@@ -317,8 +341,8 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       dateText: _joinDateRange(item.departureTime, item.arrivalTime),
       onTap: item.tripId > 0 ? () => _openTrip(item.tripId, item.tripTitle) : null,
       extraLines: [
-        'Chuyen di: ${item.tripTitle}',
-        'So luong: ${item.quantity}',
+        '${context.tr(vi: 'Chuyen di', en: 'Trip')}: ${item.tripTitle}',
+        '${context.tr(vi: 'So luong', en: 'Quantity')}: ${item.quantity}',
       ],
     );
   }
@@ -326,16 +350,17 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
   Widget _buildPaymentCard(PaymentHistoryItem item) {
     return _HistoryCard(
       title: item.tripTitle,
-      subtitle: 'Phuong thuc: ${item.paymentMethod}',
+      subtitle:
+          '${context.tr(vi: 'Phuong thuc', en: 'Method')}: ${item.paymentMethod}',
       amount: _currency(item.amount),
       status: item.status,
       dateText: _formatDateTime(item.paidAt),
       onTap: item.tripId > 0 ? () => _openTrip(item.tripId, item.tripTitle) : null,
       extraLines: [
         if ((item.invoiceNumber ?? '').isNotEmpty)
-          'Hoa don: ${item.invoiceNumber}',
+          '${context.tr(vi: 'Hoa don', en: 'Invoice')}: ${item.invoiceNumber}',
         if ((item.transactionId ?? '').isNotEmpty)
-          'Ma giao dich: ${item.transactionId}',
+          '${context.tr(vi: 'Ma giao dich', en: 'Transaction ID')}: ${item.transactionId}',
       ],
     );
   }
@@ -391,12 +416,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
   }
 
   String _currency(double amount) {
-    final format = NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: 'VND ',
-      decimalDigits: 0,
-    );
-    return format.format(amount);
+    return context.read<AppSettingsProvider>().formatCurrency(amount);
   }
 
   Future<void> _handleSessionExpired(String? message) async {
@@ -431,7 +451,7 @@ class _HistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onTap,

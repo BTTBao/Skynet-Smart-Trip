@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/profile_provider.dart';
+import '../../utils/app_text.dart';
 import '../../widgets/auth/auth_widgets.dart';
 import 'profile_session_helper.dart';
 
@@ -39,17 +40,32 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
     if (currentPassword.isEmpty ||
         newPassword.isEmpty ||
         confirmPassword.isEmpty) {
-      setState(() => _inlineError = 'Vui lòng nhập đầy đủ thông tin.');
+      setState(() {
+        _inlineError = context.trRead(
+          vi: 'Vui long nhap day du thong tin.',
+          en: 'Please fill in all fields.',
+        );
+      });
       return;
     }
 
     if (newPassword.length < 8) {
-      setState(() => _inlineError = 'Mật khẩu mới phải có ít nhất 8 ký tự.');
+      setState(() {
+        _inlineError = context.trRead(
+          vi: 'Mat khau moi phai co it nhat 8 ky tu.',
+          en: 'New password must be at least 8 characters.',
+        );
+      });
       return;
     }
 
     if (newPassword != confirmPassword) {
-      setState(() => _inlineError = 'Xác nhận mật khẩu mới không khớp.');
+      setState(() {
+        _inlineError = context.trRead(
+          vi: 'Xac nhan mat khau moi khong khop.',
+          en: 'Password confirmation does not match.',
+        );
+      });
       return;
     }
 
@@ -67,7 +83,10 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
     if (success) {
       await showSessionExpiredDialog(
         context,
-        message: 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.',
+        message: context.trRead(
+          vi: 'Doi mat khau thanh cong. Vui long dang nhap lai.',
+          en: 'Password updated successfully. Please sign in again.',
+        ),
       );
       return;
     }
@@ -77,22 +96,29 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
       return;
     }
 
-    setState(() => _inlineError = provider.error ?? 'Đổi mật khẩu thất bại.');
+    setState(() {
+      _inlineError = provider.error ??
+          context.trRead(
+            vi: 'Doi mat khau that bai.',
+            en: 'Unable to update password.',
+          );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final isLoading = context.watch<ProfileProvider>().isChangingPassword;
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: theme.appBarTheme.backgroundColor,
         scrolledUnderElevation: 0,
         elevation: 0,
-        title: const Text(
-          'Đổi mật khẩu',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          context.tr(vi: 'Doi mat khau', en: 'Change password'),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
       body: SingleChildScrollView(
@@ -101,28 +127,35 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
           children: [
             _PasswordField(
               controller: _currentPasswordController,
-              label: 'Mật khẩu hiện tại',
-              obscureText: !_showCurrentPassword,
-              onToggle: () => setState(
-                () => _showCurrentPassword = !_showCurrentPassword,
+              label: context.tr(
+                vi: 'Mat khau hien tai',
+                en: 'Current password',
               ),
+              obscureText: !_showCurrentPassword,
+              onToggle: () {
+                setState(() => _showCurrentPassword = !_showCurrentPassword);
+              },
             ),
             const SizedBox(height: 16),
             _PasswordField(
               controller: _newPasswordController,
-              label: 'Mật khẩu mới',
+              label: context.tr(vi: 'Mat khau moi', en: 'New password'),
               obscureText: !_showNewPassword,
-              onToggle: () =>
-                  setState(() => _showNewPassword = !_showNewPassword),
+              onToggle: () {
+                setState(() => _showNewPassword = !_showNewPassword);
+              },
             ),
             const SizedBox(height: 16),
             _PasswordField(
               controller: _confirmPasswordController,
-              label: 'Xác nhận mật khẩu mới',
-              obscureText: !_showConfirmPassword,
-              onToggle: () => setState(
-                () => _showConfirmPassword = !_showConfirmPassword,
+              label: context.tr(
+                vi: 'Xac nhan mat khau moi',
+                en: 'Confirm new password',
               ),
+              obscureText: !_showConfirmPassword,
+              onToggle: () {
+                setState(() => _showConfirmPassword = !_showConfirmPassword);
+              },
             ),
             if (_inlineError != null) ...[
               const SizedBox(height: 16),
@@ -141,7 +174,12 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Cập nhật mật khẩu'),
+                      : Text(
+                          context.tr(
+                            vi: 'Cap nhat mat khau',
+                            en: 'Update password',
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -167,13 +205,15 @@ class _PasswordField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return TextField(
       controller: controller,
       obscureText: obscureText,
       decoration: InputDecoration(
         labelText: label,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: theme.colorScheme.surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: Colors.grey.shade200),

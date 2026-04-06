@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/profile_provider.dart';
+import '../../utils/app_text.dart';
 import '../../widgets/widgets.dart';
 import 'profile_session_helper.dart';
 
@@ -46,121 +47,143 @@ class _EditProfileViewState extends State<EditProfileView> {
       builder: (context, provider, _) {
         _handleSessionExpired(provider);
 
-        return Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            title: const Text(
-              'Chinh sua ho so',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            actions: [
-              TextButton(
-                onPressed: provider.isUpdating ? null : _saveProfile,
-                child: provider.isUpdating
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Luu'),
+        return WillPopScope(
+          onWillPop: () => _confirmLeaveIfNeeded(provider),
+          child: Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => _handleBackNavigation(provider),
               ),
-            ],
-          ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: ProfileAvatar(
-                      avatarUrl: provider.profileData?.avatarUrl ?? '',
-                      isEditing: true,
-                      onCameraTap: _showImagePicker,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Center(
-                    child: Text(
-                      'Anh dai dien',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w500,
+              backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              title: Text(
+                context.tr(vi: 'Chinh sua ho so', en: 'Edit profile'),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: provider.isUpdating ? null : _saveProfile,
+                  child: provider.isUpdating
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(context.tr(vi: 'Luu', en: 'Save')),
+                ),
+              ],
+            ),
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: ProfileAvatar(
+                        avatarUrl: provider.profileData?.avatarUrl ?? '',
+                        isEditing: true,
+                        onCameraTap: _showImagePicker,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 28),
-                  CustomTextField(
-                    label: 'Ho va ten',
-                    icon: Icons.person_outline,
-                    controller: _nameController,
-                    hintText: 'Nhap ho va ten',
-                    validator: (value) {
-                      final text = value?.trim() ?? '';
-                      if (text.isEmpty) {
-                        return 'Vui long nhap ho va ten.';
-                      }
-                      if (text.length < 2) {
-                        return 'Ho va ten qua ngan.';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    label: 'Email',
-                    icon: Icons.mail_outline,
-                    controller: _emailController,
-                    hintText: 'Email dang ky',
-                    readOnly: true,
-                    enabled: false,
-                    suffixIcon: Icon(
-                      provider.profileData?.isEmailVerified == true
-                          ? Icons.verified_outlined
-                          : Icons.error_outline,
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Text(
+                        context.tr(vi: 'Anh dai dien', en: 'Profile photo'),
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Email duoc khoa de giu nguyen thong tin xac thuc tai khoan.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
+                    const SizedBox(height: 28),
+                    CustomTextField(
+                      label: context.tr(vi: 'Ho va ten', en: 'Full name'),
+                      icon: Icons.person_outline,
+                      controller: _nameController,
+                      hintText: context.tr(vi: 'Nhap ho va ten', en: 'Enter your full name'),
+                      validator: (value) {
+                        final text = value?.trim() ?? '';
+                        if (text.isEmpty) {
+                          return context.trRead(
+                            vi: 'Vui long nhap ho va ten.',
+                            en: 'Please enter your full name.',
+                          );
+                        }
+                        if (text.length < 2) {
+                          return context.trRead(
+                            vi: 'Ho va ten qua ngan.',
+                            en: 'Full name is too short.',
+                          );
+                        }
+                        return null;
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    label: 'So dien thoai',
-                    icon: Icons.phone_outlined,
-                    controller: _phoneController,
-                    hintText: 'Nhap so dien thoai',
-                    keyboardType: TextInputType.phone,
-                    validator: (value) {
-                      final raw = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-                      if (raw.isEmpty) {
-                        return 'Vui long nhap so dien thoai.';
-                      }
-                      if (raw.length < 10 || raw.length > 11) {
-                        return 'So dien thoai khong hop le.';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  CustomTextField(
-                    label: 'Ngay sinh',
-                    icon: Icons.calendar_today_outlined,
-                    controller: _birthDateController,
-                    hintText: 'YYYY-MM-DD',
-                    readOnly: true,
-                    onTap: _pickBirthDate,
-                    suffixIcon: const Icon(Icons.expand_more),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      label: context.tr(vi: 'Email', en: 'Email'),
+                      icon: Icons.mail_outline,
+                      controller: _emailController,
+                      hintText: context.tr(vi: 'Email dang ky', en: 'Registered email'),
+                      readOnly: true,
+                      enabled: false,
+                      suffixIcon: Icon(
+                        provider.profileData?.isEmailVerified == true
+                            ? Icons.verified_outlined
+                            : Icons.error_outline,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      context.tr(
+                        vi: 'Email duoc khoa de giu nguyen thong tin xac thuc tai khoan.',
+                        en: 'Email is locked to preserve account verification.',
+                      ),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      label: context.tr(vi: 'So dien thoai', en: 'Phone'),
+                      icon: Icons.phone_outlined,
+                      controller: _phoneController,
+                      hintText: context.tr(vi: 'Nhap so dien thoai', en: 'Enter your phone'),
+                      keyboardType: TextInputType.phone,
+                      validator: (value) {
+                        final raw = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                        if (raw.isEmpty) {
+                          return context.trRead(
+                            vi: 'Vui long nhap so dien thoai.',
+                            en: 'Please enter your phone number.',
+                          );
+                        }
+                        if (raw.length < 10 || raw.length > 11) {
+                          return context.trRead(
+                            vi: 'So dien thoai khong hop le.',
+                            en: 'Invalid phone number.',
+                          );
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      label: context.tr(vi: 'Ngay sinh', en: 'Birth date'),
+                      icon: Icons.calendar_today_outlined,
+                      controller: _birthDateController,
+                      hintText: 'YYYY-MM-DD',
+                      readOnly: true,
+                      onTap: _pickBirthDate,
+                      suffixIcon: const Icon(Icons.expand_more),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -217,8 +240,15 @@ class _EditProfileViewState extends State<EditProfileView> {
       SnackBar(
         content: Text(
           success
-              ? 'Da cap nhat anh dai dien.'
-              : (provider.error ?? 'Khong the tai anh len.'),
+              ? context.trRead(
+                  vi: 'Da cap nhat anh dai dien.',
+                  en: 'Profile photo updated.',
+                )
+              : (provider.error ??
+                  context.trRead(
+                    vi: 'Khong the tai anh len.',
+                    en: 'Unable to upload image.',
+                  )),
         ),
       ),
     );
@@ -236,7 +266,7 @@ class _EditProfileViewState extends State<EditProfileView> {
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('Chon tu thu vien'),
+                title: Text(context.trRead(vi: 'Chon tu thu vien', en: 'Choose from gallery')),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _pickAndUploadImage(ImageSource.gallery);
@@ -244,7 +274,7 @@ class _EditProfileViewState extends State<EditProfileView> {
               ),
               ListTile(
                 leading: const Icon(Icons.camera_alt_outlined),
-                title: const Text('Chup anh moi'),
+                title: Text(context.trRead(vi: 'Chup anh moi', en: 'Take a new photo')),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _pickAndUploadImage(ImageSource.camera);
@@ -257,7 +287,84 @@ class _EditProfileViewState extends State<EditProfileView> {
     );
   }
 
-  Future<void> _saveProfile() async {
+  bool _hasUnsavedChanges(ProfileProvider provider) {
+    final user = provider.profileData;
+    if (user == null) {
+      return false;
+    }
+
+    return _nameController.text.trim() != user.name.trim() ||
+        _phoneController.text.trim() != user.phone.trim() ||
+        _birthDateController.text.trim() != (user.birthDate ?? '').trim();
+  }
+
+  Future<void> _handleBackNavigation(ProfileProvider provider) async {
+    final shouldPop = await _confirmLeaveIfNeeded(provider);
+    if (!mounted || !shouldPop) {
+      return;
+    }
+
+    Navigator.of(context).pop();
+  }
+
+  Future<bool> _confirmLeaveIfNeeded(ProfileProvider provider) async {
+    if (provider.isUpdating || !_hasUnsavedChanges(provider)) {
+      return true;
+    }
+
+    final action = await showDialog<_LeaveAction>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            context.tr(
+              vi: 'Ban muon luu thay doi?',
+              en: 'Save your changes?',
+            ),
+          ),
+          content: Text(
+            context.tr(
+              vi: 'Thong tin ho so cua ban da thay doi. Ban muon luu truoc khi thoat khong?',
+              en: 'Your profile has unsaved changes. Do you want to save before leaving?',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(_LeaveAction.cancel);
+              },
+              child: Text(context.trRead(vi: 'O lai', en: 'Stay')),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(_LeaveAction.discard);
+              },
+              child: Text(context.trRead(vi: 'Khong luu', en: 'Discard')),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(_LeaveAction.save);
+              },
+              child: Text(context.trRead(vi: 'Luu', en: 'Save')),
+            ),
+          ],
+        );
+      },
+    );
+
+    switch (action) {
+      case _LeaveAction.save:
+        await _saveProfile(closeAfterSave: true);
+        return false;
+      case _LeaveAction.discard:
+        return true;
+      case _LeaveAction.cancel:
+      case null:
+        return false;
+    }
+  }
+
+  Future<void> _saveProfile({bool closeAfterSave = true}) async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -287,16 +394,28 @@ class _EditProfileViewState extends State<EditProfileView> {
     if (!success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(provider.error ?? 'Khong the cap nhat ho so.'),
+          content: Text(
+            provider.error ??
+                context.trRead(
+                  vi: 'Khong the cap nhat ho so.',
+                  en: 'Unable to update profile.',
+                ),
+          ),
         ),
       );
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Da cap nhat ho so.')),
+      SnackBar(
+        content: Text(
+          context.trRead(vi: 'Da cap nhat ho so.', en: 'Profile updated.'),
+        ),
+      ),
     );
-    Navigator.pop(context, true);
+    if (closeAfterSave) {
+      Navigator.pop(context, true);
+    }
   }
 
   Future<void> _handleSessionExpired(ProfileProvider provider) async {
@@ -308,3 +427,5 @@ class _EditProfileViewState extends State<EditProfileView> {
     await showSessionExpiredDialog(context, message: provider.error);
   }
 }
+
+enum _LeaveAction { save, discard, cancel }

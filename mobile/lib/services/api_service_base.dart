@@ -66,7 +66,10 @@ abstract class ApiService {
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     } else if (requireAuth) {
-      throw Exception('Phien dang nhap da het han. Vui long dang nhap lai.');
+      throw ApiException(
+        401,
+        'Phien dang nhap da het han. Vui long dang nhap lai.',
+      );
     }
 
     return headers;

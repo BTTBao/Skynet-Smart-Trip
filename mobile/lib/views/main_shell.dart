@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/profile_provider.dart';
+import '../utils/app_text.dart';
 import 'chatbot/chatbot_view.dart';
 import 'profile/profile_view.dart';
 import 'trip/my_trips_view.dart';
@@ -43,7 +44,7 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.06),
@@ -62,7 +63,7 @@ class _MainShellState extends State<MainShell> {
                   0,
                   Icons.home_outlined,
                   Icons.home,
-                  'Trang chu',
+                  context.tr(vi: 'Trang chu', en: 'Home'),
                   primaryColor,
                 ),
                 _buildNavItem(
@@ -76,21 +77,21 @@ class _MainShellState extends State<MainShell> {
                   2,
                   Icons.explore_outlined,
                   Icons.explore,
-                  'Kham pha',
+                  context.tr(vi: 'Kham pha', en: 'Explore'),
                   primaryColor,
                 ),
                 _buildNavItem(
                   3,
                   Icons.bookmark_outline,
                   Icons.bookmark,
-                  'Chuyen di',
+                  context.tr(vi: 'Chuyen di', en: 'Trips'),
                   primaryColor,
                 ),
                 _buildNavItem(
                   4,
                   Icons.person_outline,
                   Icons.person,
-                  'Ho so',
+                  context.tr(vi: 'Ho so', en: 'Profile'),
                   primaryColor,
                 ),
               ],
@@ -173,7 +174,7 @@ class _PlaceholderPage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Dang phat trien...',
+              context.tr(vi: 'Dang phat trien...', en: 'In development...'),
               style: TextStyle(color: Colors.grey.shade400),
             ),
           ],

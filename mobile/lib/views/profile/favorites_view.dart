@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/user_favorite.dart';
 import '../../providers/profile_provider.dart';
+import '../../utils/app_text.dart';
 import '../../widgets/widgets.dart';
 import 'profile_session_helper.dart';
 
@@ -31,14 +32,14 @@ class _FavoritesViewState extends State<FavoritesView> {
         _handleSessionExpired(provider);
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF8F9FA),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
             elevation: 0,
             scrolledUnderElevation: 0,
-            title: const Text(
-              'Dich vu yeu thich',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            title: Text(
+              context.tr(vi: 'Dich vu yeu thich', en: 'Favorites'),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
           body: _buildBody(provider),
@@ -65,7 +66,7 @@ class _FavoritesViewState extends State<FavoritesView> {
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: () => provider.loadFavorites(forceRefresh: true),
-                child: const Text('Thu lai'),
+                child: Text(context.tr(vi: 'Thu lai', en: 'Retry')),
               ),
             ],
           ),
@@ -78,13 +79,18 @@ class _FavoritesViewState extends State<FavoritesView> {
         onRefresh: () => provider.loadFavorites(forceRefresh: true),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          children: const [
-            SizedBox(height: 120),
+          children: [
+            const SizedBox(height: 120),
             EmptyStatePlaceholder(
               icon: Icons.favorite_outline,
-              title: 'Chua co muc yeu thich',
-              subtitle:
-                  'Khach san va chuyen xe ban danh dau se hien thi tai day.',
+              title: context.tr(
+                vi: 'Chua co muc yeu thich',
+                en: 'No favorites yet',
+              ),
+              subtitle: context.tr(
+                vi: 'Khach san va chuyen xe ban danh dau se hien thi tai day.',
+                en: 'Saved hotels and bus routes will appear here.',
+              ),
             ),
           ],
         ),
@@ -126,8 +132,15 @@ class _FavoritesViewState extends State<FavoritesView> {
       SnackBar(
         content: Text(
           success
-              ? 'Da xoa khoi yeu thich.'
-              : (provider.error ?? 'Khong the xoa muc yeu thich.'),
+              ? context.trRead(
+                  vi: 'Da xoa khoi yeu thich.',
+                  en: 'Removed from favorites.',
+                )
+              : (provider.error ??
+                  context.trRead(
+                    vi: 'Khong the xoa muc yeu thich.',
+                    en: 'Unable to remove favorite.',
+                  )),
         ),
       ),
     );
@@ -161,7 +174,7 @@ class _FavoriteCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: const [

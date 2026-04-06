@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/user_settings.dart';
+import '../../providers/app_settings_provider.dart';
 import '../../providers/profile_provider.dart';
+import '../../utils/app_text.dart';
 import 'change_password_view.dart';
 import 'profile_session_helper.dart';
 
@@ -33,28 +35,27 @@ class _SettingsViewState extends State<SettingsView> {
         _draftSettings ??= provider.settings;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF8F9FA),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
             elevation: 0,
             scrolledUnderElevation: 0,
-            title: const Text(
-              'Cai dat',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            title: Text(
+              context.tr(vi: 'Cai dat', en: 'Settings'),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             actions: [
-              TextButton(
-                onPressed: provider.isSavingSettings || _draftSettings == null
-                    ? null
-                    : () => _save(provider),
-                child: provider.isSavingSettings
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Luu'),
-              ),
+              if (provider.isSavingSettings)
+                const Padding(
+                  padding: EdgeInsets.only(right: 16),
+                  child: Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                ),
             ],
           ),
           body: _buildBody(provider),
@@ -81,7 +82,7 @@ class _SettingsViewState extends State<SettingsView> {
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: () => provider.loadSettings(forceRefresh: true),
-                child: const Text('Thu lai'),
+                child: Text(context.tr(vi: 'Thu lai', en: 'Retry')),
               ),
             ],
           ),
@@ -94,126 +95,137 @@ class _SettingsViewState extends State<SettingsView> {
       return const SizedBox.shrink();
     }
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildSectionTitle('Tai khoan'),
-        _SettingsCard(
-          child: Column(
-            children: [
-              _InfoRow(
-                icon: Icons.email_outlined,
-                title: 'Email',
-                subtitle: settings.email,
-              ),
-              const Divider(height: 1),
-              _InfoRow(
-                icon: settings.isEmailVerified
-                    ? Icons.verified_outlined
-                    : Icons.error_outline,
-                title: 'Xac thuc email',
-                subtitle: settings.isEmailVerified
-                    ? 'Da xac thuc'
-                    : 'Chua xac thuc',
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.lock_outline),
-                title: const Text('Doi mat khau'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const ChangePasswordView(),
+    return AbsorbPointer(
+      absorbing: provider.isSavingSettings,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildSectionTitle(context.tr(vi: 'Tai khoan', en: 'Account')),
+          _SettingsCard(
+            child: Column(
+              children: [
+                _InfoRow(
+                  icon: Icons.email_outlined,
+                  title: context.tr(vi: 'Email', en: 'Email'),
+                  subtitle: settings.email,
+                ),
+                const Divider(height: 1),
+                _InfoRow(
+                  icon: settings.isEmailVerified
+                      ? Icons.verified_outlined
+                      : Icons.error_outline,
+                  title: context.tr(vi: 'Xac thuc email', en: 'Email verification'),
+                  subtitle: settings.isEmailVerified
+                      ? context.tr(vi: 'Da xac thuc', en: 'Verified')
+                      : context.tr(vi: 'Chua xac thuc', en: 'Not verified'),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.lock_outline),
+                  title: Text(context.tr(vi: 'Doi mat khau', en: 'Change password')),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ChangePasswordView(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildSectionTitle(context.tr(vi: 'Thong bao', en: 'Notifications')),
+          _SettingsCard(
+            child: Column(
+              children: [
+                SwitchListTile.adaptive(
+                  value: settings.pushNotificationEnabled,
+                  onChanged: (value) => _saveSetting(
+                    provider,
+                    settings.copyWith(pushNotificationEnabled: value),
+                  ),
+                  title: Text(context.tr(vi: 'Thong bao day', en: 'Push notifications')),
+                ),
+                const Divider(height: 1),
+                SwitchListTile.adaptive(
+                  value: settings.emailOfferEnabled,
+                  onChanged: (value) => _saveSetting(
+                    provider,
+                    settings.copyWith(emailOfferEnabled: value),
+                  ),
+                  title: Text(context.tr(vi: 'Nhan uu dai qua email', en: 'Email offers')),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildSectionTitle(context.tr(vi: 'Tuy chinh', en: 'Preferences')),
+          _SettingsCard(
+            child: Column(
+              children: [
+                SwitchListTile.adaptive(
+                  value: settings.darkModeEnabled,
+                  onChanged: (value) => _saveSetting(
+                    provider,
+                    settings.copyWith(darkModeEnabled: value),
+                  ),
+                  title: Text(context.tr(vi: 'Che do toi', en: 'Dark mode')),
+                  subtitle: Text(
+                    context.tr(
+                      vi: 'Thay doi giao dien ngay lap tuc',
+                      en: 'Apply the new appearance immediately',
                     ),
-                  );
-                },
-              ),
-            ],
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  title: Text(context.tr(vi: 'Ngon ngu', en: 'Language')),
+                  subtitle: Text(
+                    settings.language.toLowerCase() == 'vi'
+                        ? 'Tieng Viet'
+                        : 'English',
+                  ),
+                  trailing: DropdownButton<String>(
+                    value: settings.language.toLowerCase(),
+                    underline: const SizedBox.shrink(),
+                    items: const [
+                      DropdownMenuItem(value: 'vi', child: Text('Tieng Viet')),
+                      DropdownMenuItem(value: 'en', child: Text('English')),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      _saveSetting(provider, settings.copyWith(language: value));
+                    },
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  title: Text(context.tr(vi: 'Don vi tien te', en: 'Currency')),
+                  subtitle: Text(settings.currency.toUpperCase()),
+                  trailing: DropdownButton<String>(
+                    value: settings.currency.toUpperCase(),
+                    underline: const SizedBox.shrink(),
+                    items: const [
+                      DropdownMenuItem(value: 'VND', child: Text('VND')),
+                      DropdownMenuItem(value: 'USD', child: Text('USD')),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      _saveSetting(provider, settings.copyWith(currency: value));
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-        _buildSectionTitle('Thong bao'),
-        _SettingsCard(
-          child: Column(
-            children: [
-              SwitchListTile.adaptive(
-                value: settings.pushNotificationEnabled,
-                onChanged: (value) => _updateDraft(
-                  settings.copyWith(pushNotificationEnabled: value),
-                ),
-                title: const Text('Thong bao day'),
-              ),
-              const Divider(height: 1),
-              SwitchListTile.adaptive(
-                value: settings.emailOfferEnabled,
-                onChanged: (value) => _updateDraft(
-                  settings.copyWith(emailOfferEnabled: value),
-                ),
-                title: const Text('Nhan uu dai qua email'),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildSectionTitle('Tuy chinh'),
-        _SettingsCard(
-          child: Column(
-            children: [
-              SwitchListTile.adaptive(
-                value: settings.darkModeEnabled,
-                onChanged: (value) => _updateDraft(
-                  settings.copyWith(darkModeEnabled: value),
-                ),
-                title: const Text('Che do toi'),
-                subtitle: const Text('Luu lai tuy chon giao dien cua ban'),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                title: const Text('Ngon ngu'),
-                subtitle: Text(
-                  settings.language.toLowerCase() == 'vi'
-                      ? 'Tieng Viet'
-                      : 'English',
-                ),
-                trailing: DropdownButton<String>(
-                  value: settings.language.toLowerCase(),
-                  underline: const SizedBox.shrink(),
-                  items: const [
-                    DropdownMenuItem(value: 'vi', child: Text('Tieng Viet')),
-                    DropdownMenuItem(value: 'en', child: Text('English')),
-                  ],
-                  onChanged: (value) {
-                    if (value == null) {
-                      return;
-                    }
-                    _updateDraft(settings.copyWith(language: value));
-                  },
-                ),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                title: const Text('Don vi tien te'),
-                subtitle: Text(settings.currency.toUpperCase()),
-                trailing: DropdownButton<String>(
-                  value: settings.currency.toUpperCase(),
-                  underline: const SizedBox.shrink(),
-                  items: const [
-                    DropdownMenuItem(value: 'VND', child: Text('VND')),
-                    DropdownMenuItem(value: 'USD', child: Text('USD')),
-                  ],
-                  onChanged: (value) {
-                    if (value == null) {
-                      return;
-                    }
-                    _updateDraft(settings.copyWith(currency: value));
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -238,13 +250,19 @@ class _SettingsViewState extends State<SettingsView> {
     });
   }
 
-  Future<void> _save(ProfileProvider provider) async {
-    final draft = _draftSettings;
-    if (draft == null) {
+  Future<void> _saveSetting(
+    ProfileProvider provider,
+    UserSettings nextValue,
+  ) async {
+    final previousValue = _draftSettings;
+    if (previousValue == null) {
       return;
     }
 
-    final success = await provider.saveSettings(draft);
+    _updateDraft(nextValue);
+    await context.read<AppSettingsProvider>().applyUserSettings(nextValue);
+
+    final success = await provider.saveSettings(nextValue);
     if (!mounted) {
       return;
     }
@@ -258,14 +276,20 @@ class _SettingsViewState extends State<SettingsView> {
       setState(() {
         _draftSettings = provider.settings;
       });
+      return;
     }
+
+    _updateDraft(previousValue);
+    await context.read<AppSettingsProvider>().applyUserSettings(previousValue);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          success
-              ? 'Da luu cai dat.'
-              : (provider.error ?? 'Khong the luu cai dat.'),
+          provider.error ??
+              context.trRead(
+                vi: 'Khong the cap nhat cai dat.',
+                en: 'Unable to update settings.',
+              ),
         ),
       ),
     );
@@ -290,11 +314,13 @@ class _SettingsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.black26
+                : Colors.black12,
             blurRadius: 8,
             offset: Offset(0, 2),
           ),

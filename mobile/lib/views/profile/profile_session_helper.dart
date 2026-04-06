@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart';
 import '../../providers/profile_provider.dart';
+import '../../utils/app_text.dart';
 import '../auth/login_screen.dart';
 
 Future<void> showSessionExpiredDialog(
@@ -18,16 +20,25 @@ Future<void> showSessionExpiredDialog(
     barrierDismissible: false,
     builder: (dialogContext) {
       return AlertDialog(
-        title: const Text('Phiên đăng nhập đã hết hạn'),
+        title: Text(
+          context.tr(
+            vi: 'Phien dang nhap da het han',
+            en: 'Your session has expired',
+          ),
+        ),
         content: Text(
           message ??
-              'Vui lòng đăng nhập lại để tiếp tục sử dụng các tính năng hồ sơ.',
+              context.trRead(
+                vi: 'Vui long dang nhap lai de tiep tuc su dung cac tinh nang ho so.',
+                en: 'Please sign in again to continue using profile features.',
+              ),
         ),
         actions: [
           FilledButton(
             onPressed: () async {
               Navigator.of(dialogContext).pop();
               await context.read<AuthProvider>().logout();
+              context.read<ChatProvider>().resetForSignedOutUser();
               context.read<ProfileProvider>().logout();
               if (!context.mounted) {
                 return;
@@ -37,7 +48,12 @@ Future<void> showSessionExpiredDialog(
                 (route) => false,
               );
             },
-            child: const Text('Đăng nhập lại'),
+            child: Text(
+              context.tr(
+                vi: 'Dang nhap lai',
+                en: 'Sign in again',
+              ),
+            ),
           ),
         ],
       );
