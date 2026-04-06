@@ -6,6 +6,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
+class ApiException implements Exception {
+  ApiException(this.statusCode, this.message, {this.rawBody});
+
+  final int statusCode;
+  final String message;
+  final String? rawBody;
+
+  bool get isUnauthorized => statusCode == 401;
+
+  @override
+  String toString() => message;
+}
+
 abstract class ApiService {
   static const String _configuredBaseUrlFromEnv = String.fromEnvironment(
     'API_BASE_URL',
@@ -193,6 +206,28 @@ abstract class ApiService {
       return jsonDecode(response.body);
     }
 
-    throw Exception('Loi API: ${response.statusCode} - ${response.body}');
+    throw ApiException(
+      response.statusCode,
+      _extractErrorMessage(response),
+      rawBody: response.body,
+    );
+  }
+
+  String _extractErrorMessage(http.Response response) {
+    if (response.body.isEmpty) {
+      return 'Loi API: ${response.statusCode}';
+    }
+
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        final message = decoded['message'] ?? decoded['error'] ?? decoded['title'];
+        if (message is String && message.trim().isNotEmpty) {
+          return message.trim();
+        }
+      }
+    } catch (_) {}
+
+    return 'Loi API: ${response.statusCode} - ${response.body}';
   }
 }

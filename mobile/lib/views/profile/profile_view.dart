@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/profile_provider.dart';
+
+import '../../models/user_profile.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/profile_provider.dart';
 import '../../widgets/widgets.dart';
 import '../auth/login_screen.dart';
-import 'edit_profile_view.dart';
-import 'settings_view.dart';
-import 'favorites_view.dart';
 import 'activity_history_view.dart';
+import 'change_password_view.dart';
+import 'edit_profile_view.dart';
+import 'favorites_view.dart';
+import 'profile_session_helper.dart';
+import 'settings_view.dart';
 
 class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
@@ -17,232 +21,218 @@ class ProfileView extends StatefulWidget {
 }
 
 class _ProfileViewState extends State<ProfileView> {
-  static const primaryColor = Color(0xFF80ed99);
-  static const goldColor = Color(0xFFFFD700);
+  static const primaryColor = Color(0xFF80ED99);
+  bool _handledSessionExpired = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<ProfileProvider>(context, listen: false).fetchProfile();
+      context.read<ProfileProvider>().fetchProfile(forceRefresh: false);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.grey.shade50,
       body: SafeArea(
         child: Consumer<ProfileProvider>(
-          builder: (context, provider, child) {
-            if (provider.isLoading) {
-              return const Center(child: CircularProgressIndicator(color: primaryColor));
+          builder: (context, provider, _) {
+            _handleSessionExpired(provider);
+
+            if (provider.isLoading && provider.profileData == null) {
+              return const Center(
+                child: CircularProgressIndicator(color: primaryColor),
+              );
             }
-            if (provider.error != null) {
-              return Center(child: Text('Đã xảy ra lỗi: ${provider.error}'));
+
+            if (provider.error != null &&
+                provider.profileData == null &&
+                !provider.hasSessionExpired) {
+              return _ErrorState(
+                message: provider.error!,
+                onRetry: () => provider.fetchProfile(forceRefresh: true),
+              );
             }
-            
+
             final user = provider.profileData;
             if (user == null) {
-              return const Center(child: Text('Không có dữ liệu người dùng'));
+              return _ErrorState(
+                message: 'Khong the tai thong tin ho so.',
+                onRetry: () => provider.fetchProfile(forceRefresh: true),
+              );
             }
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 100),
-              child: Column(
+            return RefreshIndicator(
+              color: primaryColor,
+              onRefresh: () => provider.fetchProfile(forceRefresh: true),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
                 children: [
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const SizedBox(width: 40), // Cân bằng với nút edit
-                        const Text(
-                          'Hồ sơ cá nhân',
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Ho so',
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        _buildHeaderButton(Icons.edit_outlined, onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const EditProfileView()),
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
-
-                  // Profile Hero
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-                    child: Column(
-                      children: [
-                        ProfileAvatar(avatarUrl: user.avatarUrl),
-                        const SizedBox(height: 16),
-                        Text(
-                          user.name,
-                          style: const TextStyle(
                             fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -0.5,
+                            fontWeight: FontWeight.w800,
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        _buildTierBadge(user.memberTier),
-                      ],
-                    ),
-                  ),
-
-                  // Stats Overview
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Row(
-                      children: [
-                        StatCard(
-                          value: '${user.tripsCount}',
-                          label: 'Chuyến đi',
-                          color: primaryColor,
-                          onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Xem chi tiết các chuyến đi'))),
-                        ),
-                        const SizedBox(width: 12),
-                        StatCard(
-                          value: '${user.coins}',
-                          label: 'Xu tích lũy',
-                          color: Colors.orange,
-                          onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mở ví xu của bạn'))),
-                        ),
-                        const SizedBox(width: 12),
-                        StatCard(
-                          value: '${user.vouchers}',
-                          label: 'Voucher',
-                          color: Colors.pink,
-                          onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Danh sách mã giảm giá'))),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Menu List
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4, bottom: 8),
-                          child: Text(
-                            'TÀI KHOẢN & TIỆN ÍCH',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade400,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.grey.shade100),
-                            boxShadow: const [
-                              BoxShadow(color: Colors.black12, blurRadius: 2, offset: Offset(0, 1))
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              MenuItemTile(
-                                icon: Icons.person_outline,
-                                title: 'Thông tin cá nhân',
-                                color: primaryColor,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const EditProfileView()),
-                                  );
-                                },
-                              ),
-                              const MenuDivider(),
-                              MenuItemTile(icon: Icons.payments_outlined, title: 'Thanh toán', color: primaryColor, onTap: () {}),
-                              const MenuDivider(),
-                              MenuItemTile(icon: Icons.security_outlined, title: 'Bảo mật', color: primaryColor, onTap: () {}),
-                              const MenuDivider(),
-                              MenuItemTile(
-                                icon: Icons.favorite_outline,
-                                title: 'Dịch vụ yêu thích',
-                                color: primaryColor,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const FavoritesView()),
-                                  );
-                                },
-                              ),
-                              const MenuDivider(),
-                              MenuItemTile(
-                                icon: Icons.history,
-                                title: 'Lịch sử hoạt động',
-                                color: primaryColor,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ActivityHistoryView(userId: user.id),
-                                    ),
-                                  );
-                                },
-                              ),
-                              const MenuDivider(),
-                              MenuItemTile(
-                                icon: Icons.settings_outlined,
-                                title: 'Cài đặt',
-                                color: primaryColor,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const SettingsView()),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Logout Button
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                    child: InkWell(
-                      onTap: () => _handleLogout(context),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.red.shade100),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.logout, color: Colors.red.shade500),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Đăng xuất',
-                              style: TextStyle(
-                                color: Colors.red.shade500,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
                         ),
                       ),
+                      IconButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const EditProfileView(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.edit_outlined),
+                        tooltip: 'Chinh sua ho so',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _ProfileHero(user: user),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      StatCard(
+                        value: '${user.tripsCount}',
+                        label: 'Chuyen di',
+                        color: primaryColor,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ActivityHistoryView(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      StatCard(
+                        value: '${user.coins}',
+                        label: 'Xu',
+                        color: Colors.orange,
+                      ),
+                      const SizedBox(width: 12),
+                      StatCard(
+                        value: '${user.vouchers}',
+                        label: 'Voucher',
+                        color: Colors.pink,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _SectionTitle(title: 'Thong tin tai khoan'),
+                  _CardSection(
+                    children: [
+                      _InfoTile(
+                        icon: Icons.mail_outline,
+                        title: 'Email',
+                        subtitle: user.email,
+                        trailingText:
+                            user.isEmailVerified ? 'Da xac thuc' : 'Chua xac thuc',
+                      ),
+                      const Divider(height: 1),
+                      _InfoTile(
+                        icon: Icons.phone_outlined,
+                        title: 'So dien thoai',
+                        subtitle: user.phone.isEmpty ? 'Chua cap nhat' : user.phone,
+                      ),
+                      const Divider(height: 1),
+                      _InfoTile(
+                        icon: Icons.cake_outlined,
+                        title: 'Ngay sinh',
+                        subtitle:
+                            user.birthDate.isEmpty ? 'Chua cap nhat' : user.birthDate,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _SectionTitle(title: 'Tien ich'),
+                  _CardSection(
+                    children: [
+                      MenuItemTile(
+                        icon: Icons.person_outline,
+                        title: 'Chinh sua ho so',
+                        color: primaryColor,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const EditProfileView(),
+                            ),
+                          );
+                        },
+                      ),
+                      const MenuDivider(),
+                      MenuItemTile(
+                        icon: Icons.lock_outline,
+                        title: 'Doi mat khau',
+                        color: primaryColor,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ChangePasswordView(),
+                            ),
+                          );
+                        },
+                      ),
+                      const MenuDivider(),
+                      MenuItemTile(
+                        icon: Icons.favorite_outline,
+                        title: 'Dich vu yeu thich',
+                        color: primaryColor,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const FavoritesView(),
+                            ),
+                          );
+                        },
+                      ),
+                      const MenuDivider(),
+                      MenuItemTile(
+                        icon: Icons.history,
+                        title: 'Lich su hoat dong',
+                        color: primaryColor,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ActivityHistoryView(),
+                            ),
+                          );
+                        },
+                      ),
+                      const MenuDivider(),
+                      MenuItemTile(
+                        icon: Icons.settings_outlined,
+                        title: 'Cai dat',
+                        color: primaryColor,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const SettingsView(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  OutlinedButton.icon(
+                    onPressed: _confirmLogout,
+                    icon: const Icon(Icons.logout),
+                    label: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text('Dang xuat'),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade600,
+                      side: BorderSide(color: Colors.red.shade200),
+                      backgroundColor: Colors.red.shade50,
                     ),
                   ),
                 ],
@@ -254,87 +244,212 @@ class _ProfileViewState extends State<ProfileView> {
     );
   }
 
-  Widget _buildHeaderButton(IconData icon, {VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: const [
-            BoxShadow(color: Colors.black12, blurRadius: 2, offset: Offset(0, 1))
-          ],
-        ),
-        child: Icon(icon, color: Colors.grey.shade700, size: 20),
-      ),
+  Future<void> _confirmLogout() async {
+    final shouldLogout = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) {
+            return AlertDialog(
+              title: const Text('Dang xuat'),
+              content: const Text('Ban co chac muon dang xuat khoi tai khoan?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Huy'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Dang xuat'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (!shouldLogout || !mounted) {
+      return;
+    }
+
+    await context.read<AuthProvider>().logout();
+    if (!mounted) {
+      return;
+    }
+
+    context.read<ProfileProvider>().logout();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
     );
   }
 
-  Widget _buildTierBadge(String tier) {
+  Future<void> _handleSessionExpired(ProfileProvider provider) async {
+    if (_handledSessionExpired || !provider.hasSessionExpired || !mounted) {
+      return;
+    }
+
+    _handledSessionExpired = true;
+    await showSessionExpiredDialog(context, message: provider.error);
+  }
+}
+
+class _ProfileHero extends StatelessWidget {
+  const _ProfileHero({required this.user});
+
+  final UserProfile user;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [goldColor, goldColor.withOpacity(0.7)],
+        gradient: const LinearGradient(
+          colors: [Color(0xFF80ED99), Color(0xFF57CC99)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: goldColor.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          )
-        ],
+        borderRadius: BorderRadius.circular(24),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
         children: [
-          const Icon(Icons.stars, color: Colors.white, size: 14),
-          const SizedBox(width: 4),
+          ProfileAvatar(avatarUrl: user.avatarUrl),
+          const SizedBox(height: 16),
           Text(
-            tier.toUpperCase(),
+            user.name,
+            textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.85),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              user.memberTier,
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  void _handleLogout(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Đăng xuất'),
-        content: const Text('Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-          ElevatedButton(
-            onPressed: () {
-              context.read<AuthProvider>().logout();
-              Navigator.pop(ctx);
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Đăng xuất', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        title.toUpperCase(),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: Colors.grey.shade500,
+          letterSpacing: 1.1,
+        ),
       ),
     );
   }
 }
+
+class _CardSection extends StatelessWidget {
+  const _CardSection({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  const _InfoTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.trailingText,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String? trailingText;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: trailingText == null
+          ? null
+          : Text(
+              trailingText!,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+              ),
+            ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+            const SizedBox(height: 12),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: onRetry,
+              child: const Text('Thu lai'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
 
