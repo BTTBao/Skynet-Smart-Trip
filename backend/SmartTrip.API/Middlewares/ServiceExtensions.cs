@@ -40,6 +40,9 @@ public static class ServiceExtensions
         services.AddHttpClient<IGrokAiService, GrokAiService>();
         services.AddHttpContextAccessor();
 
+        // Admin
+        services.AddScoped<SmartTrip.Application.Interfaces.Admin.IAdminService, SmartTrip.Infrastructure.Services.Admin.AdminService>();
+
         return services;
     }
 
