@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+
+import '../utils/app_currency_formatter.dart';
 
 class TripTimelineEntry {
   const TripTimelineEntry({
@@ -14,6 +15,9 @@ class TripTimelineEntry {
     this.serviceId,
     this.quantity,
     this.bookedPrice,
+    this.serviceDate,
+    this.departureTime,
+    this.serviceAddress,
     this.badge,
     this.badgeColor,
     this.badgeTextColor,
@@ -27,6 +31,9 @@ class TripTimelineEntry {
   final int? serviceId;
   final int? quantity;
   final double? bookedPrice;
+  final DateTime? serviceDate;
+  final String? departureTime;
+  final String? serviceAddress;
   final String time;
   final String sectionTitle;
   final String caption;
@@ -43,16 +50,15 @@ class TripTimelineEntry {
     final bookedPrice = (json['bookedPrice'] as num?)?.toDouble();
     final quantity = (json['quantity'] as num?)?.toInt() ?? 1;
     final subtitle = (json['serviceSubtitle'] ?? '').toString().trim();
-    final priceLabel = bookedPrice == null
-        ? null
-        : NumberFormat.currency(
-            locale: 'vi_VN',
-            symbol: 'VND ',
-            decimalDigits: 0,
-          ).format(bookedPrice);
+    final priceLabel =
+        bookedPrice == null ? null : AppCurrencyFormatter.format(bookedPrice);
+    final serviceAddress = json['serviceAddress']?.toString().trim();
+    final parsedServiceDate = _parseServiceDate(json['serviceDate']);
+    final parsedDeparture = _normalizeTime(json['departureTime']?.toString());
 
     final descriptionParts = <String>[
       if (subtitle.isNotEmpty) subtitle,
+      if ((serviceAddress ?? '').isNotEmpty) 'Dia chi: $serviceAddress',
       if (priceLabel != null) 'Gia: $priceLabel',
       'So luong: $quantity',
     ];
@@ -64,15 +70,47 @@ class TripTimelineEntry {
       serviceId: (json['serviceId'] as num?)?.toInt(),
       quantity: quantity,
       bookedPrice: bookedPrice,
-      time: '',
+      serviceDate: parsedServiceDate,
+      departureTime: parsedDeparture,
+      serviceAddress: (serviceAddress ?? '').isEmpty ? null : serviceAddress,
+      time: parsedDeparture ?? '',
       sectionTitle: _sectionTitleForServiceType(serviceType),
       caption: (json['serviceName'] ?? 'Dich vu').toString(),
-      description: descriptionParts.join(' • '),
+      description: descriptionParts.join(' - '),
       icon: _iconForServiceType(serviceType),
       badge: serviceType.isEmpty ? null : serviceType,
       badgeColor: _badgeBackgroundForServiceType(serviceType),
       badgeTextColor: _badgeTextForServiceType(serviceType),
     );
+  }
+
+  static DateTime? _parseServiceDate(dynamic rawValue) {
+    final text = rawValue?.toString().trim();
+    if (text == null || text.isEmpty) {
+      return null;
+    }
+
+    return DateTime.tryParse(text);
+  }
+
+  static String? _normalizeTime(String? rawValue) {
+    final text = rawValue?.trim();
+    if (text == null || text.isEmpty) {
+      return null;
+    }
+
+    final parts = text.split(':');
+    if (parts.length < 2) {
+      return text;
+    }
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) {
+      return text;
+    }
+
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
   }
 
   static String _sectionTitleForServiceType(String serviceType) {

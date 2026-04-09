@@ -37,7 +37,8 @@ public class ItineraryService : IItineraryService
             throw new KeyNotFoundException($"Trip {tripId} was not found.");
         }
 
-        ValidateDayNumber(trip, request.DayNumber);
+        var resolvedDayNumber = ResolveDayNumber(trip, request.DayNumber, request.ServiceDate);
+        ValidateDayNumber(trip, resolvedDayNumber);
 
         var normalizedServiceType = TripServiceOptionService.NormalizeServiceType(request.ServiceType);
         var serviceOption = await _optionService.GetServiceOptionByIdAsync(normalizedServiceType, request.ServiceId);
@@ -49,12 +50,15 @@ public class ItineraryService : IItineraryService
         var itinerary = new TripItinerary
         {
             TripId = tripId,
-            DayNumber = request.DayNumber,
+            DayNumber = resolvedDayNumber,
             ServiceType = TripServiceOptionService.ParseServiceTypeEnum(request.ServiceType),
             ServiceId = request.ServiceId,
             Quantity = request.Quantity,
             BookedPrice = request.BookedPrice ?? serviceOption.DefaultPrice ?? 0,
-            BookedCommissionRate = request.BookedCommissionRate ?? serviceOption.DefaultCommissionRate ?? 0
+            BookedCommissionRate = request.BookedCommissionRate ?? serviceOption.DefaultCommissionRate ?? 0,
+            ServiceDate = request.ServiceDate ?? DeriveServiceDateFromDayNumber(trip, resolvedDayNumber),
+            DepartureTime = request.DepartureTime,
+            ServiceAddress = NormalizeOptionalText(request.ServiceAddress)
         };
 
         _context.TripItineraries.Add(itinerary);
@@ -70,6 +74,7 @@ public class ItineraryService : IItineraryService
         var normalizedServiceType = TripServiceOptionService.NormalizeServiceType(itinerary.ServiceType?.ToString());
         var serviceName = $"Service #{itinerary.ServiceId}";
         string? serviceSubtitle = null;
+        var resolvedAddress = itinerary.ServiceAddress;
 
         if (normalizedServiceType == HotelServiceType && itinerary.ServiceId.HasValue)
         {
@@ -80,7 +85,8 @@ public class ItineraryService : IItineraryService
             if (hotel != null)
             {
                 serviceName = hotel.Name;
-                serviceSubtitle = string.Join(" â€¢ ", new[]
+                resolvedAddress ??= NormalizeOptionalText(hotel.Address);
+                serviceSubtitle = string.Join(" • ", new[]
                 {
                     hotel.Address,
                     hotel.StarRating.HasValue ? $"{hotel.StarRating.Value} sao" : null,
@@ -100,10 +106,11 @@ public class ItineraryService : IItineraryService
             if (busSchedule != null)
             {
                 serviceName = $"{(busSchedule.Company != null ? busSchedule.Company.Name : "Xe khach")} - {(busSchedule.FromDest != null ? busSchedule.FromDest.Name : "N/A")} -> {(busSchedule.ToDest != null ? busSchedule.ToDest.Name : "N/A")}";
-                // Manual subtitle build to avoid dependency on private methods if not shared
+                resolvedAddress ??= NormalizeOptionalText($"{busSchedule.FromDest?.Name} -> {busSchedule.ToDest?.Name}");
+
                 var departure = busSchedule.DepartureTime?.ToString("HH:mm dd/MM");
                 var arrival = busSchedule.ArrivalTime?.ToString("HH:mm dd/MM");
-                serviceSubtitle = string.Join(" â€¢ ", new[]
+                serviceSubtitle = string.Join(" • ", new[]
                 {
                     !string.IsNullOrWhiteSpace(departure) ? $"Di: {departure}" : null,
                     !string.IsNullOrWhiteSpace(arrival) ? $"Den: {arrival}" : null,
@@ -122,7 +129,10 @@ public class ItineraryService : IItineraryService
             ServiceSubtitle = serviceSubtitle,
             Quantity = itinerary.Quantity ?? 1,
             BookedPrice = itinerary.BookedPrice,
-            BookedCommissionRate = itinerary.BookedCommissionRate
+            BookedCommissionRate = itinerary.BookedCommissionRate,
+            ServiceDate = itinerary.ServiceDate,
+            DepartureTime = itinerary.DepartureTime,
+            ServiceAddress = resolvedAddress
         };
     }
 
@@ -137,13 +147,29 @@ public class ItineraryService : IItineraryService
         if (request.DayNumber.HasValue)
         {
             var trip = await _context.Trips.FirstAsync(t => t.Id == itinerary.TripId);
-            ValidateDayNumber(trip, request.DayNumber.Value);
-            itinerary.DayNumber = request.DayNumber.Value;
+            var resolvedDayNumber = ResolveDayNumber(trip, request.DayNumber.Value, request.ServiceDate);
+            ValidateDayNumber(trip, resolvedDayNumber);
+            itinerary.DayNumber = resolvedDayNumber;
+            itinerary.ServiceDate = request.ServiceDate ?? DeriveServiceDateFromDayNumber(trip, resolvedDayNumber);
+        }
+        else if (request.ServiceDate.HasValue)
+        {
+            var trip = await _context.Trips.FirstAsync(t => t.Id == itinerary.TripId);
+            var resolvedDayNumber = ResolveDayNumber(
+                trip,
+                itinerary.DayNumber ?? 1,
+                request.ServiceDate
+            );
+            ValidateDayNumber(trip, resolvedDayNumber);
+            itinerary.DayNumber = resolvedDayNumber;
+            itinerary.ServiceDate = request.ServiceDate;
         }
 
         if (request.Quantity.HasValue) itinerary.Quantity = request.Quantity.Value;
         if (request.BookedPrice.HasValue) itinerary.BookedPrice = request.BookedPrice.Value;
         if (request.BookedCommissionRate.HasValue) itinerary.BookedCommissionRate = request.BookedCommissionRate.Value;
+        if (request.DepartureTime.HasValue) itinerary.DepartureTime = request.DepartureTime.Value;
+        if (request.ServiceAddress != null) itinerary.ServiceAddress = NormalizeOptionalText(request.ServiceAddress);
 
         await _context.SaveChangesAsync();
         if (itinerary.TripId.HasValue)
@@ -208,6 +234,32 @@ public class ItineraryService : IItineraryService
         }
 
         _ = TripServiceOptionService.NormalizeServiceType(request.ServiceType);
+    }
+
+    private static int ResolveDayNumber(TripEntity trip, int requestedDayNumber, DateOnly? serviceDate)
+    {
+        if (!serviceDate.HasValue || !trip.StartDate.HasValue)
+        {
+            return requestedDayNumber;
+        }
+
+        return (serviceDate.Value.DayNumber - trip.StartDate.Value.DayNumber) + 1;
+    }
+
+    private static DateOnly? DeriveServiceDateFromDayNumber(TripEntity trip, int dayNumber)
+    {
+        if (!trip.StartDate.HasValue || dayNumber <= 0)
+        {
+            return null;
+        }
+
+        return trip.StartDate.Value.AddDays(dayNumber - 1);
+    }
+
+    private static string? NormalizeOptionalText(string? text)
+    {
+        var trimmed = text?.Trim();
+        return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
     }
 
     private static void ValidateDayNumber(TripEntity trip, int dayNumber)

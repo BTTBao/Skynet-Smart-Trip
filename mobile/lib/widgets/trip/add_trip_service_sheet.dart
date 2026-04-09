@@ -10,11 +10,17 @@ class AddTripServiceSheet extends StatefulWidget {
   const AddTripServiceSheet({
     super.key,
     required this.dayNumber,
+    required this.initialServiceDate,
     this.destinationId,
+    this.tripStartDate,
+    this.tripEndDate,
   });
 
   final int dayNumber;
+  final DateTime initialServiceDate;
   final int? destinationId;
+  final DateTime? tripStartDate;
+  final DateTime? tripEndDate;
 
   @override
   State<AddTripServiceSheet> createState() => _AddTripServiceSheetState();
@@ -24,14 +30,22 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
   final _formKey = GlobalKey<FormState>();
   final _quantityController = TextEditingController(text: '1');
   final _priceController = TextEditingController();
+  final _addressController = TextEditingController();
 
   String _selectedServiceType = 'BUS';
   TripServiceOption? _selectedOption;
   late Future<List<TripServiceOption>> _optionsFuture;
+  late DateTime _selectedServiceDate;
+  TimeOfDay? _selectedDepartureTime;
 
   @override
   void initState() {
     super.initState();
+    _selectedServiceDate = DateTime(
+      widget.initialServiceDate.year,
+      widget.initialServiceDate.month,
+      widget.initialServiceDate.day,
+    );
     _optionsFuture = _loadOptions();
   }
 
@@ -39,6 +53,7 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
   void dispose() {
     _quantityController.dispose();
     _priceController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -58,8 +73,60 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
     });
   }
 
+  Future<void> _pickServiceDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedServiceDate,
+      firstDate: widget.tripStartDate ?? DateTime(2020, 1, 1),
+      lastDate: widget.tripEndDate ?? DateTime(2100, 12, 31),
+      helpText: 'Chon ngay di',
+    );
+
+    if (picked == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedServiceDate = DateTime(picked.year, picked.month, picked.day);
+    });
+  }
+
+  Future<void> _pickDepartureTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedDepartureTime ?? TimeOfDay.now(),
+      helpText: 'Chon gio khoi hanh',
+    );
+
+    if (picked == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedDepartureTime = picked;
+    });
+  }
+
+  int _resolveDayNumber() {
+    final startDate = widget.tripStartDate;
+    if (startDate == null) {
+      return widget.dayNumber;
+    }
+
+    final normalizedStart = DateTime(startDate.year, startDate.month, startDate.day);
+    final dayOffset = _selectedServiceDate.difference(normalizedStart).inDays;
+    return dayOffset + 1;
+  }
+
   void _submit() {
     if (!_formKey.currentState!.validate() || _selectedOption == null) {
+      return;
+    }
+
+    if (_selectedDepartureTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui long chon gio khoi hanh.')),
+      );
       return;
     }
 
@@ -67,17 +134,34 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
     final price = double.tryParse(
       _priceController.text.trim().replaceAll(',', ''),
     );
+    final departure = _selectedDepartureTime!;
+    final departureText =
+        '${departure.hour.toString().padLeft(2, '0')}:${departure.minute.toString().padLeft(2, '0')}:00';
 
     Navigator.of(context).pop(
       CreateTripItineraryRequest(
-        dayNumber: widget.dayNumber,
+        dayNumber: _resolveDayNumber(),
         serviceType: _selectedOption!.serviceType,
         serviceId: _selectedOption!.serviceId,
         quantity: quantity,
         bookedPrice: price,
         bookedCommissionRate: _selectedOption!.defaultCommissionRate,
+        serviceDate: _selectedServiceDate,
+        departureTime: departureText,
+        serviceAddress: _addressController.text.trim(),
       ),
     );
+  }
+
+  String _dateLabel(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  String _timeLabel(TimeOfDay? time) {
+    if (time == null) {
+      return 'Chon gio khoi hanh';
+    }
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -114,7 +198,7 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Chon dich vu co san tu backend de luu dung schema chuyen di.',
+                'Bo sung ngay, gio va dia chi de toi uu hien thi lo trinh tren ban do.',
                 style: TextStyle(
                   fontSize: 13,
                   color: TripUiColors.textSecondary,
@@ -146,7 +230,8 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
 
                   if (snapshot.hasError) {
                     return const _SheetNotice(
-                      text: 'Khong tai duoc danh sach dich vu. Thu dong lai sheet de thu lai.',
+                      text:
+                          'Khong tai duoc danh sach dich vu. Thu dong lai sheet de thu lai.',
                     );
                   }
 
@@ -172,8 +257,7 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
                             value?.defaultPrice?.toStringAsFixed(0) ?? '';
                       });
                     },
-                    validator: (value) =>
-                        value == null ? 'Chon mot dich vu' : null,
+                    validator: (value) => value == null ? 'Chon mot dich vu' : null,
                     decoration: InputDecoration(
                       hintText: 'Chon dich vu',
                       filled: true,
@@ -196,6 +280,56 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
                   text: _selectedOption!.subtitle ?? 'Khong co mo ta them.',
                 ),
               ],
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const _SheetLabel('Ngay di'),
+                        const SizedBox(height: 10),
+                        _SelectFieldButton(
+                          icon: Icons.calendar_month_rounded,
+                          label: _dateLabel(_selectedServiceDate),
+                          onTap: _pickServiceDate,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const _SheetLabel('Gio khoi hanh'),
+                        const SizedBox(height: 10),
+                        _SelectFieldButton(
+                          icon: Icons.access_time_rounded,
+                          label: _timeLabel(_selectedDepartureTime),
+                          onTap: _pickDepartureTime,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const _SheetLabel('Dia chi dich vu (khong bat buoc)'),
+              const SizedBox(height: 8),
+              const Text(
+                'Nen nhap de su dung tinh nang map va ve lo trinh chinh xac hon.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: TripUiColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _SheetTextField(
+                controller: _addressController,
+                hintText: 'Vi du: 45 Le Loi, Quan 1, TP.HCM',
+                validator: (_) => null,
+              ),
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -237,9 +371,8 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
                             if ((value ?? '').trim().isEmpty) {
                               return 'Nhap gia';
                             }
-                            final parsed = double.tryParse(
-                              value!.trim().replaceAll(',', ''),
-                            );
+                            final parsed =
+                                double.tryParse(value!.trim().replaceAll(',', ''));
                             if (parsed == null || parsed < 0) {
                               return 'Gia khong hop le';
                             }
@@ -377,6 +510,50 @@ class _SheetNotice extends StatelessWidget {
         style: const TextStyle(
           fontSize: 13,
           color: TripUiColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectFieldButton extends StatelessWidget {
+  const _SelectFieldButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F4F6),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: TripUiColors.textSecondary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: TripUiColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -9,4 +9,6 @@ export 'trip_detail.dart';
 export 'trip_day_item.dart';
 export 'trip_service_option.dart';
 export 'trip_timeline_entry.dart';
+export 'user_favorite.dart';
 export 'user_profile.dart';
+export 'user_settings.dart';

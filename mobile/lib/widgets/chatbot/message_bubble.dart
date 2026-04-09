@@ -13,8 +13,14 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    bool isUser = message.sender == MessageSender.user;
+    final bool isUser = message.sender == MessageSender.user;
     const primaryColor = Color(0xFF80ed99);
+    final shouldShowTextBubble =
+        message.text.trim().isNotEmpty && !_shouldHideRawJsonText();
+    final colorScheme = Theme.of(context).colorScheme;
+    final botBubbleColor = Theme.of(context).brightness == Brightness.dark
+        ? colorScheme.surfaceContainerHighest
+        : const Color(0xFFF0F2F5);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -23,11 +29,11 @@ class MessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isUser) ...[
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 4),
               child: CircleAvatar(
                 radius: 16,
-                backgroundColor: Color(0xFFF0F2F5),
+                backgroundColor: botBubbleColor,
                 child: Icon(Icons.smart_toy_outlined, size: 18, color: Colors.blueAccent),
               ),
             ),
@@ -37,8 +43,8 @@ class MessageBubble extends StatelessWidget {
             child: Column(
               crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
-                // Text bubble
-                _buildTextBubble(isUser, primaryColor),
+                if (shouldShowTextBubble)
+                  _buildTextBubble(isUser, primaryColor),
                 // Rich content (below text)
                 if (!isUser && message.richData != null)
                   _buildRichContent(),
@@ -48,7 +54,9 @@ class MessageBubble extends StatelessWidget {
                   child: Text(
                     DateFormat('HH:mm').format(message.timestamp),
                     style: TextStyle(
-                      color: Colors.grey.shade400,
+                      color: Theme.of(context).textTheme.bodySmall?.color?.withValues(
+                            alpha: 0.55,
+                          ),
                       fontSize: 10,
                     ),
                   ),
@@ -60,6 +68,20 @@ class MessageBubble extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  bool _shouldHideRawJsonText() {
+    if (message.richData == null) {
+      return false;
+    }
+
+    final trimmed = message.text.trim();
+    return trimmed.startsWith('{') &&
+        trimmed.endsWith('}') &&
+        (trimmed.contains('"responseType"') ||
+            trimmed.contains('"suggestedItinerary"') ||
+            trimmed.contains('"destinationCards"') ||
+            trimmed.contains('"hotelCards"'));
   }
 
   Widget _buildTextBubble(bool isUser, Color primaryColor) {

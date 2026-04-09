@@ -1,60 +1,81 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/activity_history.dart';
+import '../../providers/app_settings_provider.dart';
 import '../../services/activity_history_service.dart';
+import '../../services/api_service_base.dart';
+import '../../utils/app_text.dart';
 import '../../widgets/widgets.dart';
+import '../trip/trip_itinerary_detail_view.dart';
+import 'profile_session_helper.dart';
 
 enum _HistorySection { bookings, hotels, buses, payments }
 
 class ActivityHistoryView extends StatefulWidget {
-  final String userId;
-
-  const ActivityHistoryView({
-    super.key,
-    required this.userId,
-  });
+  const ActivityHistoryView({super.key});
 
   @override
   State<ActivityHistoryView> createState() => _ActivityHistoryViewState();
 }
 
 class _ActivityHistoryViewState extends State<ActivityHistoryView> {
-  static const primaryColor = Color(0xFF80ed99);
+  static const primaryColor = Color(0xFF80ED99);
 
   final ActivityHistoryService _service = ActivityHistoryService();
   ActivityHistory? _history;
   bool _isLoading = true;
   String? _error;
+  bool _handledSessionExpired = false;
   _HistorySection _selectedSection = _HistorySection.bookings;
 
   @override
   void initState() {
     super.initState();
-    _fetchHistory();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchHistory();
+    });
   }
 
   Future<void> _fetchHistory() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
 
     try {
-      final userId = widget.userId.isNotEmpty ? widget.userId : '1';
-      final history = await _service.getActivityHistory(userId);
+      final history = await _service.getActivityHistory();
+      if (!mounted) {
+        return;
+      }
 
-      if (!mounted) return;
       setState(() {
         _history = history;
       });
-    } catch (e) {
-      if (!mounted) return;
+    } catch (error) {
+      final message = error is ApiException
+          ? error.message
+          : error.toString().replaceFirst('Exception: ', '');
+
+      if (!mounted) {
+        return;
+      }
+
       setState(() {
-        _error = e.toString();
+        _error = message;
       });
+
+      if (error is ApiException && error.isUnauthorized) {
+        await _handleSessionExpired(message);
+      }
     } finally {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
+
       setState(() {
         _isLoading = false;
       });
@@ -64,57 +85,41 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 0,
         scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
+        title: Text(
+          context.tr(vi: 'Lich su hoat dong', en: 'Activity history'),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        title: const Text(
-          'Lich su hoat dong',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
       ),
       body: _buildBody(),
     );
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
+    if (_isLoading && _history == null) {
       return const Center(
         child: CircularProgressIndicator(color: primaryColor),
       );
     }
 
-    if (_error != null) {
+    if (_error != null && _history == null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+              const Icon(Icons.error_outline, size: 40, color: Colors.redAccent),
               const SizedBox(height: 12),
-              Text(
-                'Da xay ra loi: $_error',
-                textAlign: TextAlign.center,
-              ),
+              Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 16),
-              ElevatedButton(
+              FilledButton(
                 onPressed: _fetchHistory,
-                style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
-                child: const Text(
-                  'Thu lai',
-                  style: TextStyle(color: Colors.black),
-                ),
+                child: Text(context.tr(vi: 'Thu lai', en: 'Retry')),
               ),
             ],
           ),
@@ -124,25 +129,41 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
 
     final history = _history;
     if (history == null) {
-      return const Center(child: Text('Khong co du lieu lich su'));
+      return const SizedBox.shrink();
     }
 
     return Column(
       children: [
         Container(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildSectionChip(_HistorySection.bookings, 'Booking', Icons.receipt_long_outlined),
+                _buildSectionChip(
+                  _HistorySection.bookings,
+                  'Booking',
+                  Icons.receipt_long_outlined,
+                ),
                 const SizedBox(width: 8),
-                _buildSectionChip(_HistorySection.hotels, 'Khach san', Icons.hotel_outlined),
+                _buildSectionChip(
+                  _HistorySection.hotels,
+                  'Khach san',
+                  Icons.hotel_outlined,
+                ),
                 const SizedBox(width: 8),
-                _buildSectionChip(_HistorySection.buses, 'Xe', Icons.directions_bus_outlined),
+                _buildSectionChip(
+                  _HistorySection.buses,
+                  'Xe',
+                  Icons.directions_bus_outlined,
+                ),
                 const SizedBox(width: 8),
-                _buildSectionChip(_HistorySection.payments, 'Thanh toan', Icons.payments_outlined),
+                _buildSectionChip(
+                  _HistorySection.payments,
+                  'Thanh toan',
+                  Icons.payments_outlined,
+                ),
               ],
             ),
           ),
@@ -158,7 +179,11 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
     );
   }
 
-  Widget _buildSectionChip(_HistorySection section, String label, IconData icon) {
+  Widget _buildSectionChip(
+    _HistorySection section,
+    String label,
+    IconData icon,
+  ) {
     final isSelected = _selectedSection == section;
 
     return ChoiceChip(
@@ -175,10 +200,10 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       ),
       label: Text(label),
       selectedColor: primaryColor.withOpacity(0.25),
-      backgroundColor: Colors.white,
-      labelStyle: TextStyle(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      labelStyle: const TextStyle(
         color: Colors.black87,
-        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+        fontWeight: FontWeight.w700,
       ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(24),
@@ -195,37 +220,50 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       case _HistorySection.bookings:
         return _buildListOrEmpty<BookingHistoryItem>(
           items: history.bookings,
-          emptyIcon: Icons.receipt_long_outlined,
-          emptyTitle: 'Chua co booking',
-          emptySubtitle: 'Cac booking cua ban se hien thi tai day.',
-          emptyButtonText: 'Kham pha ngay',
+          emptyTitle: context.tr(vi: 'Chua co booking', en: 'No bookings yet'),
+          emptySubtitle: context.tr(
+            vi: 'Cac booking cua ban se hien thi tai day.',
+            en: 'Your bookings will appear here.',
+          ),
           itemBuilder: _buildBookingCard,
         );
       case _HistorySection.hotels:
         return _buildListOrEmpty<HotelHistoryItem>(
           items: history.hotels,
-          emptyIcon: Icons.hotel_outlined,
-          emptyTitle: 'Chua co lich su khach san',
-          emptySubtitle: 'Booking khach san cua ban se hien thi tai day.',
-          emptyButtonText: 'Dat phong ngay',
+          emptyTitle: context.tr(
+            vi: 'Chua co lich su khach san',
+            en: 'No hotel history yet',
+          ),
+          emptySubtitle: context.tr(
+            vi: 'Dat phong cua ban se hien thi tai day.',
+            en: 'Your hotel bookings will appear here.',
+          ),
           itemBuilder: _buildHotelCard,
         );
       case _HistorySection.buses:
         return _buildListOrEmpty<BusHistoryItem>(
           items: history.buses,
-          emptyIcon: Icons.directions_bus_outlined,
-          emptyTitle: 'Chua co lich su ve xe',
-          emptySubtitle: 'Cac ve xe va hanh trinh se hien thi tai day.',
-          emptyButtonText: 'Dat xe ngay',
+          emptyTitle: context.tr(
+            vi: 'Chua co lich su ve xe',
+            en: 'No bus history yet',
+          ),
+          emptySubtitle: context.tr(
+            vi: 'Thong tin ve xe va hanh trinh se hien thi tai day.',
+            en: 'Your bus tickets and routes will appear here.',
+          ),
           itemBuilder: _buildBusCard,
         );
       case _HistorySection.payments:
         return _buildListOrEmpty<PaymentHistoryItem>(
           items: history.payments,
-          emptyIcon: Icons.payments_outlined,
-          emptyTitle: 'Chua co lich su thanh toan',
-          emptySubtitle: 'Giao dich va hoa don cua ban se hien thi tai day.',
-          emptyButtonText: 'Bat dau ngay',
+          emptyTitle: context.tr(
+            vi: 'Chua co lich su thanh toan',
+            en: 'No payment history yet',
+          ),
+          emptySubtitle: context.tr(
+            vi: 'Giao dich cua ban se hien thi tai day.',
+            en: 'Your transactions will appear here.',
+          ),
           itemBuilder: _buildPaymentCard,
         );
     }
@@ -233,229 +271,336 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
 
   Widget _buildListOrEmpty<T>({
     required List<T> items,
-    required IconData emptyIcon,
     required String emptyTitle,
     required String emptySubtitle,
-    required String emptyButtonText,
     required Widget Function(T item) itemBuilder,
   }) {
     if (items.isEmpty) {
-      return SingleChildScrollView(
+      return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        child: SizedBox(
-          height: 500,
-          child: Center(
-            child: EmptyStatePlaceholder(
-              icon: emptyIcon,
-              title: emptyTitle,
-              subtitle: emptySubtitle,
-              buttonText: emptyButtonText,
-            ),
+        children: [
+          const SizedBox(height: 100),
+          EmptyStatePlaceholder(
+            icon: Icons.history,
+            title: emptyTitle,
+            subtitle: emptySubtitle,
+            buttonText: context.tr(vi: 'Lam moi', en: 'Refresh'),
+            onButtonPressed: _fetchHistory,
           ),
-        ),
+        ],
       );
     }
 
-    return ListView.builder(
+    return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: items.length,
-      itemBuilder: (context, index) => itemBuilder(items[index]),
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (_, index) => itemBuilder(items[index]),
     );
   }
 
   Widget _buildBookingCard(BookingHistoryItem item) {
-    return _buildCard(
-      icon: Icons.receipt_long_outlined,
+    return _HistoryCard(
       title: item.title,
-      badgeText: item.status,
-      lines: [
-        'Diem den: ${item.destinationName}',
-        'Thoi gian: ${_formatDateRange(item.startDate, item.endDate)}',
-        'Tong tien: ${_formatCurrency(item.totalAmount)}',
-        if (item.invoiceNumber != null && item.invoiceNumber!.isNotEmpty)
-          'Ve dien tu: ${item.invoiceNumber}',
+      subtitle: item.destinationName,
+      amount: _currency(item.totalAmount),
+      status: item.status,
+      dateText: _joinDateRange(item.startDate, item.endDate),
+      onTap: item.tripId > 0 ? () => _openTrip(item.tripId, item.title) : null,
+      extraLines: [
+        if ((item.invoiceNumber ?? '').isNotEmpty)
+          '${context.tr(vi: 'Hoa don', en: 'Invoice')}: ${item.invoiceNumber}',
+        if ((item.createdAt ?? '').isNotEmpty)
+          '${context.tr(vi: 'Tao luc', en: 'Created at')}: ${_formatDateTime(item.createdAt)}',
       ],
     );
   }
 
   Widget _buildHotelCard(HotelHistoryItem item) {
-    return _buildCard(
-      icon: Icons.hotel_outlined,
+    return _HistoryCard(
       title: item.hotelName,
-      badgeText: item.status,
-      lines: [
-        'Chuyen di: ${item.tripTitle}',
-        'Dia chi: ${item.address}',
-        'Ngay o: ${_formatDateRange(item.checkInDate, item.checkOutDate)}',
-        'So luong: ${item.quantity}',
-        'Gia dat: ${_formatCurrency(item.bookedPrice)}',
+      subtitle: '${item.destinationName} - ${item.address}',
+      amount: _currency(item.bookedPrice),
+      status: item.status,
+      dateText: _joinDateRange(item.checkInDate, item.checkOutDate),
+      onTap: item.tripId > 0 ? () => _openTrip(item.tripId, item.tripTitle) : null,
+      extraLines: [
+        '${context.tr(vi: 'Chuyen di', en: 'Trip')}: ${item.tripTitle}',
+        '${context.tr(vi: 'So luong', en: 'Quantity')}: ${item.quantity}',
       ],
     );
   }
 
   Widget _buildBusCard(BusHistoryItem item) {
-    return _buildCard(
-      icon: Icons.directions_bus_outlined,
+    return _HistoryCard(
       title: item.companyName,
-      badgeText: item.status,
-      lines: [
-        'Chuyen di: ${item.tripTitle}',
-        'Tuyen: ${item.fromDestination} -> ${item.toDestination}',
-        'Khoi hanh: ${_formatDateTime(item.departureTime)}',
-        'Den noi: ${_formatDateTime(item.arrivalTime)}',
-        'Gia dat: ${_formatCurrency(item.bookedPrice)}',
+      subtitle: '${item.fromDestination} -> ${item.toDestination}',
+      amount: _currency(item.bookedPrice),
+      status: item.status,
+      dateText: _joinDateRange(item.departureTime, item.arrivalTime),
+      onTap: item.tripId > 0 ? () => _openTrip(item.tripId, item.tripTitle) : null,
+      extraLines: [
+        '${context.tr(vi: 'Chuyen di', en: 'Trip')}: ${item.tripTitle}',
+        '${context.tr(vi: 'So luong', en: 'Quantity')}: ${item.quantity}',
       ],
     );
   }
 
   Widget _buildPaymentCard(PaymentHistoryItem item) {
-    return _buildCard(
-      icon: Icons.payments_outlined,
+    return _HistoryCard(
       title: item.tripTitle,
-      badgeText: item.status,
-      lines: [
-        'So tien: ${_formatCurrency(item.amount)}',
-        'Phuong thuc: ${item.paymentMethod}',
-        'Thanh toan luc: ${_formatDateTime(item.paidAt)}',
-        if (item.transactionId != null && item.transactionId!.isNotEmpty)
-          'Ma giao dich: ${item.transactionId}',
-        if (item.invoiceNumber != null && item.invoiceNumber!.isNotEmpty)
-          'Hoa don: ${item.invoiceNumber}',
+      subtitle:
+          '${context.tr(vi: 'Phuong thuc', en: 'Method')}: ${item.paymentMethod}',
+      amount: _currency(item.amount),
+      status: item.status,
+      dateText: _formatDateTime(item.paidAt),
+      onTap: item.tripId > 0 ? () => _openTrip(item.tripId, item.tripTitle) : null,
+      extraLines: [
+        if ((item.invoiceNumber ?? '').isNotEmpty)
+          '${context.tr(vi: 'Hoa don', en: 'Invoice')}: ${item.invoiceNumber}',
+        if ((item.transactionId ?? '').isNotEmpty)
+          '${context.tr(vi: 'Ma giao dich', en: 'Transaction ID')}: ${item.transactionId}',
       ],
     );
   }
 
-  Widget _buildCard({
-    required IconData icon,
-    required String title,
-    required String badgeText,
-    required List<String> lines,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 4,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: Colors.green.shade700),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: _statusColor(badgeText).withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                      child: Text(
-                        badgeText,
-                        style: TextStyle(
-                          color: _statusColor(badgeText),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...lines.map(
-            (line) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Text(
-                line,
-                style: TextStyle(
-                  color: Colors.grey.shade700,
-                  fontSize: 13.5,
-                  height: 1.35,
-                ),
-              ),
-            ),
-          ),
-        ],
+  void _openTrip(int tripId, String title) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TripItineraryDetailView(
+          tripId: tripId,
+          tripTitle: title,
+        ),
       ),
     );
   }
 
-  Color _statusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'paid':
-        return Colors.green;
-      case 'pending':
-        return Colors.orange;
-      case 'cancelled':
-        return Colors.redAccent;
-      default:
-        return Colors.blueGrey;
+  String _joinDateRange(String? start, String? end) {
+    final startText = _formatDate(start);
+    final endText = _formatDate(end);
+
+    if (startText == '-' && endText == '-') {
+      return '-';
     }
-  }
-
-  String _formatCurrency(double amount) {
-    final formatter = NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: 'd',
-      decimalDigits: 0,
-    );
-    return formatter.format(amount);
-  }
-
-  String _formatDateRange(String? start, String? end) {
-    if (start == null && end == null) return 'Chua cap nhat';
-    if (start == null) return _formatDate(end);
-    if (end == null) return _formatDate(start);
-    return '${_formatDate(start)} - ${_formatDate(end)}';
+    if (startText == '-' || endText == '-') {
+      return startText == '-' ? endText : startText;
+    }
+    return '$startText - $endText';
   }
 
   String _formatDate(String? value) {
-    if (value == null || value.isEmpty) return 'Chua cap nhat';
-    final date = DateTime.tryParse(value);
-    if (date == null) return value;
-    return DateFormat('dd/MM/yyyy').format(date);
+    if (value == null || value.trim().isEmpty) {
+      return '-';
+    }
+
+    final parsed = DateTime.tryParse(value);
+    if (parsed == null) {
+      return value;
+    }
+
+    return DateFormat('dd/MM/yyyy').format(parsed.toLocal());
   }
 
   String _formatDateTime(String? value) {
-    if (value == null || value.isEmpty) return 'Chua cap nhat';
-    final date = DateTime.tryParse(value);
-    if (date == null) return value;
-    return DateFormat('dd/MM/yyyy HH:mm').format(date.toLocal());
+    if (value == null || value.trim().isEmpty) {
+      return '-';
+    }
+
+    final parsed = DateTime.tryParse(value);
+    if (parsed == null) {
+      return value;
+    }
+
+    return DateFormat('dd/MM/yyyy HH:mm').format(parsed.toLocal());
+  }
+
+  String _currency(double amount) {
+    return context.read<AppSettingsProvider>().formatCurrency(amount);
+  }
+
+  Future<void> _handleSessionExpired(String? message) async {
+    if (_handledSessionExpired || !mounted) {
+      return;
+    }
+
+    _handledSessionExpired = true;
+    await showSessionExpiredDialog(context, message: message);
   }
 }
 
+class _HistoryCard extends StatelessWidget {
+  const _HistoryCard({
+    required this.title,
+    required this.subtitle,
+    required this.amount,
+    required this.status,
+    required this.dateText,
+    required this.extraLines,
+    this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final String amount;
+  final String status;
+  final String dateText;
+  final List<String> extraLines;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          style: TextStyle(color: Colors.grey.shade700),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _StatusChip(label: status),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _MetaChip(icon: Icons.schedule_outlined, label: dateText),
+                  _MetaChip(icon: Icons.payments_outlined, label: amount),
+                ],
+              ),
+              if (extraLines.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                ...extraLines.map(
+                  (line) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      line,
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              if (onTap != null) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text(
+                      'Xem chi tiet chuyen di',
+                      style: TextStyle(
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.chevron_right,
+                      color: Colors.green.shade700,
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.grey.shade700),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF80ED99).withOpacity(0.18),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
 

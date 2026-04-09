@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/app_theme.dart';
+import '../../providers/app_settings_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/profile_provider.dart';
+import '../../utils/app_text.dart';
 import '../main_shell.dart';
 import 'onboarding_screens.dart';
 
@@ -43,12 +47,20 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _checkAuth() async {
-    // Show splash for at least 2s
     await Future.delayed(const Duration(milliseconds: 2200));
     if (!mounted) return;
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = context.read<AuthProvider>();
     await authProvider.checkAuthStatus();
+
+    if (authProvider.isAuthenticated && mounted) {
+      final profileProvider = context.read<ProfileProvider>();
+      await profileProvider.loadSettings(forceRefresh: true);
+      final settings = profileProvider.settings;
+      if (settings != null && mounted) {
+        await context.read<AppSettingsProvider>().applyUserSettings(settings);
+      }
+    }
 
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
@@ -80,7 +92,6 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo
                 Container(
                   width: 100,
                   height: 100,
@@ -109,9 +120,12 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'Hành trình bắt đầu từ đây',
-                  style: TextStyle(
+                Text(
+                  context.tr(
+                    vi: 'Hanh trinh bat dau tu day',
+                    en: 'Your journey starts here',
+                  ),
+                  style: const TextStyle(
                     fontSize: 14,
                     color: Colors.white70,
                     fontWeight: FontWeight.w400,

@@ -13,4 +13,10 @@ public class CreateTripItineraryDto
     public decimal? BookedPrice { get; set; }
 
     public double? BookedCommissionRate { get; set; }
+
+    public DateOnly? ServiceDate { get; set; }
+
+    public TimeOnly? DepartureTime { get; set; }
+
+    public string? ServiceAddress { get; set; }
 }

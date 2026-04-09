@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 /// Structured response from Sky Assistant backend.
 class ChatResponse {
   final String text;
   final String responseType;
+  final String? sessionId;
   final List<DestinationCard>? destinationCards;
   final SuggestedItinerary? suggestedItinerary;
   final List<QuickAction>? quickActions;
@@ -12,6 +15,7 @@ class ChatResponse {
   ChatResponse({
     required this.text,
     this.responseType = 'text',
+    this.sessionId,
     this.destinationCards,
     this.suggestedItinerary,
     this.quickActions,
@@ -21,26 +25,95 @@ class ChatResponse {
   }) : timestamp = timestamp ?? DateTime.now();
 
   factory ChatResponse.fromJson(Map<String, dynamic> json) {
+    final normalizedJson = _normalizeChatPayload(json);
+
     return ChatResponse(
-      text: json['text'] ?? '',
-      responseType: json['responseType'] ?? 'text',
-      destinationCards: json['destinationCards'] != null
-          ? (json['destinationCards'] as List).map((e) => DestinationCard.fromJson(e)).toList()
+      text: normalizedJson['text'] ?? '',
+      responseType: normalizedJson['responseType'] ?? 'text',
+      sessionId: normalizedJson['sessionId']?.toString(),
+      destinationCards: normalizedJson['destinationCards'] != null
+          ? (normalizedJson['destinationCards'] as List)
+              .map((e) => DestinationCard.fromJson(e))
+              .toList()
           : null,
-      suggestedItinerary: json['suggestedItinerary'] != null
-          ? SuggestedItinerary.fromJson(json['suggestedItinerary'])
+      suggestedItinerary: normalizedJson['suggestedItinerary'] != null
+          ? SuggestedItinerary.fromJson(normalizedJson['suggestedItinerary'])
           : null,
-      quickActions: json['quickActions'] != null
-          ? (json['quickActions'] as List).map((e) => QuickAction.fromJson(e)).toList()
+      quickActions: normalizedJson['quickActions'] != null
+          ? (normalizedJson['quickActions'] as List).map((e) => QuickAction.fromJson(e)).toList()
           : null,
-      weatherInfo: json['weatherInfo'] != null
-          ? WeatherInfo.fromJson(json['weatherInfo'])
+      weatherInfo: normalizedJson['weatherInfo'] != null
+          ? WeatherInfo.fromJson(normalizedJson['weatherInfo'])
           : null,
-      hotelCards: json['hotelCards'] != null
-          ? (json['hotelCards'] as List).map((e) => HotelCard.fromJson(e)).toList()
+      hotelCards: normalizedJson['hotelCards'] != null
+          ? (normalizedJson['hotelCards'] as List).map((e) => HotelCard.fromJson(e)).toList()
           : null,
-      timestamp: json['timestamp'] != null ? DateTime.tryParse(json['timestamp']) : null,
+      timestamp: normalizedJson['timestamp'] != null ? DateTime.tryParse(normalizedJson['timestamp']) : null,
     );
+  }
+
+  static Map<String, dynamic> _normalizeChatPayload(Map<String, dynamic> json) {
+    final normalized = Map<String, dynamic>.from(json);
+    final decodedPayload = _tryDecodeJsonMap(normalized['text']);
+
+    if (decodedPayload == null) {
+      return normalized;
+    }
+
+    final merged = Map<String, dynamic>.from(normalized)..addAll(decodedPayload);
+    final decodedText = decodedPayload['text'];
+
+    if (decodedText is String && decodedText.trim().isNotEmpty) {
+      merged['text'] = decodedText.trim();
+    } else if (_hasRichContent(decodedPayload)) {
+      merged['text'] = '';
+    }
+
+    return merged;
+  }
+
+  static Map<String, dynamic>? _tryDecodeJsonMap(dynamic value) {
+    dynamic current = value;
+
+    for (var attempt = 0; attempt < 2; attempt++) {
+      if (current is Map) {
+        return Map<String, dynamic>.from(current);
+      }
+
+      if (current is! String) {
+        return null;
+      }
+
+      final trimmed = current.trim();
+      if (!_looksLikeJsonObject(trimmed)) {
+        return null;
+      }
+
+      try {
+        current = jsonDecode(trimmed);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    if (current is Map) {
+      return Map<String, dynamic>.from(current);
+    }
+
+    return null;
+  }
+
+  static bool _looksLikeJsonObject(String text) {
+    return text.startsWith('{') && text.endsWith('}');
+  }
+
+  static bool _hasRichContent(Map<String, dynamic> payload) {
+    return (payload['destinationCards'] is List &&
+            (payload['destinationCards'] as List).isNotEmpty) ||
+        (payload['hotelCards'] is List &&
+            (payload['hotelCards'] as List).isNotEmpty) ||
+        payload['suggestedItinerary'] != null ||
+        payload['weatherInfo'] != null;
   }
 }
 
@@ -130,7 +203,7 @@ class QuickAction {
   final String icon;
   final String actionPayload;
 
-  QuickAction({
+  const QuickAction({
     required this.label,
     this.icon = 'chat',
     required this.actionPayload,

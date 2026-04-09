@@ -9,6 +9,7 @@ import '../../providers/trip_provider.dart';
 import '../../widgets/trip/widgets.dart';
 import 'create_trip_view.dart';
 import 'edit_itinerary_view.dart';
+import 'trip_itinerary_map_view.dart';
 import 'trip_ui_constants.dart';
 
 class TripItineraryDetailView extends StatefulWidget {
@@ -85,10 +86,25 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
     );
   }
 
+  void _openMapView(TripDetail? detail, String title) {
+    final entries = detail?.itineraries ?? const <TripTimelineEntry>[];
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TripItineraryMapView(
+          tripTitle: title,
+          entries: entries,
+        ),
+      ),
+    );
+  }
+
   Future<void> _openAddServiceSheet(
     TripProvider provider,
     TripDetail? detail,
     int selectedDayNumber,
+    DateTime selectedServiceDate,
+    DateTime? tripStartDate,
+    DateTime? tripEndDate,
   ) async {
     final request = await showModalBottomSheet<CreateTripItineraryRequest>(
       context: context,
@@ -100,6 +116,9 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
       builder: (_) => AddTripServiceSheet(
         dayNumber: selectedDayNumber,
         destinationId: detail?.destinationId,
+        initialServiceDate: selectedServiceDate,
+        tripStartDate: tripStartDate,
+        tripEndDate: tripEndDate,
       ),
     );
 
@@ -154,6 +173,13 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
 
         final selectedDayNumber = days.isEmpty ? 1 : _selectedDayIndex + 1;
         final selectedEntries = _entriesForDay(detail, selectedDayNumber);
+        final selectedServiceDate = canRenderDays
+            ? DateTime(
+                resolvedStartDate.year,
+                resolvedStartDate.month,
+                resolvedStartDate.day,
+              ).add(Duration(days: selectedDayNumber - 1))
+            : DateTime.now();
 
         if (tripProvider.isLoadingTripDetail && detail == null && !canRenderDays) {
           return const Scaffold(
@@ -292,7 +318,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
                                 child: ItinerarySegmentButton(
                                   label: 'Ban do',
                                   isSelected: false,
-                                  onTap: () {},
+                                  onTap: () => _openMapView(detail, resolvedTitle),
                                 ),
                               ),
                             ],
@@ -313,6 +339,9 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
                                     tripProvider,
                                     detail,
                                     selectedDayNumber,
+                                    selectedServiceDate,
+                                    resolvedStartDate,
+                                    resolvedEndDate,
                                   ),
                           borderRadius: BorderRadius.circular(22),
                           child: Ink(
@@ -351,10 +380,22 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
                               tripProvider,
                               detail,
                               selectedDayNumber,
+                              selectedServiceDate,
+                              resolvedStartDate,
+                              resolvedEndDate,
                             ),
                           )
                         else
                           TripTimeline(entries: selectedEntries),
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _openMapView(detail, resolvedTitle),
+                            icon: const Icon(Icons.route_rounded),
+                            label: const Text('Xem lich trinh tren map'),
+                          ),
+                        ),
                       ],
                     ),
                   ),

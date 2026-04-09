@@ -7,4 +7,5 @@ export 'trip/edit_itinerary_view.dart';
 export 'trip/create_trip_view.dart';
 export 'trip/my_trips_view.dart';
 export 'trip/trip_itinerary_detail_view.dart';
+export 'trip/trip_itinerary_map_view.dart';
 export 'trip/trip_ui_preview_view.dart';
