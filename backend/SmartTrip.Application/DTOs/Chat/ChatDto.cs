@@ -17,12 +17,27 @@ public class ChatResponseDto
 {
     public string Text { get; set; } = string.Empty;
     public string ResponseType { get; set; } = "text";
+    public string? SessionId { get; set; }
     public List<DestinationCardDto>? DestinationCards { get; set; }
     public ItineraryDto? SuggestedItinerary { get; set; }
     public List<QuickActionDto>? QuickActions { get; set; }
     public WeatherInfoDto? WeatherInfo { get; set; }
     public List<HotelCardDto>? HotelCards { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+}
+
+public class ChatSessionHistoryDto
+{
+    public string? SessionId { get; set; }
+    public List<ChatHistoryItemDto> Messages { get; set; } = new();
+}
+
+public class ChatSessionSummaryDto
+{
+    public string SessionId { get; set; } = string.Empty;
+    public string PreviewText { get; set; } = string.Empty;
+    public DateTime LastUpdatedAt { get; set; }
+    public int MessageCount { get; set; }
 }
 
 // === DESTINATION CARD ===
@@ -126,12 +141,31 @@ public class ChatContextDto
     public List<ChatHistoryItemDto> ConversationHistory { get; set; } = new();
     public string? DetectedIntent { get; set; }
     public string? DatabaseContext { get; set; }
+    public string PreferredLanguage { get; set; } = "vi";
+    public string PreferredCurrency { get; set; } = "VND";
+    public string? PersonalizationSummary { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
+}
+
+public class ChatUserProfileDto
+{
+    public string? DisplayName { get; set; }
+    public string PreferredLanguage { get; set; } = "vi";
+    public string PreferredCurrency { get; set; } = "VND";
+    public int TripsCount { get; set; }
+    public int LoyaltyPoints { get; set; }
+    public List<string> RecentDestinationNames { get; set; } = new();
+    public List<string> FavoriteHotelNames { get; set; } = new();
+    public List<string> PreferredDestinationNames { get; set; } = new();
 }
 
 public class ChatHistoryItemDto
 {
     public string Role { get; set; } = string.Empty; // "user" or "bot"
     public string Content { get; set; } = string.Empty;
+    public string? SessionId { get; set; }
+    public string? ResponseType { get; set; }
+    public DateTime Timestamp { get; set; }
+    public ChatResponseDto? ResponsePayload { get; set; }
 }
