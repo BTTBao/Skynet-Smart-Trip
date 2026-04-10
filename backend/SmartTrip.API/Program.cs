@@ -1,4 +1,4 @@
-﻿﻿using SmartTrip.API.Middlewares;
+﻿using SmartTrip.API.Middlewares;
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Infrastructure.Services.User;
 using SmartTrip.Application.Interfaces.Chat;
@@ -30,8 +30,14 @@ builder.Services.AddCors(options =>
                    .AllowAnyHeader();   
         });
 });
+var connectionString = builder.Configuration.GetConnectionString("SmartTrip");
+var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+if (!string.IsNullOrEmpty(dbPassword))
+{
+    connectionString = connectionString?.Replace("Password= ;", $"Password={dbPassword};");
+}
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("SmartTrip")));
+    options.UseSqlServer(connectionString));
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 
