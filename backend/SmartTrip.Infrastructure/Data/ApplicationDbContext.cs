@@ -186,6 +186,7 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.UserName).IsUnique().HasFilter("[UserName] IS NOT NULL");
             entity.Property(e => e.AuthProvider).HasMaxLength(20).HasConversion<string>().HasDefaultValue(SmartTrip.Domain.Enums.AuthProvider.Local);
             entity.Property(e => e.AvatarUrl).HasMaxLength(255).IsUnicode(false);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
@@ -196,6 +197,7 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.Phone).HasMaxLength(20).IsUnicode(false);
             entity.Property(e => e.Role).HasMaxLength(20).HasConversion<string>().HasDefaultValue(SmartTrip.Domain.Enums.UserRole.User);
             entity.Property(e => e.SocialId).HasMaxLength(255).IsUnicode(false);
+            entity.Property(e => e.UserName).HasMaxLength(50).IsUnicode(false);
         });
 
         modelBuilder.Entity<UserWallet>(entity =>

@@ -14,12 +14,14 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _fullNameController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
   final _fullNameFocus = FocusNode();
+  final _usernameFocus = FocusNode();
   final _emailFocus = FocusNode();
   final _phoneFocus = FocusNode();
   final _passwordFocus = FocusNode();
@@ -33,11 +35,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _fullNameController.dispose();
+    _usernameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _fullNameFocus.dispose();
+    _usernameFocus.dispose();
     _emailFocus.dispose();
     _phoneFocus.dispose();
     _passwordFocus.dispose();
@@ -47,6 +51,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String? _validate() {
     final fullName = _fullNameController.text.trim();
+    final username = _usernameController.text.trim();
     final email = _emailController.text.trim();
     final phone = _phoneController.text.trim();
     final password = _passwordController.text;
@@ -54,6 +59,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (fullName.isEmpty) return 'Vui lòng nhập họ tên.';
     if (fullName.length < 2) return 'Họ tên phải có ít nhất 2 ký tự.';
+
+    if (username.isEmpty) return 'Vui lòng nhập tên đăng nhập.';
+    if (username.length < 3) return 'Tên đăng nhập phải có ít nhất 3 ký tự.';
+    if (username.length > 50) return 'Tên đăng nhập tối đa 50 ký tự.';
+    if (!RegExp(r'^[a-zA-Z0-9_.]+$').hasMatch(username)) {
+      return 'Tên đăng nhập chỉ được chứa chữ cái, số, dấu chấm và gạch dưới.';
+    }
+
     if (email.isEmpty) return 'Vui lòng nhập địa chỉ email.';
     if (!RegExp(r'^[\w.-]+@[\w.-]+\.[a-z]{2,}$').hasMatch(email)) {
       return 'Địa chỉ email không hợp lệ.';
@@ -64,9 +77,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
     if (password.isEmpty) return 'Vui lòng nhập mật khẩu.';
     if (password.length < 8) return 'Mật khẩu phải có ít nhất 8 ký tự.';
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
+      return 'Mật khẩu phải có ít nhất 1 chữ hoa.';
+    }
+    if (!RegExp(r'[a-z]').hasMatch(password)) {
+      return 'Mật khẩu phải có ít nhất 1 chữ thường.';
+    }
+    if (!RegExp(r'\d').hasMatch(password)) {
+      return 'Mật khẩu phải có ít nhất 1 chữ số.';
+    }
+    if (!RegExp(r'''[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]''').hasMatch(password)) {
+      return 'Mật khẩu phải có ít nhất 1 ký tự đặc biệt (ví dụ: !@#\$%).';
+    }
     if (confirmPassword != password) return 'Mật khẩu xác nhận không khớp.';
     if (!_agreedToTerms) return 'Vui lòng đồng ý với điều khoản dịch vụ.';
     return null;
+    
   }
 
   Future<void> _handleRegister() async {
@@ -81,6 +107,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final success = await authProvider.register(
       _fullNameController.text.trim(),
+      _usernameController.text.trim(),
       _emailController.text.trim(),
       _passwordController.text,
       _phoneController.text.trim(),
@@ -171,6 +198,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   hint: 'Nguyễn Văn A',
                   textInputAction: TextInputAction.next,
                   focusNode: _fullNameFocus,
+                  nextFocusNode: _usernameFocus,
+                  onChanged: (_) => setState(() => _inlineError = null),
+                ),
+                const SizedBox(height: 16),
+
+                // Username
+                AuthTextField(
+                  controller: _usernameController,
+                  label: 'Tên đăng nhập',
+                  hint: 'skynet_user_123',
+                  textInputAction: TextInputAction.next,
+                  focusNode: _usernameFocus,
                   nextFocusNode: _emailFocus,
                   onChanged: (_) => setState(() => _inlineError = null),
                 ),
@@ -206,6 +245,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 AuthTextField(
                   controller: _passwordController,
                   label: 'Mật khẩu',
+                  hint: 'Ít nhất 8 ký tự, chữ hoa, số, ký tự đặc biệt',
                   obscureText: _obscurePassword,
                   textInputAction: TextInputAction.next,
                   focusNode: _passwordFocus,
@@ -302,3 +342,4 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
+

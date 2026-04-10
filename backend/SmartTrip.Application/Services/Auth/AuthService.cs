@@ -51,10 +51,14 @@ namespace SmartTrip.Application.Services.Auth
 
         public async Task<AuthResultDto> LoginAsync(LoginRequest request)
         {
-            var user = await _userRepository.GetUserByEmailAsync(request.Email);
+            // Phát hiện identifier là email hay username
+            var isEmail = request.Identifier.Contains('@');
+            var user = isEmail
+                ? await _userRepository.GetUserByEmailAsync(request.Identifier)
+                : await _userRepository.GetUserByUsernameAsync(request.Identifier);
 
             if (user == null || !VerifyPassword(request.Password, user.PasswordHash))
-                return Fail("Email hoặc mật khẩu không chính xác.");
+                return Fail("Email/Tên đăng nhập hoặc mật khẩu không chính xác.");
 
             if (user.IsActive == false)
                 return Fail("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ.");
@@ -157,15 +161,20 @@ namespace SmartTrip.Application.Services.Auth
 
         public async Task<AuthResultDto> RegisterAsync(RegisterRequest request)
         {
-            var existingUser = await _userRepository.GetUserByEmailAsync(request.Email);
-            if (existingUser != null)
+            var existingEmail = await _userRepository.GetUserByEmailAsync(request.Email);
+            if (existingEmail != null)
                 return Fail("Email này đã được sử dụng.");
+
+            var existingUsername = await _userRepository.GetUserByUsernameAsync(request.UserName);
+            if (existingUsername != null)
+                return Fail("Tên đăng nhập này đã được sử dụng.");
 
             var verificationToken = new Random().Next(100000, 999999).ToString();
 
             var newUser = new User
             {
                 Email = request.Email,
+                UserName = request.UserName.ToLower(),
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 FullName = request.FullName,
                 Phone = request.Phone,

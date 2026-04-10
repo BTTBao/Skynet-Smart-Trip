@@ -5,7 +5,12 @@ import 'views/auth/splash_screen.dart';
 import 'providers/providers.dart';
 import 'providers/auth_provider.dart';
 
-void main() {
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+
   runApp(
     MultiProvider(
       providers: [

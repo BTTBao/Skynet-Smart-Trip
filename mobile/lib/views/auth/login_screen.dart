@@ -15,36 +15,32 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _emailFocus = FocusNode();
+  final _identifierFocus = FocusNode();
   final _passwordFocus = FocusNode();
   bool _obscurePassword = true;
   String? _inlineError;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
-    _emailFocus.dispose();
+    _identifierFocus.dispose();
     _passwordFocus.dispose();
     super.dispose();
   }
 
   String? _validate() {
-    final email = _emailController.text.trim();
+    final identifier = _identifierController.text.trim();
     final password = _passwordController.text;
 
-    if (email.isEmpty) return 'Vui lòng nhập địa chỉ email.';
-    if (!RegExp(r'^[\w.-]+@[\w.-]+\.[a-z]{2,}$').hasMatch(email)) {
-      return 'Địa chỉ email không hợp lệ.';
-    }
+    if (identifier.isEmpty) return 'Vui lòng nhập email hoặc tên đăng nhập.';
     if (password.isEmpty) return 'Vui lòng nhập mật khẩu.';
     return null;
   }
 
   Future<void> _handleLogin() async {
-    // Clear previous errors
     setState(() => _inlineError = null);
 
     final validationError = _validate();
@@ -55,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final success = await authProvider.login(
-      _emailController.text.trim(),
+      _identifierController.text.trim(),
       _passwordController.text,
     );
 
@@ -66,6 +62,24 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(builder: (_) => const MainShell()),
       );
     } else {
+      setState(() => _inlineError = authProvider.errorMessage);
+    }
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    setState(() => _inlineError = null);
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final success = await authProvider.loginWithGoogle();
+
+    if (!mounted) return;
+
+    if (success) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+      );
+    } else if (authProvider.errorMessage != null) {
+      // Chỉ hiện lỗi nếu có error (người dùng huỷ thì không có lỗi)
       setState(() => _inlineError = authProvider.errorMessage);
     }
   }
@@ -107,14 +121,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 32),
 
-                // Email
+                // Email or Username
                 AuthTextField(
-                  controller: _emailController,
-                  label: 'Email',
-                  hint: 'example@email.com',
+                  controller: _identifierController,
+                  label: 'Email hoặc Tên đăng nhập',
+                  hint: 'example@email.com hoặc skynet_user',
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
-                  focusNode: _emailFocus,
+                  focusNode: _identifierFocus,
                   nextFocusNode: _passwordFocus,
                   onChanged: (_) => setState(() => _inlineError = null),
                 ),
@@ -182,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Google SSO (placeholder)
+                // Google Sign-In button
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 52),
@@ -192,14 +206,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     side: const BorderSide(color: AppColors.borderDefault),
                     foregroundColor: AppColors.textBody,
                   ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Google Sign-In sẽ được triển khai sớm.'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
+                  onPressed: isLoading ? null : _handleGoogleLogin,
                   icon: const Icon(Icons.g_mobiledata, size: 28, color: Colors.blue),
                   label: const Text('Tiếp tục với Google', style: TextStyle(fontSize: 15)),
                 ),

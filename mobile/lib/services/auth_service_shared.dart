@@ -3,17 +3,20 @@ import 'dart:convert';
 import 'api_service_base.dart';
 
 class AuthService extends ApiService {
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  /// Đăng nhập bằng email hoặc username
+  Future<Map<String, dynamic>> login(String identifier, String password) async {
     final response = await postWithFallback(
       '/auth/login',
-      body: jsonEncode({'email': email, 'password': password}),
+      body: jsonEncode({'identifier': identifier, 'password': password}),
     );
 
     return handleResponse(response) as Map<String, dynamic>;
   }
 
+  /// Đăng ký tài khoản mới
   Future<Map<String, dynamic>> register(
     String fullName,
+    String username,
     String email,
     String password,
     String phone,
@@ -22,10 +25,21 @@ class AuthService extends ApiService {
       '/auth/register',
       body: jsonEncode({
         'fullName': fullName,
+        'userName': username,
         'email': email,
         'password': password,
         'phone': phone,
       }),
+    );
+
+    return handleResponse(response) as Map<String, dynamic>;
+  }
+
+  /// Đăng nhập bằng Google — nhận idToken từ Google Sign-In
+  Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
+    final response = await postWithFallback(
+      '/auth/login-google',
+      body: jsonEncode({'idToken': idToken}),
     );
 
     return handleResponse(response) as Map<String, dynamic>;

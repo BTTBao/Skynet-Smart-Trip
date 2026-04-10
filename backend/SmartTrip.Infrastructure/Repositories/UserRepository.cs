@@ -17,6 +17,10 @@ namespace SmartTrip.Infrastructure.Repositories
             await _dbContext.Users
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
 
+        public async Task<User?> GetUserByUsernameAsync(string username) =>
+            await _dbContext.Users
+                .FirstOrDefaultAsync(u => u.UserName != null && u.UserName.ToLower() == username.ToLower());
+
         public async Task<User?> GetUserByResetTokenAsync(string token) =>
             await _dbContext.Users
                 .FirstOrDefaultAsync(u => u.PasswordResetToken == token);

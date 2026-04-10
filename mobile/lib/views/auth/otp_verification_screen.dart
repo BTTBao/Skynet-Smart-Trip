@@ -47,96 +47,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     if (!mounted) return;
 
     if (success) {
-      _showSuccessDialog();
+      await _handleAutoLogin();
     } else {
       setState(() => _inlineError = authProvider.errorMessage);
     }
   }
 
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppBorders.radiusCard),
-        ),
-        contentPadding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: const BoxDecoration(
-                color: AppColors.successBg,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_circle_outline_rounded,
-                color: AppColors.success,
-                size: 38,
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Đăng ký thành công!',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textHeading,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Tài khoản của bạn đã được xác thực.\nBạn có muốn đăng nhập ngay?',
-              style: AppTextStyles.bodyMuted,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 28),
-            // Login now button
-            SizedBox(
-              width: double.infinity,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: AppGradients.brand,
-                  borderRadius: BorderRadius.circular(AppBorders.radiusButton),
-                ),
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppBorders.radiusButton),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    _handleAutoLogin();
-                  },
-                  child: const Text('Đăng nhập vào App', style: AppTextStyles.buttonLabel),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Back to login
-            TextButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              },
-              child: const Text(
-                'Về trang đăng nhập',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 14),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Future<void> _handleAutoLogin() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
