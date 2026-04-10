@@ -1,5 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
-using SmartTrip.API.Middlewares;
+﻿using SmartTrip.API.Middlewares;
+using SmartTrip.Application.Interfaces.User;
+using SmartTrip.Infrastructure.Services.User;
 using SmartTrip.Application.Interfaces.Chat;
 using SmartTrip.Application.Interfaces.Trip;
 using SmartTrip.Application.Interfaces.User;
@@ -8,11 +9,6 @@ using SmartTrip.Application.Services.Trip;
 using SmartTrip.Application.Services;
 using SmartTrip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using SmartTrip.Infrastructure.Services.User;
-
-// Load biến môi trường từ file .env
-DotNetEnv.Env.Load();
-
 var builder = WebApplication.CreateBuilder(args);
 LoadEnvFile(builder.Environment.ContentRootPath);
 
@@ -35,8 +31,14 @@ builder.Services.AddCors(options =>
                    .AllowAnyHeader();   
         });
 });
+var connectionString = builder.Configuration.GetConnectionString("SmartTrip");
+var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+if (!string.IsNullOrEmpty(dbPassword))
+{
+    connectionString = connectionString?.Replace("Password= ;", $"Password={dbPassword};");
+}
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("SmartTrip")));
+    options.UseSqlServer(connectionString));
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 

@@ -20,6 +20,8 @@ public class User
 
     public string? AvatarUrl { get; set; }
 
+    public DateTime? BirthDate { get; set; }
+
     public AuthProvider? AuthProvider { get; set; }
 
     public string? SocialId { get; set; }

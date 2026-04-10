@@ -34,7 +34,14 @@ class AuthProvider with ChangeNotifier {
   void _setError(dynamic e) {
     // Strip default "Exception: " prefix Dart adds
     final raw = e.toString().replaceFirst('Exception: ', '');
-    _errorMessage = raw.isNotEmpty ? raw : 'Đã xảy ra lỗi không xác định.';
+    
+    if (raw.contains('network_error') && raw.contains('Api7')) {
+      _errorMessage = 'Lỗi kết nối máy chủ Google. Vui lòng kiểm tra lại mạng hoặc thử đổi WiFi/4G trên máy ảo.';
+    } else if (raw.contains('sign_in_failed') || raw.contains('DEVELOPER_ERROR') || raw.contains('Api10')) {
+      _errorMessage = 'Lỗi cấu hình Cụm Google Sign-In. Vui lòng kiểm tra lại cấu hình SHA-1, Client ID hoặc file google-services.json.';
+    } else {
+      _errorMessage = raw.isNotEmpty ? raw : 'Đã xảy ra lỗi không xác định.';
+    }
   }
 
   void _clearError() => _errorMessage = null;

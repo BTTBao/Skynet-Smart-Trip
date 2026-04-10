@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/app_theme.dart';
+import '../../providers/app_settings_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/profile_provider.dart';
+import '../../utils/app_text.dart';
 import '../../widgets/auth/auth_widgets.dart';
 import '../main_shell.dart';
 
@@ -32,6 +36,17 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     super.dispose();
   }
 
+  Future<void> _applyUserSettings() async {
+    final profileProvider = context.read<ProfileProvider>();
+    await profileProvider.loadSettings(forceRefresh: true);
+    final settings = profileProvider.settings;
+    if (!mounted || settings == null) {
+      return;
+    }
+
+    await context.read<AppSettingsProvider>().applyUserSettings(settings);
+  }
+
   Future<void> _handleVerify() async {
     setState(() => _inlineError = null);
 
@@ -41,34 +56,126 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       return;
     }
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = context.read<AuthProvider>();
     final success = await authProvider.verifyOtp(widget.email, otp);
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     if (success) {
-      await _handleAutoLogin();
+      _showSuccessDialog();
     } else {
       setState(() => _inlineError = authProvider.errorMessage);
     }
   }
 
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppBorders.radiusCard),
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: const BoxDecoration(
+                color: AppColors.successBg,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_circle_outline_rounded,
+                color: AppColors.success,
+                size: 38,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Đăng ký thành công!',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textHeading,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Tài khoản của bạn đã được xác thực.\nBạn có muốn đăng nhập ngay?',
+              style: AppTextStyles.bodyMuted,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 28),
+            // Login now button
+            SizedBox(
+              width: double.infinity,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: AppGradients.brand,
+                  borderRadius: BorderRadius.circular(AppBorders.radiusButton),
+                ),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppBorders.radiusButton),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _handleAutoLogin();
+                  },
+                  child: const Text('Đăng nhập vào App', style: AppTextStyles.buttonLabel),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Back to login
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              child: const Text(
+                'Về trang đăng nhập',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Future<void> _handleAutoLogin() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = context.read<AuthProvider>();
     final success = await authProvider.login(widget.email, widget.password);
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     if (success) {
+      await _applyUserSettings();
+      if (!mounted) {
+        return;
+      }
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainShell()),
         (route) => false,
       );
-    } else {
-      // Khoong dang nhap auto duoc thi quay lai dang nhap thu cong
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      return;
     }
+
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override
@@ -96,7 +203,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Header
                 Container(
                   width: 68,
                   height: 68,
@@ -127,8 +233,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-
-                // OTP Input
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
@@ -169,20 +273,15 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Inline error
                 if (_inlineError != null) ...[
                   AuthErrorBanner(message: _inlineError),
                   const SizedBox(height: 20),
                 ],
-
-                // Verify button
                 AuthPrimaryButton(
                   label: 'Xác nhận mã OTP',
                   isLoading: isLoading,
                   onPressed: _otpController.text.length == 6 ? _handleVerify : null,
                 ),
-                const SizedBox(height: 24),
               ],
             ),
           ),

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/app_theme.dart';
+import '../../providers/app_settings_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/profile_provider.dart';
+import '../../utils/app_text.dart';
 import '../../widgets/auth/auth_widgets.dart';
 import '../main_shell.dart';
-import 'register_screen.dart';
 import 'forgot_password_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -35,9 +39,20 @@ class _LoginScreenState extends State<LoginScreen> {
     final identifier = _identifierController.text.trim();
     final password = _passwordController.text;
 
-    if (identifier.isEmpty) return 'Vui lòng nhập email hoặc tên đăng nhập.';
+    if (identifier.isEmpty) return 'Vui lòng nhập Email hoặc Tên đăng nhập.';
     if (password.isEmpty) return 'Vui lòng nhập mật khẩu.';
     return null;
+  }
+
+  Future<void> _applyUserSettings() async {
+    final profileProvider = context.read<ProfileProvider>();
+    await profileProvider.loadSettings(forceRefresh: true);
+    final settings = profileProvider.settings;
+    if (!mounted || settings == null) {
+      return;
+    }
+
+    await context.read<AppSettingsProvider>().applyUserSettings(settings);
   }
 
   Future<void> _handleLogin() async {
@@ -49,21 +64,28 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = context.read<AuthProvider>();
     final success = await authProvider.login(
       _identifierController.text.trim(),
       _passwordController.text,
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     if (success) {
+      await _applyUserSettings();
+      if (!mounted) {
+        return;
+      }
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const MainShell()),
       );
-    } else {
-      setState(() => _inlineError = authProvider.errorMessage);
+      return;
     }
+
+    setState(() => _inlineError = authProvider.errorMessage);
   }
 
   Future<void> _handleGoogleLogin() async {
@@ -92,15 +114,14 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: AppColors.bgPage,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 420),
-            padding: const EdgeInsets.all(32.0),
+            padding: const EdgeInsets.all(32),
             decoration: AppDecorations.authCard,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Brand icon
                 Container(
                   width: 68,
                   height: 68,
@@ -121,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 32),
 
-                // Email or Username
+                // Email
                 AuthTextField(
                   controller: _identifierController,
                   label: 'Email hoặc Tên đăng nhập',
@@ -133,8 +154,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   onChanged: (_) => setState(() => _inlineError = null),
                 ),
                 const SizedBox(height: 16),
-
-                // Password
                 AuthTextField(
                   controller: _passwordController,
                   label: 'Mật khẩu',
@@ -145,8 +164,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       setState(() => _obscurePassword = !_obscurePassword),
                   onChanged: (_) => setState(() => _inlineError = null),
                 ),
-
-                // Forgot password link
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -165,22 +182,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Text('Quên mật khẩu?'),
                   ),
                 ),
-
-                // Inline error
                 if (_inlineError != null) ...[
                   AuthErrorBanner(message: _inlineError),
                   const SizedBox(height: 16),
                 ],
-
-                // Login button
                 AuthPrimaryButton(
                   label: 'Đăng nhập',
                   isLoading: isLoading,
                   onPressed: _handleLogin,
                 ),
                 const SizedBox(height: 28),
-
-                // Divider
                 Row(
                   children: [
                     const Expanded(child: Divider()),
@@ -196,7 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Google Sign-In button
+                // Google SSO (placeholder)
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 52),
@@ -211,8 +222,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   label: const Text('Tiếp tục với Google', style: TextStyle(fontSize: 15)),
                 ),
                 const SizedBox(height: 28),
-
-                // Sign up link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

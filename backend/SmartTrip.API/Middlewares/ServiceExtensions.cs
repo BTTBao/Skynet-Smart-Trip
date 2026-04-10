@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SmartTrip.Application.Configurations;
+using SmartTrip.Application.Interfaces.Admin;
 using SmartTrip.Application.Interfaces.Auth;
 using SmartTrip.Application.Interfaces.Chat;
 using SmartTrip.Application.Interfaces.Email;
@@ -11,8 +12,8 @@ using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Application.Services.Auth;
 using SmartTrip.Application.Services.Chat;
 using SmartTrip.Application.Services.Email;
-using SmartTrip.Domain.Entities;
 using SmartTrip.Infrastructure.Repositories;
+using SmartTrip.Infrastructure.Services.Admin;
 using SmartTrip.Infrastructure.Services.AI;
 using SmartTrip.Infrastructure.Services.User;
 using System.Text;
@@ -44,6 +45,9 @@ public static class ServiceExtensions
         services.AddScoped<IEmailService, EmailService>();
         services.AddHttpClient<IGrokAiService, GrokAiService>();
         services.AddHttpContextAccessor();
+
+        // Admin
+        services.AddScoped<IAdminService, AdminService>();
 
         return services;
     }

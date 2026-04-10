@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartTrip.Application.DTOs.Chat;
 using SmartTrip.Application.Interfaces.Chat;
+using System.Security.Claims;
 
 namespace SmartTrip.API.Controllers;
 
@@ -15,27 +17,63 @@ public class ChatController : ControllerBase
         _chatService = chatService;
     }
 
+    [Authorize]
     [HttpPost("send")]
     public async Task<IActionResult> SendMessage([FromBody] ChatRequestDto request)
     {
         if (string.IsNullOrEmpty(request.Message))
             return BadRequest("Message cannot be empty");
 
+        var userId = GetCurrentUserId();
+        if (userId == null)
+        {
+            return Unauthorized();
+        }
+
+        request.UserId = userId.Value;
         var response = await _chatService.GetAiResponseAsync(request);
         return Ok(response);
     }
 
-    [HttpGet("history/{userId}")]
-    public async Task<IActionResult> GetHistory(int userId, [FromQuery] int limit = 50)
+    [Authorize]
+    [HttpGet("history")]
+    public async Task<IActionResult> GetHistory([FromQuery] string? sessionId = null, [FromQuery] int limit = 50)
     {
-        var history = await _chatService.GetChatHistoryAsync(userId, limit);
+        var userId = GetCurrentUserId();
+        if (userId == null)
+        {
+            return Unauthorized();
+        }
+
+        var history = await _chatService.GetChatHistoryAsync(userId.Value, sessionId, limit);
         return Ok(history);
     }
 
-    [HttpDelete("history/{userId}")]
-    public async Task<IActionResult> ClearHistory(int userId)
+    [Authorize]
+    [HttpGet("sessions")]
+    public async Task<IActionResult> GetSessions([FromQuery] int limit = 20)
     {
-        await _chatService.ClearChatHistoryAsync(userId);
+        var userId = GetCurrentUserId();
+        if (userId == null)
+        {
+            return Unauthorized();
+        }
+
+        var sessions = await _chatService.GetChatSessionsAsync(userId.Value, limit);
+        return Ok(sessions);
+    }
+
+    [Authorize]
+    [HttpDelete("history")]
+    public async Task<IActionResult> ClearHistory([FromQuery] string? sessionId = null)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+        {
+            return Unauthorized();
+        }
+
+        await _chatService.ClearChatHistoryAsync(userId.Value, sessionId);
         return Ok(new { message = "Chat history cleared" });
     }
 
@@ -53,5 +91,20 @@ public class ChatController : ControllerBase
         };
 
         return Ok(suggestions);
+    }
+
+    private int? GetCurrentUserId()
+    {
+        var rawUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue(ClaimTypes.Name)
+            ?? User.FindFirstValue(ClaimTypes.Sid)
+            ?? User.FindFirstValue("sub");
+
+        if (int.TryParse(rawUserId, out var userId))
+        {
+            return userId;
+        }
+
+        return null;
     }
 }

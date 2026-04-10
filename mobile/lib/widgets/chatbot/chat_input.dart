@@ -1,9 +1,16 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+
+import '../../utils/app_text.dart';
 
 class ChatInput extends StatefulWidget {
   final Function(String) onSend;
+  final bool canSubmit;
 
-  const ChatInput({super.key, required this.onSend});
+  const ChatInput({
+    super.key,
+    required this.onSend,
+    this.canSubmit = true,
+  });
 
   @override
   State<ChatInput> createState() => _ChatInputState();
@@ -31,10 +38,17 @@ class _ChatInputState extends State<ChatInput> {
   }
 
   void _handleSend() {
-    if (_controller.text.trim().isNotEmpty) {
-      widget.onSend(_controller.text);
-      _controller.clear();
+    if (!widget.canSubmit) {
+      return;
     }
+
+    final text = _controller.text.trim();
+    if (text.isEmpty) {
+      return;
+    }
+
+    widget.onSend(text);
+    _controller.clear();
   }
 
   @override
@@ -42,7 +56,7 @@ class _ChatInputState extends State<ChatInput> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
@@ -54,7 +68,6 @@ class _ChatInputState extends State<ChatInput> {
       child: SafeArea(
         child: Row(
           children: [
-            // Voice / Attachment button
             Container(
               width: 40,
               height: 40,
@@ -62,10 +75,13 @@ class _ChatInputState extends State<ChatInput> {
                 color: Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Icon(Icons.mic_none_outlined, color: Colors.grey.shade500, size: 22),
+              child: Icon(
+                Icons.mic_none_outlined,
+                color: Colors.grey.shade500,
+                size: 22,
+              ),
             ),
             const SizedBox(width: 8),
-            // Text input
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -75,11 +91,15 @@ class _ChatInputState extends State<ChatInput> {
                 ),
                 child: TextField(
                   controller: _controller,
-                  decoration: const InputDecoration(
-                    hintText: 'Hỏi Sky bất kỳ điều gì...',
+                  enabled: true,
+                  decoration: InputDecoration(
+                    hintText: context.tr(
+                      vi: 'Hoi Sky bat ky dieu gi...',
+                      en: 'Ask Sky anything...',
+                    ),
                     border: InputBorder.none,
                     hintStyle: TextStyle(fontSize: 14, color: Colors.grey),
-                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   style: const TextStyle(fontSize: 14),
                   onSubmitted: (_) => _handleSend(),
@@ -88,7 +108,6 @@ class _ChatInputState extends State<ChatInput> {
               ),
             ),
             const SizedBox(width: 8),
-            // Send button
             GestureDetector(
               onTap: _handleSend,
               child: AnimatedContainer(
@@ -97,12 +116,12 @@ class _ChatInputState extends State<ChatInput> {
                 height: 40,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: _hasText
+                    colors: _hasText && widget.canSubmit
                         ? [const Color(0xFF80ed99), const Color(0xFF38ef7d)]
                         : [Colors.grey.shade300, Colors.grey.shade300],
                   ),
                   shape: BoxShape.circle,
-                  boxShadow: _hasText
+                  boxShadow: _hasText && widget.canSubmit
                       ? [
                           BoxShadow(
                             color: const Color(0xFF80ed99).withValues(alpha: 0.4),
@@ -114,7 +133,9 @@ class _ChatInputState extends State<ChatInput> {
                 ),
                 child: Icon(
                   Icons.send_rounded,
-                  color: _hasText ? Colors.white : Colors.grey.shade500,
+                  color: _hasText && widget.canSubmit
+                      ? Colors.white
+                      : Colors.grey.shade500,
                   size: 20,
                 ),
               ),
