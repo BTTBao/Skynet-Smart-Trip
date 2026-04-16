@@ -1,0 +1,4 @@
+Unhandled exception. System.ArgumentException: Missing Jwt Key
+   at SmartTrip.API.Middlewares.ServiceExtensions.AddJwtAuthentication(IServiceCollection services, IConfiguration configuration) in D:\lap_trinh_di_dong\BaiGiuaKy\Skynet-Smart-Trip\backend\SmartTrip.API\Middlewares\ServiceExtensions.cs:line 51
+   at Program.<Main>$(String[] args) in D:\lap_trinh_di_dong\BaiGiuaKy\Skynet-Smart-Trip\backend\SmartTrip.API\Program.cs:line 61
+   at Program.<Main>(String[] args)

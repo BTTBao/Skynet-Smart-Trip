@@ -1,23 +1,42 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { AdminLayout } from '../components/layout';
+import AuthGuard from '../components/auth/AuthGuard';
+import { LoginPage, ResetPasswordPage } from '../pages/auth';
 import { DashboardPage } from '../pages/dashboard';
 import { UsersPage } from '../pages/users';
-import PlaceholderPage from '../pages/PlaceholderPage';
+import { DestinationsPage } from '../pages/destinations';
+import { HotelsPage } from '../pages/hotels';
+import { TransportPage } from '../pages/transport';
+import { PromotionsPage } from '../pages/promotions';
+import { BookingsPage } from '../pages/bookings';
+import { ReportsPage } from '../pages/reports';
 
 const router = createBrowserRouter([
   {
-    path: '/',
-    element: <AdminLayout />,
+    path: '/login',
+    element: <LoginPage />,
+  },
+  {
+    path: '/reset-password',
+    element: <ResetPasswordPage />,
+  },
+  {
+    element: <AuthGuard />,
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: 'users', element: <UsersPage /> },
-      // Placeholder routes
-      { path: 'destinations', element: <PlaceholderPage /> },
-      { path: 'hotels', element: <PlaceholderPage /> },
-      { path: 'transport', element: <PlaceholderPage /> },
-      { path: 'promotions', element: <PlaceholderPage /> },
-      { path: 'bookings', element: <PlaceholderPage /> },
-      { path: 'reports', element: <PlaceholderPage /> },
+      {
+        path: '/',
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <DashboardPage /> },
+          { path: 'users', element: <UsersPage /> },
+          { path: 'destinations', element: <DestinationsPage /> },
+          { path: 'hotels', element: <HotelsPage /> },
+          { path: 'transport', element: <TransportPage /> },
+          { path: 'promotions', element: <PromotionsPage /> },
+          { path: 'bookings', element: <BookingsPage /> },
+          { path: 'reports', element: <ReportsPage /> },
+        ],
+      },
     ],
   },
 ]);

@@ -53,7 +53,9 @@ namespace SmartTrip.Application.Services
             if (user.IsActive == false)
                 return Fail("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ.");
 
-            if (!user.IsEmailVerified)
+            var canAccessAdminWithoutEmailVerification = user.Role is UserRole.Admin or UserRole.Staff;
+
+            if (!user.IsEmailVerified && !canAccessAdminWithoutEmailVerification)
                 return Fail("Email chưa được xác thực. Vui lòng kiểm tra hòm thư và xác thực tài khoản.");
 
             var accessToken = _tokenService.GenerateAccessToken(user, AccessTokenExpireMinutes);
