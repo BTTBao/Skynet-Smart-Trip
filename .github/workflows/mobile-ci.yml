@@ -1,0 +1,40 @@
+name: "📱 Mobile CI"
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/mobile-ci.yml"
+  pull_request:
+    branches: [dev, main, "feature/*", "defect/*"]
+    paths:
+      - "mobile/**"
+
+jobs:
+  analyze-and-test:
+    name: Analyze & Test (Flutter)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.32.x"  # Cố định version khớp với sdk: ^3.11.0 trong pubspec.yaml
+          channel: stable
+          cache: true
+
+      - name: 📦 Get Dependencies
+        run: flutter pub get
+        working-directory: mobile
+
+      - name: 🔍 Static Analysis (Linting)
+        run: flutter analyze --no-fatal-infos
+        working-directory: mobile
+
+      - name: 🧪 Run Tests
+        run: flutter test
+        working-directory: mobile
