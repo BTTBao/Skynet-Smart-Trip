@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/profile_provider.dart';
-import '../utils/app_text.dart';
-import 'chatbot/chatbot_view.dart';
+import 'catalog/search_view.dart';
+import 'home/home_view.dart';
 import 'profile/profile_view.dart';
 import 'trip/my_trips_view.dart';
 
@@ -18,10 +18,13 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = [
-    const _PlaceholderPage(label: 'Trang chu', icon: Icons.home_outlined),
-    ChatbotView(),
-    const _PlaceholderPage(label: 'Kham pha', icon: Icons.explore_outlined),
+    const HomeView(),
+    const SearchView(),
     const MyTripsView(),
+    const _PlaceholderPage(
+      label: 'Dat cho',
+      icon: Icons.calendar_month_outlined,
+    ),
     const ProfileView(),
   ];
 
@@ -38,61 +41,68 @@ class _MainShellState extends State<MainShell> {
     const primaryColor = Color(0xFF80ED99);
 
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 16,
               offset: const Offset(0, -4),
             ),
           ],
         ),
         child: SafeArea(
+          top: false,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(
-                  0,
-                  Icons.home_outlined,
-                  Icons.home,
-                  context.tr(vi: 'Trang chu', en: 'Home'),
-                  primaryColor,
+                Expanded(
+                  child: _buildNavItem(
+                    0,
+                    Icons.home_outlined,
+                    Icons.home,
+                    'Trang chu',
+                    primaryColor,
+                  ),
                 ),
-                _buildNavItem(
-                  1,
-                  Icons.chat_bubble_outline,
-                  Icons.chat_bubble,
-                  'Sky Chat',
-                  primaryColor,
+                Expanded(
+                  child: _buildNavItem(
+                    1,
+                    Icons.search_rounded,
+                    Icons.search,
+                    'Tim kiem',
+                    primaryColor,
+                  ),
                 ),
-                _buildNavItem(
-                  2,
-                  Icons.explore_outlined,
-                  Icons.explore,
-                  context.tr(vi: 'Kham pha', en: 'Explore'),
-                  primaryColor,
+                Expanded(
+                  child: _buildNavItem(
+                    2,
+                    Icons.map_outlined,
+                    Icons.map,
+                    'Chuyen di',
+                    primaryColor,
+                  ),
                 ),
-                _buildNavItem(
-                  3,
-                  Icons.bookmark_outline,
-                  Icons.bookmark,
-                  context.tr(vi: 'Chuyen di', en: 'Trips'),
-                  primaryColor,
+                Expanded(
+                  child: _buildNavItem(
+                    3,
+                    Icons.calendar_today_outlined,
+                    Icons.calendar_today,
+                    'Dat cho',
+                    primaryColor,
+                  ),
                 ),
-                _buildNavItem(
-                  4,
-                  Icons.person_outline,
-                  Icons.person,
-                  context.tr(vi: 'Ho so', en: 'Profile'),
-                  primaryColor,
+                Expanded(
+                  child: _buildNavItem(
+                    4,
+                    Icons.person_outline,
+                    Icons.person,
+                    'Ho so',
+                    primaryColor,
+                  ),
                 ),
               ],
             ),
@@ -116,9 +126,12 @@ class _MainShellState extends State<MainShell> {
       behavior: HitTestBehavior.translucent,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
         decoration: BoxDecoration(
-          color: isActive ? activeColor.withOpacity(0.12) : Colors.transparent,
+          color: isActive
+              ? activeColor.withValues(alpha: 0.12)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -127,15 +140,19 @@ class _MainShellState extends State<MainShell> {
             Icon(
               isActive ? activeIcon : icon,
               color: isActive ? activeColor : Colors.grey.shade400,
-              size: 24,
+              size: 22,
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                color: isActive ? activeColor : Colors.grey.shade400,
+            const SizedBox(height: 2),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                  color: isActive ? activeColor : Colors.grey.shade400,
+                ),
               ),
             ),
           ],
@@ -146,10 +163,7 @@ class _MainShellState extends State<MainShell> {
 }
 
 class _PlaceholderPage extends StatelessWidget {
-  const _PlaceholderPage({
-    required this.label,
-    required this.icon,
-  });
+  const _PlaceholderPage({required this.label, required this.icon});
 
   final String label;
   final IconData icon;
@@ -174,7 +188,7 @@ class _PlaceholderPage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              context.tr(vi: 'Dang phat trien...', en: 'In development...'),
+              'Dang phat trien...',
               style: TextStyle(color: Colors.grey.shade400),
             ),
           ],

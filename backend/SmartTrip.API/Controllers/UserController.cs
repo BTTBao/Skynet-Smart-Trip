@@ -70,8 +70,9 @@ public class UserController : ControllerBase
     }
 
     [Authorize]
+    [Consumes("multipart/form-data")]
     [HttpPost("me/upload-avatar")]
-    public async Task<IActionResult> UploadCurrentAvatar([FromForm] IFormFile file)
+    public async Task<IActionResult> UploadCurrentAvatar([FromForm] UploadAvatarRequestDto request)
     {
         var userId = GetCurrentUserId();
         if (userId == null)
@@ -79,7 +80,7 @@ public class UserController : ControllerBase
             return Unauthorized();
         }
 
-        return await UploadAvatar(userId.Value, file);
+        return await UploadAvatar(userId.Value, request);
     }
 
     [Authorize]
@@ -302,8 +303,9 @@ public class UserController : ControllerBase
     }
 
     [Authorize]
+    [Consumes("multipart/form-data")]
     [HttpPost("{id:int}/upload-avatar")]
-    public async Task<IActionResult> UploadAvatar(int id, [FromForm] IFormFile file)
+    public async Task<IActionResult> UploadAvatar(int id, [FromForm] UploadAvatarRequestDto request)
     {
         var accessResult = EnsureCurrentUserAccess(id);
         if (accessResult != null)
@@ -311,6 +313,7 @@ public class UserController : ControllerBase
             return accessResult;
         }
 
+        var file = request.File;
         if (file == null || file.Length == 0)
         {
             return BadRequest("Vui long chon anh");

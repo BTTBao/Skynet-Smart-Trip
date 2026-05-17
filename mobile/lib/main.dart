@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'core/app_theme.dart';
-import 'providers/app_settings_provider.dart';
-import 'views/main_shell.dart';
 import 'views/auth/splash_screen.dart';
 import 'providers/providers.dart';
 import 'providers/auth_provider.dart';
@@ -14,6 +12,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
+        ChangeNotifierProvider(create: (_) => CatalogProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => TripProvider()),
         ChangeNotifierProvider(
@@ -36,10 +35,7 @@ class MyApp extends StatelessWidget {
       title: 'Skynet Smart Trip',
       debugShowCheckedModeBanner: false,
       locale: appSettings.locale,
-      supportedLocales: const [
-        Locale('vi'),
-        Locale('en'),
-      ],
+      supportedLocales: const [Locale('vi'), Locale('en')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
