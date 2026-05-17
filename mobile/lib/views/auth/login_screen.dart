@@ -146,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 AuthTextField(
                   controller: _identifierController,
                   label: 'Email hoặc Tên đăng nhập',
-                  hint: 'example@email.com hoặc skynet_user',
+                  hint: 'Nhập email hoặc tên đăng nhập',
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   focusNode: _identifierFocus,
