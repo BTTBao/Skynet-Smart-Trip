@@ -10,8 +10,39 @@ public class AdminUserDto
     public string Email { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public string JoinDate { get; set; } = string.Empty;
+    public string LastLoginAt { get; set; } = string.Empty;
+    public string Role { get; set; } = "customer";
     public string Status { get; set; } = "active";
     public string AvatarBg { get; set; } = "bg-primary-container/20";
+}
+
+public class AdminCreateUserRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public string Role { get; set; } = "customer";
+    public bool IsActive { get; set; } = true;
+}
+
+public class AdminUpdateUserRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public string Role { get; set; } = "customer";
+    public bool IsActive { get; set; } = true;
+}
+
+public class AdminUpdateUserStatusRequest
+{
+    public bool IsActive { get; set; }
+}
+
+public class AdminUserPasswordResetDto
+{
+    public string ResetLink { get; set; } = string.Empty;
+    public bool EmailSent { get; set; }
 }
 
 public class AdminUserStatsDto

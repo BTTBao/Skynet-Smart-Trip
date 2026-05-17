@@ -1,4 +1,5 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth, useToast } from '../../context';
 
 interface NavItem {
   icon: string;
@@ -19,6 +20,19 @@ const mainNavItems: NavItem[] = [
 
 export default function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
+  const { showToast } = useToast();
+
+  const handleLogout = async () => {
+    await logout();
+    showToast({
+      type: 'success',
+      title: 'Đăng xuất thành công',
+      message: 'Phiên quản trị đã được đóng an toàn.',
+    });
+    navigate('/login', { replace: true });
+  };
 
   return (
     <aside className="h-screen w-72 flex flex-col sticky top-0 left-0 bg-surface-container-low py-8 font-body text-sm font-medium shrink-0">
@@ -65,10 +79,18 @@ export default function Sidebar() {
 
       {/* Bottom Actions */}
       <div className="px-4 mt-auto">
-        <button className="w-full bg-primary-container text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary-container/20 active:scale-95 transition-transform">
+        <button
+          onClick={() => navigate('/transport')}
+          className="w-full bg-primary-container text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary-container/20 active:scale-95 transition-transform"
+        >
           <span className="material-symbols-outlined">add</span>
           <span>Tạo chuyến mới</span>
         </button>
+        <div className="mt-4 rounded-3xl bg-white/70 px-5 py-4">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Phiên hiện tại</p>
+          <p className="mt-2 text-sm font-bold text-on-surface">{user?.fullName ?? 'Admin'}</p>
+          <p className="text-[11px] text-on-surface-variant">{user?.role ?? 'Admin'}</p>
+        </div>
         <div className="mt-6 flex flex-col gap-1">
           <a
             href="#"
@@ -77,13 +99,13 @@ export default function Sidebar() {
             <span className="material-symbols-outlined">settings</span>
             <span>Cài đặt</span>
           </a>
-          <a
-            href="#"
-            className="text-[#6B7280] px-8 py-3 flex items-center gap-4 hover:text-error transition-colors"
+          <button
+            onClick={handleLogout}
+            className="text-[#6B7280] px-8 py-3 flex items-center gap-4 hover:text-error transition-colors text-left"
           >
             <span className="material-symbols-outlined">logout</span>
             <span>Đăng xuất</span>
-          </a>
+          </button>
         </div>
       </div>
     </aside>
