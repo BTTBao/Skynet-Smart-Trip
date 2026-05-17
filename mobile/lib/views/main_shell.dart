@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/profile_provider.dart';
 import '../utils/app_text.dart';
 import 'chatbot/chatbot_view.dart';
+import 'explore/explore_view.dart';
 import 'profile/profile_view.dart';
 import 'trip/my_trips_view.dart';
 
@@ -20,7 +21,7 @@ class _MainShellState extends State<MainShell> {
   final List<Widget> _pages = [
     const _PlaceholderPage(label: 'Trang chu', icon: Icons.home_outlined),
     ChatbotView(),
-    const _PlaceholderPage(label: 'Kham pha', icon: Icons.explore_outlined),
+    const ExploreView(),
     const MyTripsView(),
     const ProfileView(),
   ];

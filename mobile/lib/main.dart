@@ -21,6 +21,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => TripProvider()),
+        ChangeNotifierProvider(create: (_) => ExploreProvider()),
         ChangeNotifierProvider(
           create: (_) => AppSettingsProvider()..initialize(),
         ),
