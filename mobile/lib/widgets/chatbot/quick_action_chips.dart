@@ -97,6 +97,12 @@ class _QuickActionChipState extends State<_QuickActionChip> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(
+              widget.icon,
+              size: 15,
+              color: const Color(0xFF2D6A4F),
+            ),
+            const SizedBox(width: 6),
             Text(
               widget.label,
               style: const TextStyle(

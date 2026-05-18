@@ -21,8 +21,16 @@ public static class ServiceExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        var connectionString = configuration.GetConnectionString("SmartTrip");
+        var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+
+        if (!string.IsNullOrWhiteSpace(dbPassword))
+        {
+            connectionString = connectionString?.Replace("Password= ;", $"Password={dbPassword};");
+        }
+
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("SmartTrip")));
+            options.UseSqlServer(connectionString));
         services.AddScoped<IApplicationDbContext>(provider => 
             provider.GetRequiredService<ApplicationDbContext>());
         return services;
@@ -39,6 +47,9 @@ public static class ServiceExtensions
         services.AddScoped<IEmailService, EmailService>();
         services.AddHttpClient<IGrokAiService, GrokAiService>();
         services.AddHttpContextAccessor();
+
+        // Admin
+        services.AddScoped<SmartTrip.Application.Interfaces.Admin.IAdminService, SmartTrip.Infrastructure.Services.Admin.AdminService>();
 
         return services;
     }

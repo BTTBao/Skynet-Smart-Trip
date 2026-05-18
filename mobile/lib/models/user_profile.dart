@@ -6,6 +6,7 @@ class UserProfile {
   final String phone;
   final String birthDate;
   final String avatarUrl;
+  final bool isEmailVerified;
   final String memberTier;
   final int tripsCount;
   final int coins;
@@ -18,6 +19,7 @@ class UserProfile {
     required this.phone,
     required this.birthDate,
     required this.avatarUrl,
+    required this.isEmailVerified,
     required this.memberTier,
     required this.tripsCount,
     required this.coins,
@@ -31,6 +33,7 @@ class UserProfile {
     String? phone,
     String? birthDate,
     String? avatarUrl,
+    bool? isEmailVerified,
     String? memberTier,
     int? tripsCount,
     int? coins,
@@ -43,6 +46,7 @@ class UserProfile {
       phone: phone ?? this.phone,
       birthDate: birthDate ?? this.birthDate,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      isEmailVerified: isEmailVerified ?? this.isEmailVerified,
       memberTier: memberTier ?? this.memberTier,
       tripsCount: tripsCount ?? this.tripsCount,
       coins: coins ?? this.coins,
@@ -58,6 +62,7 @@ class UserProfile {
       email: json['email'] ?? '',
       phone: json['phone'] ?? '',
       avatarUrl: json['avatarUrl'] ?? 'https://i.pravatar.cc/150?u=skynet',
+      isEmailVerified: json['isEmailVerified'] == true,
       memberTier: json['memberTier'] ?? 'Thành viên mới',
       tripsCount: json['tripsCount'] ?? 0,
       coins: json['coins'] ?? 0,
@@ -74,10 +79,19 @@ class UserProfile {
       'email': email,
       'phone': phone,
       'avatarUrl': avatarUrl,
+      'isEmailVerified': isEmailVerified,
       'memberTier': memberTier,
       'tripsCount': tripsCount,
       'coins': coins,
       'vouchers': vouchers,
+      'birthDate': birthDate,
+    };
+  }
+
+  Map<String, dynamic> toUpdateJson() {
+    return {
+      'name': name,
+      'phone': phone,
       'birthDate': birthDate,
     };
   }

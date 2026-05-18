@@ -49,20 +49,48 @@ class ProfileAvatar extends StatelessWidget {
                     color: Colors.grey[200],
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 4),
-                    image: avatarUrl.isNotEmpty && !provider.isUploadingAvatar
-                        ? DecorationImage(
-                            image: avatarUrl.startsWith('http') 
-                                ? NetworkImage(avatarUrl) as ImageProvider
-                                : AssetImage(avatarUrl) as ImageProvider,
-                            fit: BoxFit.cover,
-                          )
-                        : null,
                   ),
                   child: provider.isUploadingAvatar
                       ? const Center(child: CircularProgressIndicator())
-                      : avatarUrl.isEmpty
-                          ? const Icon(Icons.person, size: 60, color: Colors.grey)
-                          : null,
+                      : ClipOval(
+                          child: avatarUrl.isEmpty
+                              ? const Center(
+                                  child: Icon(
+                                    Icons.person,
+                                    size: 60,
+                                    color: Colors.grey,
+                                  ),
+                                )
+                              : avatarUrl.startsWith('http')
+                                  ? Image.network(
+                                      avatarUrl,
+                                      fit: BoxFit.cover,
+                                      width: 120,
+                                      height: 120,
+                                      errorBuilder: (_, __, ___) =>
+                                          const Center(
+                                        child: Icon(
+                                          Icons.person,
+                                          size: 60,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    )
+                                  : Image.asset(
+                                      avatarUrl,
+                                      fit: BoxFit.cover,
+                                      width: 120,
+                                      height: 120,
+                                      errorBuilder: (_, __, ___) =>
+                                          const Center(
+                                        child: Icon(
+                                          Icons.person,
+                                          size: 60,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                        ),
                 );
               },
             ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+
+import '../utils/app_currency_formatter.dart';
 
 class TripTimelineEntry {
   const TripTimelineEntry({
@@ -45,11 +46,7 @@ class TripTimelineEntry {
     final subtitle = (json['serviceSubtitle'] ?? '').toString().trim();
     final priceLabel = bookedPrice == null
         ? null
-        : NumberFormat.currency(
-            locale: 'vi_VN',
-            symbol: 'VND ',
-            decimalDigits: 0,
-          ).format(bookedPrice);
+        : AppCurrencyFormatter.format(bookedPrice);
 
     final descriptionParts = <String>[
       if (subtitle.isNotEmpty) subtitle,

@@ -1,5 +1,9 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../../models/chat_response.dart';
+import '../../providers/app_settings_provider.dart';
+import '../../utils/app_text.dart';
 
 class HotelCardBubble extends StatelessWidget {
   final List<HotelCard> cards;
@@ -8,13 +12,23 @@ class HotelCardBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: cards.map((card) => _buildHotelCard(card)).toList(),
+    return Consumer<AppSettingsProvider>(
+      builder: (context, settings, _) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: cards
+              .map((card) => _buildHotelCard(context, settings, card))
+              .toList(),
+        );
+      },
     );
   }
 
-  Widget _buildHotelCard(HotelCard card) {
+  Widget _buildHotelCard(
+    BuildContext context,
+    AppSettingsProvider settings,
+    HotelCard card,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -33,7 +47,6 @@ class HotelCardBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with gradient
             Container(
               padding: const EdgeInsets.all(14),
               decoration: const BoxDecoration(
@@ -51,7 +64,11 @@ class HotelCardBubble extends StatelessWidget {
                       color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.hotel, color: Colors.white, size: 22),
+                    child: const Icon(
+                      Icons.hotel,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -70,7 +87,11 @@ class HotelCardBubble extends StatelessWidget {
                           Row(
                             children: List.generate(
                               card.starRating!,
-                              (_) => const Icon(Icons.star, size: 14, color: Colors.amber),
+                              (_) => const Icon(
+                                Icons.star,
+                                size: 14,
+                                color: Colors.amber,
+                              ),
                             ),
                           ),
                       ],
@@ -78,20 +99,29 @@ class HotelCardBubble extends StatelessWidget {
                   ),
                   if (card.isAvailable == true)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF80ed99),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text(
-                        'Còn phòng',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1B4332)),
+                      child: Text(
+                        context.tr(
+                          vi: 'Con phong',
+                          en: 'Available',
+                        ),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1B4332),
+                        ),
                       ),
                     ),
                 ],
               ),
             ),
-            // Body
             Padding(
               padding: const EdgeInsets.all(14),
               child: Column(
@@ -100,12 +130,19 @@ class HotelCardBubble extends StatelessWidget {
                   if (card.address != null)
                     Row(
                       children: [
-                        Icon(Icons.location_on_outlined, size: 14, color: Colors.grey.shade600),
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 14,
+                          color: Colors.grey.shade600,
+                        ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             card.address!,
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -116,33 +153,41 @@ class HotelCardBubble extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       card.description!,
-                      style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.3),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.black87,
+                        height: 1.3,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
                   const SizedBox(height: 10),
-                  // Amenities
                   if (card.amenities != null && card.amenities!.isNotEmpty)
                     Wrap(
                       spacing: 6,
                       runSpacing: 4,
                       children: card.amenities!.take(5).map((amenity) {
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.blue.shade50,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             amenity,
-                            style: TextStyle(fontSize: 11, color: Colors.blue.shade700),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.blue.shade700,
+                            ),
                           ),
                         );
                       }).toList(),
                     ),
                   const SizedBox(height: 10),
-                  // Price
                   if (card.pricePerNight != null)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -150,9 +195,18 @@ class HotelCardBubble extends StatelessWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Giá từ', style: TextStyle(fontSize: 11, color: Colors.grey)),
                             Text(
-                              '${_formatPrice(card.pricePerNight!)} / đêm',
+                              context.tr(
+                                vi: 'Gia tu',
+                                en: 'Starting from',
+                              ),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            Text(
+                              '${settings.formatCurrency(card.pricePerNight!)} ${context.tr(vi: '/ dem', en: '/ night')}',
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -170,14 +224,5 @@ class HotelCardBubble extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatPrice(double price) {
-    if (price >= 1000000) {
-      return '${(price / 1000000).toStringAsFixed(1)}tr₫';
-    } else if (price >= 1000) {
-      return '${(price / 1000).toStringAsFixed(0)}k₫';
-    }
-    return '${price.toStringAsFixed(0)}₫';
   }
 }

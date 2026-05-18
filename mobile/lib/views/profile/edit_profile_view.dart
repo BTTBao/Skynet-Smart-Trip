@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+
 import '../../providers/profile_provider.dart';
+import '../../utils/app_text.dart';
 import '../../widgets/widgets.dart';
+import 'profile_session_helper.dart';
 
 class EditProfileView extends StatefulWidget {
   const EditProfileView({super.key});
@@ -13,15 +16,16 @@ class EditProfileView extends StatefulWidget {
 
 class _EditProfileViewState extends State<EditProfileView> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _nameController;
-  late TextEditingController _emailController;
-  late TextEditingController _phoneController;
-  late TextEditingController _birthDateController;
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _birthDateController;
+  bool _handledSessionExpired = false;
 
   @override
   void initState() {
     super.initState();
-    final user = Provider.of<ProfileProvider>(context, listen: false).profileData;
+    final user = context.read<ProfileProvider>().profileData;
     _nameController = TextEditingController(text: user?.name ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
     _phoneController = TextEditingController(text: user?.phone ?? '');
@@ -37,213 +41,391 @@ class _EditProfileViewState extends State<EditProfileView> {
     super.dispose();
   }
 
-  Future<void> _pickAndUploadImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(
-      source: source,
-      imageQuality: 70, // Nén ảnh xuống 70% để tiết kiệm băng thông
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ProfileProvider>(
+      builder: (context, provider, _) {
+        _handleSessionExpired(provider);
+
+        return WillPopScope(
+          onWillPop: () => _confirmLeaveIfNeeded(provider),
+          child: Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => _handleBackNavigation(provider),
+              ),
+              backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              title: Text(
+                context.tr(vi: 'Chinh sua ho so', en: 'Edit profile'),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: provider.isUpdating ? null : _saveProfile,
+                  child: provider.isUpdating
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(context.tr(vi: 'Luu', en: 'Save')),
+                ),
+              ],
+            ),
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: ProfileAvatar(
+                        avatarUrl: provider.profileData?.avatarUrl ?? '',
+                        isEditing: true,
+                        onCameraTap: _showImagePicker,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Text(
+                        context.tr(vi: 'Anh dai dien', en: 'Profile photo'),
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    CustomTextField(
+                      label: context.tr(vi: 'Ho va ten', en: 'Full name'),
+                      icon: Icons.person_outline,
+                      controller: _nameController,
+                      hintText: context.tr(vi: 'Nhap ho va ten', en: 'Enter your full name'),
+                      validator: (value) {
+                        final text = value?.trim() ?? '';
+                        if (text.isEmpty) {
+                          return context.trRead(
+                            vi: 'Vui long nhap ho va ten.',
+                            en: 'Please enter your full name.',
+                          );
+                        }
+                        if (text.length < 2) {
+                          return context.trRead(
+                            vi: 'Ho va ten qua ngan.',
+                            en: 'Full name is too short.',
+                          );
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      label: context.tr(vi: 'Email', en: 'Email'),
+                      icon: Icons.mail_outline,
+                      controller: _emailController,
+                      hintText: context.tr(vi: 'Email dang ky', en: 'Registered email'),
+                      readOnly: true,
+                      enabled: false,
+                      suffixIcon: Icon(
+                        provider.profileData?.isEmailVerified == true
+                            ? Icons.verified_outlined
+                            : Icons.error_outline,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      context.tr(
+                        vi: 'Email duoc khoa de giu nguyen thong tin xac thuc tai khoan.',
+                        en: 'Email is locked to preserve account verification.',
+                      ),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      label: context.tr(vi: 'So dien thoai', en: 'Phone'),
+                      icon: Icons.phone_outlined,
+                      controller: _phoneController,
+                      hintText: context.tr(vi: 'Nhap so dien thoai', en: 'Enter your phone'),
+                      keyboardType: TextInputType.phone,
+                      validator: (value) {
+                        final raw = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                        if (raw.isEmpty) {
+                          return context.trRead(
+                            vi: 'Vui long nhap so dien thoai.',
+                            en: 'Please enter your phone number.',
+                          );
+                        }
+                        if (raw.length < 10 || raw.length > 11) {
+                          return context.trRead(
+                            vi: 'So dien thoai khong hop le.',
+                            en: 'Invalid phone number.',
+                          );
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      label: context.tr(vi: 'Ngay sinh', en: 'Birth date'),
+                      icon: Icons.calendar_today_outlined,
+                      controller: _birthDateController,
+                      hintText: 'YYYY-MM-DD',
+                      readOnly: true,
+                      onTap: _pickBirthDate,
+                      suffixIcon: const Icon(Icons.expand_more),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickBirthDate() async {
+    final initialDate = _parseBirthDate(_birthDateController.text) ??
+        DateTime(DateTime.now().year - 18, 1, 1);
+
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
     );
 
-    if (image != null) {
-      final provider = Provider.of<ProfileProvider>(context, listen: false);
-      final success = await provider.uploadAvatar(image.path);
-
-      if (!mounted) return;
-
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Tải ảnh đại diện thành công!'),
-            backgroundColor: Color(0xFF80ed99),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: ${provider.error ?? "Không thể tải ảnh lên"}'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
+    if (selectedDate == null) {
+      return;
     }
+
+    _birthDateController.text =
+        '${selectedDate.year.toString().padLeft(4, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+  }
+
+  DateTime? _parseBirthDate(String value) {
+    if (value.trim().isEmpty) {
+      return null;
+    }
+    return DateTime.tryParse(value);
+  }
+
+  Future<void> _pickAndUploadImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: source, imageQuality: 75);
+    if (image == null) {
+      return;
+    }
+
+    final provider = context.read<ProfileProvider>();
+    final success = await provider.uploadAvatar(image.path);
+    if (!mounted) {
+      return;
+    }
+
+    if (provider.hasSessionExpired) {
+      await _handleSessionExpired(provider);
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? context.trRead(
+                  vi: 'Da cap nhat anh dai dien.',
+                  en: 'Profile photo updated.',
+                )
+              : (provider.error ??
+                  context.trRead(
+                    vi: 'Khong the tai anh len.',
+                    en: 'Unable to upload image.',
+                  )),
+        ),
+      ),
+    );
   }
 
   void _showImagePicker() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Thay đổi ảnh đại diện',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 24),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Chọn từ thư viện'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickAndUploadImage(ImageSource.gallery);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_outlined),
-              title: const Text('Chụp ảnh mới'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickAndUploadImage(ImageSource.camera);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _saveProfile() async {
-    if (_formKey.currentState!.validate()) {
-      final provider = Provider.of<ProfileProvider>(context, listen: false);
-      
-      final currentUser = provider.profileData;
-      if (currentUser == null) return;
-
-      final updatedUser = currentUser.copyWith(
-        name: _nameController.text,
-        email: _emailController.text,
-        phone: _phoneController.text,
-        birthDate: _birthDateController.text,
-      );
-
-      final success = await provider.updateProfile(updatedUser);
-
-      if (!mounted) return;
-
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cập nhật hồ sơ thành công! (SQL Server)'),
-            backgroundColor: Color(0xFF80ed99),
-          ),
-        );
-        Navigator.pop(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: ${provider.error ?? "Không thể lưu hồ sơ"}'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const primaryColor = Color(0xFF80ed99);
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Chỉnh sửa hồ sơ',
-          style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        actions: [
-          Consumer<ProfileProvider>(
-            builder: (context, provider, _) {
-              if (provider.isUpdating) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.only(right: 16.0),
-                    child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-                  ),
-                );
-              }
-              return TextButton(
-                onPressed: _saveProfile,
-                child: const Text(
-                  'Lưu',
-                  style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Wrap(
             children: [
-              ProfileAvatar(
-                avatarUrl: Provider.of<ProfileProvider>(context).profileData?.avatarUrl ?? '',
-                isEditing: true,
-                onCameraTap: _showImagePicker,
-              ),
-              const SizedBox(height: 32),
-              CustomTextField(
-                label: 'Họ tên',
-                icon: Icons.person_outline,
-                controller: _nameController,
-                hintText: 'Nhập họ tên của bạn',
-                validator: (value) {
-                  if (value == null || value.isEmpty) return 'Vui lòng nhập họ tên';
-                  if (value.length < 2) return 'Tên quá ngắn';
-                  return null;
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: Text(context.trRead(vi: 'Chon tu thu vien', en: 'Choose from gallery')),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickAndUploadImage(ImageSource.gallery);
                 },
               ),
-              const SizedBox(height: 20),
-              CustomTextField(
-                label: 'Email',
-                icon: Icons.mail_outline,
-                controller: _emailController,
-                hintText: 'example@email.com',
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty) return 'Vui lòng nhập email';
-                  if (!value.contains('@')) return 'Email không hợp lệ';
-                  return null;
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: Text(context.trRead(vi: 'Chup anh moi', en: 'Take a new photo')),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickAndUploadImage(ImageSource.camera);
                 },
-              ),
-              const SizedBox(height: 20),
-              CustomTextField(
-                label: 'Số điện thoại',
-                icon: Icons.phone_android_outlined,
-                controller: _phoneController,
-                hintText: '0987 654 321',
-                keyboardType: TextInputType.phone,
-                validator: (value) {
-                  if (value == null || value.isEmpty) return 'Vui lòng nhập số điện thoại';
-                  if (value.length < 10) return 'Số điện thoại không hợp lệ';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              CustomTextField(
-                label: 'Ngày sinh',
-                icon: Icons.calendar_today_outlined,
-                controller: _birthDateController,
-                hintText: '15/08/1995',
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  bool _hasUnsavedChanges(ProfileProvider provider) {
+    final user = provider.profileData;
+    if (user == null) {
+      return false;
+    }
+
+    return _nameController.text.trim() != user.name.trim() ||
+        _phoneController.text.trim() != user.phone.trim() ||
+        _birthDateController.text.trim() != (user.birthDate ?? '').trim();
+  }
+
+  Future<void> _handleBackNavigation(ProfileProvider provider) async {
+    final shouldPop = await _confirmLeaveIfNeeded(provider);
+    if (!mounted || !shouldPop) {
+      return;
+    }
+
+    Navigator.of(context).pop();
+  }
+
+  Future<bool> _confirmLeaveIfNeeded(ProfileProvider provider) async {
+    if (provider.isUpdating || !_hasUnsavedChanges(provider)) {
+      return true;
+    }
+
+    final action = await showDialog<_LeaveAction>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            context.tr(
+              vi: 'Ban muon luu thay doi?',
+              en: 'Save your changes?',
+            ),
+          ),
+          content: Text(
+            context.tr(
+              vi: 'Thong tin ho so cua ban da thay doi. Ban muon luu truoc khi thoat khong?',
+              en: 'Your profile has unsaved changes. Do you want to save before leaving?',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(_LeaveAction.cancel);
+              },
+              child: Text(context.trRead(vi: 'O lai', en: 'Stay')),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(_LeaveAction.discard);
+              },
+              child: Text(context.trRead(vi: 'Khong luu', en: 'Discard')),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(_LeaveAction.save);
+              },
+              child: Text(context.trRead(vi: 'Luu', en: 'Save')),
+            ),
+          ],
+        );
+      },
+    );
+
+    switch (action) {
+      case _LeaveAction.save:
+        await _saveProfile(closeAfterSave: true);
+        return false;
+      case _LeaveAction.discard:
+        return true;
+      case _LeaveAction.cancel:
+      case null:
+        return false;
+    }
+  }
+
+  Future<void> _saveProfile({bool closeAfterSave = true}) async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final provider = context.read<ProfileProvider>();
+    final currentUser = provider.profileData;
+    if (currentUser == null) {
+      return;
+    }
+
+    final updatedUser = currentUser.copyWith(
+      name: _nameController.text.trim(),
+      phone: _phoneController.text.trim(),
+      birthDate: _birthDateController.text.trim(),
+    );
+
+    final success = await provider.updateProfile(updatedUser);
+    if (!mounted) {
+      return;
+    }
+
+    if (provider.hasSessionExpired) {
+      await _handleSessionExpired(provider);
+      return;
+    }
+
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            provider.error ??
+                context.trRead(
+                  vi: 'Khong the cap nhat ho so.',
+                  en: 'Unable to update profile.',
+                ),
+          ),
+        ),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.trRead(vi: 'Da cap nhat ho so.', en: 'Profile updated.'),
         ),
       ),
     );
+    if (closeAfterSave) {
+      Navigator.pop(context, true);
+    }
+  }
+
+  Future<void> _handleSessionExpired(ProfileProvider provider) async {
+    if (_handledSessionExpired || !provider.hasSessionExpired || !mounted) {
+      return;
+    }
+
+    _handledSessionExpired = true;
+    await showSessionExpiredDialog(context, message: provider.error);
   }
 }
+
+enum _LeaveAction { save, discard, cancel }

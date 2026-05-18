@@ -1,4 +1,5 @@
 import 'chat_response.dart';
+import 'chat_history_result.dart';
 
 enum MessageSender { user, bot }
 enum MessageType { text, destinationCard, itinerary, hotelList, weather, loading }
@@ -46,6 +47,18 @@ class ChatMessage {
       timestamp: response.timestamp,
       type: type,
       richData: response,
+    );
+  }
+
+  factory ChatMessage.fromHistoryItem(ChatHistoryItem item) {
+    if (item.role == 'bot' && item.responsePayload != null) {
+      return ChatMessage.fromResponse(item.responsePayload!);
+    }
+
+    return ChatMessage(
+      text: item.content,
+      sender: item.role == 'user' ? MessageSender.user : MessageSender.bot,
+      timestamp: item.timestamp,
     );
   }
 }

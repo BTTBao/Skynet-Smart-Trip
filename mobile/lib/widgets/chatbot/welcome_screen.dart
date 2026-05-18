@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+
 import '../../models/chat_response.dart';
+import '../../utils/app_text.dart';
 
 class WelcomeScreen extends StatelessWidget {
   final Function(QuickAction) onQuickAction;
@@ -13,7 +15,6 @@ class WelcomeScreen extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 40),
-          // Sky mascot / icon
           Container(
             width: 80,
             height: 80,
@@ -45,56 +46,82 @@ class WelcomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Trợ lý du lịch thông minh của bạn',
+            context.tr(
+              vi: 'Tro ly du lich thong minh cua ban',
+              en: 'Your smart travel assistant',
+            ),
             style: TextStyle(
               fontSize: 15,
               color: Colors.grey.shade600,
             ),
           ),
           const SizedBox(height: 36),
-          // Feature cards
           _buildFeatureCard(
             icon: Icons.explore_outlined,
             color: const Color(0xFF667eea),
-            title: 'Gợi ý điểm đến',
-            subtitle: 'Khám phá những nơi tuyệt vời nhất Việt Nam',
-            action: QuickAction(
-              label: 'Gợi ý điểm đến',
+            title: context.tr(
+              vi: 'Goi y diem den',
+              en: 'Discover destinations',
+            ),
+            subtitle: context.tr(
+              vi: 'Kham pha nhung noi tuyet voi nhat Viet Nam',
+              en: 'Explore standout places across Vietnam',
+            ),
+            action: const QuickAction(
+              label: 'Goi y diem den',
               icon: 'explore',
-              actionPayload: 'Gợi ý cho tôi 3 điểm đến đẹp nhất ở Việt Nam',
+              actionPayload: 'Goi y cho toi 3 diem den dep nhat o Viet Nam',
             ),
           ),
           _buildFeatureCard(
             icon: Icons.calendar_month_outlined,
             color: const Color(0xFF11998e),
-            title: 'Lập lịch trình',
-            subtitle: 'Tự động tạo kế hoạch chi tiết theo ngày',
-            action: QuickAction(
-              label: 'Lập lịch trình',
+            title: context.tr(
+              vi: 'Lap lich trinh',
+              en: 'Plan an itinerary',
+            ),
+            subtitle: context.tr(
+              vi: 'Tu dong tao ke hoach chi tiet theo ngay',
+              en: 'Generate a day-by-day travel plan',
+            ),
+            action: const QuickAction(
+              label: 'Lap lich trinh',
               icon: 'calendar',
-              actionPayload: 'Lập lịch trình du lịch Đà Lạt 3 ngày 2 đêm',
+              actionPayload: 'Lap lich trinh du lich Da Lat 3 ngay 2 dem',
             ),
           ),
           _buildFeatureCard(
             icon: Icons.hotel_outlined,
             color: const Color(0xFF1a237e),
-            title: 'Tìm khách sạn',
-            subtitle: 'So sánh và tìm chỗ ở phù hợp nhất',
-            action: QuickAction(
-              label: 'Tìm khách sạn',
+            title: context.tr(
+              vi: 'Tim khach san',
+              en: 'Find hotels',
+            ),
+            subtitle: context.tr(
+              vi: 'So sanh va tim cho o phu hop nhat',
+              en: 'Compare stays that fit your trip',
+            ),
+            action: const QuickAction(
+              label: 'Tim khach san',
               icon: 'hotel',
-              actionPayload: 'Tìm khách sạn đẹp ở Phú Quốc',
+              actionPayload: 'Tim khach san dep o Phu Quoc',
             ),
           ),
           _buildFeatureCard(
             icon: Icons.wb_sunny_outlined,
             color: const Color(0xFFFF9800),
-            title: 'Thời tiết du lịch',
-            subtitle: 'Kiểm tra thời tiết trước khi lên đường',
-            action: QuickAction(
-              label: 'Xem thời tiết',
+            title: context.tr(
+              vi: 'Thoi tiet du lich',
+              en: 'Travel weather',
+            ),
+            subtitle: context.tr(
+              vi: 'Kiem tra thoi tiet truoc khi len duong',
+              en: 'Check the weather before you go',
+            ),
+            action: const QuickAction(
+              label: 'Xem thoi tiet',
               icon: 'weather',
-              actionPayload: 'Thời tiết Đà Nẵng hôm nay thế nào?',
+              actionPayload: 'Thoi tiet Da Nang hom nay the nao?',
             ),
           ),
           const SizedBox(height: 20),

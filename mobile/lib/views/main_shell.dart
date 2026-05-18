@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:mobile/providers/profile_provider.dart';
 import 'package:provider/provider.dart';
 
+import '../providers/profile_provider.dart';
+import '../utils/app_text.dart';
 import 'chatbot/chatbot_view.dart';
 
-import 'bookings/my_bookings_screen.dart';
 import 'search/search_screen.dart';
 
 import 'profile/profile_view.dart';
@@ -22,26 +22,24 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = [
-
     const _PlaceholderPage(label: 'Trang chu', icon: Icons.home_outlined),
     ChatbotView(),
-    const _PlaceholderPage(label: 'Kham pha', icon: Icons.explore_outlined),
+    const SearchScreen(),
     const MyTripsView(),
-
-    ProfileView(),
+    const ProfileView(),
   ];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<ProfileProvider>(context, listen: false).fetchProfile();
+      context.read<ProfileProvider>().fetchProfile(forceRefresh: false);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFF80ed99);
+    const primaryColor = Color(0xFF80ED99);
 
     return Scaffold(
       body: IndexedStack(
@@ -50,10 +48,10 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 16,
               offset: const Offset(0, -4),
             ),
@@ -65,11 +63,41 @@ class _MainShellState extends State<MainShell> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(0, Icons.home_outlined, Icons.home, 'Trang chu', primaryColor),
-                _buildNavItem(1, Icons.chat_bubble_outline, Icons.chat_bubble, 'Sky Chat', primaryColor),
-                _buildNavItem(2, Icons.explore_outlined, Icons.explore, 'Kham pha', primaryColor),
-                _buildNavItem(3, Icons.bookmark_outline, Icons.bookmark, 'Chuyen di', primaryColor),
-                _buildNavItem(4, Icons.settings_outlined, Icons.settings, 'Cai dat', primaryColor),
+                _buildNavItem(
+                  0,
+                  Icons.home_outlined,
+                  Icons.home,
+                  context.tr(vi: 'Trang chu', en: 'Home'),
+                  primaryColor,
+                ),
+                _buildNavItem(
+                  1,
+                  Icons.chat_bubble_outline,
+                  Icons.chat_bubble,
+                  'Sky Chat',
+                  primaryColor,
+                ),
+                _buildNavItem(
+                  2,
+                  Icons.explore_outlined,
+                  Icons.explore,
+                  context.tr(vi: 'Kham pha', en: 'Explore'),
+                  primaryColor,
+                ),
+                _buildNavItem(
+                  3,
+                  Icons.bookmark_outline,
+                  Icons.bookmark,
+                  context.tr(vi: 'Chuyen di', en: 'Trips'),
+                  primaryColor,
+                ),
+                _buildNavItem(
+                  4,
+                  Icons.person_outline,
+                  Icons.person,
+                  context.tr(vi: 'Ho so', en: 'Profile'),
+                  primaryColor,
+                ),
               ],
             ),
           ),
@@ -78,8 +106,15 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label, Color activeColor) {
+  Widget _buildNavItem(
+    int index,
+    IconData icon,
+    IconData activeIcon,
+    String label,
+    Color activeColor,
+  ) {
     final isActive = _currentIndex == index;
+
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
       behavior: HitTestBehavior.translucent,
@@ -87,7 +122,7 @@ class _MainShellState extends State<MainShell> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? activeColor.withOpacity(0.12) : Colors.transparent,
+          color: isActive ? activeColor.withValues(alpha: 0.12) : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -115,10 +150,13 @@ class _MainShellState extends State<MainShell> {
 }
 
 class _PlaceholderPage extends StatelessWidget {
+  const _PlaceholderPage({
+    required this.label,
+    required this.icon,
+  });
+
   final String label;
   final IconData icon;
-
-  const _PlaceholderPage({required this.label, required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -140,7 +178,7 @@ class _PlaceholderPage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Dang phat trien...',
+              context.tr(vi: 'Dang phat trien...', en: 'In development...'),
               style: TextStyle(color: Colors.grey.shade400),
             ),
           ],
