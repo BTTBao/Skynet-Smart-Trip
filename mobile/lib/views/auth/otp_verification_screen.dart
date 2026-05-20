@@ -52,12 +52,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
     final otp = _otpController.text.trim();
     if (otp.length != 6) {
-      setState(() {
-        _inlineError = context.trRead(
-          vi: 'Vui long nhap du 6 so OTP.',
-          en: 'Please enter the full 6-digit OTP.',
-        );
-      });
+      setState(() => _inlineError = 'Vui lòng nhập đủ 6 số OTP.');
       return;
     }
 
@@ -70,116 +65,93 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
     if (success) {
       _showSuccessDialog();
-      return;
+    } else {
+      setState(() => _inlineError = authProvider.errorMessage);
     }
-
-    setState(() => _inlineError = authProvider.errorMessage);
   }
 
   void _showSuccessDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppBorders.radiusCard),
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: const BoxDecoration(
-                  color: AppColors.successBg,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check_circle_outline_rounded,
-                  color: AppColors.success,
-                  size: 38,
-                ),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppBorders.radiusCard),
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: const BoxDecoration(
+                color: AppColors.successBg,
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 20),
-              Text(
-                context.tr(
-                  vi: 'Dang ky thanh cong!',
-                  en: 'Registration successful!',
-                ),
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textHeading,
-                ),
-                textAlign: TextAlign.center,
+              child: const Icon(
+                Icons.check_circle_outline_rounded,
+                color: AppColors.success,
+                size: 38,
               ),
-              const SizedBox(height: 12),
-              Text(
-                context.tr(
-                  vi: 'Tai khoan cua ban da duoc xac thuc.\nBan co muon dang nhap ngay?',
-                  en: 'Your account has been verified.\nWould you like to sign in now?',
-                ),
-                style: AppTextStyles.bodyMuted,
-                textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Đăng ký thành công!',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textHeading,
               ),
-              const SizedBox(height: 28),
-              SizedBox(
-                width: double.infinity,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: AppGradients.brand,
-                    borderRadius: BorderRadius.circular(
-                      AppBorders.radiusButton,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Tài khoản của bạn đã được xác thực.\nBạn có muốn đăng nhập ngay?',
+              style: AppTextStyles.bodyMuted,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 28),
+            // Login now button
+            SizedBox(
+              width: double.infinity,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: AppGradients.brand,
+                  borderRadius: BorderRadius.circular(AppBorders.radiusButton),
+                ),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppBorders.radiusButton),
                     ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          AppBorders.radiusButton,
-                        ),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    onPressed: () {
-                      Navigator.of(dialogContext).pop();
-                      _handleAutoLogin();
-                    },
-                    child: Text(
-                      context.tr(
-                        vi: 'Dang nhap vao app',
-                        en: 'Open the app',
-                      ),
-                      style: AppTextStyles.buttonLabel,
-                    ),
-                  ),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _handleAutoLogin();
+                  },
+                  child: const Text('Đăng nhập vào App', style: AppTextStyles.buttonLabel),
                 ),
               ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop();
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
-                child: Text(
-                  context.tr(
-                    vi: 'Ve trang dang nhap',
-                    en: 'Back to sign in',
-                  ),
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 14,
-                  ),
-                ),
+            ),
+            const SizedBox(height: 12),
+            // Back to login
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              child: const Text(
+                'Về trang đăng nhập',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 14),
               ),
-            ],
-          ),
-        );
-      },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -216,10 +188,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: AppColors.textHeading,
-          ),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textHeading),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -245,22 +214,14 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                Text(
-                  context.tr(vi: 'Xac thuc email', en: 'Verify email'),
-                  style: AppTextStyles.heading2,
-                ),
+                const Text('Xác thực Email', style: AppTextStyles.heading2),
                 const SizedBox(height: 12),
                 RichText(
                   textAlign: TextAlign.center,
                   text: TextSpan(
                     style: AppTextStyles.bodyMuted.copyWith(height: 1.5),
                     children: [
-                      TextSpan(
-                        text: context.tr(
-                          vi: 'Vui long nhap ma gom 6 chu so da duoc gui den email\n',
-                          en: 'Enter the 6-digit code sent to\n',
-                        ),
-                      ),
+                      const TextSpan(text: 'Vui lòng nhập mã gồm 6 chữ số đã được gửi đến email\n'),
                       TextSpan(
                         text: widget.email,
                         style: const TextStyle(
@@ -295,18 +256,18 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     decoration: const InputDecoration(
                       border: InputBorder.none,
                       counterText: '',
-                      hintText: '......',
+                      hintText: '••••••',
                       hintStyle: TextStyle(
                         fontSize: 32,
                         letterSpacing: 24,
                         color: AppColors.borderDefault,
                       ),
                     ),
-                    onChanged: (value) {
+                    onChanged: (val) {
                       setState(() => _inlineError = null);
-                      if (value.length == 6) {
+                      if (val.length == 6) {
                         _focusNode.unfocus();
-                        _handleVerify();
+                        _handleVerify(); // Auto verify
                       }
                     },
                   ),
@@ -317,9 +278,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   const SizedBox(height: 20),
                 ],
                 AuthPrimaryButton(
-                  label: context.tr(vi: 'Xac thuc', en: 'Verify'),
+                  label: 'Xác nhận mã OTP',
                   isLoading: isLoading,
-                  onPressed: _handleVerify,
+                  onPressed: _otpController.text.length == 6 ? _handleVerify : null,
                 ),
               ],
             ),

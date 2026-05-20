@@ -10,6 +10,8 @@ public class User
 
     public string Email { get; set; } = null!;
 
+    public string? UserName { get; set; }
+
     public string? PasswordHash { get; set; }
 
     public string? FullName { get; set; }

@@ -71,7 +71,7 @@ public class UserController : ControllerBase
 
     [Authorize]
     [HttpPost("me/upload-avatar")]
-    public async Task<IActionResult> UploadCurrentAvatar([FromForm] IFormFile file)
+    public async Task<IActionResult> UploadCurrentAvatar(IFormFile file)
     {
         var userId = GetCurrentUserId();
         if (userId == null)
@@ -303,7 +303,7 @@ public class UserController : ControllerBase
 
     [Authorize]
     [HttpPost("{id:int}/upload-avatar")]
-    public async Task<IActionResult> UploadAvatar(int id, [FromForm] IFormFile file)
+    public async Task<IActionResult> UploadAvatar(int id, IFormFile file)
     {
         var accessResult = EnsureCurrentUserAccess(id);
         if (accessResult != null)

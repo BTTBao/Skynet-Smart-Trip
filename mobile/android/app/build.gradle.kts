@@ -30,11 +30,25 @@ android {
         versionName = flutter.versionName
     }
 
+    // Thêm khối signingConfigs
+    signingConfigs {
+        create("sharedDebug") { // Đặt tên là sharedDebug để phân biệt
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        getByName("debug") {
+            // Ép bản debug dùng chung keystore
+            signingConfig = signingConfigs.getByName("sharedDebug")
+        }
+
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Cho bản release dùng tạm luôn để test dễ
+            signingConfig = signingConfigs.getByName("sharedDebug")
         }
     }
 }

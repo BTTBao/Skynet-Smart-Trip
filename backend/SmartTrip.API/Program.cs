@@ -2,8 +2,9 @@
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Infrastructure.Services.User;
 using SmartTrip.Application.Interfaces.Chat;
-using SmartTrip.Application.Services.Chat;
 using SmartTrip.Application.Interfaces.Trip;
+using SmartTrip.Application.Interfaces.User;
+using SmartTrip.Application.Services.Chat;
 using SmartTrip.Application.Services.Trip;
 using SmartTrip.Application.Services;
 using SmartTrip.Domain.Entities;
