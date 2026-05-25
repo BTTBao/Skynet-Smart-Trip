@@ -129,6 +129,7 @@ class _HomeViewState extends State<HomeView> {
                       height: 168,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
                         itemCount: home.popularDestinations.length,
                         separatorBuilder: (_, _) => const SizedBox(width: 14),
                         itemBuilder: (context, index) => _DestinationCard(
@@ -149,12 +150,13 @@ class _HomeViewState extends State<HomeView> {
                   ),
                   const SizedBox(height: 14),
                   if (provider.isLoadingHome && home == null)
-                    const _LoadingCard(height: 280)
+                    const _LoadingCard(height: 308)
                   else if (home != null)
                     SizedBox(
-                      height: 294,
+                      height: 308,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
                         itemCount: home.featuredHotels.length,
                         separatorBuilder: (_, _) => const SizedBox(width: 16),
                         itemBuilder: (context, index) => _FeaturedHotelCard(
@@ -177,6 +179,7 @@ class _HomeViewState extends State<HomeView> {
                       height: 188,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
                         itemCount: home.featuredBuses.length,
                         separatorBuilder: (_, _) => const SizedBox(width: 14),
                         itemBuilder: (context, index) => _BusCard(

@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_theme.dart';
 import '../../models/catalog_models.dart';
+import '../../models/create_fake_payment_request.dart';
+import '../../models/create_hotel_booking_request.dart';
 import '../../providers/catalog_provider.dart';
+import '../../providers/trip_provider.dart';
 import '../../utils/app_currency_formatter.dart';
 
 class HotelDetailView extends StatefulWidget {
@@ -235,7 +238,7 @@ class _HotelDetailViewState extends State<HotelDetailView> {
                       const SizedBox(width: 14),
                       Expanded(
                         child: FilledButton(
-                          onPressed: () {},
+                          onPressed: () => _openBookingSheet(detail),
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.black87,
@@ -261,6 +264,546 @@ class _HotelDetailViewState extends State<HotelDetailView> {
           );
         },
       ),
+    );
+  }
+
+  Future<void> _openBookingSheet(CatalogHotelDetail detail) async {
+    final availableRooms = detail.rooms
+        .where((room) => room.availableQty > 0)
+        .toList(growable: false);
+
+    if (availableRooms.isEmpty) {
+      _showMessage('Khách sạn hiện không còn phòng trống.');
+      return;
+    }
+
+    final now = DateTime.now();
+    var checkIn = DateTime(now.year, now.month, now.day).add(
+      const Duration(days: 1),
+    );
+    var checkOut = checkIn.add(const Duration(days: 1));
+    var selectedRoom = availableRooms.first;
+    var roomQuantity = 1;
+    var isSubmitting = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final nights = _nightsBetween(checkIn, checkOut);
+            final totalPrice = selectedRoom.pricePerNight * nights * roomQuantity;
+
+            Future<void> pickDate({required bool isCheckIn}) async {
+              final today = DateTime(now.year, now.month, now.day);
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: isCheckIn ? checkIn : checkOut,
+                firstDate: today,
+                lastDate: today.add(const Duration(days: 365)),
+              );
+
+              if (picked == null) {
+                return;
+              }
+
+              setSheetState(() {
+                if (isCheckIn) {
+                  checkIn = DateTime(picked.year, picked.month, picked.day);
+                  if (!checkOut.isAfter(checkIn)) {
+                    checkOut = checkIn.add(const Duration(days: 1));
+                  }
+                } else {
+                  final normalized = DateTime(
+                    picked.year,
+                    picked.month,
+                    picked.day,
+                  );
+                  if (normalized.isAfter(checkIn)) {
+                    checkOut = normalized;
+                  }
+                }
+              });
+            }
+
+            Future<void> submitBooking() async {
+              if (!checkOut.isAfter(checkIn)) {
+                _showMessage('Ngày trả phòng phải sau ngày nhận phòng.');
+                return;
+              }
+
+              if (roomQuantity > selectedRoom.availableQty) {
+                _showMessage('Số phòng đặt vượt quá số phòng còn trống.');
+                return;
+              }
+
+              setSheetState(() => isSubmitting = true);
+              final tripProvider = context.read<TripProvider>();
+              final createdTrip = await tripProvider.createHotelBooking(
+                CreateHotelBookingRequest(
+                  userId: 1,
+                  hotelId: detail.id,
+                  roomId: selectedRoom.id,
+                  destinationId: detail.destinationId,
+                  destinationName: detail.destinationName,
+                  title: 'Đặt phòng - ${detail.name}',
+                  checkInDate: checkIn,
+                  checkOutDate: checkOut,
+                  quantity: roomQuantity,
+                ),
+              );
+
+              if (createdTrip == null) {
+                setSheetState(() => isSubmitting = false);
+                _showMessage(
+                  tripProvider.error ?? 'Không thể tạo đơn đặt phòng.',
+                );
+                return;
+              }
+
+              if (!mounted || !sheetContext.mounted) {
+                return;
+              }
+
+              setSheetState(() => isSubmitting = false);
+              Navigator.of(sheetContext).pop();
+              await _openFakePaymentSheet(
+                tripId: createdTrip.tripId,
+                hotelName: detail.name,
+                roomType: selectedRoom.roomType,
+                amount: totalPrice,
+              );
+            }
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                16,
+                20,
+                20 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 72,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      detail.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textHeading,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _BookingDateTile(
+                            label: 'Nhận phòng',
+                            value: _formatDate(checkIn),
+                            onTap: () => pickDate(isCheckIn: true),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _BookingDateTile(
+                            label: 'Trả phòng',
+                            value: _formatDate(checkOut),
+                            onTap: () => pickDate(isCheckIn: false),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.borderDefault),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<int>(
+                          value: selectedRoom.id,
+                          isExpanded: true,
+                          borderRadius: BorderRadius.circular(18),
+                          items: availableRooms.map((room) {
+                            return DropdownMenuItem<int>(
+                              value: room.id,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    room.roomType,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textHeading,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${room.capacity} người • ${room.availableQty} phòng • ${AppCurrencyFormatter.format(room.pricePerNight)}/đêm',
+                                    style: const TextStyle(
+                                      color: AppColors.textMuted,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: isSubmitting
+                              ? null
+                              : (roomId) {
+                                  if (roomId == null) {
+                                    return;
+                                  }
+
+                                  final room = availableRooms.firstWhere(
+                                    (item) => item.id == roomId,
+                                  );
+                                  setSheetState(() {
+                                    selectedRoom = room;
+                                    if (roomQuantity > selectedRoom.availableQty) {
+                                      roomQuantity = selectedRoom.availableQty;
+                                    }
+                                  });
+                                },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.borderDefault),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Số phòng',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textHeading,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: roomQuantity <= 1
+                                ? null
+                                : () => setSheetState(() => roomQuantity--),
+                            icon: const Icon(Icons.remove_rounded),
+                          ),
+                          Text(
+                            '$roomQuantity',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: roomQuantity >= selectedRoom.availableQty
+                                ? null
+                                : () => setSheetState(() => roomQuantity++),
+                            icon: const Icon(Icons.add_rounded),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      '$nights đêm • ${selectedRoom.capacity} người/phòng • Còn ${selectedRoom.availableQty} phòng',
+                      style: const TextStyle(color: AppColors.textMuted),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Tổng tiền',
+                            style: TextStyle(color: AppColors.textMuted),
+                          ),
+                        ),
+                        Text(
+                          AppCurrencyFormatter.format(totalPrice),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: isSubmitting ? null : submitBooking,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.black87,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        child: isSubmitting
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.black87,
+                                ),
+                              )
+                            : const Text(
+                                'Xác nhận đặt phòng',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _openFakePaymentSheet({
+    required int tripId,
+    required String hotelName,
+    required String roomType,
+    required double amount,
+  }) async {
+    var paymentMethod = 'Momo';
+    var isSubmitting = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> submitPayment() async {
+              setSheetState(() => isSubmitting = true);
+
+              final tripProvider = context.read<TripProvider>();
+              final paidTrip = await tripProvider.completeFakePayment(
+                tripId,
+                CreateFakePaymentRequest(paymentMethod: paymentMethod),
+              );
+
+              if (!mounted || !sheetContext.mounted) {
+                return;
+              }
+
+              setSheetState(() => isSubmitting = false);
+
+              if (paidTrip == null) {
+                _showMessage(
+                  tripProvider.error ?? 'Thanh toán thử nghiệm thất bại.',
+                );
+                return;
+              }
+
+              Navigator.of(sheetContext).pop();
+              _showMessage('Thanh toán thành công. Đơn đặt phòng đã được ghi nhận.');
+            }
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                16,
+                20,
+                20 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 72,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Thanh toán thử nghiệm',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textHeading,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$hotelName • $roomType',
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: AppColors.borderDefault),
+                      ),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Số tiền cần thanh toán',
+                              style: TextStyle(color: AppColors.textMuted),
+                            ),
+                          ),
+                          Text(
+                            AppCurrencyFormatter.format(amount),
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Phương thức thanh toán',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textHeading,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        _PaymentMethodChip(
+                          label: 'Momo',
+                          selected: paymentMethod == 'Momo',
+                          onTap: () => setSheetState(() => paymentMethod = 'Momo'),
+                        ),
+                        _PaymentMethodChip(
+                          label: 'VNPay',
+                          selected: paymentMethod == 'Vnpay',
+                          onTap: () => setSheetState(() => paymentMethod = 'Vnpay'),
+                        ),
+                        _PaymentMethodChip(
+                          label: 'Thẻ',
+                          selected: paymentMethod == 'Card',
+                          onTap: () => setSheetState(() => paymentMethod = 'Card'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: isSubmitting ? null : submitPayment,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.black87,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        child: isSubmitting
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.black87,
+                                ),
+                              )
+                            : const Text(
+                                'Thanh toán ngay',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  int _nightsBetween(DateTime checkIn, DateTime checkOut) {
+    return checkOut.difference(checkIn).inDays.clamp(1, 365);
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 }
@@ -501,6 +1044,90 @@ class _ReviewCard extends StatelessWidget {
             style: const TextStyle(color: AppColors.textBody, height: 1.55),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _BookingDateTile extends StatelessWidget {
+  const _BookingDateTile({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.borderDefault),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: const TextStyle(
+                color: AppColors.textHeading,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PaymentMethodChip extends StatelessWidget {
+  const _PaymentMethodChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFE9FFF0) : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.borderDefault,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? const Color(0xFF166534) : AppColors.textHeading,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }

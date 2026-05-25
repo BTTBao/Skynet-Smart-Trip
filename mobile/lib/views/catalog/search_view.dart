@@ -81,6 +81,57 @@ class _SearchViewState extends State<SearchView> {
     );
   }
 
+  bool get _isRecentSelected =>
+      _mode == SearchMode.hotel
+          ? _hotelSort == 'popular'
+          : _busSort == 'earliest';
+
+  void _toggleRecent() {
+    setState(() {
+      if (_mode == SearchMode.hotel) {
+        _hotelSort = 'popular';
+      } else {
+        _busSort = 'earliest';
+      }
+    });
+    _mode == SearchMode.hotel ? _searchHotels() : _searchBuses();
+  }
+
+  void _togglePriceAsc() {
+    setState(() {
+      if (_mode == SearchMode.hotel) {
+        _hotelSort = _hotelSort == 'priceasc' ? 'popular' : 'priceasc';
+      } else {
+        _busSort = _busSort == 'priceasc' ? 'earliest' : 'priceasc';
+      }
+    });
+    _mode == SearchMode.hotel ? _searchHotels() : _searchBuses();
+  }
+
+  void _toggleHotelRatingDesc() {
+    setState(() {
+      _hotelSort = _hotelSort == 'ratingdesc' ? 'popular' : 'ratingdesc';
+    });
+    _searchHotels();
+  }
+
+  void _toggleQuickStarFilter() {
+    setState(() {
+      final hasQuickFilter =
+          _selectedStars.contains(4) && _selectedStars.contains(5);
+      if (hasQuickFilter) {
+        _selectedStars
+          ..remove(4)
+          ..remove(5);
+      } else {
+        _selectedStars
+          ..add(4)
+          ..add(5);
+      }
+    });
+    _searchHotels();
+  }
+
   Future<void> _openFilters() async {
     var draftHotelSort = _hotelSort;
     var draftBusSort = _busSort;
@@ -396,6 +447,19 @@ class _SearchViewState extends State<SearchView> {
                     children: [
                       Row(
                         children: [
+                          IconButton(
+                            onPressed: () => Navigator.of(context).maybePop(),
+                            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: AppColors.textHeading,
+                              minimumSize: const Size(56, 56),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Container(
                               decoration: BoxDecoration(
@@ -466,39 +530,28 @@ class _SearchViewState extends State<SearchView> {
                           children: [
                             _QuickChip(
                               label: 'Gần đây',
-                              selected: true,
-                              onTap: () {},
+                              selected: _isRecentSelected,
+                              onTap: _toggleRecent,
                             ),
                             _QuickChip(
                               label: 'Giá rẻ nhất',
                               selected:
                                   (isHotel ? _hotelSort : _busSort) ==
                                   'priceasc',
-                              onTap: () {
-                                setState(() {
-                                  if (isHotel) {
-                                    _hotelSort = 'priceasc';
-                                  } else {
-                                    _busSort = 'priceasc';
-                                  }
-                                });
-                                isHotel ? _searchHotels() : _searchBuses();
-                              },
+                              onTap: _togglePriceAsc,
                             ),
                             if (isHotel)
                               _QuickChip(
                                 label: '4 sao+',
-                                selected: _selectedStars.contains(4),
-                                onTap: _openFilters,
+                                selected: _selectedStars.contains(4) &&
+                                    _selectedStars.contains(5),
+                                onTap: _toggleQuickStarFilter,
                               ),
                             if (isHotel)
                               _QuickChip(
                                 label: 'Đánh giá cao',
                                 selected: _hotelSort == 'ratingdesc',
-                                onTap: () {
-                                  setState(() => _hotelSort = 'ratingdesc');
-                                  _searchHotels();
-                                },
+                                onTap: _toggleHotelRatingDesc,
                               ),
                           ],
                         ),

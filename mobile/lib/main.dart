@@ -1,3 +1,5 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -34,6 +36,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Skynet Smart Trip',
       debugShowCheckedModeBanner: false,
+      scrollBehavior: const _AppScrollBehavior(),
       locale: appSettings.locale,
       supportedLocales: const [Locale('vi'), Locale('en')],
       localizationsDelegates: const [
@@ -73,4 +76,17 @@ class MyApp extends StatelessWidget {
       home: const SplashScreen(),
     );
   }
+}
+
+class _AppScrollBehavior extends MaterialScrollBehavior {
+  const _AppScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.mouse,
+    PointerDeviceKind.trackpad,
+    PointerDeviceKind.stylus,
+    PointerDeviceKind.unknown,
+  };
 }
