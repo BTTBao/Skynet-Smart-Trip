@@ -6,55 +6,76 @@ namespace SmartTrip.API.Data;
 
 public static class DevelopmentDataSeeder
 {
+    private const string DevPassword = "12345678";
+
     public static async Task SeedAsync(ApplicationDbContext context)
     {
-        if (!await context.Users.AnyAsync())
+        var adminUser = await context.Users.FirstOrDefaultAsync(user => user.Email == "admin@smarttrip.vn");
+        if (adminUser is null)
         {
-            var demoUser = new User
-            {
-                Email = "test@example.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
-                FullName = "Nguyen Van Test",
-                Phone = "0123456789",
-                AvatarUrl = "https://i.pravatar.cc/150?u=smarttrip-demo",
-                AuthProvider = AuthProvider.Local,
-                Role = UserRole.User,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            var adminUser = new User
+            adminUser = new User
             {
                 Email = "admin@smarttrip.vn",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
-                FullName = "SmartTrip Admin",
-                Phone = "0987654321",
-                AvatarUrl = "https://i.pravatar.cc/150?u=smarttrip-admin",
-                AuthProvider = AuthProvider.Local,
-                Role = UserRole.Admin,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
             };
-
-            context.Users.AddRange(demoUser, adminUser);
-            await context.SaveChangesAsync();
-
-            context.UserWallets.AddRange(
-                new UserWallet
-                {
-                    UserId = demoUser.Id,
-                    Balance = 1500000m,
-                    LoyaltyPoints = 620
-                },
-                new UserWallet
-                {
-                    UserId = adminUser.Id,
-                    Balance = 3000000m,
-                    LoyaltyPoints = 1200
-                });
-
-            await context.SaveChangesAsync();
+            context.Users.Add(adminUser);
         }
+
+        adminUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(DevPassword);
+        adminUser.FullName = "SmartTrip Admin";
+        adminUser.Phone = "0987654321";
+        adminUser.AvatarUrl = "https://i.pravatar.cc/150?u=smarttrip-admin";
+        adminUser.AuthProvider = AuthProvider.Local;
+        adminUser.Role = UserRole.Admin;
+        adminUser.IsActive = true;
+        adminUser.IsEmailVerified = true;
+        adminUser.CreatedAt ??= DateTime.UtcNow;
+
+        var demoUser = await context.Users.FirstOrDefaultAsync(user => user.Email == "test@example.com");
+        if (demoUser is null)
+        {
+            demoUser = new User
+            {
+                Email = "test@example.com",
+                CreatedAt = DateTime.UtcNow,
+            };
+            context.Users.Add(demoUser);
+        }
+
+        demoUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(DevPassword);
+        demoUser.FullName = "Nguyen Van Test";
+        demoUser.Phone = "0123456789";
+        demoUser.AvatarUrl = "https://i.pravatar.cc/150?u=smarttrip-demo";
+        demoUser.AuthProvider = AuthProvider.Local;
+        demoUser.Role = UserRole.User;
+        demoUser.IsActive = true;
+        demoUser.IsEmailVerified = true;
+        demoUser.CreatedAt ??= DateTime.UtcNow;
+
+        await context.SaveChangesAsync();
+
+        var demoWallet = await context.UserWallets.FirstOrDefaultAsync(wallet => wallet.UserId == demoUser.Id);
+        if (demoWallet is null)
+        {
+            context.UserWallets.Add(new UserWallet
+            {
+                UserId = demoUser.Id,
+                Balance = 1500000m,
+                LoyaltyPoints = 620
+            });
+        }
+
+        var adminWallet = await context.UserWallets.FirstOrDefaultAsync(wallet => wallet.UserId == adminUser.Id);
+        if (adminWallet is null)
+        {
+            context.UserWallets.Add(new UserWallet
+            {
+                UserId = adminUser.Id,
+                Balance = 3000000m,
+                LoyaltyPoints = 1200
+            });
+        }
+
+        await context.SaveChangesAsync();
 
         if (!await context.Destinations.AnyAsync())
         {

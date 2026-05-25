@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # Cập nhật NuGet package cho Backend (.NET)
+  - package-ecosystem: "nuget"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "backend"]
+
+  # Cập nhật NPM package cho Web Frontend
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "web"]
+
+  # Cập nhật Pub package cho Mobile (Flutter)
+  - package-ecosystem: "pub"
+    directory: "/mobile"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "mobile"]

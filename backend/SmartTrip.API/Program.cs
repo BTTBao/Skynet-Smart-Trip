@@ -1,18 +1,24 @@
-﻿﻿using SmartTrip.API.Middlewares;
+﻿using SmartTrip.API.Middlewares;
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Infrastructure.Services.User;
 using SmartTrip.Application.Interfaces.Chat;
-using SmartTrip.Application.Services.Chat;
 using SmartTrip.Application.Interfaces.Trip;
+using SmartTrip.Application.Interfaces.User;
+using SmartTrip.Application.Services.Chat;
 using SmartTrip.Application.Services.Trip;
 using SmartTrip.Application.Services;
 using SmartTrip.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using SmartTrip.API.Data;
 var builder = WebApplication.CreateBuilder(args);
 LoadEnvFile(builder.Environment.ContentRootPath);
 
 // Yêu cầu Configuration đọc thêm từ Environment Variables
 builder.Configuration.AddEnvironmentVariables();
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+
 // Controllers
 builder.Services.AddControllers();
 builder.Services.AddScoped<IUserService, UserService>(); // đưa vào ServiceExtensions cho gọn
@@ -30,8 +36,16 @@ builder.Services.AddCors(options =>
                    .AllowAnyHeader();   
         });
 });
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("SmartTrip")));
+var connectionString = builder.Configuration.GetConnectionString("SmartTrip");
+var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+if (!string.IsNullOrEmpty(dbPassword))
+{
+    connectionString = connectionString?.Replace("Password= ;", $"Password={dbPassword};");
+}
+if (!string.IsNullOrWhiteSpace(connectionString))
+{
+    builder.Configuration["ConnectionStrings:SmartTrip"] = connectionString;
+}
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 
@@ -55,6 +69,15 @@ builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    if (app.Environment.IsDevelopment())
+    {
+        await DevelopmentDataSeeder.SeedAsync(dbContext);
+    }
+}
 
 // Middleware
 if (app.Environment.IsDevelopment())
