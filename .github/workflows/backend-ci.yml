@@ -1,0 +1,46 @@
+name: "🔧 Backend CI"
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    branches: [dev, main, "feature/*", "defect/*"]
+    paths:
+      - "backend/**"
+
+env:
+  DOTNET_VERSION: "8.0.x"
+  SOLUTION_PATH: "backend"
+
+jobs:
+  build-and-test:
+    name: Build & Test (.NET 8)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 📦 Restore Dependencies
+        run: dotnet restore SmartTrip.API/SmartTrip.API.csproj
+        working-directory: ${{ env.SOLUTION_PATH }}
+
+      - name: 🔨 Build Backend
+        run: dotnet build SmartTrip.API/SmartTrip.API.csproj --no-restore --configuration Release
+        working-directory: ${{ env.SOLUTION_PATH }}
+
+      # (Tùy chọn tương lai) Chạy database docker và test
+      # - name: 🐳 Start Test Database
+      #   run: docker-compose -f docker-compose.yml up -d sqlserver
+      #
+      # - name: 🧪 Run Tests
+      #   run: dotnet test --no-build --configuration Release --verbosity normal
+      #   working-directory: ${{ env.SOLUTION_PATH }}
