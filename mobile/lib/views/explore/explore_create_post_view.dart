@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+import '../../models/explore_post.dart';
+import '../../providers/explore_provider.dart';
 import '../../utils/app_text.dart';
 import 'explore_ui_constants.dart';
 
@@ -19,6 +22,8 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
   bool _isItalic = false;
   bool _isH1 = false;
   bool _isQuote = false;
+  int _selectedCostLevel = 2;
+  bool _isPosting = false;
 
   // Simulated selected photos
   final List<String> _selectedPhotos = [
@@ -28,7 +33,9 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
 
   bool get _canPost =>
       _titleController.text.trim().isNotEmpty &&
-      _contentController.text.trim().isNotEmpty;
+      _contentController.text.trim().isNotEmpty &&
+      _locationController.text.trim().isNotEmpty &&
+      !_isPosting;
 
   @override
   void dispose() {
@@ -38,17 +45,34 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
     super.dispose();
   }
 
-  void _postPublish() {
+  Future<void> _postPublish() async {
     if (!_canPost) return;
     HapticFeedback.lightImpact();
+
+    setState(() => _isPosting = true);
+    final success = await context.read<ExploreProvider>().createPost(
+          title: _titleController.text.trim(),
+          content: _contentController.text.trim(),
+          location: _locationController.text.trim(),
+          costLevel: _selectedCostLevel,
+          imageUrls: _selectedPhotos,
+        );
+    if (!mounted) return;
+    setState(() => _isPosting = false);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(context.tr(vi: 'Bai viet da duoc dang!', en: 'Post published!')),
+        content: Text(context.tr(
+          vi: success ? 'Bai viet da duoc dang!' : 'Khong dang duoc bai viet',
+          en: success ? 'Post published!' : 'Could not publish post',
+        )),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
-    Navigator.of(context).maybePop();
+    if (success) {
+      Navigator.of(context).maybePop();
+    }
   }
 
   void _addPhoto() {
@@ -162,7 +186,17 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
                   const SizedBox(height: 20),
                   const Divider(color: ExploreColors.border),
                   // Location picker
-                  _LocationPicker(controller: _locationController),
+                  _LocationPicker(
+                    controller: _locationController,
+                    onChanged: () => setState(() {}),
+                  ),
+                  const SizedBox(height: 16),
+                  _CostLevelPicker(
+                    selectedLevel: _selectedCostLevel,
+                    onChanged: (value) => setState(() {
+                      _selectedCostLevel = value;
+                    }),
+                  ),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -227,6 +261,121 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
                       ),
                       elevation: 0,
                     ),
+                    child: _isPosting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            context.tr(vi: 'Dang', en: 'Post'),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCancelDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(context.tr(vi: 'Huy bai viet?', en: 'Discard post?')),
+        content: Text(
+          context.tr(
+            vi: 'Noi dung chua duoc luu se bi mat.',
+            en: 'Unsaved content will be lost.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(context.tr(vi: 'Tiep tuc viet', en: 'Keep editing')),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).maybePop();
+            },
+            child: Text(
+              context.tr(vi: 'Huy bai viet', en: 'Discard'),
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CostLevelPicker extends StatelessWidget {
+  const _CostLevelPicker({
+    required this.selectedLevel,
+    required this.onChanged,
+  });
+
+  final int selectedLevel;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.tr(vi: 'Muc chi phi', en: 'Cost level'),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: ExploreColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: ExplorePriceFilter.values.map((filter) {
+              final isSelected = selectedLevel == filter.level;
+              return ChoiceChip(
+                label: Text('${filter.symbol} ${filter.labelVi}'),
+                selected: isSelected,
+                onSelected: (_) => onChanged(filter.level),
+                selectedColor: ExploreColors.chipActiveBg,
+                labelStyle: TextStyle(
+                  color: isSelected
+                      ? ExploreColors.primary
+                      : ExploreColors.textSecondary,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 12,
+                ),
+                side: BorderSide(
+                  color: isSelected ? ExploreColors.primary : ExploreColors.border,
+                ),
+                backgroundColor: const Color(0xFFF9FAFB),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/*
                     child: Text(
                       context.tr(vi: 'Dang', en: 'Post'),
                       style: const TextStyle(
@@ -278,6 +427,8 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
 }
 
 // ─── Rich Text Toolbar ────────────────────────────────────────────────────────
+
+*/
 
 class _RichTextToolbar extends StatelessWidget {
   const _RichTextToolbar({
@@ -534,9 +685,13 @@ class _PhotoGrid extends StatelessWidget {
 // ─── Location Picker ──────────────────────────────────────────────────────────
 
 class _LocationPicker extends StatelessWidget {
-  const _LocationPicker({required this.controller});
+  const _LocationPicker({
+    required this.controller,
+    required this.onChanged,
+  });
 
   final TextEditingController controller;
+  final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -562,6 +717,7 @@ class _LocationPicker extends StatelessWidget {
             ),
             child: TextField(
               controller: controller,
+              onChanged: (_) => onChanged(),
               style: const TextStyle(
                 fontSize: 14,
                 color: ExploreColors.textPrimary,

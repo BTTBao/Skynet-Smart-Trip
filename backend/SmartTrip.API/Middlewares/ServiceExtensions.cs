@@ -8,10 +8,12 @@ using SmartTrip.Application.Interfaces.Admin;
 using SmartTrip.Application.Interfaces.Auth;
 using SmartTrip.Application.Interfaces.Chat;
 using SmartTrip.Application.Interfaces.Email;
+using SmartTrip.Application.Interfaces.Explore;
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Application.Services.Auth;
 using SmartTrip.Application.Services.Chat;
 using SmartTrip.Application.Services.Email;
+using SmartTrip.Application.Services.Explore;
 using SmartTrip.Infrastructure.Repositories;
 using SmartTrip.Infrastructure.Services.Admin;
 using SmartTrip.Infrastructure.Services.AI;
@@ -51,6 +53,7 @@ public static class ServiceExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddSingleton<ITokenService, TokenService>();
         services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IExploreService, ExploreService>();
         services.AddHttpClient<IGrokAiService, GrokAiService>();
         services.AddHttpContextAccessor();
 

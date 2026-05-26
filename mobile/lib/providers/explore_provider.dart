@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../models/explore_post.dart';
+import '../services/explore_service.dart';
 
-/// Trạng thái bộ lọc – không thay đổi (immutable).
 class ExploreFilterState {
   final ExploreFilter sortBy;
-  final Set<String> selectedCities;  // slug thành phố; rỗng = tất cả
-  final double? minRating;           // null = tất cả; 3.0 | 3.5 | 4.0 | 4.5
-  final Set<ExplorePriceFilter> prices; // rỗng = tất cả mức giá
+  final Set<String> selectedCities;
+  final double? minRating;
+  final Set<ExplorePriceFilter> prices;
 
   const ExploreFilterState({
     this.sortBy = ExploreFilter.newest,
@@ -31,7 +31,7 @@ class ExploreFilterState {
   }
 
   int get activeFilterCount {
-    int count = 0;
+    var count = 0;
     if (sortBy != ExploreFilter.newest) count++;
     if (selectedCities.isNotEmpty) count++;
     if (minRating != null) count++;
@@ -43,24 +43,23 @@ class ExploreFilterState {
 }
 
 class ExploreProvider with ChangeNotifier {
+  final ExploreService _service = ExploreService();
+
   List<ExplorePost> _allPosts = [];
   List<ExplorePost> _filteredPosts = [];
   bool _isLoading = false;
   String? _error;
   String _searchQuery = '';
   ExploreFilterState _filterState = const ExploreFilterState();
+  int _page = 1;
 
-  // ── Getters ───────────────────────────────────────────────────────────────
   List<ExplorePost> get posts => List.unmodifiable(_filteredPosts);
   bool get isLoading => _isLoading;
   String? get error => _error;
   String get searchQuery => _searchQuery;
   ExploreFilterState get filterState => _filterState;
-
-  /// Getter dùng bởi quick chip bar (chỉ sort).
   Set<ExploreFilter> get activeFilters => {_filterState.sortBy};
 
-  // ── Fetch ─────────────────────────────────────────────────────────────────
   Future<void> fetchPosts({bool forceRefresh = false}) async {
     if (_allPosts.isNotEmpty && !forceRefresh) return;
 
@@ -69,8 +68,17 @@ class ExploreProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await Future.delayed(const Duration(milliseconds: 800));
-      _allPosts = _generateMockPosts();
+      final result = await _service.getPosts(
+        keyword: _searchQuery,
+        sortBy: _sortValue(_filterState.sortBy),
+        cities: _filterState.selectedCities,
+        minRating: _filterState.minRating,
+        costLevels: _filterState.prices.map((price) => price.level).toSet(),
+        page: _page,
+        pageSize: 30,
+      );
+
+      _allPosts = result.items;
       _applyFilters();
     } catch (e) {
       _error = e.toString();
@@ -80,106 +88,194 @@ class ExploreProvider with ChangeNotifier {
     }
   }
 
-  // ── Search ────────────────────────────────────────────────────────────────
   void setSearchQuery(String query) {
     _searchQuery = query;
-    _applyFilters();
+    _page = 1;
+    fetchPosts(forceRefresh: true);
     notifyListeners();
   }
 
-  // ── Toggle sort từ quick chip bar ─────────────────────────────────────────
   void toggleFilter(ExploreFilter filter) {
-    final sortFilters = {
+    const sortFilters = {
       ExploreFilter.newest,
       ExploreFilter.mostViewed,
       ExploreFilter.topRated,
     };
-    if (sortFilters.contains(filter)) {
-      _filterState = _filterState.copyWith(sortBy: filter);
-      _applyFilters();
-      notifyListeners();
-    }
+
+    if (!sortFilters.contains(filter)) return;
+
+    _filterState = _filterState.copyWith(sortBy: filter);
+    _page = 1;
+    fetchPosts(forceRefresh: true);
+    notifyListeners();
   }
 
-  // ── Áp dụng toàn bộ state từ filter sheet ────────────────────────────────
   void applyFilterState(ExploreFilterState state) {
     _filterState = state;
-    _applyFilters();
+    _page = 1;
+    fetchPosts(forceRefresh: true);
     notifyListeners();
   }
 
   void resetFilters() {
     _filterState = const ExploreFilterState();
-    _applyFilters();
+    _searchQuery = '';
+    _page = 1;
+    fetchPosts(forceRefresh: true);
     notifyListeners();
   }
 
-  // ── Interactions ──────────────────────────────────────────────────────────
-  void toggleLike(int postId) {
-    final index = _allPosts.indexWhere((p) => p.id == postId);
+  Future<void> toggleLike(int postId) async {
+    final index = _allPosts.indexWhere((post) => post.id == postId);
     if (index == -1) return;
-    final post = _allPosts[index];
-    _allPosts[index] = post.copyWith(
-      isLiked: !post.isLiked,
-      likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-    );
-    _applyFilters();
-    notifyListeners();
+
+    try {
+      final result = await _service.toggleLike(postId);
+      _allPosts[index] = _allPosts[index].copyWith(
+        isLiked: result.isLiked,
+        likes: result.likeCount,
+      );
+      _applyFilters();
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
   }
 
-  void toggleBookmark(int postId) {
-    final index = _allPosts.indexWhere((p) => p.id == postId);
+  Future<void> toggleBookmark(int postId) async {
+    final index = _allPosts.indexWhere((post) => post.id == postId);
     if (index == -1) return;
-    final post = _allPosts[index];
-    _allPosts[index] = post.copyWith(isBookmarked: !post.isBookmarked);
-    _applyFilters();
+
+    try {
+      final result = await _service.toggleSave(postId);
+      _allPosts[index] = _allPosts[index].copyWith(
+        isBookmarked: result.isSaved,
+      );
+      _applyFilters();
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchPostDetail(int postId) async {
+    try {
+      final post = await _service.getPostDetail(postId);
+      final index = _allPosts.indexWhere((item) => item.id == postId);
+      if (index == -1) {
+        _allPosts.add(post);
+      } else {
+        _allPosts[index] = post;
+      }
+      _applyFilters();
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  Future<bool> createPost({
+    required String title,
+    required String content,
+    required String location,
+    required int costLevel,
+    required List<String> imageUrls,
+  }) async {
+    _isLoading = true;
+    _error = null;
     notifyListeners();
+
+    try {
+      final city = _resolveCitySlug(location);
+      final created = await _service.createPost(
+        title: title,
+        content: content,
+        location: location,
+        costLevel: costLevel,
+        imageUrls: imageUrls,
+        city: city,
+        region: city == null
+            ? null
+            : kPopularCities.firstWhere((item) => item.slug == city).region,
+      );
+
+      _allPosts = [created, ..._allPosts];
+      _applyFilters();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> addComment(int postId, String content) async {
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) return false;
+
+    try {
+      final comment = await _service.addComment(postId, trimmed);
+      final index = _allPosts.indexWhere((post) => post.id == postId);
+      if (index != -1) {
+        final post = _allPosts[index];
+        _allPosts[index] = post.copyWith(
+          comments: [comment, ...post.comments],
+        );
+        _applyFilters();
+        notifyListeners();
+      }
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
   }
 
   ExplorePost? getPostById(int id) {
     try {
-      return _allPosts.firstWhere((p) => p.id == id);
+      return _allPosts.firstWhere((post) => post.id == id);
     } catch (_) {
       return null;
     }
   }
 
-  // ── Logic lọc ─────────────────────────────────────────────────────────────
   void _applyFilters() {
     var result = List<ExplorePost>.from(_allPosts);
 
-    // 1. Tìm kiếm
     if (_searchQuery.isNotEmpty) {
-      final q = _searchQuery.toLowerCase();
-      result = result.where((p) {
-        return p.title.toLowerCase().contains(q) ||
-            p.location.toLowerCase().contains(q) ||
-            p.city.toLowerCase().contains(q) ||
-            p.excerpt.toLowerCase().contains(q) ||
-            p.tags.any((t) => t.toLowerCase().contains(q));
+      final query = _searchQuery.toLowerCase();
+      result = result.where((post) {
+        return post.title.toLowerCase().contains(query) ||
+            post.location.toLowerCase().contains(query) ||
+            post.city.toLowerCase().contains(query) ||
+            post.excerpt.toLowerCase().contains(query) ||
+            post.tags.any((tag) => tag.toLowerCase().contains(query));
       }).toList();
     }
 
-    // 2. Tỉnh/thành phố
     if (_filterState.selectedCities.isNotEmpty) {
       result = result
-          .where((p) => _filterState.selectedCities.contains(p.city))
+          .where((post) => _filterState.selectedCities.contains(post.city))
           .toList();
     }
 
-    // 3. Đánh giá tối thiểu
     if (_filterState.minRating != null) {
-      result =
-          result.where((p) => p.rating >= _filterState.minRating!).toList();
+      result = result
+          .where((post) => post.rating >= _filterState.minRating!)
+          .toList();
     }
 
-    // 4. Mức giá
     if (_filterState.prices.isNotEmpty) {
-      final levels = _filterState.prices.map((f) => f.level).toSet();
-      result = result.where((p) => levels.contains(p.priceLevel)).toList();
+      final levels = _filterState.prices.map((filter) => filter.level).toSet();
+      result = result.where((post) => levels.contains(post.priceLevel)).toList();
     }
 
-    // 5. Sắp xếp
     switch (_filterState.sortBy) {
       case ExploreFilter.mostViewed:
         result.sort((a, b) => b.views.compareTo(a.views));
@@ -194,256 +290,103 @@ class ExploreProvider with ChangeNotifier {
     _filteredPosts = result;
   }
 
-  // ── Dữ liệu mẫu ──────────────────────────────────────────────────────────
-  List<ExplorePost> _generateMockPosts() {
-    final now = DateTime.now();
-    return [
-      ExplorePost(
-        id: 1,
-        title: 'Khám phá Vịnh Hạ Long – Kỳ quan thiên nhiên thế giới',
-        excerpt:
-            'Vịnh Hạ Long với hàng nghìn hòn đảo đá vôi – một trong những di sản thiên nhiên đẹp nhất thế giới mà bạn nhất định phải ghé.',
-        content:
-            'Hạ Long Bay là một trong những di sản thiên nhiên thế giới được UNESCO công nhận. Với hơn 1.600 hòn đảo đá vôi như những trường thành tự nhiên, Hạ Long mang đến những bức tranh thiên nhiên hùng vĩ.\n\n[image:https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800]\n\nDu khách đến Hạ Long thường trải nghiệm du thuyền qua đêm, tham quan các động thạch như Đầu Gỗ, Sửng Sốt.',
-        thumbnailUrl:
-            'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800',
-        imageUrls: [
-          'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800',
-          'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800',
-        ],
-        location: 'Quảng Ninh',
-        city: 'ha-long',
-        region: 'north',
-        authorName: 'Nguyễn Anh Dũ',
-        authorAvatar: 'https://i.pravatar.cc/150?img=1',
-        publishedAt: now.subtract(const Duration(days: 1)),
-        likes: 234,
-        views: 1820,
-        rating: 4.7,
-        priceLevel: 3,
-        isLiked: false,
-        isBookmarked: false,
-        comments: _buildMockComments(now),
-        tags: ['biển', 'đảo', 'du-lịch-biển', 'hạ-long'],
-      ),
-      ExplorePost(
-        id: 2,
-        title: 'Sa Pa – Thành phố trong sương huyền ảo giữa dãy Hoàng Liên Sơn',
-        excerpt:
-            'Với nhiệt độ mát mẻ quanh năm và những thung lũng lúa bậc thang tuyệt đẹp, Sa Pa là điểm đến lý tưởng cho người yêu thiên nhiên.',
-        content:
-            'Sa Pa là thị xã miền núi thuộc tỉnh Lào Cai ở độ cao khoảng 1.600m. Đây là nơi sinh sống của nhiều dân tộc thiểu số như H\'Mông, Dao, Tày...\n\n[image:https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800]\n\nKhông nên bỏ qua: Thung lũng Mường Hoa với ruộng bậc thang, đỉnh Fansipan cao 3.143m.',
-        thumbnailUrl:
-            'https://images.unsplash.com/photo-1627476435344-22c3ae9a02c4?w=800',
-        imageUrls: [
-          'https://images.unsplash.com/photo-1627476435344-22c3ae9a02c4?w=800',
-        ],
-        location: 'Lào Cai',
-        city: 'sapa',
-        region: 'north',
-        authorName: 'Trần Mai Linh',
-        authorAvatar: 'https://i.pravatar.cc/150?img=5',
-        publishedAt: now.subtract(const Duration(days: 3)),
-        likes: 412,
-        views: 3240,
-        rating: 4.5,
-        priceLevel: 2,
-        isLiked: true,
-        isBookmarked: false,
-        comments: _buildMockComments(now),
-        tags: ['núi', 'miền-bắc', 'sapa', 'bản-làng'],
-      ),
-      ExplorePost(
-        id: 3,
-        title: 'Hội An – Phố cổ nghìn tuổi lung linh ánh đèn',
-        excerpt:
-            'Hội An về đêm lung linh với những chiếc đèn lồng, bất ngờ với sự hòa trộn của kiến trúc Nhật-Trung-Việt độc đáo.',
-        content:
-            'Phố cổ Hội An là một trong những di sản văn hóa thế giới được bảo tồn tốt nhất châu Á.\n\n[image:https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800]\n\nĐặc sản: Cao lầu, cơm gà Hội An, bánh mì, mì Quảng.',
-        thumbnailUrl:
-            'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
-        imageUrls: [
-          'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
-        ],
-        location: 'Quảng Nam',
-        city: 'hoi-an',
-        region: 'central',
-        authorName: 'Lê Bảo Trân',
-        authorAvatar: 'https://i.pravatar.cc/150?img=9',
-        publishedAt: now.subtract(const Duration(days: 5)),
-        likes: 681,
-        views: 5120,
-        rating: 4.8,
-        priceLevel: 2,
-        isLiked: false,
-        isBookmarked: true,
-        comments: _buildMockComments(now),
-        tags: ['thành-phố', 'di-sản', 'miền-trung', 'hội-an'],
-      ),
-      ExplorePost(
-        id: 4,
-        title: 'Phú Quốc – Hòn đảo ngọc của Việt Nam',
-        excerpt:
-            'Bãi biển cát trắng mịn, nước biển xanh như pha lê và hoàng hôn rực rỡ – Phú Quốc là thiên đường nghỉ dưỡng lý tưởng.',
-        content:
-            'Phú Quốc là hòn đảo lớn nhất Việt Nam và là một trong những điểm du lịch biển nổi tiếng nhất Đông Nam Á.\n\n[image:https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800]\n\nẨm thực: Hải sản tươi sống, nước mắm Phú Quốc, hàm tiền cá rạ.',
-        thumbnailUrl:
-            'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800',
-        imageUrls: [
-          'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800',
-        ],
-        location: 'Kiên Giang',
-        city: 'phu-quoc',
-        region: 'south',
-        authorName: 'Phạm Thị Hoa',
-        authorAvatar: 'https://i.pravatar.cc/150?img=20',
-        publishedAt: now.subtract(const Duration(days: 7)),
-        likes: 893,
-        views: 7650,
-        rating: 4.6,
-        priceLevel: 3,
-        isLiked: false,
-        isBookmarked: false,
-        comments: _buildMockComments(now),
-        tags: ['biển', 'đảo', 'miền-nam', 'phú-quốc'],
-      ),
-      ExplorePost(
-        id: 5,
-        title: 'Đà Lạt – Thành phố ngàn hoa trong sương mù',
-        excerpt:
-            'Khí hậu mát mẻ, vườn hoa khắp nơi, những ngôi biệt thự Pháp cổ kính – Đà Lạt là "Tiểu Paris" của Việt Nam.',
-        content:
-            'Đà Lạt là thành phố tọa lạc trên cao nguyên Lâm Viên, ở độ cao 1.500m.\n\n[image:https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800]\n\nĐặc sản: Đậu hũ đất Đỏ, Bánh căn, Dâu tây tươi, Rượu vang Đà Lạt.',
-        thumbnailUrl:
-            'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800',
-        imageUrls: [
-          'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800',
-        ],
-        location: 'Lâm Đồng',
-        city: 'da-lat',
-        region: 'south',
-        authorName: 'Nguyễn Minh Khoa',
-        authorAvatar: 'https://i.pravatar.cc/150?img=33',
-        publishedAt: now.subtract(const Duration(days: 2)),
-        likes: 547,
-        views: 4320,
-        rating: 4.4,
-        priceLevel: 2,
-        isLiked: true,
-        isBookmarked: true,
-        comments: _buildMockComments(now),
-        tags: ['núi', 'thành-phố', 'miền-nam', 'đà-lạt'],
-      ),
-      ExplorePost(
-        id: 6,
-        title: 'Phong Nha – Kẻ Bàng: Hệ thống hang động vĩ đại nhất hành tinh',
-        excerpt:
-            'Hang động lớn nhất thế giới Sơn Đoòng và hệ thống hang động phong phú nhất hành tinh nằm ở Quảng Bình.',
-        content:
-            'Vườn quốc gia Phong Nha – Kẻ Bàng được UNESCO công nhận là di sản thiên nhiên 2003.\n\n[image:https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800]\n\nTour Sơn Đoòng chỉ có thể đặt trước 12-18 tháng, tối đa 1.000 người/năm, giá từ 3.000 USD.',
-        thumbnailUrl:
-            'https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=800',
-        imageUrls: [
-          'https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=800',
-        ],
-        location: 'Quảng Bình',
-        city: 'quang-binh',
-        region: 'central',
-        authorName: 'Võ Thị Lan',
-        authorAvatar: 'https://i.pravatar.cc/150?img=47',
-        publishedAt: now.subtract(const Duration(days: 10)),
-        likes: 1032,
-        views: 9870,
-        rating: 4.9,
-        priceLevel: 4,
-        isLiked: false,
-        isBookmarked: false,
-        comments: _buildMockComments(now),
-        tags: ['núi', 'di-sản', 'miền-trung', 'phong-nha'],
-      ),
-      ExplorePost(
-        id: 7,
-        title: 'Hà Nội – Thủ đô ngàn năm văn hiến đầy sức sống',
-        excerpt:
-            'Hà Nội với 36 phố phường cổ kính, hồ Hoàn Kiếm, chén trà trứng cà phê phố – trải nghiệm khó quên của người Bắc.',
-        content:
-            'Hà Nội là thủ đô của Việt Nam với lịch sử hơn 1.000 năm tuổi.\n\n[image:https://images.unsplash.com/photo-1547046464-a83a1bc15a02?w=800]\n\nKhông nên bỏ qua: Hồ Hoàn Kiếm, Văn Miếu, Ba Đình, Phố cổ 36 đường...\n\nẨm thực Hà Nội: Phở bò, Bún chả, Chả cá Lã Vọng, Bánh cuốn.',
-        thumbnailUrl:
-            'https://images.unsplash.com/photo-1547046464-a83a1bc15a02?w=800',
-        imageUrls: [
-          'https://images.unsplash.com/photo-1547046464-a83a1bc15a02?w=800',
-        ],
-        location: 'Hà Nội',
-        city: 'ha-noi',
-        region: 'north',
-        authorName: 'Bùi Thanh Hải',
-        authorAvatar: 'https://i.pravatar.cc/150?img=55',
-        publishedAt: now.subtract(const Duration(days: 4)),
-        likes: 765,
-        views: 6430,
-        rating: 4.3,
-        priceLevel: 1,
-        isLiked: false,
-        isBookmarked: false,
-        comments: _buildMockComments(now),
-        tags: ['thành-phố', 'di-sản', 'miền-bắc', 'hà-nội'],
-      ),
-      ExplorePost(
-        id: 8,
-        title: 'Đà Nẵng – Thành phố đáng sống nhất Việt Nam',
-        excerpt:
-            'Bãi biển Mỹ Khê, cầu Rồng phun lửa, núi Thần Tài, Bà Nà Hills – Đà Nẵng là toàn diện nhất cho mọi loại du khách.',
-        content:
-            'Đà Nẵng là trung tâm kinh tế của miền Trung và là một trong những thành phố phát triển nhanh nhất Việt Nam.\n\n[image:https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=800]\n\nĐiểm tham quan nổi bật: Cầu Rồng, Bà Nà Hills, bãi biển Mỹ Khê, núi Sơn Trà.',
-        thumbnailUrl:
-            'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=800',
-        imageUrls: [
-          'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=800',
-        ],
-        location: 'Đà Nẵng',
-        city: 'da-nang',
-        region: 'central',
-        authorName: 'Nguyễn Thị Ngọc',
-        authorAvatar: 'https://i.pravatar.cc/150?img=60',
-        publishedAt: now.subtract(const Duration(days: 6)),
-        likes: 598,
-        views: 5870,
-        rating: 4.6,
-        priceLevel: 2,
-        isLiked: false,
-        isBookmarked: false,
-        comments: _buildMockComments(now),
-        tags: ['biển', 'thành-phố', 'miền-trung', 'đà-nẵng'],
-      ),
-    ];
+  static String _sortValue(ExploreFilter filter) {
+    switch (filter) {
+      case ExploreFilter.mostViewed:
+        return 'mostViewed';
+      case ExploreFilter.topRated:
+        return 'topRated';
+      default:
+        return 'newest';
+    }
   }
 
-  static List<ExploreComment> _buildMockComments(DateTime now) {
-    return [
-      ExploreComment(
-        id: 1,
-        authorName: 'Minh Tú',
-        authorAvatar: 'https://i.pravatar.cc/150?img=12',
-        content: 'Bài viết rất hay và chi tiết! Mình sẽ lưu lại để đi thôi.',
-        createdAt: now.subtract(const Duration(days: 1)),
-        likes: 8,
-      ),
-      ExploreComment(
-        id: 2,
-        authorName: 'Hà Vy',
-        authorAvatar: 'https://i.pravatar.cc/150?img=30',
-        content: 'Đã đi rồi, thật sự đẹp như trong bài viết. Recommend cho tất cả mọi người!',
-        createdAt: now.subtract(const Duration(days: 2)),
-        likes: 15,
-      ),
-      ExploreComment(
-        id: 3,
-        authorName: 'Tuấn Anh',
-        authorAvatar: 'https://i.pravatar.cc/150?img=65',
-        content: 'Phần ẩm thực chi tiết hơn được không? Mình muốn biết giá cả thêm.',
-        createdAt: now.subtract(const Duration(days: 3)),
-        likes: 3,
-      ),
-    ];
+  static String? _resolveCitySlug(String location) {
+    final normalized = _normalize(location);
+    for (final city in kPopularCities) {
+      if (_normalize(city.name) == normalized || city.slug == normalized) {
+        return city.slug;
+      }
+    }
+
+    return null;
+  }
+
+  static String _normalize(String value) {
+    const replacements = {
+      'đ': 'd',
+      'à': 'a',
+      'á': 'a',
+      'ạ': 'a',
+      'ả': 'a',
+      'ã': 'a',
+      'ă': 'a',
+      'ằ': 'a',
+      'ắ': 'a',
+      'ặ': 'a',
+      'ẳ': 'a',
+      'ẵ': 'a',
+      'â': 'a',
+      'ầ': 'a',
+      'ấ': 'a',
+      'ậ': 'a',
+      'ẩ': 'a',
+      'ẫ': 'a',
+      'è': 'e',
+      'é': 'e',
+      'ẹ': 'e',
+      'ẻ': 'e',
+      'ẽ': 'e',
+      'ê': 'e',
+      'ề': 'e',
+      'ế': 'e',
+      'ệ': 'e',
+      'ể': 'e',
+      'ễ': 'e',
+      'ì': 'i',
+      'í': 'i',
+      'ị': 'i',
+      'ỉ': 'i',
+      'ĩ': 'i',
+      'ò': 'o',
+      'ó': 'o',
+      'ọ': 'o',
+      'ỏ': 'o',
+      'õ': 'o',
+      'ô': 'o',
+      'ồ': 'o',
+      'ố': 'o',
+      'ộ': 'o',
+      'ổ': 'o',
+      'ỗ': 'o',
+      'ơ': 'o',
+      'ờ': 'o',
+      'ớ': 'o',
+      'ợ': 'o',
+      'ở': 'o',
+      'ỡ': 'o',
+      'ù': 'u',
+      'ú': 'u',
+      'ụ': 'u',
+      'ủ': 'u',
+      'ũ': 'u',
+      'ư': 'u',
+      'ừ': 'u',
+      'ứ': 'u',
+      'ự': 'u',
+      'ử': 'u',
+      'ữ': 'u',
+      'ỳ': 'y',
+      'ý': 'y',
+      'ỵ': 'y',
+      'ỷ': 'y',
+      'ỹ': 'y',
+    };
+
+    var result = value.trim().toLowerCase().replaceAll(' ', '-');
+    replacements.forEach((source, target) {
+      result = result.replaceAll(source, target);
+    });
+    return result;
   }
 }

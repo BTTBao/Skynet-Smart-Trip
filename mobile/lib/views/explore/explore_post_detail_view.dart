@@ -38,6 +38,9 @@ class _ExplorePostDetailViewState extends State<ExplorePostDetailView>
       parent: _heartAnimController,
       curve: Curves.easeInOut,
     ));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ExploreProvider>().fetchPostDetail(widget.postId);
+    });
   }
 
   @override
@@ -96,8 +99,10 @@ class _ExplorePostDetailViewState extends State<ExplorePostDetailView>
               ),
               SliverToBoxAdapter(
                 child: _CommentsSection(
+                  postId: post.id,
                   comments: post.comments,
                   controller: _commentController,
+                  onSubmit: provider.addComment,
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
@@ -494,12 +499,16 @@ class _LocationWidget extends StatelessWidget {
 
 class _CommentsSection extends StatelessWidget {
   const _CommentsSection({
+    required this.postId,
     required this.comments,
     required this.controller,
+    required this.onSubmit,
   });
 
+  final int postId;
   final List<ExploreComment> comments;
   final TextEditingController controller;
+  final Future<bool> Function(int postId, String content) onSubmit;
 
   @override
   Widget build(BuildContext context) {
@@ -569,20 +578,28 @@ class _CommentsSection extends StatelessWidget {
                         icon: const Icon(Icons.send_rounded,
                             color: ExploreColors.primary, size: 18),
                         onPressed: () {
-                          if (controller.text.trim().isEmpty) return;
+                          final content = controller.text.trim();
+                          if (content.isEmpty) return;
                           controller.clear();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(context.tr(
-                                vi: 'Binh luan da duoc gui!',
-                                en: 'Comment posted!',
-                              )),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                          onSubmit(postId, content).then((success) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(context.tr(
+                                  vi: success
+                                      ? 'Binh luan da duoc gui!'
+                                      : 'Khong gui duoc binh luan',
+                                  en: success
+                                      ? 'Comment posted!'
+                                      : 'Could not post comment',
+                                )),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
-                            ),
-                          );
+                            );
+                          });
                         },
                       ),
                     ),

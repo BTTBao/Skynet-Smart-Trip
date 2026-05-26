@@ -8,6 +8,12 @@ public interface IApplicationDbContext
     DbSet<BusCompany> BusCompanies { get; set; }
     DbSet<BusSchedule> BusSchedules { get; set; }
     DbSet<Destination> Destinations { get; set; }
+    DbSet<ExplorePost> ExplorePosts { get; set; }
+    DbSet<ExplorePostImage> ExplorePostImages { get; set; }
+    DbSet<ExplorePostLike> ExplorePostLikes { get; set; }
+    DbSet<ExplorePostSave> ExplorePostSaves { get; set; }
+    DbSet<ExplorePostRating> ExplorePostRatings { get; set; }
+    DbSet<ExploreComment> ExploreComments { get; set; }
     DbSet<Gallery> Galleries { get; set; }
     DbSet<Hotel> Hotels { get; set; }
     DbSet<Invoice> Invoices { get; set; }

@@ -14,6 +14,12 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
     public virtual DbSet<BusCompany> BusCompanies { get; set; }
     public virtual DbSet<BusSchedule> BusSchedules { get; set; }
     public virtual DbSet<Destination> Destinations { get; set; }
+    public virtual DbSet<ExplorePost> ExplorePosts { get; set; }
+    public virtual DbSet<ExplorePostImage> ExplorePostImages { get; set; }
+    public virtual DbSet<ExplorePostLike> ExplorePostLikes { get; set; }
+    public virtual DbSet<ExplorePostSave> ExplorePostSaves { get; set; }
+    public virtual DbSet<ExplorePostRating> ExplorePostRatings { get; set; }
+    public virtual DbSet<ExploreComment> ExploreComments { get; set; }
     public virtual DbSet<Gallery> Galleries { get; set; }
     public virtual DbSet<Hotel> Hotels { get; set; }
     public virtual DbSet<Invoice> Invoices { get; set; }
@@ -72,6 +78,115 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.CoverImageUrl).HasMaxLength(255).IsUnicode(false);
             entity.Property(e => e.IsHot).HasDefaultValue(false);
             entity.Property(e => e.Name).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<ExplorePost>(entity =>
+        {
+            entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Excerpt).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.Content).IsRequired();
+            entity.Property(e => e.ThumbnailUrl).HasMaxLength(500).IsUnicode(false);
+            entity.Property(e => e.Location).HasMaxLength(120).IsRequired();
+            entity.Property(e => e.CitySlug).HasMaxLength(80).IsUnicode(false).IsRequired();
+            entity.Property(e => e.Province).HasMaxLength(120).IsRequired();
+            entity.Property(e => e.Region).HasMaxLength(20).IsUnicode(false).IsRequired();
+            entity.Property(e => e.CostLevel).HasDefaultValue(2);
+            entity.Property(e => e.AverageRating).HasDefaultValue(0m).HasColumnType("decimal(3, 2)");
+            entity.Property(e => e.RatingCount).HasDefaultValue(0);
+            entity.Property(e => e.ViewCount).HasDefaultValue(0);
+            entity.Property(e => e.Tags).HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => e.Province);
+            entity.HasIndex(e => e.Region);
+            entity.HasIndex(e => e.CitySlug);
+            entity.HasIndex(e => e.CostLevel);
+            entity.HasIndex(e => e.AverageRating);
+            entity.HasIndex(e => e.ViewCount);
+
+            entity.HasOne(e => e.Author)
+                .WithMany(u => u.ExplorePosts)
+                .HasForeignKey(e => e.AuthorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExplorePostImage>(entity =>
+        {
+            entity.Property(e => e.ImageUrl).HasMaxLength(500).IsUnicode(false).IsRequired();
+            entity.Property(e => e.SortOrder).HasDefaultValue(0);
+
+            entity.HasIndex(e => new { e.ExplorePostId, e.SortOrder });
+
+            entity.HasOne(e => e.ExplorePost)
+                .WithMany(p => p.Images)
+                .HasForeignKey(e => e.ExplorePostId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ExplorePostLike>(entity =>
+        {
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.HasIndex(e => new { e.UserId, e.ExplorePostId }).IsUnique();
+
+            entity.HasOne(e => e.ExplorePost)
+                .WithMany(p => p.Likes)
+                .HasForeignKey(e => e.ExplorePostId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ExplorePostLikes)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExplorePostSave>(entity =>
+        {
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.HasIndex(e => new { e.UserId, e.ExplorePostId }).IsUnique();
+
+            entity.HasOne(e => e.ExplorePost)
+                .WithMany(p => p.Saves)
+                .HasForeignKey(e => e.ExplorePostId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ExplorePostSaves)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExplorePostRating>(entity =>
+        {
+            entity.Property(e => e.Rating).HasColumnType("decimal(3, 2)");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+            entity.HasIndex(e => new { e.UserId, e.ExplorePostId }).IsUnique();
+
+            entity.HasOne(e => e.ExplorePost)
+                .WithMany(p => p.Ratings)
+                .HasForeignKey(e => e.ExplorePostId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ExplorePostRatings)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExploreComment>(entity =>
+        {
+            entity.Property(e => e.Content).HasMaxLength(1000).IsRequired();
+            entity.Property(e => e.LikeCount).HasDefaultValue(0);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.HasIndex(e => new { e.ExplorePostId, e.CreatedAt });
+
+            entity.HasOne(e => e.ExplorePost)
+                .WithMany(p => p.Comments)
+                .HasForeignKey(e => e.ExplorePostId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ExploreComments)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Gallery>(entity =>
