@@ -168,30 +168,137 @@ public static class DevelopmentDataSeeder
                     {
                         DestinationId = destinations[0].Id,
                         Name = "Pine Valley Hotel",
-                        Address = "12 Ho Xuan Huong, Da Lat",
+                        Address = "12 Hồ Xuân Hương, Phường 3, Đà Lạt",
                         StarRating = 4,
-                        Description = "Khach san am cung gan trung tam Da Lat.",
+                        Description = "Nằm ngay trung tâm Đà Lạt thơ mộng, Pine Valley Hotel mang đến không gian nghỉ dưỡng ấm cúng với kiến trúc châu Âu cổ điển. Mỗi phòng đều có ban công nhìn ra hồ Xuân Hương hoặc rừng thông bạt ngàn. Khách sạn có nhà hàng phục vụ ẩm thực Việt-Pháp, quầy bar rượu vang, và khu vực lửa trại lãng mạn mỗi tối.",
                         IsAvailable = true
                     },
                     new Hotel
                     {
                         DestinationId = destinations[1].Id,
                         Name = "Ocean Pearl Resort",
-                        Address = "88 Tran Hung Dao, Phu Quoc",
+                        Address = "88 Trần Hưng Đạo, Dương Đông, Phú Quốc",
                         StarRating = 5,
-                        Description = "Resort view bien phu hop nghi duong.",
+                        Description = "Resort 5 sao đẳng cấp quốc tế nằm ngay bờ biển trắng mịn Phú Quốc. Với hệ thống bể bơi vô cực nhìn ra biển, nhà hàng hải sản tươi sống, và các villa riêng biệt, Ocean Pearl mang đến trải nghiệm nghỉ dưỡng xa xỉ đích thực. Dịch vụ butler 24/7, spa cao cấp và các hoạt động lặn biển đẳng cấp.",
                         IsAvailable = true
                     },
                     new Hotel
                     {
                         DestinationId = destinations[2].Id,
                         Name = "Dragon Bridge Stay",
-                        Address = "45 Bach Dang, Da Nang",
+                        Address = "45 Bạch Đằng, Hải Châu, Đà Nẵng",
                         StarRating = 4,
-                        Description = "Khach san ven song gan cau Rong.",
+                        Description = "Khách sạn boutique sang trọng nằm ven sông Hàn, cách Cầu Rồng chỉ 200m. Từ tầng thượng có thể chiêm ngưỡng Cầu Rồng phun lửa mỗi cuối tuần. Gần bãi biển Mỹ Khê, phố cổ Hội An và khu ẩm thực Bạch Đằng. Nhà hàng tầng thượng view sông Hàn không thể bỏ lỡ.",
                         IsAvailable = true
                     });
 
+                await context.SaveChangesAsync();
+            }
+        }
+
+        if (!await context.Amenities.AnyAsync())
+        {
+            context.Amenities.AddRange(
+                new Amenity { Name = "Hồ bơi", IconUrl = "pool" },
+                new Amenity { Name = "WiFi miễn phí", IconUrl = "wifi" },
+                new Amenity { Name = "Điều hòa", IconUrl = "ac_unit" },
+                new Amenity { Name = "Bãi đỗ xe", IconUrl = "local_parking" },
+                new Amenity { Name = "Nhà hàng", IconUrl = "restaurant" },
+                new Amenity { Name = "Phòng gym", IconUrl = "fitness_center" },
+                new Amenity { Name = "Spa", IconUrl = "spa" },
+                new Amenity { Name = "Bar", IconUrl = "local_bar" },
+                new Amenity { Name = "Dịch vụ phòng 24/7", IconUrl = "room_service" },
+                new Amenity { Name = "Đón tiễn sân bay", IconUrl = "airport_shuttle" }
+            );
+            await context.SaveChangesAsync();
+        }
+
+        if (!await context.Rooms.AnyAsync())
+        {
+            var hotels = await context.Hotels.OrderBy(h => h.Id).ToListAsync();
+            if (hotels.Count >= 3)
+            {
+                // Pine Valley Hotel (4 sao - Đà Lạt)
+                context.Rooms.AddRange(
+                    new Room { HotelId = hotels[0].Id, RoomType = "Phòng Standard", Capacity = 2, PricePerNight = 850000m, CommissionRate = 0.10, AvailableQty = 8 },
+                    new Room { HotelId = hotels[0].Id, RoomType = "Phòng Deluxe View Hồ", Capacity = 2, PricePerNight = 1250000m, CommissionRate = 0.12, AvailableQty = 6 },
+                    new Room { HotelId = hotels[0].Id, RoomType = "Suite Gia Đình", Capacity = 4, PricePerNight = 2100000m, CommissionRate = 0.15, AvailableQty = 3 }
+                );
+
+                // Ocean Pearl Resort (5 sao - Phú Quốc)
+                context.Rooms.AddRange(
+                    new Room { HotelId = hotels[1].Id, RoomType = "Phòng Deluxe Biển", Capacity = 2, PricePerNight = 2450000m, CommissionRate = 0.12, AvailableQty = 10 },
+                    new Room { HotelId = hotels[1].Id, RoomType = "Pool Access Villa", Capacity = 2, PricePerNight = 4200000m, CommissionRate = 0.15, AvailableQty = 5 },
+                    new Room { HotelId = hotels[1].Id, RoomType = "Overwater Bungalow", Capacity = 2, PricePerNight = 7500000m, CommissionRate = 0.18, AvailableQty = 2 }
+                );
+
+                // Dragon Bridge Stay (4 sao - Đà Nẵng)
+                context.Rooms.AddRange(
+                    new Room { HotelId = hotels[2].Id, RoomType = "Phòng City View", Capacity = 2, PricePerNight = 980000m, CommissionRate = 0.10, AvailableQty = 10 },
+                    new Room { HotelId = hotels[2].Id, RoomType = "Phòng River View", Capacity = 2, PricePerNight = 1480000m, CommissionRate = 0.12, AvailableQty = 6 },
+                    new Room { HotelId = hotels[2].Id, RoomType = "Suite Cầu Rồng", Capacity = 4, PricePerNight = 2800000m, CommissionRate = 0.15, AvailableQty = 2 }
+                );
+
+                await context.SaveChangesAsync();
+
+                // Gán amenities cho từng hotel
+                var amenities = await context.Amenities.OrderBy(a => a.Id).ToListAsync();
+                if (amenities.Count >= 10)
+                {
+                    hotels[0].Amenities = new List<Amenity> { amenities[0], amenities[1], amenities[2], amenities[3], amenities[4], amenities[8] };
+                    hotels[1].Amenities = new List<Amenity> { amenities[0], amenities[1], amenities[2], amenities[3], amenities[4], amenities[5], amenities[6], amenities[7], amenities[8], amenities[9] };
+                    hotels[2].Amenities = new List<Amenity> { amenities[0], amenities[1], amenities[2], amenities[3], amenities[4], amenities[7], amenities[8] };
+                    await context.SaveChangesAsync();
+                }
+            }
+        }
+
+        if (!await context.Galleries.AnyAsync())
+        {
+            var hotels = await context.Hotels.OrderBy(h => h.Id).ToListAsync();
+            if (hotels.Count >= 3)
+            {
+                // Pine Valley Hotel - Đà Lạt
+                context.Galleries.AddRange(
+                    new Gallery { ReferenceType = GalleryReferenceType.Hotel, ReferenceId = hotels[0].Id, ImageUrl = "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80" },
+                    new Gallery { ReferenceType = GalleryReferenceType.Hotel, ReferenceId = hotels[0].Id, ImageUrl = "https://images.unsplash.com/photo-1578645510447-e20b4311e3ce?auto=format&fit=crop&w=1200&q=80" },
+                    new Gallery { ReferenceType = GalleryReferenceType.Hotel, ReferenceId = hotels[0].Id, ImageUrl = "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=1200&q=80" },
+                    new Gallery { ReferenceType = GalleryReferenceType.Hotel, ReferenceId = hotels[0].Id, ImageUrl = "https://images.unsplash.com/photo-1590073844006-33379778ae09?auto=format&fit=crop&w=1200&q=80" },
+                    // Ocean Pearl Resort - Phú Quốc
+                    new Gallery { ReferenceType = GalleryReferenceType.Hotel, ReferenceId = hotels[1].Id, ImageUrl = "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=1200&q=80" },
+                    new Gallery { ReferenceType = GalleryReferenceType.Hotel, ReferenceId = hotels[1].Id, ImageUrl = "https://images.unsplash.com/photo-1542314831-c6a4d14d837e?auto=format&fit=crop&w=1200&q=80" },
+                    new Gallery { ReferenceType = GalleryReferenceType.Hotel, ReferenceId = hotels[1].Id, ImageUrl = "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=1200&q=80" },
+                    new Gallery { ReferenceType = GalleryReferenceType.Hotel, ReferenceId = hotels[1].Id, ImageUrl = "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=1200&q=80" },
+                    // Dragon Bridge Stay - Đà Nẵng
+                    new Gallery { ReferenceType = GalleryReferenceType.Hotel, ReferenceId = hotels[2].Id, ImageUrl = "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1200&q=80" },
+                    new Gallery { ReferenceType = GalleryReferenceType.Hotel, ReferenceId = hotels[2].Id, ImageUrl = "https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1200&q=80" },
+                    new Gallery { ReferenceType = GalleryReferenceType.Hotel, ReferenceId = hotels[2].Id, ImageUrl = "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=1200&q=80" },
+                    new Gallery { ReferenceType = GalleryReferenceType.Hotel, ReferenceId = hotels[2].Id, ImageUrl = "https://images.unsplash.com/photo-1586611292717-f828b167408c?auto=format&fit=crop&w=1200&q=80" }
+                );
+                await context.SaveChangesAsync();
+            }
+        }
+
+        if (!await context.Reviews.AnyAsync())
+        {
+            var hotels = await context.Hotels.OrderBy(h => h.Id).ToListAsync();
+            var demoUserId = await context.Users.Where(u => u.Email == "test@example.com").Select(u => u.Id).FirstOrDefaultAsync();
+            var trips = await context.Trips.OrderBy(t => t.Id).ToListAsync();
+
+            if (hotels.Count >= 3 && demoUserId != 0 && trips.Count >= 1)
+            {
+                context.Reviews.AddRange(
+                    // Reviews for Pine Valley Hotel
+                    new Review { UserId = demoUserId, TripId = trips[0].Id, TargetType = ReviewTargetType.Hotel, TargetId = hotels[0].Id, Rating = 5, Comment = "Không gian tuyệt vời, nhân viên vô cùng nhiệt tình! View hồ Xuân Hương từ ban công phòng Deluxe rất lãng mạn. Bữa sáng buffet phong phú. Chắc chắn sẽ quay lại!", CreatedAt = DateTime.UtcNow.AddDays(-10) },
+                    new Review { UserId = demoUserId, TripId = trips[0].Id, TargetType = ReviewTargetType.Hotel, TargetId = hotels[0].Id, Rating = 4, Comment = "Phòng sạch sẽ, ấm cúng. Vị trí cực kỳ thuận tiện, đi bộ ra chợ Đà Lạt 5 phút. Chỉ tiếc là WiFi hơi yếu ở tầng thấp.", CreatedAt = DateTime.UtcNow.AddDays(-20) },
+                    new Review { UserId = demoUserId, TripId = trips[0].Id, TargetType = ReviewTargetType.Hotel, TargetId = hotels[0].Id, Rating = 5, Comment = "Buổi tối lửa trại ở sân vườn rất thú vị! Nhà hàng khách sạn nấu món Pháp-Việt ngon tuyệt vời. Giá cả hợp lý so với chất lượng.", CreatedAt = DateTime.UtcNow.AddDays(-30) },
+                    // Reviews for Ocean Pearl Resort
+                    new Review { UserId = demoUserId, TripId = trips[0].Id, TargetType = ReviewTargetType.Hotel, TargetId = hotels[1].Id, Rating = 5, Comment = "Thiên đường nghỉ dưỡng! Overwater Bungalow view biển tuyệt đẹp, butler phục vụ tận tâm 24/7. Spa và hồ bơi vô cực nhìn ra biển là điểm nhấn không thể quên. Xứng đáng với từng đồng tiền bỏ ra.", CreatedAt = DateTime.UtcNow.AddDays(-5) },
+                    new Review { UserId = demoUserId, TripId = trips[0].Id, TargetType = ReviewTargetType.Hotel, TargetId = hotels[1].Id, Rating = 5, Comment = "Trải nghiệm 5 sao thực sự! Hải sản tươi sống tại nhà hàng resort cực kỳ ngon. Beach butler mang đồ uống tận nơi. Lặn biển có hướng dẫn viên chuyên nghiệp.", CreatedAt = DateTime.UtcNow.AddDays(-15) },
+                    // Reviews for Dragon Bridge Stay
+                    new Review { UserId = demoUserId, TripId = trips[0].Id, TargetType = ReviewTargetType.Hotel, TargetId = hotels[2].Id, Rating = 4, Comment = "Vị trí đắc địa nhìn ra sông Hàn và Cầu Rồng! Mỗi cuối tuần xem lửa phun từ ban công phòng River View là kỷ niệm không thể quên. Nhà hàng tầng thượng view đẹp hơn mong đợi.", CreatedAt = DateTime.UtcNow.AddDays(-8) },
+                    new Review { UserId = demoUserId, TripId = trips[0].Id, TargetType = ReviewTargetType.Hotel, TargetId = hotels[2].Id, Rating = 4, Comment = "Gần biển Mỹ Khê chỉ 10 phút xe taxi, gần Hội An 30 phút. Phòng City View tuy nhỏ hơn nhưng vẫn tiện nghi đầy đủ. Bữa sáng có các món ăn Đà Nẵng truyền thống rất ngon.", CreatedAt = DateTime.UtcNow.AddDays(-25) }
+                );
                 await context.SaveChangesAsync();
             }
         }
@@ -232,6 +339,27 @@ public static class DevelopmentDataSeeder
 
                 await context.SaveChangesAsync();
             }
+        }
+
+        if (!await context.Seats.AnyAsync())
+        {
+            var schedules = await context.BusSchedules.ToListAsync();
+            foreach (var schedule in schedules)
+            {
+                var seats = new List<Seat>();
+                int totalSeats = schedule.TotalSeats ?? 30;
+                for (int i = 1; i <= totalSeats; i++)
+                {
+                    seats.Add(new Seat
+                    {
+                        ScheduleId = schedule.Id,
+                        SeatNumber = $"S{i:02}",
+                        Status = SeatStatus.Available
+                    });
+                }
+                context.Seats.AddRange(seats);
+            }
+            await context.SaveChangesAsync();
         }
 
         if (!await context.Trips.AnyAsync())

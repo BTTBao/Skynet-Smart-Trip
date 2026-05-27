@@ -3,7 +3,40 @@ import '../../widgets/checkout/resort_summary_card.dart';
 import '../main_shell.dart'; // To go back to home
 
 class PaymentSuccessScreen extends StatelessWidget {
-  const PaymentSuccessScreen({Key? key}) : super(key: key);
+  final int bookingId;
+  final String hotelName;
+  final String dateRange;
+  final String roomInfo;
+  final String imageUrl;
+  final double totalPrice;
+  final String paymentMethod;
+  final DateTime paymentTime;
+
+  const PaymentSuccessScreen({
+    Key? key,
+    required this.bookingId,
+    required this.hotelName,
+    required this.dateRange,
+    required this.roomInfo,
+    required this.imageUrl,
+    required this.totalPrice,
+    required this.paymentMethod,
+    required this.paymentTime,
+  }) : super(key: key);
+
+  String _formatPrice(double price) {
+    final formatted = price.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]}.',
+    );
+    return '$formattedđ';
+  }
+
+  String _formatDateTime(DateTime dt) {
+    final hour = dt.hour.toString().padLeft(2, '0');
+    final minute = dt.minute.toString().padLeft(2, '0');
+    return '$hour:$minute, ${dt.day} Thg ${dt.month} ${dt.year}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +47,7 @@ class PaymentSuccessScreen extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const MainShell()), (route) => false),
         ),
         title: const Text(
           'Thanh toán',
@@ -56,7 +89,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text('Mã đặt chỗ: ', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-                  Text('ST12345678', style: TextStyle(color: Colors.green[500], fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text('ST$bookingId', style: TextStyle(color: Colors.green[500], fontWeight: FontWeight.bold, fontSize: 14)),
                 ],
               ),
               const SizedBox(height: 32),
@@ -70,11 +103,13 @@ class PaymentSuccessScreen extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    const ResortSummaryCard(
-                      resortName: 'Resort Sun Valley',
-                      dateRange: '15 Thg 10 - 17 Thg 10',
-                      roomInfo: '2 Người lớn, 1 Phòng',
-                      imageUrl: 'https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80',
+                    ResortSummaryCard(
+                      resortName: hotelName,
+                      dateRange: dateRange,
+                      roomInfo: roomInfo,
+                      imageUrl: imageUrl.isNotEmpty
+                          ? imageUrl
+                          : 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=200&q=80',
                     ),
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 16.0),
@@ -84,21 +119,24 @@ class PaymentSuccessScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('Tổng số tiền thanh toán', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-                        Text('4.750.000₫', style: TextStyle(color: Colors.green[400], fontWeight: FontWeight.bold, fontSize: 18)),
+                        Text(_formatPrice(totalPrice), style: TextStyle(color: Colors.green[400], fontWeight: FontWeight.bold, fontSize: 18)),
                       ],
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
-              _buildInfoRow('Hình thức thanh toán', 'Ví điện tử Momo'),
+              _buildInfoRow('Hình thức thanh toán', paymentMethod == 'Momo' ? 'Ví điện tử MoMo' : paymentMethod == 'Zalopay' ? 'Ví điện tử ZaloPay' : paymentMethod == 'BankTransfer' ? 'Chuyển khoản ngân hàng' : 'Thẻ quốc tế'),
               const SizedBox(height: 12),
-              _buildInfoRow('Thời gian', '10:45, 12 Thg 10 2023'),
+              _buildInfoRow('Thời gian', _formatDateTime(paymentTime)),
               const SizedBox(height: 48),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: () {
+                    // Navigate back to home
+                    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const MainShell()), (route) => false);
+                  },
                   icon: const Icon(Icons.airplane_ticket, color: Colors.black),
                   label: const Text('Xem vé điện tử', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
                   style: ElevatedButton.styleFrom(

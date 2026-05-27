@@ -1,12 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/auth_service_shared.dart';
+import '../utils/app_storage.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
-  static const _storage = FlutterSecureStorage();
 
   bool _isAuthenticated = false;
   bool _isLoading = false;
@@ -40,9 +39,9 @@ class AuthProvider with ChangeNotifier {
     if (accessToken == null) throw Exception('Phản hồi thiếu access token.');
 
     await Future.wait([
-      _storage.write(key: 'access_token', value: accessToken),
+      AppStorage.write(key: 'access_token', value: accessToken),
       if (refreshToken != null)
-        _storage.write(key: 'refresh_token', value: refreshToken),
+        AppStorage.write(key: 'refresh_token', value: refreshToken),
     ]);
   }
 
@@ -50,7 +49,7 @@ class AuthProvider with ChangeNotifier {
 
   /// Kiểm tra trạng thái đăng nhập khi khởi động app.
   Future<void> checkAuthStatus() async {
-    final token = await _storage.read(key: 'access_token');
+    final token = await AppStorage.read(key: 'access_token');
     if (token == null || token.isEmpty) {
       _isAuthenticated = false;
       notifyListeners();
@@ -139,7 +138,7 @@ class AuthProvider with ChangeNotifier {
   /// Làm mới access token bằng refresh token đang lưu.
   Future<bool> refreshToken() async {
     try {
-      final storedRefresh = await _storage.read(key: 'refresh_token');
+      final storedRefresh = await AppStorage.read(key: 'refresh_token');
       if (storedRefresh == null) return false;
 
       final response = await _authService.refreshToken(storedRefresh);
@@ -156,20 +155,21 @@ class AuthProvider with ChangeNotifier {
 
   /// Đăng xuất — xóa token local và revoke trên server.
   Future<void> logout() async {
-    try {
-      final storedRefresh = await _storage.read(key: 'refresh_token');
-      if (storedRefresh != null) {
-        await _authService.logout(storedRefresh);
-      }
-    } catch (_) {
-      // Server-side logout thất bại → vẫn xóa local token
-    } finally {
-      await Future.wait([
-        _storage.delete(key: 'access_token'),
-        _storage.delete(key: 'refresh_token'),
-      ]);
-      _isAuthenticated = false;
-      notifyListeners();
+    final storedRefresh = await AppStorage.read(key: 'refresh_token');
+
+    // Xóa ngay lập tức token ở local để giao diện phản hồi tức thì
+    await Future.wait([
+      AppStorage.delete(key: 'access_token'),
+      AppStorage.delete(key: 'refresh_token'),
+    ]);
+    _isAuthenticated = false;
+    notifyListeners();
+
+    // Gọi API hủy token ở server chạy ngầm, không block giao diện
+    if (storedRefresh != null) {
+      try {
+        _authService.logout(storedRefresh).catchError((_) {});
+      } catch (_) {}
     }
   }
 

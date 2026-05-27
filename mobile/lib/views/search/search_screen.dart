@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/destination_provider.dart';
 import '../destination/destination_article_screen.dart';
 import '../resort_search/resort_search_screen.dart';
 import '../transport/transport_search_screen.dart';
@@ -8,6 +10,8 @@ class SearchScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final destProvider = context.watch<DestinationProvider>();
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -39,50 +43,91 @@ class SearchScreen extends StatelessWidget {
             const Text('Điểm đến phổ biến', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 16),
             Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 0.8,
-                children: [
-                  _buildDestinationCard(
-                    context,
-                    title: 'Đà Lạt',
-                    imageUrl: 'https://images.unsplash.com/photo-1542314831-c6a4d14d837e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
-                    onTap: () {
-                      _showActionSheet(context, 'Đà Lạt');
-                    },
-                  ),
-                  _buildDestinationCard(
-                    context,
-                    title: 'Nha Trang',
-                    imageUrl: 'https://images.unsplash.com/photo-1576487248805-fd0891df42f4?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
-                    onTap: () {
-                      _showActionSheet(context, 'Nha Trang');
-                    },
-                  ),
-                  _buildDestinationCard(
-                    context,
-                    title: 'Vũng Tàu',
-                    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ee/Vung_Tau_beach.jpg/800px-Vung_Tau_beach.jpg',
-                    onTap: () {
-                      _showActionSheet(context, 'Vũng Tàu');
-                    },
-                  ),
-                  _buildDestinationCard(
-                    context,
-                    title: 'Đà Nẵng',
-                    imageUrl: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
-                    onTap: () {
-                      _showActionSheet(context, 'Đà Nẵng');
-                    },
-                  ),
-                ],
-              ),
+              child: _buildDestinationsGrid(context, destProvider),
             )
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDestinationsGrid(BuildContext context, DestinationProvider destProvider) {
+    if (destProvider.isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0D6B42)),
+        ),
+      );
+    }
+
+    if (destProvider.error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 48),
+            const SizedBox(height: 16),
+            Text(
+              destProvider.error!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => destProvider.fetchDestinations(forceRefresh: true),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D6B42)),
+              child: const Text('Thử lại', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (destProvider.destinations.isEmpty) {
+      return const Center(
+        child: Text('Không tìm thấy điểm đến nào.', style: TextStyle(color: Colors.grey)),
+      );
+    }
+
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 0.8,
+      ),
+      itemCount: destProvider.destinations.length,
+      itemBuilder: (context, index) {
+        final destination = destProvider.destinations[index];
+        
+        // Cung cấp các ảnh đẹp chất lượng cao tương ứng với các địa điểm nổi tiếng làm fallback
+        String imageUrl = destination.coverImageUrl.trim();
+        if (imageUrl.isEmpty || !imageUrl.startsWith('http') || imageUrl.contains('example.com')) {
+          final lowerName = destination.name.toLowerCase();
+          if (lowerName.contains('da nang') || lowerName.contains('đà nẵng')) {
+            imageUrl = 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+          } else if (lowerName.contains('hoi an') || lowerName.contains('hội an')) {
+            imageUrl = 'https://images.unsplash.com/photo-1588001400947-6385aef4ab0e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+          } else if (lowerName.contains('hue') || lowerName.contains('huế')) {
+            imageUrl = 'https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+          } else if (lowerName.contains('da lat') || lowerName.contains('đà lạt')) {
+            imageUrl = 'https://images.unsplash.com/photo-1589308078059-be1415eab4c3?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+          } else if (lowerName.contains('nha trang')) {
+            imageUrl = 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+          } else {
+            imageUrl = 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+          }
+        }
+
+        return _buildDestinationCard(
+          context,
+          title: destination.name,
+          imageUrl: imageUrl,
+          onTap: () {
+            _showActionSheet(context, destination.name, destination.id);
+          },
+        );
+      },
     );
   }
 
@@ -117,12 +162,12 @@ class SearchScreen extends StatelessWidget {
     );
   }
 
-  void _showActionSheet(BuildContext context, String destination) {
+  void _showActionSheet(BuildContext context, String destination, int destinationId) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) {
+      builder: (sheetContext) {
         return Container(
           padding: const EdgeInsets.all(24),
           decoration: const BoxDecoration(
@@ -146,33 +191,33 @@ class SearchScreen extends StatelessWidget {
                 Text('Khám phá dịch vụ tốt nhất dành cho chuyến đi của bạn.', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                 const SizedBox(height: 24),
                 _buildOptionCard(
-                  context,
+                  sheetContext,
                   icon: Icons.bed,
                   color: const Color(0xFF0D6B42),
                   label: 'LƯU TRÚ',
                   description: 'Tìm Khách sạn / Resort',
                   onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ResortSearchScreen()));
+                    Navigator.pop(sheetContext);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => ResortSearchScreen(destinationId: destinationId, destinationName: destination)));
                   },
                 ),
                 const SizedBox(height: 12),
                 _buildOptionCard(
-                  context,
+                  sheetContext,
                   icon: Icons.directions_bus,
                   color: const Color(0xFF0F7A4D),
                   label: 'DI CHUYỂN',
                   description: 'Đặt vé xe Limousine',
                   onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const TransportSearchScreen()));
+                    Navigator.pop(sheetContext);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => TransportSearchScreen(toDestId: destinationId, toDestName: destination)));
                   },
                 ),
                 const SizedBox(height: 24),
                 Center(
                   child: TextButton(
                     onPressed: () {
-                      Navigator.pop(context);
+                      Navigator.pop(sheetContext);
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const DestinationArticleScreen()));
                     },
                     child: Text(

@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
 import '../models/user_settings.dart';
 import '../utils/app_currency_formatter.dart';
+import '../utils/app_storage.dart';
 
 class AppSettingsProvider with ChangeNotifier {
-  static const _storage = FlutterSecureStorage();
   static const _themeKey = 'app_theme_mode';
   static const _languageKey = 'app_language';
   static const _currencyKey = 'app_currency';
@@ -24,9 +22,9 @@ class AppSettingsProvider with ChangeNotifier {
   Locale get locale => Locale(_languageCode);
 
   Future<void> initialize() async {
-    final storedTheme = await _storage.read(key: _themeKey);
-    final storedLanguage = await _storage.read(key: _languageKey);
-    final storedCurrency = await _storage.read(key: _currencyKey);
+    final storedTheme = await AppStorage.read(key: _themeKey);
+    final storedLanguage = await AppStorage.read(key: _languageKey);
+    final storedCurrency = await AppStorage.read(key: _currencyKey);
 
     if (storedTheme == 'dark') {
       _themeMode = ThemeMode.dark;
@@ -95,12 +93,12 @@ class AppSettingsProvider with ChangeNotifier {
 
   Future<void> _persist() async {
     await Future.wait([
-      _storage.write(
+      AppStorage.write(
         key: _themeKey,
         value: _themeMode == ThemeMode.dark ? 'dark' : 'light',
       ),
-      _storage.write(key: _languageKey, value: _languageCode),
-      _storage.write(key: _currencyKey, value: _currencyCode),
+      AppStorage.write(key: _languageKey, value: _languageCode),
+      AppStorage.write(key: _currencyKey, value: _currencyCode),
     ]);
   }
 }

@@ -1,9 +1,29 @@
 import 'package:flutter/material.dart';
+import '../../models/resort_model.dart';
 import '../../widgets/checkout/checkout_stepper.dart';
 import 'payment_confirm_screen.dart';
 
 class CustomerInfoScreen extends StatefulWidget {
-  const CustomerInfoScreen({Key? key}) : super(key: key);
+  final ResortModel hotel;
+  final RoomModel? selectedRoom;
+  final DateTime checkIn;
+  final DateTime checkOut;
+  final int adultCount;
+  final int childCount;
+  final int infantCount;
+  final double totalPrice;
+
+  const CustomerInfoScreen({
+    Key? key,
+    required this.hotel,
+    this.selectedRoom,
+    required this.checkIn,
+    required this.checkOut,
+    required this.adultCount,
+    required this.childCount,
+    required this.infantCount,
+    required this.totalPrice,
+  }) : super(key: key);
 
   @override
   State<CustomerInfoScreen> createState() => _CustomerInfoScreenState();
@@ -11,6 +31,37 @@ class CustomerInfoScreen extends StatefulWidget {
 
 class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
   bool isPassenger = true;
+
+  late final TextEditingController _fullNameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _specialRequestController;
+
+  @override
+  void initState() {
+    super.initState();
+    _fullNameController = TextEditingController(text: 'Nguyễn Văn A');
+    _emailController = TextEditingController(text: 'vanta@example.com');
+    _phoneController = TextEditingController(text: '0901234567');
+    _specialRequestController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _specialRequestController.dispose();
+    super.dispose();
+  }
+
+  String _formatPriceFull(double price) {
+    final formatted = price.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]}.',
+    );
+    return '$formatted₫';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,10 +134,10 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            _buildInputField('Họ và tên', 'Nguyễn Văn A', isRequired: true),
-            _buildInputField('Địa chỉ Email', 'vanta@example.com', isRequired: true),
-            _buildPhoneField(),
-            _buildTextAreaField(),
+            _buildInputField('Họ và tên', 'Nguyễn Văn A', _fullNameController, isRequired: true),
+            _buildInputField('Địa chỉ Email', 'vanta@example.com', _emailController, isRequired: true),
+            _buildPhoneField(_phoneController),
+            _buildTextAreaField(_specialRequestController),
             const SizedBox(height: 32),
           ],
         ),
@@ -95,7 +146,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
     );
   }
 
-  Widget _buildInputField(String label, String hint, {bool isRequired = false}) {
+  Widget _buildInputField(String label, String hint, TextEditingController controller, {bool isRequired = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -112,6 +163,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           ),
           const SizedBox(height: 8),
           TextField(
+            controller: controller,
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: const TextStyle(color: Colors.black87),
@@ -134,7 +186,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
     );
   }
 
-  Widget _buildPhoneField() {
+  Widget _buildPhoneField(TextEditingController controller) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -161,6 +213,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
               ),
               Expanded(
                 child: TextField(
+                  controller: controller,
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
                     hintText: '0901234567',
@@ -187,7 +240,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
     );
   }
 
-  Widget _buildTextAreaField() {
+  Widget _buildTextAreaField(TextEditingController controller) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -196,6 +249,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           const Text('Yêu cầu đặc biệt', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 14)),
           const SizedBox(height: 8),
           TextField(
+            controller: controller,
             maxLines: 4,
             decoration: InputDecoration(
               hintText: 'Ví dụ: Phòng không hút thuốc, check-in sớm...',
@@ -238,9 +292,9 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                 const Text('TỔNG THANH TOÁN', style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
                 Row(
                   children: [
-                    const Text(
-                      '2.450.000₫',
-                      style: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold),
+                    Text(
+                      _formatPriceFull(widget.totalPrice),
+                      style: const TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -254,7 +308,25 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentConfirmScreen()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PaymentConfirmScreen(
+                      hotel: widget.hotel,
+                      selectedRoom: widget.selectedRoom,
+                      checkIn: widget.checkIn,
+                      checkOut: widget.checkOut,
+                      adultCount: widget.adultCount,
+                      childCount: widget.childCount,
+                      infantCount: widget.infantCount,
+                      totalPrice: widget.totalPrice,
+                      fullName: _fullNameController.text,
+                      email: _emailController.text,
+                      phone: _phoneController.text,
+                      specialRequest: _specialRequestController.text,
+                    ),
+                  ),
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green[300],

@@ -1,7 +1,25 @@
 import 'package:flutter/material.dart';
+import '../../models/bus_schedule_model.dart';
 
 class TransportTicketScreen extends StatelessWidget {
-  const TransportTicketScreen({Key? key}) : super(key: key);
+  final int bookingId;
+  final BusScheduleModel schedule;
+  final List<String> seats;
+
+  const TransportTicketScreen({
+    Key? key,
+    required this.bookingId,
+    required this.schedule,
+    required this.seats,
+  }) : super(key: key);
+
+  String _formatTime(DateTime dt) {
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _formatDate(DateTime dt) {
+    return '${dt.day}/${dt.month}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -11,10 +29,10 @@ class TransportTicketScreen extends StatelessWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.green),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF0D6B42)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Chi tiết vé', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+        title: const Text('Chi tiết vé', style: TextStyle(color: Color(0xFF0D6B42), fontWeight: FontWeight.bold)),
         centerTitle: false,
       ),
       body: SingleChildScrollView(
@@ -26,18 +44,22 @@ class TransportTicketScreen extends StatelessWidget {
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: Colors.greenAccent[100], shape: BoxShape.circle),
-                child: const Icon(Icons.check, color: Colors.green, size: 40),
+                decoration: const BoxDecoration(color: Color(0xFFE8F8F0), shape: BoxShape.circle),
+                child: const Icon(Icons.check, color: Color(0xFF0D6B42), size: 40),
               ),
               const SizedBox(height: 16),
-              const Text('Đặt vé thành công!', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 24)),
+              const Text('Đặt vé thành công!', style: TextStyle(color: Color(0xFF0D6B42), fontWeight: FontWeight.bold, fontSize: 24)),
               const SizedBox(height: 4),
               Text('Vui lòng xuất trình mã QR khi lên xe', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
               const SizedBox(height: 32),
               _buildTicketCard(),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: () {},
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Đang tải vé điện tử về máy...')),
+                  );
+                },
                 icon: const Icon(Icons.download, color: Colors.white, size: 18),
                 label: const Text('Tải về máy', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                 style: ElevatedButton.styleFrom(
@@ -50,8 +72,8 @@ class TransportTicketScreen extends StatelessWidget {
               const SizedBox(height: 12),
               ElevatedButton.icon(
                 onPressed: () {},
-                icon: Icon(Icons.map, color: Colors.green[900], size: 18),
-                label: Text('Xem bản đồ điểm đón', style: TextStyle(color: Colors.green[900], fontWeight: FontWeight.bold, fontSize: 15)),
+                icon: const Icon(Icons.map, color: Color(0xFF0D6B42), size: 18),
+                label: const Text('Xem bản đồ điểm đón', style: TextStyle(color: Color(0xFF0D6B42), fontWeight: FontWeight.bold, fontSize: 15)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.grey[200],
                   minimumSize: const Size(double.infinity, 50),
@@ -65,7 +87,7 @@ class TransportTicketScreen extends StatelessWidget {
                   text: 'Cần hỗ trợ? Gọi ',
                   style: TextStyle(color: Colors.grey[600], fontSize: 13),
                   children: [
-                    TextSpan(text: '1900 6067', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green[800])),
+                    TextSpan(text: schedule.companyHotline, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0D6B42))),
                   ],
                 ),
               ),
@@ -78,6 +100,10 @@ class TransportTicketScreen extends StatelessWidget {
   }
 
   Widget _buildTicketCard() {
+    final code = 'BOOKING-#SKN-${bookingId.toString().padLeft(4, '0')}';
+    final departureStr = '${_formatTime(schedule.departureTime)} • ${_formatDate(schedule.departureTime)}';
+    final arrivalStr = '${_formatTime(schedule.arrivalTime)} • ${_formatDate(schedule.arrivalTime)}';
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -101,7 +127,7 @@ class TransportTicketScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text('BOOKING-88291', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 1)),
+                Text(code, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 1)),
                 const SizedBox(height: 4),
                 Text('Mã đặt chỗ', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
               ],
@@ -124,11 +150,11 @@ class TransportTicketScreen extends StatelessWidget {
                           children: [
                             Container(
                               padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(color: Colors.red[100], borderRadius: BorderRadius.circular(8)),
+                              decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(8)),
                               child: const Icon(Icons.directions_bus, color: Colors.red, size: 16),
                             ),
                             const SizedBox(width: 8),
-                            const Text('Phương Trang\n(FUTA)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            Text(schedule.companyName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                           ],
                         ),
                       ],
@@ -138,7 +164,7 @@ class TransportTicketScreen extends StatelessWidget {
                       children: [
                         Text('SỐ GHẾ', style: TextStyle(color: Colors.grey[500], fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                         const SizedBox(height: 4),
-                        const Text('B12,\nB13', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green), textAlign: TextAlign.right),
+                        Text(seats.join(', '), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF0D6B42)), textAlign: TextAlign.right),
                       ],
                     )
                   ],
@@ -150,8 +176,8 @@ class TransportTicketScreen extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Sài Gòn', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        Text('08:00 • 24/10', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                        Text(schedule.fromDestName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text(departureStr, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
                       ],
                     ),
                     Expanded(
@@ -160,7 +186,7 @@ class TransportTicketScreen extends StatelessWidget {
                         child: Row(
                           children: [
                             Expanded(child: Container(height: 1, color: Colors.grey[300])),
-                            Icon(Icons.directions_bus, size: 16, color: Colors.green[700]),
+                            const Icon(Icons.directions_bus, size: 16, color: Color(0xFF0D6B42)),
                             Expanded(child: Container(height: 1, color: Colors.grey[300])),
                           ],
                         ),
@@ -169,8 +195,8 @@ class TransportTicketScreen extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        const Text('Đà Lạt', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        Text('14:30 • 24/10', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                        Text(schedule.toDestName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text(arrivalStr, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
                       ],
                     ),
                   ],
@@ -179,14 +205,14 @@ class TransportTicketScreen extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.location_on, color: Colors.green[700], size: 20),
+                    const Icon(Icons.location_on, color: Color(0xFF0D6B42), size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text('Điểm đón', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          Text('Bến xe Miền Tây - Quầy vé số 12, 395 Kinh Dương Vương, An Lạc, Bình Tân', style: TextStyle(color: Colors.grey[600], fontSize: 13, height: 1.5)),
+                          Text('Bến xe trung tâm ${schedule.fromDestName}. Vui lòng có mặt tại quầy vé của ${schedule.companyName} trước giờ chạy 15 phút.', style: TextStyle(color: Colors.grey[600], fontSize: 13, height: 1.5)),
                         ],
                       ),
                     )

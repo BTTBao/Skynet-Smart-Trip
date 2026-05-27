@@ -18,6 +18,15 @@ void main() {
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => TripProvider()),
         ChangeNotifierProvider(
+          create: (_) => DestinationProvider()..fetchDestinations(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => HotelProvider(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => BusProvider(),
+        ),
+        ChangeNotifierProvider(
           create: (_) => AppSettingsProvider()..initialize(),
         ),
       ],

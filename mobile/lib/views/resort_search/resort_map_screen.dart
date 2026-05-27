@@ -106,7 +106,7 @@ class ResortMapScreen extends StatelessWidget {
       child: GestureDetector(
         onTap: () {
           // Đi thẳng tới chi tiết resort
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const ResortDetailScreen()));
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const ResortDetailScreen(hotelId: 1)));
         },
         child: Container(
           decoration: BoxDecoration(

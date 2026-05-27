@@ -1,18 +1,16 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
 import '../models/chat_history_result.dart';
 import '../models/chat_message.dart';
 import '../models/chat_response.dart';
 import '../models/chat_session_summary.dart';
 import '../services/api_service_base.dart';
 import '../services/chat_service.dart';
+import '../utils/app_storage.dart';
 
 class ChatProvider with ChangeNotifier {
   final ChatService _chatService = ChatService();
-  static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
   final List<ChatMessage> _messages = [];
   final List<ChatSessionSummary> _sessions = [];
@@ -316,7 +314,7 @@ class ChatProvider with ChangeNotifier {
   }
 
   Future<String?> _readCurrentUserKey() async {
-    final token = await _storage.read(key: 'access_token');
+    final token = await AppStorage.read(key: 'access_token');
     if (token == null || token.isEmpty) {
       return null;
     }

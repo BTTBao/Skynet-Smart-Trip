@@ -42,7 +42,14 @@ class ResortReviews extends StatelessWidget {
           Row(
             children: [
               CircleAvatar(
-                backgroundImage: NetworkImage(review.userAvatar),
+                backgroundImage: review.userAvatar != null && review.userAvatar!.isNotEmpty
+                    ? NetworkImage(review.userAvatar!) as ImageProvider
+                    : null,
+                backgroundColor: Colors.green[100],
+                child: review.userAvatar == null || review.userAvatar!.isEmpty
+                    ? Text(review.userName.isNotEmpty ? review.userName[0].toUpperCase() : 'K',
+                        style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold))
+                    : null,
               ),
               const SizedBox(width: 8),
               Expanded(
