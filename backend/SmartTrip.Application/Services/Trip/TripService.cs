@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using SmartTrip.Application.DTOs.Trip;
 using SmartTrip.Application.Interfaces;
 using SmartTrip.Application.Interfaces.Trip;
@@ -162,6 +163,122 @@ public class TripService : ITripService
             ?? throw new InvalidOperationException("Trip was created but could not be loaded.");
     }
 
+    public async Task<TripSummaryDto> CreateHotelBookingAsync(CreateHotelBookingDto request)
+    {
+        ValidateCreateHotelBookingRequest(request);
+
+        if (_context is not DbContext dbContext)
+        {
+            throw new InvalidOperationException("Booking transaction is not supported by the current data context.");
+        }
+
+        await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync();
+        try
+        {
+            var trip = await CreateTripAsync(new CreateTripDto
+            {
+                UserId = request.UserId,
+                DestinationId = request.DestinationId,
+                DestinationName = request.DestinationName,
+                Title = request.Title,
+                StartDate = request.CheckInDate,
+                EndDate = request.CheckOutDate,
+                Status = PendingStatus
+            });
+
+            await _itineraryService.AddItineraryAsync(trip.TripId, new CreateTripItineraryDto
+            {
+                DayNumber = 1,
+                ServiceType = "HOTEL",
+                ServiceId = request.RoomId,
+                Quantity = request.Quantity
+            });
+
+            await transaction.CommitAsync();
+
+            return await GetTripSummaryAsync(trip.TripId)
+                ?? throw new InvalidOperationException("Hotel booking was created but could not be loaded.");
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task<TripSummaryDto> CompleteFakePaymentAsync(int tripId, CreateFakePaymentDto request)
+    {
+        if (tripId <= 0)
+        {
+            throw new ArgumentException("TripId must be greater than 0.");
+        }
+
+        var trip = await _context.Trips
+            .Include(item => item.Payments)
+            .Include(item => item.TripItineraries)
+            .FirstOrDefaultAsync(item => item.Id == tripId);
+
+        if (trip == null)
+        {
+            throw new KeyNotFoundException($"Trip {tripId} was not found.");
+        }
+
+        if (!trip.TripItineraries.Any())
+        {
+            throw new InvalidOperationException("Booking has no services to pay for.");
+        }
+
+        if (trip.Status == TripStatus.Cancelled)
+        {
+            throw new InvalidOperationException("Cancelled bookings cannot be paid.");
+        }
+
+        var latestPaidPayment = trip.Payments
+            .Where(item => item.Status == PaymentStatus.Paid)
+            .OrderByDescending(item => item.PaidAt)
+            .FirstOrDefault();
+
+        if (latestPaidPayment != null)
+        {
+            throw new InvalidOperationException("This booking has already been paid.");
+        }
+
+        var amount = trip.TotalAmount ?? trip.TripItineraries.Sum(item =>
+            (item.BookedPrice ?? 0) * (item.Quantity ?? 1));
+
+        if (amount <= 0)
+        {
+            throw new InvalidOperationException("Booking total amount is invalid.");
+        }
+
+        var payment = trip.Payments
+            .OrderByDescending(item => item.PaidAt)
+            .FirstOrDefault();
+
+        if (payment == null)
+        {
+            payment = new Payment
+            {
+                TripId = trip.Id,
+                TransactionId = $"FAKE-{trip.Id:D6}-{DateTime.UtcNow:yyyyMMddHHmmss}",
+            };
+
+            _context.Payments.Add(payment);
+            trip.Payments.Add(payment);
+        }
+
+        payment.PaymentMethod = ParsePaymentMethod(request.PaymentMethod);
+        payment.Amount = amount;
+        payment.Status = PaymentStatus.Paid;
+        payment.PaidAt = DateTime.UtcNow;
+        trip.Status = TripStatus.Paid;
+
+        await _context.SaveChangesAsync();
+
+        return await GetTripSummaryAsync(trip.Id)
+            ?? throw new InvalidOperationException("Payment was saved but booking could not be reloaded.");
+    }
+
     private async Task<TripSummaryDto?> GetTripSummaryAsync(int tripId)
     {
         var trip = await _context.Trips
@@ -288,6 +405,55 @@ public class TripService : ITripService
         {
             throw new ArgumentException("EndDate must be greater than or equal to StartDate.");
         }
+    }
+
+    private static void ValidateCreateHotelBookingRequest(CreateHotelBookingDto request)
+    {
+        if (request.UserId <= 0)
+        {
+            throw new ArgumentException("UserId must be greater than 0.");
+        }
+
+        if (request.HotelId <= 0)
+        {
+            throw new ArgumentException("HotelId must be greater than 0.");
+        }
+
+        if (request.RoomId <= 0)
+        {
+            throw new ArgumentException("RoomId must be greater than 0.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Title))
+        {
+            throw new ArgumentException("Booking title is required.");
+        }
+
+        if (request.Quantity <= 0)
+        {
+            throw new ArgumentException("Quantity must be greater than 0.");
+        }
+
+        if (request.CheckOutDate <= request.CheckInDate)
+        {
+            throw new ArgumentException("CheckOutDate must be after CheckInDate.");
+        }
+    }
+
+    private static PaymentMethod ParsePaymentMethod(string? paymentMethod)
+    {
+        if (Enum.TryParse<PaymentMethod>(paymentMethod, true, out var parsedMethod))
+        {
+            return parsedMethod;
+        }
+
+        return paymentMethod?.Trim().ToLowerInvariant() switch
+        {
+            "momo" => PaymentMethod.Momo,
+            "vnpay" => PaymentMethod.Vnpay,
+            "card" => PaymentMethod.Card,
+            _ => throw new ArgumentException("PaymentMethod must be Momo, Vnpay, or Card.")
+        };
     }
 
     private static string NormalizeTripStatus(string? status)

@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/create_trip_itinerary_request.dart';
+import '../models/create_fake_payment_request.dart';
+import '../models/create_hotel_booking_request.dart';
 import '../models/create_trip_request.dart';
 import '../models/my_trip_summary.dart';
 import '../models/trip_detail.dart';
@@ -34,6 +36,31 @@ class TripService extends ApiService {
       '/trips',
       body: jsonEncode(request.toJson()),
       requireAuth: true,
+    );
+
+    final data = Map<String, dynamic>.from(handleResponse(response));
+    return MyTripSummary.fromJson(data);
+  }
+
+  Future<MyTripSummary> createHotelBooking(
+    CreateHotelBookingRequest request,
+  ) async {
+    final response = await postWithFallback(
+      '/trips/hotel-bookings',
+      body: jsonEncode(request.toJson()),
+    );
+
+    final data = Map<String, dynamic>.from(handleResponse(response));
+    return MyTripSummary.fromJson(data);
+  }
+
+  Future<MyTripSummary> completeFakePayment(
+    int tripId,
+    CreateFakePaymentRequest request,
+  ) async {
+    final response = await postWithFallback(
+      '/trips/$tripId/fake-payment',
+      body: jsonEncode(request.toJson()),
     );
 
     final data = Map<String, dynamic>.from(handleResponse(response));

@@ -1,3 +1,7 @@
+export 'home/home_view.dart';
+export 'catalog/search_view.dart';
+export 'catalog/hotel_detail_view.dart';
+export 'catalog/bus_detail_view.dart';
 export 'profile/profile_view.dart';
 export 'profile/edit_profile_view.dart';
 export 'profile/settings_view.dart';
