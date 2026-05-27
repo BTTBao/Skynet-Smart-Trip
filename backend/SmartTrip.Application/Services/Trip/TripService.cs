@@ -96,7 +96,9 @@ public class TripService : ITripService
         }
 
         var itineraryItems = trip.TripItineraries
-            .OrderBy(item => item.DayNumber ?? int.MaxValue)
+            .OrderBy(item => item.ServiceDate ?? DateOnly.MaxValue)
+            .ThenBy(item => item.DayNumber ?? int.MaxValue)
+            .ThenBy(item => item.DepartureTime ?? TimeOnly.MaxValue)
             .ThenBy(item => item.Id)
             .ToList();
 

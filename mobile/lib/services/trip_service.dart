@@ -15,11 +15,8 @@ import '../models/update_trip_request.dart';
 import 'api_service_base.dart';
 
 class TripService extends ApiService {
-  Future<List<MyTripSummary>> getTripsByUser(int userId) async {
-    final uri = buildUri(configuredBaseUrl, '/trips').replace(
-      queryParameters: {'userId': '$userId'},
-    );
-    final response = await http.get(uri, headers: headers);
+  Future<List<MyTripSummary>> getTrips() async {
+    final response = await getWithFallback('/trips', requireAuth: true);
 
     final data = handleResponse(response) as List<dynamic>? ?? [];
     return data
@@ -28,7 +25,7 @@ class TripService extends ApiService {
   }
 
   Future<TripDetail> getTripDetail(int tripId) async {
-    final response = await getWithFallback('/trips/$tripId');
+    final response = await getWithFallback('/trips/$tripId', requireAuth: true);
 
     final data = Map<String, dynamic>.from(handleResponse(response));
     return TripDetail.fromJson(data);
@@ -38,6 +35,7 @@ class TripService extends ApiService {
     final response = await postWithFallback(
       '/trips',
       body: jsonEncode(request.toJson()),
+      requireAuth: true,
     );
 
     final data = Map<String, dynamic>.from(handleResponse(response));
@@ -76,6 +74,7 @@ class TripService extends ApiService {
     final response = await postWithFallback(
       '/trips/$tripId/itineraries',
       body: jsonEncode(request.toJson()),
+      requireAuth: true,
     );
 
     final data = Map<String, dynamic>.from(handleResponse(response));
@@ -93,18 +92,27 @@ class TripService extends ApiService {
       },
     );
 
-    final response = await http.get(uri, headers: headers);
+    final response = await http.get(
+      uri,
+      headers: await getHeaders(requireAuth: true),
+    );
 
     final data = handleResponse(response) as List<dynamic>? ?? [];
     return data
-        .map((item) => TripServiceOption.fromJson(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => TripServiceOption.fromJson(Map<String, dynamic>.from(item)),
+        )
         .toList();
   }
 
-  Future<MyTripSummary> updateTrip(int tripId, UpdateTripRequest request) async {
+  Future<MyTripSummary> updateTrip(
+    int tripId,
+    UpdateTripRequest request,
+  ) async {
     final response = await putWithFallback(
       '/trips/$tripId',
       body: jsonEncode(request.toJson()),
+      requireAuth: true,
     );
 
     final data = Map<String, dynamic>.from(handleResponse(response));
@@ -118,6 +126,7 @@ class TripService extends ApiService {
     final response = await putWithFallback(
       '/trips/itineraries/$itineraryId',
       body: jsonEncode(request.toJson()),
+      requireAuth: true,
     );
 
     final data = Map<String, dynamic>.from(handleResponse(response));
@@ -125,7 +134,10 @@ class TripService extends ApiService {
   }
 
   Future<void> deleteItinerary(int itineraryId) async {
-    final response = await deleteWithFallback('/trips/itineraries/$itineraryId');
+    final response = await deleteWithFallback(
+      '/trips/itineraries/$itineraryId',
+      requireAuth: true,
+    );
 
     handleResponse(response);
   }

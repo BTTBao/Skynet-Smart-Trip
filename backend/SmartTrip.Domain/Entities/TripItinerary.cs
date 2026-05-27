@@ -22,6 +22,12 @@ public class TripItinerary
 
     public double? BookedCommissionRate { get; set; }
 
+    public DateOnly? ServiceDate { get; set; }
+
+    public TimeOnly? DepartureTime { get; set; }
+
+    public string? ServiceAddress { get; set; }
+
     public virtual Trip? Trip { get; set; }
 }
 

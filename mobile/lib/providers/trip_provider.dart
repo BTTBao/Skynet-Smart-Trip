@@ -17,7 +17,6 @@ class TripProvider with ChangeNotifier {
   List<MyTripSummary> _trips = [];
   TripDetail? _currentTrip;
   int? _currentTripId;
-  int _currentUserId = 1;
   bool _isLoadingTrips = false;
   bool _isLoadingTripDetail = false;
   bool _isSubmitting = false;
@@ -35,10 +34,15 @@ class TripProvider with ChangeNotifier {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     return _trips
-        .where((trip) =>
-            !DateTime(trip.endDate.year, trip.endDate.month, trip.endDate.day)
-                .isBefore(today) &&
-            trip.status != 'CANCELLED')
+        .where(
+          (trip) =>
+              !DateTime(
+                trip.endDate.year,
+                trip.endDate.month,
+                trip.endDate.day,
+              ).isBefore(today) &&
+              trip.status != 'CANCELLED',
+        )
         .toList();
   }
 
@@ -46,15 +50,19 @@ class TripProvider with ChangeNotifier {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     return _trips
-        .where((trip) =>
-            DateTime(trip.endDate.year, trip.endDate.month, trip.endDate.day)
-                    .isBefore(today) ||
-            trip.status == 'CANCELLED')
+        .where(
+          (trip) =>
+              DateTime(
+                trip.endDate.year,
+                trip.endDate.month,
+                trip.endDate.day,
+              ).isBefore(today) ||
+              trip.status == 'CANCELLED',
+        )
         .toList();
   }
 
-  Future<void> fetchTrips({int userId = 1, bool silent = false}) async {
-    _currentUserId = userId;
+  Future<void> fetchTrips({bool silent = false}) async {
     if (!silent) {
       _isLoadingTrips = true;
       _error = null;
@@ -62,7 +70,7 @@ class TripProvider with ChangeNotifier {
     }
 
     try {
-      _trips = await _tripService.getTripsByUser(userId);
+      _trips = await _tripService.getTrips();
       _error = null;
     } catch (e) {
       _error = e.toString();
@@ -97,7 +105,6 @@ class TripProvider with ChangeNotifier {
 
     try {
       final createdTrip = await _tripService.createTrip(request);
-      _currentUserId = request.userId;
       _trips = [
         createdTrip,
         ..._trips.where((trip) => trip.tripId != createdTrip.tripId),
@@ -183,7 +190,7 @@ class TripProvider with ChangeNotifier {
     try {
       await _tripService.addItinerary(tripId, request);
       await fetchTripDetail(tripId);
-      await fetchTrips(userId: _currentUserId, silent: true);
+      await fetchTrips(silent: true);
       return true;
     } catch (e) {
       _error = e.toString();
@@ -249,7 +256,7 @@ class TripProvider with ChangeNotifier {
       await _tripService.updateItinerary(itineraryId, request);
       if (_currentTripId != null) {
         await fetchTripDetail(_currentTripId!);
-        await fetchTrips(userId: _currentUserId, silent: true);
+        await fetchTrips(silent: true);
       }
       return true;
     } catch (e) {
@@ -272,7 +279,7 @@ class TripProvider with ChangeNotifier {
       await _tripService.deleteItinerary(itineraryId);
       if (_currentTripId != null) {
         await fetchTripDetail(_currentTripId!);
-        await fetchTrips(userId: _currentUserId, silent: true);
+        await fetchTrips(silent: true);
       }
       return true;
     } catch (e) {
