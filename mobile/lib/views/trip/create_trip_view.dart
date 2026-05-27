@@ -43,7 +43,9 @@ class _CreateTripViewState extends State<CreateTripView> {
   void initState() {
     super.initState();
     _tripNameController = TextEditingController(text: widget.initialTitle);
-    _destinationController = TextEditingController(text: widget.initialDestination);
+    _destinationController = TextEditingController(
+      text: widget.initialDestination,
+    );
     _startDate = widget.initialStartDate;
     _endDate = widget.initialEndDate;
     if (widget.editTripId != null) {
@@ -113,8 +115,10 @@ class _CreateTripViewState extends State<CreateTripView> {
   }
 
   String? get _tripNameError => _tripNameTouched ? _tripNameValidation : null;
-  String? get _destinationError => _destinationTouched ? _destinationValidation : null;
-  String? get _startDateError => _startDateTouched ? _startDateValidation : null;
+  String? get _destinationError =>
+      _destinationTouched ? _destinationValidation : null;
+  String? get _startDateError =>
+      _startDateTouched ? _startDateValidation : null;
   String? get _endDateError => _endDateTouched ? _endDateValidation : null;
 
   bool get _isFormValid {
@@ -129,11 +133,13 @@ class _CreateTripViewState extends State<CreateTripView> {
     final initialDate = isStartDate
         ? _startDate ?? today
         : _endDate ?? _startDate ?? today;
-    final firstDate = _isEditMode ? DateTime(2000) : (isStartDate ? today : (_startDate ?? today));
+    final firstDate = _isEditMode
+        ? DateTime(2000)
+        : (isStartDate ? today : (_startDate ?? today));
     final lastDate = isStartDate
         ? DateTime(today.year + 5, today.month, today.day)
         : (_startDate?.add(const Duration(days: 30)) ??
-            DateTime(today.year + 5, today.month, today.day));
+              DateTime(today.year + 5, today.month, today.day));
 
     final pickedDate = await showDatePicker(
       context: context,
@@ -180,7 +186,7 @@ class _CreateTripViewState extends State<CreateTripView> {
     }
 
     final tripProvider = context.read<TripProvider>();
-    
+
     if (_isEditMode) {
       final success = await tripProvider.updateTrip(
         widget.editTripId!,
@@ -196,9 +202,9 @@ class _CreateTripViewState extends State<CreateTripView> {
 
       if (success) {
         Navigator.of(context).maybePop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Da cap nhat chuyen di.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Da cap nhat chuyen di.')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(tripProvider.error ?? 'Cap nhat that bai.')),
@@ -209,7 +215,7 @@ class _CreateTripViewState extends State<CreateTripView> {
 
     final createdTrip = await tripProvider.createTrip(
       CreateTripRequest(
-        userId: 1,
+        userId: 0,
         title: _tripNameController.text.trim(),
         destinationName: _destinationController.text.trim(),
         startDate: _startDate!,
@@ -224,7 +230,9 @@ class _CreateTripViewState extends State<CreateTripView> {
 
     if (createdTrip == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tripProvider.error ?? 'Khong tao duoc chuyen di.')),
+        SnackBar(
+          content: Text(tripProvider.error ?? 'Khong tao duoc chuyen di.'),
+        ),
       );
       return;
     }
@@ -236,8 +244,9 @@ class _CreateTripViewState extends State<CreateTripView> {
           tripTitle: createdTrip.title,
           startDate: createdTrip.startDate,
           endDate: createdTrip.endDate,
-          travelerInitial:
-              createdTrip.title.isEmpty ? 'T' : createdTrip.title[0].toUpperCase(),
+          travelerInitial: createdTrip.title.isEmpty
+              ? 'T'
+              : createdTrip.title[0].toUpperCase(),
         ),
       ),
     );
@@ -256,7 +265,9 @@ class _CreateTripViewState extends State<CreateTripView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TripScreenHeader(
-                title: _isEditMode ? 'Chinh sua chuyen di' : 'Tao chuyen di moi',
+                title: _isEditMode
+                    ? 'Chinh sua chuyen di'
+                    : 'Tao chuyen di moi',
                 onBack: () => Navigator.of(context).maybePop(),
               ),
               const SizedBox(height: 16),
@@ -371,7 +382,9 @@ class _CreateTripViewState extends State<CreateTripView> {
                           ),
                         ),
                   label: Icon(
-                    isSubmitting ? Icons.hourglass_top_rounded : Icons.arrow_forward_rounded,
+                    isSubmitting
+                        ? Icons.hourglass_top_rounded
+                        : Icons.arrow_forward_rounded,
                   ),
                 ),
               ),

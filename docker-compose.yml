@@ -8,7 +8,7 @@ services:
       - MSSQL_PID=Developer
     ports:
       - "${DB_PORT}:1433"
-    volumes:0
+    volumes:
       - sqlserver_data:/var/opt/mssql
     healthcheck:
       test: ["CMD-SHELL", "bash -c '< /dev/tcp/127.0.0.1/1433'"]

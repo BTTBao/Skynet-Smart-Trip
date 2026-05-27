@@ -196,6 +196,69 @@ public static class DevelopmentDataSeeder
             }
         }
 
+        if (!await context.Rooms.AnyAsync())
+        {
+            var hotels = await context.Hotels.OrderBy(h => h.Id).ToListAsync();
+            foreach (var hotel in hotels)
+            {
+                context.Rooms.AddRange(
+                    new Room
+                    {
+                        HotelId = hotel.Id,
+                        RoomType = "Superior",
+                        Capacity = 2,
+                        PricePerNight = 850000m + (hotel.Id * 100000m),
+                        CommissionRate = 0.1,
+                        AvailableQty = 8
+                    },
+                    new Room
+                    {
+                        HotelId = hotel.Id,
+                        RoomType = "Deluxe",
+                        Capacity = 3,
+                        PricePerNight = 1250000m + (hotel.Id * 120000m),
+                        CommissionRate = 0.12,
+                        AvailableQty = 5
+                    });
+            }
+
+            await context.SaveChangesAsync();
+        }
+
+        if (!await context.Galleries.AnyAsync())
+        {
+            var destinations = await context.Destinations.OrderBy(d => d.Id).ToListAsync();
+            foreach (var destination in destinations)
+            {
+                context.Galleries.Add(new Gallery
+                {
+                    ReferenceType = GalleryReferenceType.Destination,
+                    ReferenceId = destination.Id,
+                    ImageUrl = destination.CoverImageUrl
+                });
+            }
+
+            var hotels = await context.Hotels.OrderBy(h => h.Id).ToListAsync();
+            var hotelImages = new[]
+            {
+                "https://images.unsplash.com/photo-1566073771259-6a8506099945",
+                "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85",
+                "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267"
+            };
+
+            for (var index = 0; index < hotels.Count; index++)
+            {
+                context.Galleries.Add(new Gallery
+                {
+                    ReferenceType = GalleryReferenceType.Hotel,
+                    ReferenceId = hotels[index].Id,
+                    ImageUrl = hotelImages[index % hotelImages.Length]
+                });
+            }
+
+            await context.SaveChangesAsync();
+        }
+
         if (!await context.BusSchedules.AnyAsync())
         {
             var companyId = await context.BusCompanies
@@ -372,6 +435,54 @@ public static class DevelopmentDataSeeder
 
                 await context.SaveChangesAsync();
             }
+        }
+
+        if (!await context.Reviews.AnyAsync())
+        {
+            var demoUserId = await context.Users
+                .Where(u => u.Email == "test@example.com")
+                .Select(u => u.Id)
+                .FirstOrDefaultAsync();
+            var hotels = await context.Hotels.OrderBy(h => h.Id).ToListAsync();
+            var companies = await context.BusCompanies.OrderBy(c => c.Id).ToListAsync();
+
+            foreach (var hotel in hotels)
+            {
+                context.Reviews.AddRange(
+                    new Review
+                    {
+                        UserId = demoUserId,
+                        TargetType = ReviewTargetType.Hotel,
+                        TargetId = hotel.Id,
+                        Rating = 5,
+                        Comment = $"Khong gian o {hotel.Name} rat thoai mai, phu hop nghi duong.",
+                        CreatedAt = DateTime.UtcNow.AddDays(-hotel.Id)
+                    },
+                    new Review
+                    {
+                        UserId = demoUserId,
+                        TargetType = ReviewTargetType.Hotel,
+                        TargetId = hotel.Id,
+                        Rating = 4,
+                        Comment = "Dich vu tot, phong sach se va nhan vien than thien.",
+                        CreatedAt = DateTime.UtcNow.AddDays(-hotel.Id - 2)
+                    });
+            }
+
+            foreach (var company in companies)
+            {
+                context.Reviews.Add(new Review
+                {
+                    UserId = demoUserId,
+                    TargetType = ReviewTargetType.BusCompany,
+                    TargetId = company.Id,
+                    Rating = 4,
+                    Comment = $"Nha xe {company.Name} dung gio va phuc vu on dinh.",
+                    CreatedAt = DateTime.UtcNow.AddDays(-company.Id - 1)
+                });
+            }
+
+            await context.SaveChangesAsync();
         }
 
         if (!await context.Invoices.AnyAsync())
