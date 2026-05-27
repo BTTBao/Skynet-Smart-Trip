@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/user_profile.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../utils/app_text.dart';
 import '../../widgets/widgets.dart';
@@ -12,6 +13,7 @@ import 'activity_history_view.dart';
 import 'change_password_view.dart';
 import 'edit_profile_view.dart';
 import 'favorites_view.dart';
+import 'notifications_view.dart';
 import 'profile_session_helper.dart';
 import 'settings_view.dart';
 
@@ -31,6 +33,7 @@ class _ProfileViewState extends State<ProfileView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProfileProvider>().fetchProfile(forceRefresh: false);
+      context.read<NotificationProvider>().fetchUnreadCount();
     });
   }
 
@@ -167,6 +170,27 @@ class _ProfileViewState extends State<ProfileView> {
                   _SectionTitle(title: context.tr(vi: 'Tien ich', en: 'Utilities')),
                   _CardSection(
                     children: [
+                      Consumer<NotificationProvider>(
+                        builder: (context, notificationProvider, _) {
+                          return MenuItemTile(
+                            icon: Icons.notifications_outlined,
+                            title: context.tr(
+                              vi: 'Thong bao',
+                              en: 'Notifications',
+                            ),
+                            color: primaryColor,
+                            badgeCount: notificationProvider.unreadCount,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const NotificationsView(),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                      const MenuDivider(),
                       MenuItemTile(
                         icon: Icons.person_outline,
                         title:
@@ -298,6 +322,7 @@ class _ProfileViewState extends State<ProfileView> {
     }
 
     context.read<ChatProvider>().resetForSignedOutUser();
+    context.read<NotificationProvider>().reset();
     context.read<ProfileProvider>().logout();
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),

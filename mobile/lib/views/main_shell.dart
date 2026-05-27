@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../providers/notification_provider.dart';
 import '../providers/profile_provider.dart';
 import '../utils/app_text.dart';
 
@@ -21,6 +24,7 @@ class _MainShellState extends State<MainShell> {
   static const primaryColor = Color(0xFF80ED99);
 
   int _currentIndex = 0;
+  Timer? _notificationTimer;
 
   final List<Widget> _pages = [
     const HomeView(),
@@ -38,7 +42,19 @@ class _MainShellState extends State<MainShell> {
       context.read<ProfileProvider>().fetchProfile(
             forceRefresh: false,
           );
+      context.read<NotificationProvider>().fetchUnreadCount();
+      _notificationTimer = Timer.periodic(const Duration(seconds: 45), (_) {
+        if (mounted) {
+          context.read<NotificationProvider>().fetchUnreadCount();
+        }
+      });
     });
+  }
+
+  @override
+  void dispose() {
+    _notificationTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -105,14 +121,19 @@ class _MainShellState extends State<MainShell> {
                   ),
                 ),
 
-                _buildNavItem(
-                  index: 4,
-                  icon: Icons.person_outline,
-                  activeIcon: Icons.person,
-                  label: context.tr(
-                    vi: 'Ho so',
-                    en: 'Profile',
-                  ),
+                Consumer<NotificationProvider>(
+                  builder: (context, notificationProvider, _) {
+                    return _buildNavItem(
+                      index: 4,
+                      icon: Icons.person_outline,
+                      activeIcon: Icons.person,
+                      label: context.tr(
+                        vi: 'Ho so',
+                        en: 'Profile',
+                      ),
+                      badgeCount: notificationProvider.unreadCount,
+                    );
+                  },
                 ),
               ],
             ),
@@ -127,6 +148,7 @@ class _MainShellState extends State<MainShell> {
     required IconData icon,
     required IconData activeIcon,
     required String label,
+    int badgeCount = 0,
   }) {
     final isActive = _currentIndex == index;
 
@@ -156,12 +178,23 @@ class _MainShellState extends State<MainShell> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isActive ? activeIcon : icon,
-              size: 24,
-              color: isActive
-                  ? primaryColor
-                  : Colors.grey.shade400,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  isActive ? activeIcon : icon,
+                  size: 24,
+                  color: isActive
+                      ? primaryColor
+                      : Colors.grey.shade400,
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    right: -8,
+                    top: -7,
+                    child: _NotificationBadge(count: badgeCount),
+                  ),
+              ],
             ),
 
             const SizedBox(height: 4),
@@ -232,6 +265,36 @@ class _PlaceholderPage extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationBadge extends StatelessWidget {
+  const _NotificationBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = count > 99 ? '99+' : '$count';
+
+    return Container(
+      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.red.shade600,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Theme.of(context).colorScheme.surface),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );

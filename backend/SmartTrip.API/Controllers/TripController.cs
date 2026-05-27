@@ -96,6 +96,7 @@ public class TripController : ControllerBase
     {
         try
         {
+            request.UserId = GetCurrentUserId();
             var trip = await _tripService.CreateHotelBookingAsync(request);
             return CreatedAtAction(nameof(GetTripById), new { tripId = trip.TripId }, trip);
         }
@@ -118,6 +119,11 @@ public class TripController : ControllerBase
     {
         try
         {
+            if (!await UserOwnsTripAsync(tripId))
+            {
+                return Forbid();
+            }
+
             var trip = await _tripService.CompleteFakePaymentAsync(tripId, request);
             return Ok(trip);
         }

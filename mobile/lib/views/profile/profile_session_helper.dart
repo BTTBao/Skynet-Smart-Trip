@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../utils/app_text.dart';
 import '../auth/login_screen.dart';
@@ -41,6 +42,7 @@ Future<void> showSessionExpiredDialog(
               Navigator.of(dialogContext, rootNavigator: true).pop();
               await context.read<AuthProvider>().logout();
               context.read<ChatProvider>().resetForSignedOutUser();
+              context.read<NotificationProvider>().reset();
               context.read<ProfileProvider>().logout();
               if (!context.mounted) {
                 return;

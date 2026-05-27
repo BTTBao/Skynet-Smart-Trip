@@ -13,6 +13,14 @@ public class Notification
 
     public string? Message { get; set; }
 
+    public string? Type { get; set; }
+
+    public string? ReferenceType { get; set; }
+
+    public int? ReferenceId { get; set; }
+
+    public string? ActionUrl { get; set; }
+
     public bool? IsRead { get; set; }
 
     public DateTime? CreatedAt { get; set; }

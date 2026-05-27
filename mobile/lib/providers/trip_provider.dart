@@ -128,7 +128,6 @@ class TripProvider with ChangeNotifier {
 
     try {
       final createdTrip = await _tripService.createHotelBooking(request);
-      _currentUserId = request.userId;
       _trips = [
         createdTrip,
         ..._trips.where((trip) => trip.tripId != createdTrip.tripId),

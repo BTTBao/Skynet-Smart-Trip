@@ -1,7 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Logging;
+using SmartTrip.Application.DTOs.Notifications;
 using SmartTrip.Application.DTOs.Trip;
 using SmartTrip.Application.Interfaces;
+using SmartTrip.Application.Interfaces.Email;
+using SmartTrip.Application.Interfaces.Notifications;
 using SmartTrip.Application.Interfaces.Trip;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
@@ -18,11 +22,22 @@ public class TripService : ITripService
 
     private readonly IApplicationDbContext _context;
     private readonly IItineraryService _itineraryService;
+    private readonly INotificationService _notificationService;
+    private readonly IEmailService _emailService;
+    private readonly ILogger<TripService> _logger;
 
-    public TripService(IApplicationDbContext context, IItineraryService itineraryService)
+    public TripService(
+        IApplicationDbContext context,
+        IItineraryService itineraryService,
+        INotificationService notificationService,
+        IEmailService emailService,
+        ILogger<TripService> logger)
     {
         _context = context;
         _itineraryService = itineraryService;
+        _notificationService = notificationService;
+        _emailService = emailService;
+        _logger = logger;
     }
 
     public async Task<IReadOnlyList<TripSummaryDto>> GetTripsByUserAsync(int userId)
@@ -133,6 +148,11 @@ public class TripService : ITripService
 
     public async Task<TripSummaryDto> CreateTripAsync(CreateTripDto request)
     {
+        return await CreateTripInternalAsync(request, sendCreatedNotification: true);
+    }
+
+    private async Task<TripSummaryDto> CreateTripInternalAsync(CreateTripDto request, bool sendCreatedNotification)
+    {
         ValidateCreateTripRequest(request);
 
         var userExists = await _context.Users.AnyAsync(user => user.Id == request.UserId);
@@ -159,8 +179,15 @@ public class TripService : ITripService
         _context.Trips.Add(trip);
         await _context.SaveChangesAsync();
 
-        return await GetTripSummaryAsync(trip.Id)
+        var createdTrip = await GetTripSummaryAsync(trip.Id)
             ?? throw new InvalidOperationException("Trip was created but could not be loaded.");
+
+        if (sendCreatedNotification)
+        {
+            await NotifyTripCreatedAsync(createdTrip);
+        }
+
+        return createdTrip;
     }
 
     public async Task<TripSummaryDto> CreateHotelBookingAsync(CreateHotelBookingDto request)
@@ -175,7 +202,7 @@ public class TripService : ITripService
         await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync();
         try
         {
-            var trip = await CreateTripAsync(new CreateTripDto
+            var trip = await CreateTripInternalAsync(new CreateTripDto
             {
                 UserId = request.UserId,
                 DestinationId = request.DestinationId,
@@ -184,7 +211,7 @@ public class TripService : ITripService
                 StartDate = request.CheckInDate,
                 EndDate = request.CheckOutDate,
                 Status = PendingStatus
-            });
+            }, sendCreatedNotification: false);
 
             await _itineraryService.AddItineraryAsync(trip.TripId, new CreateTripItineraryDto
             {
@@ -196,8 +223,13 @@ public class TripService : ITripService
 
             await transaction.CommitAsync();
 
-            return await GetTripSummaryAsync(trip.TripId)
+            var createdBooking = await GetTripSummaryAsync(trip.TripId)
                 ?? throw new InvalidOperationException("Hotel booking was created but could not be loaded.");
+
+            await NotifyHotelBookingCreatedAsync(createdBooking);
+            await SendHotelBookingEmailAsync(createdBooking);
+
+            return createdBooking;
         }
         catch
         {
@@ -214,6 +246,8 @@ public class TripService : ITripService
         }
 
         var trip = await _context.Trips
+            .Include(item => item.User)
+            .Include(item => item.Destination)
             .Include(item => item.Payments)
             .Include(item => item.TripItineraries)
             .FirstOrDefaultAsync(item => item.Id == tripId);
@@ -274,6 +308,9 @@ public class TripService : ITripService
         trip.Status = TripStatus.Paid;
 
         await _context.SaveChangesAsync();
+
+        await NotifyPaymentSucceededAsync(trip, payment);
+        await SendPaymentSucceededEmailAsync(trip, payment);
 
         return await GetTripSummaryAsync(trip.Id)
             ?? throw new InvalidOperationException("Payment was saved but booking could not be reloaded.");
@@ -495,5 +532,134 @@ public class TripService : ITripService
             CancelledStatus => TripStatus.Cancelled,
             _ => TripStatus.Draft
         };
+    }
+
+    private async Task NotifyTripCreatedAsync(TripSummaryDto trip)
+    {
+        await TryCreateNotificationAsync(new CreateNotificationDto
+        {
+            UserId = trip.UserId ?? 0,
+            Title = "Chuyến đi đã được tạo",
+            Message = $"Chuyến đi \"{trip.Title}\" đã sẵn sàng để bạn tiếp tục lên lịch trình.",
+            Type = "trip.created",
+            ReferenceType = "trip",
+            ReferenceId = trip.TripId,
+            ActionUrl = $"/trips/{trip.TripId}"
+        });
+    }
+
+    private async Task NotifyHotelBookingCreatedAsync(TripSummaryDto trip)
+    {
+        await TryCreateNotificationAsync(new CreateNotificationDto
+        {
+            UserId = trip.UserId ?? 0,
+            Title = "Đặt phòng đã được ghi nhận",
+            Message = $"Booking \"{trip.Title}\" đã được SmartTrip ghi nhận và đang chờ xử lý.",
+            Type = "booking.hotel_created",
+            ReferenceType = "booking",
+            ReferenceId = trip.TripId,
+            ActionUrl = $"/trips/{trip.TripId}"
+        });
+    }
+
+    private async Task NotifyPaymentSucceededAsync(TripEntity trip, Payment payment)
+    {
+        await TryCreateNotificationAsync(new CreateNotificationDto
+        {
+            UserId = trip.UserId ?? 0,
+            Title = "Thanh toán thành công",
+            Message = $"Thanh toán cho \"{trip.Title ?? "booking"}\" đã hoàn tất.",
+            Type = "payment.succeeded",
+            ReferenceType = "payment",
+            ReferenceId = payment.Id,
+            ActionUrl = $"/trips/{trip.Id}"
+        });
+    }
+
+    private async Task TryCreateNotificationAsync(CreateNotificationDto request)
+    {
+        try
+        {
+            await _notificationService.CreateAsync(request);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create notification {Type} for user {UserId}", request.Type, request.UserId);
+        }
+    }
+
+    private async Task SendHotelBookingEmailAsync(TripSummaryDto trip)
+    {
+        try
+        {
+            if (!trip.UserId.HasValue || !await _notificationService.AreEmailNotificationsEnabledAsync(trip.UserId.Value))
+            {
+                return;
+            }
+
+            var user = await _context.Users
+                .AsNoTracking()
+                .Where(item => item.Id == trip.UserId.Value)
+                .Select(item => new { item.Email, item.FullName })
+                .FirstOrDefaultAsync();
+
+            if (user == null)
+            {
+                return;
+            }
+
+            await _emailService.SendHotelBookingCreatedEmailAsync(
+                user.Email,
+                user.FullName ?? user.Email,
+                trip.Title,
+                FormatDateRange(trip.StartDate, trip.EndDate));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send hotel booking email for trip {TripId}", trip.TripId);
+        }
+    }
+
+    private async Task SendPaymentSucceededEmailAsync(TripEntity trip, Payment payment)
+    {
+        try
+        {
+            if (!trip.UserId.HasValue || !await _notificationService.AreEmailNotificationsEnabledAsync(trip.UserId.Value))
+            {
+                return;
+            }
+
+            var user = trip.User;
+            if (user == null)
+            {
+                user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(item => item.Id == trip.UserId.Value);
+            }
+
+            if (user == null)
+            {
+                return;
+            }
+
+            await _emailService.SendPaymentSuccessEmailAsync(
+                user.Email,
+                user.FullName ?? user.Email,
+                trip.Title ?? "Booking SmartTrip",
+                payment.Amount ?? 0m,
+                payment.TransactionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send payment success email for trip {TripId}", trip.Id);
+        }
+    }
+
+    private static string FormatDateRange(DateOnly? startDate, DateOnly? endDate)
+    {
+        if (!startDate.HasValue || !endDate.HasValue)
+        {
+            return "Đang cập nhật";
+        }
+
+        return $"{startDate.Value:dd/MM/yyyy} - {endDate.Value:dd/MM/yyyy}";
     }
 }

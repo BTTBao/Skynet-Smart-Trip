@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using SmartTrip.Application.DTOs.Notifications;
 using SmartTrip.Application.DTOs.Explore;
 using SmartTrip.Application.Interfaces;
 using SmartTrip.Application.Interfaces.Explore;
+using SmartTrip.Application.Interfaces.Notifications;
 using SmartTrip.Domain.Entities;
 using System.Globalization;
 using System.Text;
@@ -15,10 +18,17 @@ public class ExploreService : IExploreService
     private const string DefaultAvatar = "https://i.pravatar.cc/150?u=smarttrip";
 
     private readonly IApplicationDbContext _context;
+    private readonly INotificationService _notificationService;
+    private readonly ILogger<ExploreService> _logger;
 
-    public ExploreService(IApplicationDbContext context)
+    public ExploreService(
+        IApplicationDbContext context,
+        INotificationService notificationService,
+        ILogger<ExploreService> logger)
     {
         _context = context;
+        _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task<PagedResultDto<ExplorePostDto>> GetPostsAsync(ExplorePostQueryDto query, int? currentUserId)
@@ -268,6 +278,12 @@ public class ExploreService : IExploreService
 
         await EnsurePostAndUserExistAsync(postId, userId);
 
+        var post = await _context.ExplorePosts
+            .AsNoTracking()
+            .Where(item => item.Id == postId)
+            .Select(item => new { item.AuthorId, item.Title })
+            .FirstAsync();
+
         var comment = new ExploreComment
         {
             ExplorePostId = postId,
@@ -279,6 +295,11 @@ public class ExploreService : IExploreService
 
         _context.ExploreComments.Add(comment);
         await _context.SaveChangesAsync();
+
+        if (post.AuthorId != userId)
+        {
+            await TryNotifyPostOwnerAsync(post.AuthorId, postId, post.Title);
+        }
 
         return await _context.ExploreComments
             .AsNoTracking()
@@ -293,6 +314,27 @@ public class ExploreService : IExploreService
                 Likes = item.LikeCount
             })
             .FirstAsync();
+    }
+
+    private async Task TryNotifyPostOwnerAsync(int ownerId, int postId, string postTitle)
+    {
+        try
+        {
+            await _notificationService.CreateAsync(new CreateNotificationDto
+            {
+                UserId = ownerId,
+                Title = "Bài viết có bình luận mới",
+                Message = $"Bài viết \"{postTitle}\" vừa có bình luận mới.",
+                Type = "explore.comment_created",
+                ReferenceType = "explore_post",
+                ReferenceId = postId,
+                ActionUrl = $"/explore/posts/{postId}"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create explore comment notification for post {PostId}", postId);
+        }
     }
 
     public async Task<ExploreRatingResultDto> RatePostAsync(int postId, RateExplorePostDto request, int userId)

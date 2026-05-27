@@ -225,9 +225,12 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
 
         modelBuilder.Entity<Notification>(entity =>
         {
+            entity.Property(e => e.ActionUrl).HasMaxLength(255);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
             entity.Property(e => e.IsRead).HasDefaultValue(false);
+            entity.Property(e => e.ReferenceType).HasMaxLength(50).IsUnicode(false);
             entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.Type).HasMaxLength(80).IsUnicode(false);
 
             entity.HasOne(d => d.User).WithMany(p => p.Notifications).HasForeignKey(d => d.UserId);
         });

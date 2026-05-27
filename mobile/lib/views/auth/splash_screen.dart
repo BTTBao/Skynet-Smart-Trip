@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_theme.dart';
 import '../../providers/app_settings_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../utils/app_text.dart';
 import '../main_shell.dart';
@@ -59,6 +60,9 @@ class _SplashScreenState extends State<SplashScreen>
       final settings = profileProvider.settings;
       if (settings != null && mounted) {
         await context.read<AppSettingsProvider>().applyUserSettings(settings);
+      }
+      if (mounted) {
+        await context.read<NotificationProvider>().fetchUnreadCount();
       }
     }
 

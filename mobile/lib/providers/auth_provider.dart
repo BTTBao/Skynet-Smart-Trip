@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -38,7 +37,7 @@ class AuthProvider with ChangeNotifier {
     final raw = e.toString().replaceFirst('Exception: ', '');
     
     if (raw.contains('network_error') && raw.contains('Api7')) {
-      _errorMessage = 'Lỗi kết nối máy chủ Google. Vui lòng kiểm tra lại mạng hoặc thử đổi WiFi/4G trên máy ảo.';
+      _errorMessage = 'Google Sign-In chưa kết nối được. Hãy kiểm tra máy ảo có Google Play Services, đã đăng nhập tài khoản Google, và OAuth Android client khớp package com.skynet.mobile với SHA-1 debug.';
     } else if (raw.contains('sign_in_failed') || raw.contains('DEVELOPER_ERROR') || raw.contains('Api10')) {
       _errorMessage = 'Lỗi cấu hình Cụm Google Sign-In. Vui lòng kiểm tra lại cấu hình SHA-1, Client ID hoặc file google-services.json.';
     } else {
@@ -110,8 +109,11 @@ class AuthProvider with ChangeNotifier {
     _clearError();
 
     try {
-      // Đảm bảo sign out trước để tránh cache account cũ
-      await _googleSignIn.signOut();
+      // Best-effort cleanup; do not fail login if Google Play Services cannot
+      // complete a cached sign-out call.
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
 
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
