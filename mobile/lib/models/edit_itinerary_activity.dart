@@ -8,6 +8,11 @@ class EditItineraryActivity {
     required this.location,
     required this.timeRange,
     required this.imageGradient,
+    this.serviceDate,
+    this.departureTime,
+    this.serviceAddress,
+    this.quantity,
+    this.bookedPrice,
     this.isActive = true,
   });
 
@@ -17,5 +22,10 @@ class EditItineraryActivity {
   final String location;
   final String timeRange;
   final List<Color> imageGradient;
+  final DateTime? serviceDate;
+  final String? departureTime;
+  final String? serviceAddress;
+  final int? quantity;
+  final double? bookedPrice;
   final bool isActive;
 }

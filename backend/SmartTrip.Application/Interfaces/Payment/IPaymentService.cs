@@ -1,0 +1,12 @@
+using SmartTrip.Application.DTOs.Payment;
+
+namespace SmartTrip.Application.Interfaces.Payment;
+
+public interface IPaymentService
+{
+    Task<PaymentResultDto> CreatePaymentAsync(CreatePaymentRequestDto request, CancellationToken cancellationToken = default);
+    Task<PaymentResultDto?> GetPaymentStatusAsync(long orderCode, CancellationToken cancellationToken = default);
+    Task<PaymentResultDto?> GetPaymentStatusByIdAsync(int paymentId, CancellationToken cancellationToken = default);
+    Task<PaymentResultDto?> HandlePayOsWebhookAsync(PayOsWebhookDto webhook, CancellationToken cancellationToken = default);
+    bool VerifyPayOsWebhook(PayOsWebhookDto webhook);
+}

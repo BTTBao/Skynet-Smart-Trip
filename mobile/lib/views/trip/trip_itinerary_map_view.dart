@@ -29,7 +29,7 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
 
   late final List<TripTimelineEntry> _sortedEntries;
   final Map<int, _MappedPoint> _pointsByItineraryId = <int, _MappedPoint>{};
-  final Set<int> _selectedItineraryIds = <int>{};
+  final Set<int> _excludedFromRouteIds = <int>{};
 
   bool _isLoadingPoints = true;
   String? _mapError;
@@ -40,13 +40,6 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
     super.initState();
     _sortedEntries = List<TripTimelineEntry>.from(widget.entries)
       ..sort(_compareEntries);
-
-    for (final entry in _sortedEntries) {
-      final id = entry.itineraryId;
-      if (id != null) {
-        _selectedItineraryIds.add(id);
-      }
-    }
 
     _loadMapPoints();
   }
@@ -97,7 +90,7 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
   }
 
   void _fitCameraToVisiblePoints() {
-    final points = _visiblePoints;
+    final points = _mappedPointsInTime;
     if (points.isEmpty) {
       return;
     }
@@ -115,12 +108,8 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
     );
   }
 
-  List<_MappedPoint> get _visiblePoints {
+  List<_MappedPoint> get _mappedPointsInTime {
     final points = _sortedEntries
-        .where((entry) {
-          final id = entry.itineraryId;
-          return id != null && _selectedItineraryIds.contains(id);
-        })
         .map((entry) {
           final id = entry.itineraryId;
           if (id == null) {
@@ -134,20 +123,24 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
     return points;
   }
 
-  void _toggleEntrySelection(TripTimelineEntry entry, bool isSelected) {
+  List<_MappedPoint> get _routePoints {
+    return _mappedPointsInTime.where((point) {
+      final id = point.entry.itineraryId;
+      return id != null && !_excludedFromRouteIds.contains(id);
+    }).toList();
+  }
+
+  void _toggleRouteExclusion(TripTimelineEntry entry, bool isExcluded) {
     final id = entry.itineraryId;
     if (id == null) {
       return;
     }
 
     setState(() {
-      if (isSelected) {
-        _selectedItineraryIds.add(id);
+      if (isExcluded) {
+        _excludedFromRouteIds.add(id);
       } else {
-        _selectedItineraryIds.remove(id);
-        if (_focusedEntry?.itineraryId == id) {
-          _focusedEntry = null;
-        }
+        _excludedFromRouteIds.remove(id);
       }
     });
 
@@ -164,8 +157,9 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
       return dateCompare;
     }
 
-    final timeCompare = _resolveMinutesOfDay(a.departureTime)
-        .compareTo(_resolveMinutesOfDay(b.departureTime));
+    final timeCompare = _resolveMinutesOfDay(
+      a.departureTime,
+    ).compareTo(_resolveMinutesOfDay(b.departureTime));
     if (timeCompare != 0) {
       return timeCompare;
     }
@@ -212,7 +206,8 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
 
   @override
   Widget build(BuildContext context) {
-    final visiblePoints = _visiblePoints;
+    final visiblePoints = _mappedPointsInTime;
+    final routePoints = _routePoints;
 
     return Scaffold(
       backgroundColor: TripUiColors.background,
@@ -244,12 +239,13 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
                                 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                             userAgentPackageName: 'com.skynet.smarttrip.mobile',
                           ),
-                          if (visiblePoints.length > 1)
+                          if (routePoints.length > 1)
                             PolylineLayer(
                               polylines: [
                                 Polyline(
-                                  points:
-                                      visiblePoints.map((e) => e.latLng).toList(),
+                                  points: routePoints
+                                      .map((e) => e.latLng)
+                                      .toList(),
                                   strokeWidth: 5,
                                   color: const Color(0xFF0A9E4E),
                                 ),
@@ -351,25 +347,28 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
                     Expanded(
                       child: ListView.separated(
                         itemCount: _sortedEntries.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final entry = _sortedEntries[index];
                           final id = entry.itineraryId;
                           final isChecked =
-                              id != null && _selectedItineraryIds.contains(id);
-                          final hasAddress =
-                              (entry.serviceAddress ?? '').trim().isNotEmpty;
+                              id != null && _excludedFromRouteIds.contains(id);
+                          final hasAddress = (entry.serviceAddress ?? '')
+                              .trim()
+                              .isNotEmpty;
                           final resolvedOnMap =
-                              id != null && _pointsByItineraryId.containsKey(id);
+                              id != null &&
+                              _pointsByItineraryId.containsKey(id);
 
                           return CheckboxListTile(
                             value: isChecked,
                             onChanged: id == null
                                 ? null
-                                : (value) => _toggleEntrySelection(
-                                      entry,
-                                      value ?? false,
-                                    ),
+                                : (value) => _toggleRouteExclusion(
+                                    entry,
+                                    value ?? false,
+                                  ),
                             activeColor: const Color(0xFF0A9E4E),
                             title: Text(
                               entry.caption,
@@ -382,7 +381,7 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
                               ),
                             ),
                             subtitle: Text(
-                              '${_formatDate(entry.serviceDate)} - ${entry.departureTime ?? 'Chua chon gio'}\n${hasAddress ? (entry.serviceAddress ?? '') : 'Chua nhap dia chi'}${hasAddress && !resolvedOnMap ? ' (khong tim thay toa do)' : ''}',
+                              '${_formatDate(entry.serviceDate)} - ${entry.departureTime ?? 'Chua chon gio'}\n${isChecked ? 'Khong noi vao tuyen - ' : ''}${hasAddress ? (entry.serviceAddress ?? '') : 'Chua nhap dia chi'}${hasAddress && !resolvedOnMap ? ' (khong tim thay toa do)' : ''}',
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -404,19 +403,14 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
 }
 
 class _MappedPoint {
-  const _MappedPoint({
-    required this.entry,
-    required this.latLng,
-  });
+  const _MappedPoint({required this.entry, required this.latLng});
 
   final TripTimelineEntry entry;
   final LatLng latLng;
 }
 
 class _MapNotice extends StatelessWidget {
-  const _MapNotice({
-    required this.text,
-  });
+  const _MapNotice({required this.text});
 
   final String text;
 
@@ -442,10 +436,7 @@ class _MapNotice extends StatelessWidget {
 }
 
 class _MapInfoCard extends StatelessWidget {
-  const _MapInfoCard({
-    required this.entry,
-    required this.dateText,
-  });
+  const _MapInfoCard({required this.entry, required this.dateText});
 
   final TripTimelineEntry entry;
   final String dateText;
@@ -480,17 +471,26 @@ class _MapInfoCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'Ngay: $dateText',
-            style: const TextStyle(fontSize: 12, color: TripUiColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 12,
+              color: TripUiColors.textSecondary,
+            ),
           ),
           Text(
             'Gio: ${entry.departureTime ?? 'Chua chon gio'}',
-            style: const TextStyle(fontSize: 12, color: TripUiColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 12,
+              color: TripUiColors.textSecondary,
+            ),
           ),
           Text(
             'Dia chi: ${entry.serviceAddress ?? 'Chua nhap'}',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12, color: TripUiColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 12,
+              color: TripUiColors.textSecondary,
+            ),
           ),
         ],
       ),

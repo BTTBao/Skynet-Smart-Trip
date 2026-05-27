@@ -120,10 +120,23 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<Payment>(entity =>
         {
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.PaidAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.Property(e => e.CancelUrl).HasMaxLength(2048).IsUnicode(false);
+            entity.Property(e => e.CheckoutUrl).HasMaxLength(2048).IsUnicode(false);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.Property(e => e.Description).HasMaxLength(255);
+            entity.Property(e => e.MetadataJson).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.OrderCode).IsRequired(false);
+            entity.Property(e => e.PaidAt).HasColumnType("datetime");
+            entity.Property(e => e.PaymentLinkId).HasMaxLength(100).IsUnicode(false);
             entity.Property(e => e.PaymentMethod).HasMaxLength(50);
+            entity.Property(e => e.QrCode).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.RawResponseJson).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.ReturnUrl).HasMaxLength(2048).IsUnicode(false);
             entity.Property(e => e.Status).HasMaxLength(50);
             entity.Property(e => e.TransactionId).HasMaxLength(100).IsUnicode(false);
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasIndex(e => e.OrderCode).IsUnique().HasFilter("[OrderCode] IS NOT NULL");
 
             entity.HasOne(d => d.Trip).WithMany(p => p.Payments).HasForeignKey(d => d.TripId);
         });
