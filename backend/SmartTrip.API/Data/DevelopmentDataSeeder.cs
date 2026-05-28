@@ -82,24 +82,38 @@ public static class DevelopmentDataSeeder
             context.Destinations.AddRange(
                 new Destination
                 {
-                    Name = "Da Lat",
-                    Description = "Thanh pho ngan hoa va khi hau mat me quanh nam.",
+                    Name = "Đà Lạt",
+                    Description = "Thành phố ngàn hoa và khí hậu mát mẻ quanh năm.",
                     CoverImageUrl = "https://images.unsplash.com/photo-1506744038136-46273834b3fb",
                     IsHot = true
                 },
                 new Destination
                 {
-                    Name = "Phu Quoc",
-                    Description = "Dao ngoc voi bien dep va nhieu resort chat luong.",
+                    Name = "Phú Quốc",
+                    Description = "Đảo ngọc với biển đẹp và nhiều resort chất lượng.",
                     CoverImageUrl = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
                     IsHot = true
                 },
                 new Destination
                 {
-                    Name = "Da Nang",
-                    Description = "Thanh pho bien hien dai, gan Hoi An va Ba Na Hills.",
+                    Name = "Đà Nẵng",
+                    Description = "Thành phố biển hiện đại, gần Hội An và Bà Nà Hills.",
                     CoverImageUrl = "https://images.unsplash.com/photo-1493558103817-58b2924bce98",
                     IsHot = true
+                },
+                new Destination
+                {
+                    Name = "Nha Trang",
+                    Description = "Thành phố biển sôi động với các hoạt động lặn ngắm san hô hấp dẫn.",
+                    CoverImageUrl = "https://images.unsplash.com/photo-1584347718919-6d60a16d80ff",
+                    IsHot = true
+                },
+                new Destination
+                {
+                    Name = "Hạ Long",
+                    Description = "Kỳ quan thiên nhiên thế giới với hàng nghìn hòn đảo đá vôi.",
+                    CoverImageUrl = "https://images.unsplash.com/photo-1559811814-e2c59a5ebcc2",
+                    IsHot = false
                 });
 
             await context.SaveChangesAsync();
@@ -190,6 +204,24 @@ public static class DevelopmentDataSeeder
                         StarRating = 4,
                         Description = "Khách sạn boutique sang trọng nằm ven sông Hàn, cách Cầu Rồng chỉ 200m. Từ tầng thượng có thể chiêm ngưỡng Cầu Rồng phun lửa mỗi cuối tuần. Gần bãi biển Mỹ Khê, phố cổ Hội An và khu ẩm thực Bạch Đằng. Nhà hàng tầng thượng view sông Hàn không thể bỏ lỡ.",
                         IsAvailable = true
+                    },
+                    new Hotel
+                    {
+                        DestinationId = destinations[0].Id,
+                        Name = "Terracotta Hotel & Resort",
+                        Address = "Phân khu chức năng 7.9, KDL Hồ Tuyền Lâm, Đà Lạt",
+                        StarRating = 4,
+                        Description = "Khu nghỉ dưỡng nép mình bên hồ Tuyền Lâm thơ mộng. Một nơi yên tĩnh và thư giãn lý tưởng.",
+                        IsAvailable = true
+                    },
+                    new Hotel
+                    {
+                        DestinationId = destinations[1].Id,
+                        Name = "Vinpearl Resort & Spa",
+                        Address = "Bãi Dài, Gành Dầu, Phú Quốc",
+                        StarRating = 5,
+                        Description = "Resort cao cấp với các tiện ích chuẩn 5 sao, khu vui chơi VinWonders và Safari kế bên.",
+                        IsAvailable = true
                     });
 
                 await context.SaveChangesAsync();
@@ -238,6 +270,14 @@ public static class DevelopmentDataSeeder
                     new Room { HotelId = hotels[2].Id, RoomType = "Phòng River View", Capacity = 2, PricePerNight = 1480000m, CommissionRate = 0.12, AvailableQty = 6 },
                     new Room { HotelId = hotels[2].Id, RoomType = "Suite Cầu Rồng", Capacity = 4, PricePerNight = 2800000m, CommissionRate = 0.15, AvailableQty = 2 }
                 );
+
+                if (hotels.Count > 3)
+                {
+                    context.Rooms.AddRange(
+                        new Room { HotelId = hotels[3].Id, RoomType = "Phòng Standard", Capacity = 2, PricePerNight = 1000000m, CommissionRate = 0.10, AvailableQty = 5 },
+                        new Room { HotelId = hotels[4].Id, RoomType = "Phòng Vinpearl Standard", Capacity = 2, PricePerNight = 3500000m, CommissionRate = 0.15, AvailableQty = 15 }
+                    );
+                }
 
                 await context.SaveChangesAsync();
 
@@ -305,38 +345,108 @@ public static class DevelopmentDataSeeder
 
         if (!await context.BusSchedules.AnyAsync())
         {
-            var companyId = await context.BusCompanies
-                .OrderBy(c => c.Id)
-                .Select(c => c.Id)
-                .FirstOrDefaultAsync();
-
+            var companies = await context.BusCompanies.OrderBy(c => c.Id).ToListAsync();
             var destinations = await context.Destinations.OrderBy(d => d.Id).ToListAsync();
-            if (companyId != 0 && destinations.Count >= 2)
+            
+            if (companies.Count > 0 && destinations.Count >= 3)
             {
-                context.BusSchedules.AddRange(
-                    new BusSchedule
+                var companyId = companies[0].Id;
+                var baseDate = DateTime.UtcNow.AddDays(2).Date;
+
+                // Add multiples schedules for testing
+                var newSchedules = new List<BusSchedule>();
+                
+                // Add schedules for Da Lat to Da Nang, for next 10 days
+                for (int dayOffset = 0; dayOffset < 10; dayOffset++)
+                {
+                    var currentDate = baseDate.AddDays(dayOffset);
+                    newSchedules.Add(new BusSchedule
+                    {
+                        CompanyId = companyId,
+                        FromDestId = destinations[0].Id, // Da Lat
+                        ToDestId = destinations[2].Id, // Da Nang
+                        DepartureTime = currentDate.AddHours(8), // 08:00 AM
+                        ArrivalTime = currentDate.AddHours(14), // 02:00 PM
+                        Price = 280000m,
+                        CommissionRate = 0.08,
+                        TotalSeats = 40
+                    });
+                    newSchedules.Add(new BusSchedule
+                    {
+                        CompanyId = companyId,
+                        FromDestId = destinations[0].Id,
+                        ToDestId = destinations[2].Id,
+                        DepartureTime = currentDate.AddHours(14), // 02:00 PM
+                        ArrivalTime = currentDate.AddHours(20), // 08:00 PM
+                        Price = 300000m,
+                        CommissionRate = 0.08,
+                        TotalSeats = 40
+                    });
+                    newSchedules.Add(new BusSchedule
+                    {
+                        CompanyId = companies.Count > 1 ? companies[1].Id : companyId,
+                        FromDestId = destinations[0].Id,
+                        ToDestId = destinations[2].Id,
+                        DepartureTime = currentDate.AddHours(22), // 10:00 PM
+                        ArrivalTime = currentDate.AddDays(1).AddHours(4), // 04:00 AM next day
+                        Price = 320000m,
+                        CommissionRate = 0.08,
+                        TotalSeats = 36
+                    });
+
+                    // Reverse route Da Nang to Da Lat
+                    newSchedules.Add(new BusSchedule
                     {
                         CompanyId = companyId,
                         FromDestId = destinations[2].Id,
                         ToDestId = destinations[0].Id,
-                        DepartureTime = DateTime.UtcNow.AddDays(2).Date.AddHours(22),
-                        ArrivalTime = DateTime.UtcNow.AddDays(3).Date.AddHours(5),
-                        Price = 320000m,
+                        DepartureTime = currentDate.AddHours(8),
+                        ArrivalTime = currentDate.AddHours(14),
+                        Price = 280000m,
                         CommissionRate = 0.08,
-                        TotalSeats = 36
-                    },
-                    new BusSchedule
-                    {
-                        CompanyId = companyId,
-                        FromDestId = destinations[2].Id,
-                        ToDestId = destinations[1].Id,
-                        DepartureTime = DateTime.UtcNow.AddDays(4).Date.AddHours(21),
-                        ArrivalTime = DateTime.UtcNow.AddDays(5).Date.AddHours(6),
-                        Price = 450000m,
-                        CommissionRate = 0.1,
                         TotalSeats = 40
                     });
 
+                    // Route Da Nang to Da Nang (For UI testing)
+                    newSchedules.Add(new BusSchedule
+                    {
+                        CompanyId = companyId,
+                        FromDestId = destinations[2].Id, // Da Nang
+                        ToDestId = destinations[2].Id, // Da Nang
+                        DepartureTime = currentDate.AddHours(9),
+                        ArrivalTime = currentDate.AddHours(10),
+                        Price = 150000m,
+                        CommissionRate = 0.08,
+                        TotalSeats = 20
+                    });
+
+                    newSchedules.Add(new BusSchedule
+                    {
+                        CompanyId = companies.Count > 1 ? companies[1].Id : companyId,
+                        FromDestId = destinations[2].Id, // Da Nang
+                        ToDestId = destinations[2].Id, // Da Nang
+                        DepartureTime = currentDate.AddHours(15),
+                        ArrivalTime = currentDate.AddHours(16),
+                        Price = 120000m,
+                        CommissionRate = 0.08,
+                        TotalSeats = 30
+                    });
+                }
+
+                // Add schedules for Da Nang to Phu Quoc
+                newSchedules.Add(new BusSchedule
+                {
+                    CompanyId = companyId,
+                    FromDestId = destinations[2].Id,
+                    ToDestId = destinations[1].Id,
+                    DepartureTime = baseDate.AddHours(21),
+                    ArrivalTime = baseDate.AddDays(1).AddHours(6),
+                    Price = 450000m,
+                    CommissionRate = 0.1,
+                    TotalSeats = 40
+                });
+
+                context.BusSchedules.AddRange(newSchedules);
                 await context.SaveChangesAsync();
             }
         }

@@ -57,92 +57,6 @@ public class BusController : ControllerBase
             s.DepartureTime.HasValue && s.DepartureTime.Value.Date == baseDate
         ).ToList();
 
-        if (fromDestId.HasValue && toDestId.HasValue && !targetDateSchedules.Any())
-        {
-            // Seed dynamic schedules for this specific route and date so the user has data to test
-            var fromDest = await _context.Destinations.FindAsync(fromDestId.Value);
-            var toDest = await _context.Destinations.FindAsync(toDestId.Value);
-            if (fromDest != null && toDest != null)
-            {
-                var company = await _context.BusCompanies.FirstOrDefaultAsync();
-                if (company == null)
-                {
-                    company = new BusCompany
-                    {
-                        Name = "Skynet Express",
-                        Hotline = "19001001",
-                        LogoUrl = "https://images.unsplash.com/photo-1517142089942-ba376ce32a2e"
-                    };
-                    _context.BusCompanies.Add(company);
-                    await _context.SaveChangesAsync();
-                }
-
-                var schedule1 = new BusSchedule
-                {
-                    CompanyId = company.Id,
-                    FromDestId = fromDestId.Value,
-                    ToDestId = toDestId.Value,
-                    DepartureTime = baseDate.AddHours(8), // 08:00 AM
-                    ArrivalTime = baseDate.AddHours(10).AddMinutes(30), // 10:30 AM
-                    Price = 180000m,
-                    CommissionRate = 0.08,
-                    TotalSeats = 30
-                };
-
-                var schedule2 = new BusSchedule
-                {
-                    CompanyId = company.Id,
-                    FromDestId = fromDestId.Value,
-                    ToDestId = toDestId.Value,
-                    DepartureTime = baseDate.AddHours(13).AddMinutes(30), // 01:30 PM
-                    ArrivalTime = baseDate.AddHours(16), // 04:00 PM
-                    Price = 220000m,
-                    CommissionRate = 0.08,
-                    TotalSeats = 36
-                };
-
-                var schedule3 = new BusSchedule
-                {
-                    CompanyId = company.Id,
-                    FromDestId = fromDestId.Value,
-                    ToDestId = toDestId.Value,
-                    DepartureTime = baseDate.AddHours(19).AddMinutes(15), // 07:15 PM
-                    ArrivalTime = baseDate.AddHours(21).AddMinutes(45), // 09:45 PM
-                    Price = 250000m,
-                    CommissionRate = 0.08,
-                    TotalSeats = 40
-                };
-
-                _context.BusSchedules.AddRange(schedule1, schedule2, schedule3);
-                await _context.SaveChangesAsync();
-
-                foreach (var sch in new[] { schedule1, schedule2, schedule3 })
-                {
-                    var seats = new List<Seat>();
-                    int totalSeats = sch.TotalSeats ?? 30;
-                    for (int i = 1; i <= totalSeats; i++)
-                    {
-                        seats.Add(new Seat
-                        {
-                            ScheduleId = sch.Id,
-                            SeatNumber = $"S{i:02}",
-                            Status = SeatStatus.Available
-                        });
-                    }
-                    _context.Seats.AddRange(seats);
-                }
-                await _context.SaveChangesAsync();
-
-                // Re-run query to include newly created schedules with all details and seats
-                allRouteSchedules = await _context.BusSchedules
-                    .Include(s => s.Company)
-                    .Include(s => s.FromDest)
-                    .Include(s => s.ToDest)
-                    .Include(s => s.Seats)
-                    .Where(s => s.FromDestId == fromDestId.Value && s.ToDestId == toDestId.Value)
-                    .ToListAsync();
-            }
-        }
 
         // Apply date filtering if provided
         var filteredSchedules = allRouteSchedules;
@@ -151,12 +65,6 @@ public class BusController : ControllerBase
             filteredSchedules = allRouteSchedules.Where(s => 
                 s.DepartureTime.HasValue && s.DepartureTime.Value.Date == baseDate
             ).ToList();
-
-            // Fallback: If no schedules match the specific date, return all route schedules so the user can test easily
-            if (!filteredSchedules.Any())
-            {
-                filteredSchedules = allRouteSchedules;
-            }
         }
 
         var result = filteredSchedules.Select(s =>
@@ -214,24 +122,6 @@ public class BusController : ControllerBase
             return NotFound(new { message = "Không tìm thấy lịch trình chuyến xe." });
         }
 
-        // If seats are empty in database for some reason, seed them on the fly
-        if (!schedule.Seats.Any())
-        {
-            var seats = Enumerable.Range(1, schedule.TotalSeats ?? 30)
-                .Select(i => new Seat
-                {
-                    ScheduleId = scheduleId,
-                    SeatNumber = $"S{i:02}",
-                    Status = SeatStatus.Available
-                }).ToList();
-            _context.Seats.AddRange(seats);
-            await _context.SaveChangesAsync();
-            
-            // Reload schedule with seats
-            schedule = await _context.BusSchedules
-                .Include(s => s.Seats)
-                .FirstAsync(s => s.Id == scheduleId);
-        }
 
         var result = schedule.Seats
             .OrderBy(s => s.SeatNumber)
