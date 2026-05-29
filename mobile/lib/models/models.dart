@@ -1,3 +1,4 @@
+export 'catalog_models.dart';
 export 'chat_message.dart';
 export 'create_trip_itinerary_request.dart';
 export 'create_trip_request.dart';

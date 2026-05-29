@@ -1,3 +1,6 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartTrip.Application.DTOs.Trip;
@@ -12,6 +15,7 @@ using System.Threading.Tasks;
 namespace SmartTrip.API.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/trips")]
 public class TripController : ControllerBase
 {
@@ -30,13 +34,15 @@ public class TripController : ControllerBase
         _itineraryService = itineraryService;
         _optionService = optionService;
         _context = context;
+        _context = context;
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetTrips([FromQuery] int userId)
+    public async Task<IActionResult> GetTrips()
     {
         try
         {
+            var userId = GetCurrentUserId();
             var trips = await _tripService.GetTripsByUserAsync(userId);
             return Ok(trips);
         }
@@ -57,6 +63,11 @@ public class TripController : ControllerBase
                 return NotFound(new { message = $"Trip {tripId} was not found." });
             }
 
+            if (trip.UserId != GetCurrentUserId())
+            {
+                return Forbid();
+            }
+
             return Ok(trip);
         }
         catch (ArgumentException ex)
@@ -70,6 +81,7 @@ public class TripController : ControllerBase
     {
         try
         {
+            request.UserId = GetCurrentUserId();
             var trip = await _tripService.CreateTripAsync(request);
             return CreatedAtAction(nameof(GetTripById), new { tripId = trip.TripId }, trip);
         }
@@ -81,6 +93,54 @@ public class TripController : ControllerBase
         {
             return NotFound(new { message = ex.Message });
         }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("hotel-bookings")]
+    public async Task<IActionResult> CreateHotelBooking([FromBody] CreateHotelBookingDto request)
+    {
+        try
+        {
+            var trip = await _tripService.CreateHotelBookingAsync(request);
+            return CreatedAtAction(nameof(GetTripById), new { tripId = trip.TripId }, trip);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{tripId:int}/fake-payment")]
+    public async Task<IActionResult> CompleteFakePayment(int tripId, [FromBody] CreateFakePaymentDto request)
+    {
+        try
+        {
+            var trip = await _tripService.CompleteFakePaymentAsync(tripId, request);
+            return Ok(trip);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     [HttpPost("{tripId:int}/itineraries")]
@@ -88,6 +148,11 @@ public class TripController : ControllerBase
     {
         try
         {
+            if (!await UserOwnsTripAsync(tripId))
+            {
+                return Forbid();
+            }
+
             var itinerary = await _itineraryService.AddItineraryAsync(tripId, request);
             return CreatedAtAction(nameof(GetTripById), new { tripId }, itinerary);
         }
@@ -99,6 +164,10 @@ public class TripController : ControllerBase
         {
             return NotFound(new { message = ex.Message });
         }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     [HttpPut("{tripId:int}")]
@@ -106,6 +175,11 @@ public class TripController : ControllerBase
     {
         try
         {
+            if (!await UserOwnsTripAsync(tripId))
+            {
+                return Forbid();
+            }
+
             var trip = await _tripService.UpdateTripAsync(tripId, request);
             return Ok(trip);
         }
@@ -124,6 +198,11 @@ public class TripController : ControllerBase
     {
         try
         {
+            if (!await UserOwnsItineraryAsync(itineraryId))
+            {
+                return Forbid();
+            }
+
             var itinerary = await _itineraryService.UpdateItineraryAsync(itineraryId, request);
             return Ok(itinerary);
         }
@@ -142,6 +221,11 @@ public class TripController : ControllerBase
     {
         try
         {
+            if (!await UserOwnsItineraryAsync(itineraryId))
+            {
+                return Forbid();
+            }
+
             var result = await _itineraryService.DeleteItineraryAsync(itineraryId);
             if (!result)
             {

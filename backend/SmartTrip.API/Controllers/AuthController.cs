@@ -22,7 +22,7 @@ namespace SmartTrip.API.Controllers
             _authService = authService;
         }
 
-        /// <summary>Đăng nhập — trả về access token + refresh token</summary>
+        /// đăng nhập — trả về access token + refresh token
         [HttpPost("login")]
         [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
@@ -40,7 +40,28 @@ namespace SmartTrip.API.Controllers
             });
         }
 
-        /// <summary>Đăng ký tài khoản mới — gửi email xác thực</summary>
+        /// đăng nhập bằng Google — nhận idToken từ client
+        [HttpPost("login-google")]
+        [AllowAnonymous]
+        public async Task<IActionResult> LoginWithGoogle([FromBody] GoogleLoginRequest request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _authService.LoginWithGoogleAsync(request);
+
+            if (!result.IsSuccess)
+                return Unauthorized(new { success = false, message = result.ErrorMessage });
+
+            return Ok(new LoginResponse
+            {
+                AccessToken = result.AccessToken,
+                RefreshToken = result.RefreshToken,
+                ExpiresIn = result.ExpiresIn
+            });
+        }
+
+        /// đăng ký tài khoản mới — gửi email xác thực
         [HttpPost("register")]
         [AllowAnonymous]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
@@ -57,13 +78,13 @@ namespace SmartTrip.API.Controllers
             });
         }
 
-        /// <summary>Xác thực email qua OTP sau khi đăng ký</summary>
+        /// xác thực email qua OTP sau khi đăng ký
         [HttpPost("verify-email")]
         [AllowAnonymous]
         public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Otp))
-                return BadRequest(new { success = false, message = "Email v mã OTP không h?p l?." });
+                return BadRequest(new { success = false, message = "Email với mã OTP không hợp lệ." });
 
             var success = await _authService.VerifyEmailAsync(request);
 
@@ -73,18 +94,17 @@ namespace SmartTrip.API.Controllers
             return Ok(new { success = true, message = "Email đã được xác thực thành công! Bạn có thể bắt đầu sử dụng." });
         }
 
-        /// <summary>Yêu cầu đặt lại mật khẩu — gửi email reset link</summary>
+        /// yêu cầu đặt lại mật khẩu — gửi email reset link
         [HttpPost("forgot-password")]
         [AllowAnonymous]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
         {
             await _authService.ForgotPasswordAsync(request);
 
-            // Always return 200 to prevent email enumeration
             return Ok(new { success = true, message = "Nếu email tồn tại trong hệ thống, một liên kết đặt lại mật khẩu sẽ được gửi đến hòm thư của bạn." });
         }
 
-        /// <summary>Đặt lại mật khẩu bằng token từ email</summary>
+        /// đặt lại mật khẩu bằng token từ email
         [HttpPost("reset-password")]
         [AllowAnonymous]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
@@ -97,7 +117,7 @@ namespace SmartTrip.API.Controllers
             return Ok(new { success = true, message = "Mật khẩu đã được thay đổi thành công! Vui lòng đăng nhập lại." });
         }
 
-        /// <summary>Làm mới access token bằng refresh token</summary>
+        /// làm mới access token bằng refresh token
         [HttpPost("refresh-token")]
         [AllowAnonymous]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
@@ -115,7 +135,7 @@ namespace SmartTrip.API.Controllers
             });
         }
 
-        /// <summary>Đăng xuất — thu hồi refresh token</summary>
+        /// đăng xuất — thu hồi refresh token
         [HttpPost("logout")]
         [Authorize]
         public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request)
@@ -124,7 +144,7 @@ namespace SmartTrip.API.Controllers
             return Ok(new { success = true, message = "Đăng xuất thành công." });
         }
 
-        /// <summary>Lấy thông tin người dùng hiện tại</summary>
+        /// lấy thông tin người dùng hiện tại
         [HttpGet("me")]
         [Authorize]
         public IActionResult GetProfile()

@@ -612,6 +612,54 @@ public static class DevelopmentDataSeeder
             }
         }
 
+        if (!await context.Reviews.AnyAsync())
+        {
+            var demoUserId = await context.Users
+                .Where(u => u.Email == "test@example.com")
+                .Select(u => u.Id)
+                .FirstOrDefaultAsync();
+            var hotels = await context.Hotels.OrderBy(h => h.Id).ToListAsync();
+            var companies = await context.BusCompanies.OrderBy(c => c.Id).ToListAsync();
+
+            foreach (var hotel in hotels)
+            {
+                context.Reviews.AddRange(
+                    new Review
+                    {
+                        UserId = demoUserId,
+                        TargetType = ReviewTargetType.Hotel,
+                        TargetId = hotel.Id,
+                        Rating = 5,
+                        Comment = $"Khong gian o {hotel.Name} rat thoai mai, phu hop nghi duong.",
+                        CreatedAt = DateTime.UtcNow.AddDays(-hotel.Id)
+                    },
+                    new Review
+                    {
+                        UserId = demoUserId,
+                        TargetType = ReviewTargetType.Hotel,
+                        TargetId = hotel.Id,
+                        Rating = 4,
+                        Comment = "Dich vu tot, phong sach se va nhan vien than thien.",
+                        CreatedAt = DateTime.UtcNow.AddDays(-hotel.Id - 2)
+                    });
+            }
+
+            foreach (var company in companies)
+            {
+                context.Reviews.Add(new Review
+                {
+                    UserId = demoUserId,
+                    TargetType = ReviewTargetType.BusCompany,
+                    TargetId = company.Id,
+                    Rating = 4,
+                    Comment = $"Nha xe {company.Name} dung gio va phuc vu on dinh.",
+                    CreatedAt = DateTime.UtcNow.AddDays(-company.Id - 1)
+                });
+            }
+
+            await context.SaveChangesAsync();
+        }
+
         if (!await context.Invoices.AnyAsync())
         {
             var trips = await context.Trips

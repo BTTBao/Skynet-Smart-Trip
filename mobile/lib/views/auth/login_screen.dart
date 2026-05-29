@@ -19,44 +19,28 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _emailFocus = FocusNode();
+  final _identifierFocus = FocusNode();
   final _passwordFocus = FocusNode();
   bool _obscurePassword = true;
   String? _inlineError;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
-    _emailFocus.dispose();
+    _identifierFocus.dispose();
     _passwordFocus.dispose();
     super.dispose();
   }
 
   String? _validate() {
-    final email = _emailController.text.trim();
+    final identifier = _identifierController.text.trim();
     final password = _passwordController.text;
 
-    if (email.isEmpty) {
-      return context.trRead(
-        vi: 'Vui long nhap email.',
-        en: 'Please enter your email.',
-      );
-    }
-    if (!RegExp(r'^[\w.-]+@[\w.-]+\.[a-z]{2,}$').hasMatch(email)) {
-      return context.trRead(
-        vi: 'Email khong hop le.',
-        en: 'Invalid email address.',
-      );
-    }
-    if (password.isEmpty) {
-      return context.trRead(
-        vi: 'Vui long nhap mat khau.',
-        en: 'Please enter your password.',
-      );
-    }
+    if (identifier.isEmpty) return 'Vui lòng nhập Email hoặc Tên đăng nhập.';
+    if (password.isEmpty) return 'Vui lòng nhập mật khẩu.';
     return null;
   }
 
@@ -82,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.login(
-      _emailController.text.trim(),
+      _identifierController.text.trim(),
       _passwordController.text,
     );
 
@@ -102,6 +86,24 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     setState(() => _inlineError = authProvider.errorMessage);
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    setState(() => _inlineError = null);
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final success = await authProvider.loginWithGoogle();
+
+    if (!mounted) return;
+
+    if (success) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+      );
+    } else if (authProvider.errorMessage != null) {
+      // Chỉ hiện lỗi nếu có error (người dùng huỷ thì không có lỗi)
+      setState(() => _inlineError = authProvider.errorMessage);
+    }
   }
 
   @override
@@ -131,40 +133,35 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                Text(
-                  context.tr(vi: 'Chao mung tro lai!', en: 'Welcome back!'),
-                  style: AppTextStyles.heading2,
-                ),
+                const Text('Chào mừng trở lại!', style: AppTextStyles.heading2),
                 const SizedBox(height: 8),
-                Text(
-                  context.tr(
-                    vi: 'Bat dau hanh trinh kham pha the gioi cua ban',
-                    en: 'Continue planning your next adventure',
-                  ),
+                const Text(
+                  'Bắt đầu hành trình khám phá thế giới của bạn',
                   style: AppTextStyles.bodyMuted,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
+
+                // Email
                 AuthTextField(
-                  controller: _emailController,
-                  label: 'Email',
-                  hint: 'example@email.com',
+                  controller: _identifierController,
+                  label: 'Email hoặc Tên đăng nhập',
+                  hint: 'Nhập email hoặc tên đăng nhập',
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
-                  focusNode: _emailFocus,
+                  focusNode: _identifierFocus,
                   nextFocusNode: _passwordFocus,
                   onChanged: (_) => setState(() => _inlineError = null),
                 ),
                 const SizedBox(height: 16),
                 AuthTextField(
                   controller: _passwordController,
-                  label: context.tr(vi: 'Mat khau', en: 'Password'),
+                  label: 'Mật khẩu',
                   obscureText: _obscurePassword,
                   textInputAction: TextInputAction.done,
                   focusNode: _passwordFocus,
-                  onToggleObscure: () {
-                    setState(() => _obscurePassword = !_obscurePassword);
-                  },
+                  onToggleObscure: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
                   onChanged: (_) => setState(() => _inlineError = null),
                 ),
                 Align(
@@ -180,17 +177,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 8,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                     ),
-                    child: Text(
-                      context.tr(
-                        vi: 'Quen mat khau?',
-                        en: 'Forgot password?',
-                      ),
-                    ),
+                    child: const Text('Quên mật khẩu?'),
                   ),
                 ),
                 if (_inlineError != null) ...[
@@ -198,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 16),
                 ],
                 AuthPrimaryButton(
-                  label: context.tr(vi: 'Dang nhap', en: 'Sign in'),
+                  label: 'Đăng nhập',
                   isLoading: isLoading,
                   onPressed: _handleLogin,
                 ),
@@ -209,63 +198,35 @@ class _LoginScreenState extends State<LoginScreen> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        context.tr(vi: 'hoac', en: 'or'),
-                        style: TextStyle(
-                          color: Colors.grey.shade400,
-                          fontSize: 13,
-                        ),
+                        'hoặc',
+                        style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                       ),
                     ),
                     const Expanded(child: Divider()),
                   ],
                 ),
                 const SizedBox(height: 24),
+
+                // Google SSO (placeholder)
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 52),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppBorders.radiusButton,
-                      ),
+                      borderRadius: BorderRadius.circular(AppBorders.radiusButton),
                     ),
                     side: const BorderSide(color: AppColors.borderDefault),
                     foregroundColor: AppColors.textBody,
                   ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          context.trRead(
-                            vi: 'Google Sign-In se duoc trien khai som.',
-                            en: 'Google Sign-In will be available soon.',
-                          ),
-                        ),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.g_mobiledata,
-                    size: 28,
-                    color: Colors.blue,
-                  ),
-                  label: Text(
-                    context.tr(
-                      vi: 'Tiep tuc voi Google',
-                      en: 'Continue with Google',
-                    ),
-                    style: const TextStyle(fontSize: 15),
-                  ),
+                  onPressed: isLoading ? null : _handleGoogleLogin,
+                  icon: const Icon(Icons.g_mobiledata, size: 28, color: Colors.blue),
+                  label: const Text('Tiếp tục với Google', style: TextStyle(fontSize: 15)),
                 ),
                 const SizedBox(height: 28),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      context.tr(
-                        vi: 'Ban chua co tai khoan? ',
-                        en: 'Do not have an account? ',
-                      ),
+                    const Text(
+                      'Bạn chưa có tài khoản? ',
                       style: AppTextStyles.bodyMuted,
                     ),
                     GestureDetector(
@@ -277,13 +238,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   builder: (_) => const RegisterScreen(),
                                 ),
                               ),
-                      child: Text(
-                        context.tr(
-                          vi: 'Dang ky ngay',
-                          en: 'Create account',
-                        ),
-                        style: AppTextStyles.linkPrimary,
-                      ),
+                      child: const Text('Đăng ký ngay', style: AppTextStyles.linkPrimary),
                     ),
                   ],
                 ),

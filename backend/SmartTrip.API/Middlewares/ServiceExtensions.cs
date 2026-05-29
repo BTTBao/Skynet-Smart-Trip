@@ -3,15 +3,22 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using SmartTrip.Application.Configurations;
+using SmartTrip.Application.Interfaces.Admin;
 using SmartTrip.Application.Interfaces.Chat;
+using SmartTrip.Application.Interfaces.Catalog;
 using SmartTrip.Application.Interfaces.Auth;
 using SmartTrip.Application.Interfaces.Email;
+using SmartTrip.Application.Interfaces.Payment;
 using SmartTrip.Application.Interfaces.User;
-using SmartTrip.Application.Services;
+using SmartTrip.Application.Services.Auth;
+using SmartTrip.Application.Services.Catalog;
 using SmartTrip.Application.Services.Chat;
-using SmartTrip.Domain.Entities;
+using SmartTrip.Application.Services.Email;
 using SmartTrip.Infrastructure.Repositories;
+using SmartTrip.Infrastructure.Services.Admin;
 using SmartTrip.Infrastructure.Services.AI;
+using SmartTrip.Infrastructure.Services.Payment;
 using SmartTrip.Infrastructure.Services.User;
 using System.Text;
 
@@ -33,6 +40,16 @@ public static class ServiceExtensions
             options.UseSqlServer(connectionString));
         services.AddScoped<IApplicationDbContext>(provider => 
             provider.GetRequiredService<ApplicationDbContext>());
+
+        services.Configure<GoogleAuthSettings>(configuration.GetSection("GoogleAuthSettings"));
+        services.Configure<PayOsSettings>(options =>
+        {
+            options.ClientId = configuration["PayOs:ClientId"] ?? configuration["PAYOS_CLIENT_ID"] ?? string.Empty;
+            options.ApiKey = configuration["PayOs:ApiKey"] ?? configuration["PAYOS_API_KEY"] ?? string.Empty;
+            options.ChecksumKey = configuration["PayOs:ChecksumKey"] ?? configuration["PAYOS_CHECKSUM_KEY"] ?? string.Empty;
+            options.BaseUrl = configuration["PayOs:BaseUrl"] ?? "https://api-merchant.payos.vn";
+        });
+
         return services;
     }
 
@@ -43,13 +60,20 @@ public static class ServiceExtensions
         services.AddScoped<IChatService, ChatService>();
         services.AddScoped<IChatRepository, ChatRepository>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ICatalogService, CatalogService>();
         services.AddSingleton<ITokenService, TokenService>();
         services.AddScoped<IEmailService, EmailService>();
         services.AddHttpClient<IGrokAiService, GrokAiService>();
+        services.AddHttpClient<IPaymentService, PayOsPaymentService>((provider, client) =>
+        {
+            var settings = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<PayOsSettings>>().Value;
+            client.BaseAddress = new Uri(settings.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
         services.AddHttpContextAccessor();
 
         // Admin
-        services.AddScoped<SmartTrip.Application.Interfaces.Admin.IAdminService, SmartTrip.Infrastructure.Services.Admin.AdminService>();
+        services.AddScoped<IAdminService, AdminService>();
 
         return services;
     }

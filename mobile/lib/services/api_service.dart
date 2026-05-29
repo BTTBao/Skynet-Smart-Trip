@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../utils/app_storage.dart';
 
-abstract class ApiService {
+import 'secure_storage_service.dart';
 
+abstract class ApiService {
   // URL Backend .NET — đổi thành IP/domain thực khi deploy
   // Android emulator dùng 10.0.2.2 để trỏ tới localhost của máy host
   // iOS simulator dùng localhost hoặc 127.0.0.1
@@ -16,7 +17,7 @@ abstract class ApiService {
       'Accept': 'application/json',
     };
 
-    final token = await AppStorage.read(key: 'access_token');
+    final token = await SecureStorageService.read('access_token');
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     } else if (requireAuth) {

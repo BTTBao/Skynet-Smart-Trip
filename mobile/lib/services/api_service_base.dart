@@ -4,7 +4,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import '../utils/app_storage.dart';
+
+import 'secure_storage_service.dart';
 
 class ApiException implements Exception {
   ApiException(this.statusCode, this.message, {this.rawBody});
@@ -24,6 +25,8 @@ abstract class ApiService {
     'API_BASE_URL',
     defaultValue: '',
   );
+  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+
   String get configuredBaseUrl {
     if (_configuredBaseUrlFromEnv.isNotEmpty) {
       return _configuredBaseUrlFromEnv;
@@ -60,7 +63,7 @@ abstract class ApiService {
       if (extraHeaders != null) ...extraHeaders,
     };
 
-    final token = await AppStorage.read(key: 'access_token');
+    final token = await _storage.read(key: 'access_token');
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     } else if (requireAuth) {

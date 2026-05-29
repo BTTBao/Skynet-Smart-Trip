@@ -1,3 +1,7 @@
+export 'home/home_view.dart';
+export 'catalog/search_view.dart';
+export 'catalog/hotel_detail_view.dart';
+export 'catalog/bus_detail_view.dart';
 export 'profile/profile_view.dart';
 export 'profile/edit_profile_view.dart';
 export 'profile/settings_view.dart';
@@ -7,4 +11,5 @@ export 'trip/edit_itinerary_view.dart';
 export 'trip/create_trip_view.dart';
 export 'trip/my_trips_view.dart';
 export 'trip/trip_itinerary_detail_view.dart';
+export 'trip/trip_itinerary_map_view.dart';
 export 'trip/trip_ui_preview_view.dart';
