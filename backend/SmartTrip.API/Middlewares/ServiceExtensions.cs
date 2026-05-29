@@ -20,6 +20,7 @@ using SmartTrip.Infrastructure.Repositories;
 using SmartTrip.Infrastructure.Services.Admin;
 using SmartTrip.Infrastructure.Services.AI;
 using SmartTrip.Infrastructure.Services.Payment;
+using SmartTrip.Infrastructure.Services.Notifications;
 using SmartTrip.Infrastructure.Services.User;
 using System.Text;
 using SmartTrip.Application.Interfaces.Explore;
@@ -68,6 +69,7 @@ public static class ServiceExtensions
         services.AddSingleton<ITokenService, TokenService>();
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<IExploreService, ExploreService>();
+        services.AddScoped<IFcmPushService, FcmPushService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddHttpClient<IGrokAiService, GrokAiService>();
         services.AddHttpClient<IPaymentService, PayOsPaymentService>((provider, client) =>

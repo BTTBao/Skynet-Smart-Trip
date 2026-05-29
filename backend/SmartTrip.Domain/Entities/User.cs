@@ -62,6 +62,8 @@ public class User
 
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
+    public virtual ICollection<UserFcmToken> FcmTokens { get; set; } = new List<UserFcmToken>();
+
     public virtual ICollection<Review> Reviews { get; set; } = new List<Review>();
 
     public virtual ICollection<Trip> Trips { get; set; } = new List<Trip>();

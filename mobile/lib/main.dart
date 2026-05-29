@@ -3,15 +3,24 @@ import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/app_theme.dart';
 import 'views/auth/splash_screen.dart';
 import 'providers/providers.dart';
 import 'providers/auth_provider.dart';
+import 'services/fcm_service.dart';
+import 'firebase_options.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  await FcmService.instance.initialize(appNavigatorKey);
   await dotenv.load(fileName: ".env");
 
   runApp(
@@ -41,6 +50,7 @@ class MyApp extends StatelessWidget {
     final appSettings = context.watch<AppSettingsProvider>();
 
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       title: 'Skynet Smart Trip',
       debugShowCheckedModeBanner: false,
       scrollBehavior: const _AppScrollBehavior(),

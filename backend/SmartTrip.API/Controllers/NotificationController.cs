@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SmartTrip.Application.DTOs.Notifications;
 using SmartTrip.Application.Interfaces.Notifications;
 
 namespace SmartTrip.API.Controllers;
@@ -45,6 +46,26 @@ public class NotificationController : ControllerBase
     {
         var userId = GetCurrentUserId();
         await _notificationService.MarkAllAsReadAsync(userId, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("fcm-token")]
+    public async Task<IActionResult> RegisterFcmToken(
+        [FromBody] FcmTokenRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        await _notificationService.RegisterFcmTokenAsync(userId, request, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("fcm-token")]
+    public async Task<IActionResult> UnregisterFcmToken(
+        [FromBody] FcmTokenRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        await _notificationService.UnregisterFcmTokenAsync(userId, request, cancellationToken);
         return NoContent();
     }
 

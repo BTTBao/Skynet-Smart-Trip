@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SmartTrip.Application.DTOs.Notifications;
 using SmartTrip.Application.Interfaces.Notifications;
 using SmartTrip.Domain.Entities;
@@ -11,10 +12,17 @@ public class NotificationService : INotificationService
     private const string EmailNotificationKey = "email_notifications";
 
     private readonly IApplicationDbContext _context;
+    private readonly IFcmPushService _fcmPushService;
+    private readonly ILogger<NotificationService> _logger;
 
-    public NotificationService(IApplicationDbContext context)
+    public NotificationService(
+        IApplicationDbContext context,
+        IFcmPushService fcmPushService,
+        ILogger<NotificationService> logger)
     {
         _context = context;
+        _fcmPushService = fcmPushService;
+        _logger = logger;
     }
 
     public async Task<NotificationListDto> GetNotificationsAsync(int userId, CancellationToken cancellationToken = default)
@@ -130,7 +138,89 @@ public class NotificationService : INotificationService
         _context.Notifications.Add(notification);
         await _context.SaveChangesAsync(cancellationToken);
 
-        return MapNotification(notification);
+        var notificationDto = MapNotification(notification);
+
+        try
+        {
+            await _fcmPushService.SendToUserAsync(request.UserId, notificationDto, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send FCM push for notification {NotificationId}", notification.Id);
+        }
+
+        return notificationDto;
+    }
+
+    public async Task RegisterFcmTokenAsync(
+        int userId,
+        FcmTokenRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId <= 0 || string.IsNullOrWhiteSpace(request.Token))
+        {
+            return;
+        }
+
+        var token = request.Token.Trim();
+        var platform = string.IsNullOrWhiteSpace(request.Platform)
+            ? "android"
+            : request.Platform.Trim().ToLowerInvariant();
+        var deviceId = string.IsNullOrWhiteSpace(request.DeviceId) ? null : request.DeviceId.Trim();
+        var now = DateTime.UtcNow;
+
+        var existing = await _context.UserFcmTokens
+            .FirstOrDefaultAsync(item => item.Token == token, cancellationToken);
+
+        if (existing == null)
+        {
+            _context.UserFcmTokens.Add(new UserFcmToken
+            {
+                UserId = userId,
+                Token = token,
+                Platform = platform,
+                DeviceId = deviceId,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+                LastUsedAt = now
+            });
+        }
+        else
+        {
+            existing.UserId = userId;
+            existing.Platform = platform;
+            existing.DeviceId = deviceId ?? existing.DeviceId;
+            existing.IsActive = true;
+            existing.UpdatedAt = now;
+            existing.LastUsedAt = now;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UnregisterFcmTokenAsync(
+        int userId,
+        FcmTokenRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId <= 0 || string.IsNullOrWhiteSpace(request.Token))
+        {
+            return;
+        }
+
+        var token = request.Token.Trim();
+        var existing = await _context.UserFcmTokens
+            .FirstOrDefaultAsync(item => item.UserId == userId && item.Token == token, cancellationToken);
+
+        if (existing == null)
+        {
+            return;
+        }
+
+        existing.IsActive = false;
+        existing.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<bool> AreEmailNotificationsEnabledAsync(int userId, CancellationToken cancellationToken = default)

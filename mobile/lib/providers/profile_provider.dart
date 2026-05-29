@@ -33,7 +33,8 @@ class ProfileProvider with ChangeNotifier {
   bool get isSavingSettings => _isSavingSettings;
   bool get isChangingPassword => _isChangingPassword;
   String? get error => _error;
-  bool get hasSessionExpired => _lastStatusCode == 401;
+  bool get hasSessionExpired =>
+      _lastStatusCode == 401 || _lastStatusCode == 404;
 
   Future<void> fetchProfile({bool forceRefresh = true}) async {
     if (!forceRefresh && (_profileData != null || _isLoading)) {
@@ -207,8 +208,8 @@ class ProfileProvider with ChangeNotifier {
   void _setError(Object error) {
     if (error is ApiException) {
       _lastStatusCode = error.statusCode;
-      _error = error.isUnauthorized
-          ? 'Phien dang nhap da het han. Vui long dang nhap lai.'
+      _error = error.isUnauthorized || error.statusCode == 404
+          ? 'Phien dang nhap khong con hop le. Vui long dang nhap lai.'
           : error.message;
       return;
     }

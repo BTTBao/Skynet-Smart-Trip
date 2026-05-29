@@ -48,9 +48,9 @@ abstract class ApiService {
   }
 
   Map<String, String> get headers => const {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
 
   Future<Map<String, String>> getHeaders({
     bool requireAuth = false,
@@ -132,6 +132,7 @@ abstract class ApiService {
 
   Future<http.Response> deleteWithFallback(
     String path, {
+    Object? body,
     bool requireAuth = false,
     Map<String, String>? extraHeaders,
   }) async {
@@ -142,7 +143,7 @@ abstract class ApiService {
 
     return _sendWithFallback((baseUrl) {
       return http
-          .delete(buildUri(baseUrl, path), headers: requestHeaders)
+          .delete(buildUri(baseUrl, path), headers: requestHeaders, body: body)
           .timeout(const Duration(seconds: 10));
     });
   }
@@ -224,7 +225,8 @@ abstract class ApiService {
     try {
       final decoded = jsonDecode(response.body);
       if (decoded is Map<String, dynamic>) {
-        final message = decoded['message'] ?? decoded['error'] ?? decoded['title'];
+        final message =
+            decoded['message'] ?? decoded['error'] ?? decoded['title'];
         if (message is String && message.trim().isNotEmpty) {
           return message.trim();
         }

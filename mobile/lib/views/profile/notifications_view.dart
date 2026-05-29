@@ -5,8 +5,7 @@ import 'package:provider/provider.dart';
 import '../../models/app_notification.dart';
 import '../../providers/notification_provider.dart';
 import '../../utils/app_text.dart';
-import '../explore/explore_post_detail_view.dart';
-import '../trip/trip_itinerary_detail_view.dart';
+import 'notification_navigation.dart';
 
 class NotificationsView extends StatefulWidget {
   const NotificationsView({super.key});
@@ -99,10 +98,7 @@ class _NotificationsViewState extends State<NotificationsView> {
           ),
           const SizedBox(height: 12),
           Text(
-            context.tr(
-              vi: 'Chua co thong bao nao',
-              en: 'No notifications yet',
-            ),
+            context.tr(vi: 'Chua co thong bao nao', en: 'No notifications yet'),
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
@@ -135,60 +131,12 @@ class _NotificationsViewState extends State<NotificationsView> {
   }
 
   Future<void> _openNotification(AppNotification notification) async {
-    final provider = context.read<NotificationProvider>();
-    final updated = await provider.markAsRead(notification);
-    if (!mounted || updated == null) {
-      return;
-    }
-
-    final actionUrl = updated.actionUrl ?? '';
-    final tripId = _extractId(actionUrl, '/trips/');
-    if (tripId != null) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => TripItineraryDetailView(tripId: tripId),
-        ),
-      );
-      return;
-    }
-
-    final postId = _extractId(actionUrl, '/explore/posts/') ??
-        (updated.referenceType == 'explore_post' ? updated.referenceId : null);
-    if (postId != null) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ExplorePostDetailView(postId: postId),
-        ),
-      );
-      return;
-    }
-
-    if ((updated.referenceType == 'trip' || updated.referenceType == 'booking') &&
-        updated.referenceId != null) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => TripItineraryDetailView(tripId: updated.referenceId!),
-        ),
-      );
-    }
-  }
-
-  int? _extractId(String value, String prefix) {
-    final index = value.indexOf(prefix);
-    if (index < 0) {
-      return null;
-    }
-
-    final raw = value.substring(index + prefix.length).split('/').first;
-    return int.tryParse(raw);
+    await NotificationNavigation.open(context, notification);
   }
 }
 
 class _NotificationTile extends StatelessWidget {
-  const _NotificationTile({
-    required this.notification,
-    required this.onTap,
-  });
+  const _NotificationTile({required this.notification, required this.onTap});
 
   final AppNotification notification;
   final VoidCallback onTap;
@@ -244,8 +192,9 @@ class _NotificationTile extends StatelessWidget {
                             notification.title,
                             style: TextStyle(
                               fontSize: 15,
-                              fontWeight:
-                                  isUnread ? FontWeight.w800 : FontWeight.w600,
+                              fontWeight: isUnread
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
                             ),
                           ),
                         ),
@@ -267,14 +216,17 @@ class _NotificationTile extends StatelessWidget {
                         fontSize: 13,
                         height: 1.35,
                         color: Colors.grey.shade700,
-                        fontWeight:
-                            isUnread ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: isUnread
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
                     ),
                     if (createdAt != null) ...[
                       const SizedBox(height: 8),
                       Text(
-                        DateFormat('dd/MM/yyyy HH:mm').format(createdAt.toLocal()),
+                        DateFormat(
+                          'dd/MM/yyyy HH:mm',
+                        ).format(createdAt.toLocal()),
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade500,

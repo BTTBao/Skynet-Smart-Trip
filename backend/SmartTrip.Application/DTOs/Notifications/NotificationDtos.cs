@@ -29,3 +29,10 @@ public class CreateNotificationDto
     public int? ReferenceId { get; set; }
     public string? ActionUrl { get; set; }
 }
+
+public class FcmTokenRequestDto
+{
+    public string Token { get; set; } = string.Empty;
+    public string Platform { get; set; } = "android";
+    public string? DeviceId { get; set; }
+}
