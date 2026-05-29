@@ -2,7 +2,6 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using SmartTrip.Application.DTOs.Trip;
 using SmartTrip.Application.Interfaces.Trip;
 using SmartTrip.Domain.Entities;
@@ -315,6 +314,32 @@ public class TripController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    private int GetCurrentUserId()
+    {
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (int.TryParse(userIdString, out var userId))
+        {
+            return userId;
+        }
+        throw new ArgumentException("User is not authenticated or invalid user ID.");
+    }
+
+    private async Task<bool> UserOwnsTripAsync(int tripId)
+    {
+        return await _context.Trips.AnyAsync(t => t.Id == tripId && t.UserId == GetCurrentUserId());
+    }
+
+    private async Task<bool> UserOwnsItineraryAsync(int itineraryId)
+    {
+        var itinerary = await _context.Trips
+            .SelectMany(t => t.TripItineraries)
+            .FirstOrDefaultAsync(i => i.Id == itineraryId);
+            
+        if (itinerary == null) return false;
+
+        return await _context.Trips.AnyAsync(t => t.Id == itinerary.TripId && t.UserId == GetCurrentUserId());
     }
 }
 

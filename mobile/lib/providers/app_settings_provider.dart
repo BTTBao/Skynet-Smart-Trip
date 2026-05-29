@@ -95,8 +95,8 @@ class AppSettingsProvider with ChangeNotifier {
   }
 
   Future<void> _persist() async {
-    await Future.wait([
-      _storage.write(
+    await Future.wait<void>([
+      SecureStorageService.write(
         key: _themeKey,
         value: _themeMode == ThemeMode.dark ? 'dark' : 'light',
       ),

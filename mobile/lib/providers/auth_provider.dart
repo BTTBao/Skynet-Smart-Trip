@@ -11,6 +11,7 @@ import '../services/auth_service_shared.dart';
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
   static const _storage = FlutterSecureStorage();
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   bool _isAuthenticated = false;
   bool _isLoading = false;

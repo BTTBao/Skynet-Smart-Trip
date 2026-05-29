@@ -126,7 +126,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       }
 
       // Refresh trips list in background
-      tripProvider.fetchTrips(userId: userId, silent: true);
+      tripProvider.fetchTrips(silent: true);
 
       // 4. Chuyển hướng sang màn hình thành công
       if (mounted) {

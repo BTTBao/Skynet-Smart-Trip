@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'core/app_theme.dart';
 import 'views/auth/splash_screen.dart';
+import 'views/main_shell.dart';
 import 'providers/providers.dart';
 import 'views/resort_detail/resort_detail_screen.dart'; // Import trang test mới
 import 'providers/auth_provider.dart';
@@ -91,7 +92,7 @@ class MyApp extends StatelessWidget {
 
       // Mở/tắt comment (Ctrl + /) 1 trong 2 dòng dưới đây để chuyển qua lại:
       // home: const ResortDetailScreen(),   // Đang chạy trang Resort Detail
-      home: const MainShell(),         // Trang cũ của app
+      home: MainShell(),         // Trang cũ của app
 
       // home: const SplashScreen(),
 

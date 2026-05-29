@@ -17,6 +17,7 @@ class TripProvider with ChangeNotifier {
   List<MyTripSummary> _trips = [];
   TripDetail? _currentTrip;
   int? _currentTripId;
+  int? _currentUserId;
   bool _isLoadingTrips = false;
   bool _isLoadingTripDetail = false;
   bool _isSubmitting = false;

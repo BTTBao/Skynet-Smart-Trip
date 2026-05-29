@@ -316,7 +316,7 @@ class ChatProvider with ChangeNotifier {
   }
 
   Future<String?> _readCurrentUserKey() async {
-    final token = await _storage.read(key: 'access_token');
+    final token = await SecureStorageService.read('access_token');
     if (token == null || token.isEmpty) {
       return null;
     }

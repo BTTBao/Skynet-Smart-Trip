@@ -101,7 +101,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
       }
 
       // Refresh list trips in background
-      tripProvider.fetchTrips(userId: userId, silent: true);
+      tripProvider.fetchTrips(silent: true);
 
       // 4. Chuyển hướng sang màn hình Chi tiết vé
       if (mounted) {
