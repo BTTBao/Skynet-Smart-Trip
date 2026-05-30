@@ -1,0 +1,38 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace SmartTrip.Application.DTOs.Auth.Register
+{
+    public class RegisterRequest
+    {
+        [Required(ErrorMessage = "Họ tên là bắt buộc")]
+        [MaxLength(100, ErrorMessage = "Họ tên tối đa 100 ký tự")]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Tên đăng nhập là bắt buộc")]
+        [MinLength(3, ErrorMessage = "Tên đăng nhập tối thiểu 3 ký tự")]
+        [MaxLength(50, ErrorMessage = "Tên đăng nhập tối đa 50 ký tự")]
+        [RegularExpression(
+            @"^[a-zA-Z0-9_.]+$",
+            ErrorMessage = "Tên đăng nhập chỉ được chứa chữ cái, số, dấu chấm và gạch dưới"
+        )]
+        public string UserName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email là bắt buộc")]
+        [RegularExpression(
+            @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
+            ErrorMessage = "Email không hợp lệ"
+        )]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Mật khẩu là bắt buộc")]
+        [RegularExpression(
+            @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':""\\|,.<>\/?`~]).{8,}$",
+            ErrorMessage = "Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt"
+        )]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Số điện thoại là bắt buộc")]
+        [RegularExpression(@"^0\d{9}$", ErrorMessage = "Số điện thoại không hợp lệ")]
+        public string Phone { get; set; } = string.Empty;
+    }
+}

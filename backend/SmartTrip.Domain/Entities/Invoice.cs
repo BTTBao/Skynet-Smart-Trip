@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SmartTrip.Domain.Entities;
 
-public partial class Invoice
+public class Invoice
 {
-    public int InvoiceId { get; set; }
+    public int Id { get; set; }
 
     public int? TripId { get; set; }
 
@@ -19,3 +19,5 @@ public partial class Invoice
 
     public virtual Trip? Trip { get; set; }
 }
+
+

@@ -10,6 +10,7 @@
 *.userosscache
 *.sln.docstates
 *.env
+backend/SmartTrip.API/appsettings.Development.json
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -418,3 +419,5 @@ FodyWeavers.xsd
 *.msp
 
 #*.sln
+
+note.txt

@@ -1,13 +1,16 @@
-﻿using System;
+using SmartTrip.Domain.Enums;
+using System;
 using System.Collections.Generic;
 
 namespace SmartTrip.Domain.Entities;
 
-public partial class User
+public class User
 {
-    public int UserId { get; set; }
+    public int Id { get; set; }
 
     public string Email { get; set; } = null!;
+
+    public string? UserName { get; set; }
 
     public string? PasswordHash { get; set; }
 
@@ -17,13 +20,31 @@ public partial class User
 
     public string? AvatarUrl { get; set; }
 
-    public string? AuthProvider { get; set; }
+    public DateTime? BirthDate { get; set; }
+
+    public AuthProvider? AuthProvider { get; set; }
 
     public string? SocialId { get; set; }
 
-    public string? Role { get; set; }
+    public UserRole? Role { get; set; }
 
     public bool? IsActive { get; set; }
+
+    public bool IsEmailVerified { get; set; } = false;
+
+    public string? EmailVerificationToken { get; set; }
+
+    public DateTime? EmailVerificationTokenExpiry { get; set; }
+
+    public string? PasswordResetToken { get; set; }
+
+    public DateTime? PasswordResetTokenExpiry { get; set; }
+
+    public string? RefreshToken { get; set; }
+
+    public DateTime? RefreshTokenExpiry { get; set; }
+
+    public DateTime? LastLoginAt { get; set; }
 
     public DateTime? CreatedAt { get; set; }
 

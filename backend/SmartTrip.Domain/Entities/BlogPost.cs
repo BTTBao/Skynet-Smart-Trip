@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SmartTrip.Domain.Entities;
 
-public partial class BlogPost
+public class BlogPost
 {
-    public int PostId { get; set; }
+    public int Id { get; set; }
 
     public int? AuthorId { get; set; }
 
@@ -23,3 +23,5 @@ public partial class BlogPost
 
     public virtual Destination? Destination { get; set; }
 }
+
+

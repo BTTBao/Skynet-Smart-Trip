@@ -1,0 +1,25 @@
+# Bỏ qua thư mục build cục bộ của .NET
+**/bin/
+**/obj/
+**/out/
+
+# Bỏ qua các file cấu hình IDE và editor
+.vs/
+.vscode/
+.idea/
+**/*.user
+**/*.*proj.user
+**/*.suo
+
+# Bỏ qua thư mục Git
+.git/
+.gitignore
+
+# Bỏ qua file môi trường cục bộ (nếu có)
+.env
+.env.*
+
+# Bỏ qua chính các file cấu hình Docker để tránh đè lên container
+Dockerfile
+docker-compose*.yml
+.dockerignore

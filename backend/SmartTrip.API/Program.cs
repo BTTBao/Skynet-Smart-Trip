@@ -1,26 +1,116 @@
+using SmartTrip.API.Middlewares;
+using SmartTrip.Application.Interfaces.User;
+using SmartTrip.Infrastructure.Services.User;
+using SmartTrip.Application.Interfaces.Chat;
+using SmartTrip.Application.Interfaces.Trip;
+using SmartTrip.Application.Services.Chat;
+using SmartTrip.Application.Services.Trip;
+using SmartTrip.Application.Services;
+using SmartTrip.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+using SmartTrip.API.Data;
 var builder = WebApplication.CreateBuilder(args);
+LoadEnvFile(builder.Environment.ContentRootPath);
 
-// Add services to the container.
+// Yêu cầu Configuration đọc thêm từ Environment Variables
+builder.Configuration.AddEnvironmentVariables();
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
 
+// Controllers
 builder.Services.AddControllers();
+builder.Services.AddScoped<IUserService, UserService>(); // đưa vào ServiceExtensions cho gọn
+builder.Services.AddScoped<IChatService, ChatService>(); // đưa vào ServiceExtensions cho gọn
+builder.Services.AddHttpContextAccessor(); // Để lấy URL đầy đủ của ảnh
+
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll",
+        builder =>
+        {
+            builder.AllowAnyOrigin()
+                   .AllowAnyMethod()
+                   .AllowAnyHeader();   
+        });
+});
+var connectionString = builder.Configuration.GetConnectionString("SmartTrip");
+var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+if (!string.IsNullOrEmpty(dbPassword))
+{
+    connectionString = connectionString?.Replace("Password= ;", $"Password={dbPassword};");
+}
+if (!string.IsNullOrWhiteSpace(connectionString))
+{
+    builder.Configuration["ConnectionStrings:SmartTrip"] = connectionString;
+}
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
-//builder.Services.AddDbContext<ApplicationDbContext>(options =>
-//    options.UseSqlServer(builder.Configuration.GetConnectionString("SmartTrip")));
+// Dependency Injection (Services)
+builder.Services.AddScoped<IUserService, UserService>(); // đưa vào ServiceExtensions cho gọn
+builder.Services.AddScoped<ITripServiceOptionService, TripServiceOptionService>(); // đưa vào ServiceExtensions cho gọn
+builder.Services.AddScoped<IItineraryService, ItineraryService>(); // đưa vào ServiceExtensions cho gọn
+builder.Services.AddScoped<ITripService, TripService>(); // đưa vào ServiceExtensions cho gọn
+
+// Infrastructure
+builder.Services.AddInfrastructure(builder.Configuration);
+
+// Swagger
+builder.Services.AddSwaggerConfiguration();
+
+builder.Services.AddCustomApiBehavior();
+
+// Application + Auth
+builder.Services.AddApplicationServices();
+builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await dbContext.Database.MigrateAsync();
+    if (app.Environment.IsDevelopment())
+    {
+        await DevelopmentDataSeeder.SeedAsync(dbContext);
+    }
+}
+
+// Middleware
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
+app.UseCors("AllowAll");
+
+app.UseStaticFiles(); // Cho phép truy cập file trong wwwroot (ảnh đại diện)
+
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
+
+static void LoadEnvFile(string contentRootPath)
+{
+    var directory = new DirectoryInfo(contentRootPath);
+
+    while (directory is not null)
+    {
+        var envPath = Path.Combine(directory.FullName, ".env");
+        if (!File.Exists(envPath))
+        {
+            directory = directory.Parent;
+            continue;
+        }
+
+        DotNetEnv.Env.NoClobber().Load(envPath);
+        return;
+    }
+}
