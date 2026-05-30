@@ -107,33 +107,11 @@ public partial class AdminService
             .OrderBy(hotel => hotel.Name)
             .ToListAsync();
 
-        var revenueLookup = await BuildHotelRevenueLookupAsync(hotels.Select(hotel => hotel.Id).ToList());
-
-        return hotels
-            .Select(hotel => MapHotel(hotel, revenueLookup.GetValueOrDefault(hotel.Id)))
-            .ToList();
-    }
-
-    public async Task<AdminHotelDetailDto> GetHotelDetailAsync(int hotelId)
-    {
-        var hotel = await _context.Hotels
-            .Include(item => item.Destination)
-            .Include(item => item.Rooms)
-            .FirstOrDefaultAsync(item => item.Id == hotelId);
-
-        if (hotel is null)
-        {
-            throw new BadHttpRequestException("Không tìm thấy khách sạn.");
-        }
-
-        var revenueLookup = await BuildHotelRevenueLookupAsync([hotelId]);
-        return MapHotelDetail(hotel, revenueLookup.GetValueOrDefault(hotelId));
+        return hotels.Select(MapHotel).ToList();
     }
 
     public async Task<AdminHotelDto> CreateHotelAsync(AdminHotelRequest request)
     {
-        ValidateHotelRequest(request);
-
         var destinationExists = await _context.Destinations.AnyAsync(destination => destination.Id == request.DestinationId);
         if (!destinationExists)
         {
@@ -158,13 +136,11 @@ public partial class AdminService
             .Include(item => item.Rooms)
             .FirstAsync(item => item.Id == hotel.Id);
 
-        return MapHotel(created, 0);
+        return MapHotel(created);
     }
 
     public async Task<AdminHotelDto> UpdateHotelAsync(int hotelId, AdminHotelRequest request)
     {
-        ValidateHotelRequest(request);
-
         var hotel = await _context.Hotels
             .Include(item => item.Destination)
             .Include(item => item.Rooms)
@@ -173,12 +149,6 @@ public partial class AdminService
         if (hotel is null)
         {
             throw new BadHttpRequestException("Không tìm thấy khách sạn.");
-        }
-
-        var destinationExists = await _context.Destinations.AnyAsync(destination => destination.Id == request.DestinationId);
-        if (!destinationExists)
-        {
-            throw new BadHttpRequestException("Điểm đến không hợp lệ.");
         }
 
         hotel.DestinationId = request.DestinationId;
@@ -190,65 +160,27 @@ public partial class AdminService
 
         await _context.SaveChangesAsync();
 
-        var revenueLookup = await BuildHotelRevenueLookupAsync([hotelId]);
-        return MapHotel(hotel, revenueLookup.GetValueOrDefault(hotelId));
+        return MapHotel(hotel);
     }
 
-    public async Task<AdminRoomDto> CreateRoomAsync(int hotelId, AdminRoomRequest request)
+    public async Task DeleteHotelAsync(int hotelId)
     {
-        ValidateRoomRequest(request);
+        var hotel = await _context.Hotels
+            .Include(item => item.Rooms)
+            .FirstOrDefaultAsync(item => item.Id == hotelId);
 
-        var hotel = await _context.Hotels.FirstOrDefaultAsync(item => item.Id == hotelId);
         if (hotel is null)
         {
             throw new BadHttpRequestException("Không tìm thấy khách sạn.");
         }
 
-        var room = new Room
+        if (hotel.Rooms.Any())
         {
-            HotelId = hotelId,
-            RoomType = request.RoomType.Trim(),
-            Capacity = request.Capacity,
-            PricePerNight = request.PricePerNight,
-            CommissionRate = request.CommissionRate,
-            AvailableQty = request.AvailableQty
-        };
-
-        _context.Rooms.Add(room);
-        await _context.SaveChangesAsync();
-
-        return MapRoom(room);
-    }
-
-    public async Task<AdminRoomDto> UpdateRoomAsync(int roomId, AdminRoomRequest request)
-    {
-        ValidateRoomRequest(request);
-
-        var room = await _context.Rooms.FirstOrDefaultAsync(item => item.Id == roomId);
-        if (room is null)
-        {
-            throw new BadHttpRequestException("Không tìm thấy phòng.");
+            throw new BadHttpRequestException("Không thể xóa khách sạn còn phòng đang quản lý.");
         }
 
-        room.RoomType = request.RoomType.Trim();
-        room.Capacity = request.Capacity;
-        room.PricePerNight = request.PricePerNight;
-        room.CommissionRate = request.CommissionRate;
-        room.AvailableQty = request.AvailableQty;
-
+        _context.Hotels.Remove(hotel);
         await _context.SaveChangesAsync();
-
-        return MapRoom(room);
-    }
-
-    public Task DeleteRoomAsync(int roomId)
-    {
-        throw new BadHttpRequestException("Không hỗ trợ xóa phòng. Hãy đặt số lượng còn bán về 0 để ngừng nhận booking.");
-    }
-
-    public Task DeleteHotelAsync(int hotelId)
-    {
-        throw new BadHttpRequestException("Không hỗ trợ xóa khách sạn. Hãy chuyển khách sạn sang trạng thái ngừng bán để giữ an toàn dữ liệu.");
     }
 
     public async Task<List<AdminPromotionDto>> GetPromotionsAsync()
@@ -349,53 +281,6 @@ public partial class AdminService
         };
     }
 
-    private async Task<Dictionary<int, decimal>> BuildHotelRevenueLookupAsync(List<int> hotelIds)
-    {
-        if (hotelIds.Count == 0)
-        {
-            return new Dictionary<int, decimal>();
-        }
-
-        var roomMappings = await _context.Rooms
-            .AsNoTracking()
-            .Where(room => room.HotelId.HasValue && hotelIds.Contains(room.HotelId.Value))
-            .Select(room => new
-            {
-                RoomId = room.Id,
-                HotelId = room.HotelId!.Value
-            })
-            .ToListAsync();
-
-        if (roomMappings.Count == 0)
-        {
-            return new Dictionary<int, decimal>();
-        }
-
-        var roomToHotelLookup = roomMappings.ToDictionary(item => item.RoomId, item => item.HotelId);
-        var roomIds = roomMappings.Select(item => item.RoomId).ToList();
-
-        var hotelItineraries = await _context.TripItineraries
-            .AsNoTracking()
-            .Include(item => item.Trip)
-            .Where(item =>
-                item.ServiceType == TripServiceType.Hotel &&
-                item.ServiceId.HasValue &&
-                roomIds.Contains(item.ServiceId.Value) &&
-                item.Trip != null &&
-                item.Trip.Status == TripStatus.Paid)
-            .Select(item => new
-            {
-                RoomId = item.ServiceId!.Value,
-                Revenue = item.BookedPrice.GetValueOrDefault(),
-                Quantity = item.Quantity ?? 1
-            })
-            .ToListAsync();
-
-        return hotelItineraries
-            .GroupBy(item => roomToHotelLookup[item.RoomId])
-            .ToDictionary(group => group.Key, group => group.Sum(item => item.Revenue * (item.Quantity <= 0 ? 1 : item.Quantity)));
-    }
-
     private static AdminDestinationDto MapDestination(Destination destination)
     {
         return new AdminDestinationDto
@@ -410,15 +295,8 @@ public partial class AdminService
         };
     }
 
-    private static AdminHotelDto MapHotel(Hotel hotel, decimal totalRevenue)
+    private static AdminHotelDto MapHotel(Hotel hotel)
     {
-        var availableRoomQty = hotel.Rooms.Sum(room => Math.Max(room.AvailableQty ?? 0, 0));
-        var lowestPrice = hotel.Rooms
-            .Where(room => room.PricePerNight.HasValue)
-            .Select(room => room.PricePerNight!.Value)
-            .DefaultIfEmpty(0)
-            .Min();
-
         return new AdminHotelDto
         {
             Id = hotel.Id,
@@ -429,53 +307,7 @@ public partial class AdminService
             StarRating = hotel.StarRating ?? 0,
             Description = hotel.Description ?? string.Empty,
             IsAvailable = hotel.IsAvailable ?? false,
-            RoomCount = hotel.Rooms.Count,
-            AvailableRoomQty = availableRoomQty,
-            LowestPrice = lowestPrice,
-            TotalRevenue = totalRevenue
-        };
-    }
-
-    private static AdminHotelDetailDto MapHotelDetail(Hotel hotel, decimal totalRevenue)
-    {
-        var summary = MapHotel(hotel, totalRevenue);
-
-        return new AdminHotelDetailDto
-        {
-            Id = summary.Id,
-            DestinationId = summary.DestinationId,
-            DestinationName = summary.DestinationName,
-            Name = summary.Name,
-            Address = summary.Address,
-            StarRating = summary.StarRating,
-            Description = summary.Description,
-            IsAvailable = summary.IsAvailable,
-            RoomCount = summary.RoomCount,
-            AvailableRoomQty = summary.AvailableRoomQty,
-            LowestPrice = summary.LowestPrice,
-            TotalRevenue = summary.TotalRevenue,
-            Rooms = hotel.Rooms
-                .OrderBy(room => room.PricePerNight ?? decimal.MaxValue)
-                .ThenBy(room => room.RoomType)
-                .Select(MapRoom)
-                .ToList()
-        };
-    }
-
-    private static AdminRoomDto MapRoom(Room room)
-    {
-        var availableQty = Math.Max(room.AvailableQty ?? 0, 0);
-
-        return new AdminRoomDto
-        {
-            Id = room.Id,
-            HotelId = room.HotelId ?? 0,
-            RoomType = room.RoomType ?? "Standard",
-            Capacity = room.Capacity ?? 0,
-            PricePerNight = room.PricePerNight ?? 0,
-            CommissionRate = room.CommissionRate ?? 0,
-            AvailableQty = availableQty,
-            IsSelling = availableQty > 0
+            RoomCount = hotel.Rooms.Count
         };
     }
 
@@ -493,51 +325,5 @@ public partial class AdminService
             UsedCount = promotion.UsedCount ?? 0,
             IsActive = validUntil >= DateTime.UtcNow
         };
-    }
-
-    private static void ValidateHotelRequest(AdminHotelRequest request)
-    {
-        if (request.DestinationId <= 0)
-        {
-            throw new BadHttpRequestException("Điểm đến không hợp lệ.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            throw new BadHttpRequestException("Tên khách sạn không được để trống.");
-        }
-
-        if (request.StarRating < 1 || request.StarRating > 5)
-        {
-            throw new BadHttpRequestException("Số sao phải nằm trong khoảng từ 1 đến 5.");
-        }
-    }
-
-    private static void ValidateRoomRequest(AdminRoomRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.RoomType))
-        {
-            throw new BadHttpRequestException("Loại phòng không được để trống.");
-        }
-
-        if (request.Capacity <= 0)
-        {
-            throw new BadHttpRequestException("Sức chứa phải lớn hơn 0.");
-        }
-
-        if (request.PricePerNight <= 0)
-        {
-            throw new BadHttpRequestException("Giá mỗi đêm phải lớn hơn 0.");
-        }
-
-        if (request.CommissionRate < 0 || request.CommissionRate > 100)
-        {
-            throw new BadHttpRequestException("Hoa hồng phải nằm trong khoảng từ 0 đến 100.");
-        }
-
-        if (request.AvailableQty < 0)
-        {
-            throw new BadHttpRequestException("Số lượng còn bán không được âm.");
-        }
     }
 }

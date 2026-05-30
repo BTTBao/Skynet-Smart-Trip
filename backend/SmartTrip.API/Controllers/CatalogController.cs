@@ -47,16 +47,6 @@ public class CatalogController : ControllerBase
         return hotel is null ? NotFound() : Ok(hotel);
     }
 
-    [HttpGet("rooms/{roomId:int}/availability")]
-    public async Task<IActionResult> GetRoomAvailability(
-        int roomId,
-        [FromQuery] DateOnly checkInDate,
-        [FromQuery] DateOnly checkOutDate,
-        [FromQuery] int quantity = 1)
-    {
-        return Ok(await _catalogService.GetRoomAvailabilityAsync(roomId, checkInDate, checkOutDate, quantity));
-    }
-
     [HttpGet("buses")]
     public async Task<IActionResult> SearchBuses(
         [FromQuery] string? query,

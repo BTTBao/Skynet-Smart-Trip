@@ -1,1 +1,1 @@
-export { default as HotelsPage } from './HotelsPage';
+export { default as HotelsPage } from './HotelsAdminPage';

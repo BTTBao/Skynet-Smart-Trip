@@ -186,13 +186,6 @@ public class AdminController : ControllerBase
         return Ok(hotels);
     }
 
-    [HttpGet("hotels/{hotelId:int}")]
-    public async Task<IActionResult> GetHotelDetail(int hotelId)
-    {
-        var hotel = await _adminService.GetHotelDetailAsync(hotelId);
-        return Ok(hotel);
-    }
-
     [HttpPost("hotels")]
     public async Task<IActionResult> CreateHotel([FromBody] AdminHotelRequest request)
     {
@@ -205,27 +198,6 @@ public class AdminController : ControllerBase
     {
         var hotel = await _adminService.UpdateHotelAsync(hotelId, request);
         return Ok(hotel);
-    }
-
-    [HttpPost("hotels/{hotelId:int}/rooms")]
-    public async Task<IActionResult> CreateRoom(int hotelId, [FromBody] AdminRoomRequest request)
-    {
-        var room = await _adminService.CreateRoomAsync(hotelId, request);
-        return Ok(room);
-    }
-
-    [HttpPut("rooms/{roomId:int}")]
-    public async Task<IActionResult> UpdateRoom(int roomId, [FromBody] AdminRoomRequest request)
-    {
-        var room = await _adminService.UpdateRoomAsync(roomId, request);
-        return Ok(room);
-    }
-
-    [HttpDelete("rooms/{roomId:int}")]
-    public async Task<IActionResult> DeleteRoom(int roomId)
-    {
-        await _adminService.DeleteRoomAsync(roomId);
-        return NoContent();
     }
 
     [HttpDelete("hotels/{hotelId:int}")]

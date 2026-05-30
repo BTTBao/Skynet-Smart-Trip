@@ -76,15 +76,6 @@ public class CatalogRoomOptionDto
     public int AvailableQty { get; set; }
 }
 
-public class CatalogRoomAvailabilityDto
-{
-    public int RoomId { get; set; }
-    public int TotalQty { get; set; }
-    public int RemainingQty { get; set; }
-    public bool IsAvailable { get; set; }
-    public string Message { get; set; } = string.Empty;
-}
-
 public class CatalogBusCardDto
 {
     public int Id { get; set; }

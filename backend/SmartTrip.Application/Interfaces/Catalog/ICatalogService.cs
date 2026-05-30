@@ -14,7 +14,6 @@ public interface ICatalogService
         string? starRatings,
         string? sort);
     Task<CatalogHotelDetailDto?> GetHotelDetailAsync(int hotelId);
-    Task<CatalogRoomAvailabilityDto> GetRoomAvailabilityAsync(int roomId, DateOnly checkInDate, DateOnly checkOutDate, int quantity);
     Task<CatalogBusSearchResultDto> SearchBusesAsync(
         string? query,
         int? fromDestinationId,
