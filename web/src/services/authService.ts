@@ -29,7 +29,10 @@ export interface ResetPasswordRequest {
 
 export const authService = {
   async login(payload: LoginRequest): Promise<LoginResponse> {
-    const response = await apiClient.post<LoginResponse>('/auth/login', payload);
+    const response = await apiClient.post<LoginResponse>('/auth/login', {
+      identifier: payload.email,
+      password: payload.password,
+    });
     return response.data;
   },
 

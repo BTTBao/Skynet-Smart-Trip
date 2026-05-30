@@ -10,7 +10,7 @@ public interface ITripService
 
     Task<TripSummaryDto> CreateTripAsync(CreateTripDto request);
 
-    Task<TripSummaryDto> CreateHotelBookingAsync(CreateHotelBookingDto request);
+
 
     Task<TripSummaryDto> CompleteFakePaymentAsync(int tripId, CreateFakePaymentDto request);
 
