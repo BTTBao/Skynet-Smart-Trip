@@ -5,6 +5,9 @@ import '../providers/profile_provider.dart';
 import '../utils/app_text.dart';
 
 import 'chatbot/chatbot_view.dart';
+
+import 'search/search_screen.dart';
+
 import 'profile/profile_view.dart';
 import 'trip/my_trips_view.dart';
 import './home/home_view.dart';
@@ -24,10 +27,7 @@ class _MainShellState extends State<MainShell> {
   final List<Widget> _pages = [
     const HomeView(),
     ChatbotView(),
-    const _PlaceholderPage(
-      label: 'Kham pha',
-      icon: Icons.explore_outlined,
-    ),
+    const SearchScreen(),
     const MyTripsView(),
     const ProfileView(),
   ];
@@ -56,7 +56,7 @@ class _MainShellState extends State<MainShell> {
           color: Theme.of(context).colorScheme.surface,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 16,
               offset: const Offset(0, -4),
             ),

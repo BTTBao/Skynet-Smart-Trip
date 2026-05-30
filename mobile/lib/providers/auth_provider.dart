@@ -7,15 +7,11 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../services/auth_service_shared.dart';
-import '../services/secure_storage_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
-
-  late final GoogleSignIn _googleSignIn = GoogleSignIn(
-    serverClientId: dotenv.env['GoogleAuthSettings__GoogleClientIds__Web'],
-    scopes: ['email', 'profile'],
-  );
+  static const _storage = FlutterSecureStorage();
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   bool _isAuthenticated = false;
   bool _isLoading = false;
@@ -56,9 +52,9 @@ class AuthProvider with ChangeNotifier {
     if (accessToken == null) throw Exception('Phản hồi thiếu access token.');
 
     await Future.wait([
-      SecureStorageService.write(key: 'access_token', value: accessToken),
+      _storage.write(key: 'access_token', value: accessToken),
       if (refreshToken != null)
-        SecureStorageService.write(key: 'refresh_token', value: refreshToken),
+        _storage.write(key: 'refresh_token', value: refreshToken),
     ]);
   }
 
@@ -66,7 +62,7 @@ class AuthProvider with ChangeNotifier {
 
   /// Kiểm tra trạng thái đăng nhập khi khởi động app.
   Future<void> checkAuthStatus() async {
-    final token = await SecureStorageService.read('access_token');
+    final token = await _storage.read(key: 'access_token');
     if (token == null || token.isEmpty) {
       _isAuthenticated = false;
       notifyListeners();
@@ -195,7 +191,7 @@ class AuthProvider with ChangeNotifier {
   /// Làm mới access token bằng refresh token đang lưu.
   Future<bool> refreshToken() async {
     try {
-      final storedRefresh = await SecureStorageService.read('refresh_token');
+      final storedRefresh = await _storage.read(key: 'refresh_token');
       if (storedRefresh == null) return false;
 
       final response = await _authService.refreshToken(storedRefresh);
@@ -213,16 +209,17 @@ class AuthProvider with ChangeNotifier {
   /// Đăng xuất — xóa token local và revoke trên server.
   Future<void> logout() async {
     try {
-      final storedRefresh = await SecureStorageService.read('refresh_token');
+      final storedRefresh = await _storage.read(key: 'refresh_token');
       if (storedRefresh != null) {
         await _authService.logout(storedRefresh);
       }
-      // Sign out Google nếu đang đăng nhập bằng Google
-      await _googleSignIn.signOut();
     } catch (_) {
       // Server-side logout thất bại → vẫn xóa local token
     } finally {
-      await SecureStorageService.deleteAuthTokens();
+      await Future.wait([
+        _storage.delete(key: 'access_token'),
+        _storage.delete(key: 'refresh_token'),
+      ]);
       _isAuthenticated = false;
       notifyListeners();
     }

@@ -11,54 +11,57 @@ Future<void> showSessionExpiredDialog(
   BuildContext context, {
   String? message,
 }) async {
-  if (!context.mounted) {
-    return;
-  }
+  // Hoãn việc hiển thị dialog lại sau khi widget tree đã build xong hoàn toàn để tránh crash Navigator
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    if (!context.mounted) {
+      return;
+    }
 
-  final rootNavigator = Navigator.of(context, rootNavigator: true);
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
 
-  await showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (dialogContext) {
-      return AlertDialog(
-        title: Text(
-          context.tr(
-            vi: 'Phien dang nhap da het han',
-            en: 'Your session has expired',
-          ),
-        ),
-        content: Text(
-          message ??
-              context.trRead(
-                vi: 'Vui long dang nhap lai de tiep tuc su dung cac tinh nang ho so.',
-                en: 'Please sign in again to continue using profile features.',
-              ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () async {
-              Navigator.of(dialogContext, rootNavigator: true).pop();
-              await context.read<AuthProvider>().logout();
-              context.read<ChatProvider>().resetForSignedOutUser();
-              context.read<ProfileProvider>().logout();
-              if (!context.mounted) {
-                return;
-              }
-              rootNavigator.pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
-            },
-            child: Text(
-              context.tr(
-                vi: 'Dang nhap lai',
-                en: 'Sign in again',
-              ),
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            context.tr(
+              vi: 'Phien dang nhap da het han',
+              en: 'Your session has expired',
             ),
           ),
-        ],
-      );
-    },
-  );
+          content: Text(
+            message ??
+                context.trRead(
+                  vi: 'Vui long dang nhap lai de tiep tuc su dung cac tinh nang ho so.',
+                  en: 'Please sign in again to continue using profile features.',
+                ),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () async {
+                Navigator.of(dialogContext, rootNavigator: true).pop();
+                await context.read<AuthProvider>().logout();
+                context.read<ChatProvider>().resetForSignedOutUser();
+                context.read<ProfileProvider>().logout();
+                if (!context.mounted) {
+                  return;
+                }
+                rootNavigator.pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
+              },
+              child: Text(
+                context.tr(
+                  vi: 'Dang nhap lai',
+                  en: 'Sign in again',
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  });
 }
