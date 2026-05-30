@@ -320,7 +320,7 @@ public partial class AdminService
 
         if (payment is null)
         {
-            payment = new Payment
+            payment = new SmartTrip.Domain.Entities.Payment
             {
                 TripId = trip.Id,
                 PaymentMethod = PaymentMethod.Card,

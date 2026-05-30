@@ -42,6 +42,24 @@ class CatalogService extends ApiService {
     return CatalogHotelDetail.fromJson(data);
   }
 
+  Future<CatalogRoomAvailability> getRoomAvailability({
+    required int roomId,
+    required DateTime checkInDate,
+    required DateTime checkOutDate,
+    required int quantity,
+  }) async {
+    final response = await _get(
+      '/catalog/rooms/$roomId/availability',
+      queryParameters: {
+        'checkInDate': _formatDate(checkInDate),
+        'checkOutDate': _formatDate(checkOutDate),
+        'quantity': '$quantity',
+      },
+    );
+    final data = Map<String, dynamic>.from(handleResponse(response));
+    return CatalogRoomAvailability.fromJson(data);
+  }
+
   Future<CatalogBusSearchResult> searchBuses({
     String? query,
     int? fromDestinationId,
@@ -83,4 +101,7 @@ class CatalogService extends ApiService {
     final requestHeaders = await getHeaders();
     return http.get(uri, headers: requestHeaders);
   }
+
+  String _formatDate(DateTime date) =>
+      DateTime(date.year, date.month, date.day).toIso8601String().split('T').first;
 }

@@ -30,8 +30,12 @@ public interface IAdminService
     Task<AdminDestinationDto> UpdateDestinationAsync(int destinationId, AdminDestinationRequest request);
     Task DeleteDestinationAsync(int destinationId);
     Task<List<AdminHotelDto>> GetHotelsAsync();
+    Task<AdminHotelDetailDto> GetHotelDetailAsync(int hotelId);
     Task<AdminHotelDto> CreateHotelAsync(AdminHotelRequest request);
     Task<AdminHotelDto> UpdateHotelAsync(int hotelId, AdminHotelRequest request);
+    Task<AdminRoomDto> CreateRoomAsync(int hotelId, AdminRoomRequest request);
+    Task<AdminRoomDto> UpdateRoomAsync(int roomId, AdminRoomRequest request);
+    Task DeleteRoomAsync(int roomId);
     Task DeleteHotelAsync(int hotelId);
     Task<List<AdminPromotionDto>> GetPromotionsAsync();
     Task<AdminPromotionDto> CreatePromotionAsync(AdminPromotionRequest request);
