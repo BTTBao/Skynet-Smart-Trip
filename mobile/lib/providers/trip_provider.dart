@@ -17,12 +17,11 @@ class TripProvider with ChangeNotifier {
   List<MyTripSummary> _trips = [];
   TripDetail? _currentTrip;
   int? _currentTripId;
-  int? _currentUserId;
   bool _isLoadingTrips = false;
   bool _isLoadingTripDetail = false;
   bool _isSubmitting = false;
   String? _error;
-
+  
   List<MyTripSummary> get trips => List.unmodifiable(_trips);
   TripDetail? get currentTrip => _currentTrip;
   int? get currentTripId => _currentTripId;
@@ -129,7 +128,6 @@ class TripProvider with ChangeNotifier {
 
     try {
       final createdTrip = await _tripService.createHotelBooking(request);
-      _currentUserId = request.userId;
       _trips = [
         createdTrip,
         ..._trips.where((trip) => trip.tripId != createdTrip.tripId),

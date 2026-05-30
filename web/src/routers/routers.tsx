@@ -31,6 +31,7 @@ const router = createBrowserRouter([
           { path: 'users', element: <UsersPage /> },
           { path: 'destinations', element: <DestinationsPage /> },
           { path: 'hotels', element: <HotelsPage /> },
+          { path: 'hotels/:hotelId', element: <HotelsPage /> },
           { path: 'transport', element: <TransportPage /> },
           { path: 'promotions', element: <PromotionsPage /> },
           { path: 'bookings', element: <BookingsPage /> },

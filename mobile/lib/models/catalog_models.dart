@@ -246,6 +246,32 @@ class CatalogRoomOption {
   }
 }
 
+class CatalogRoomAvailability {
+  const CatalogRoomAvailability({
+    required this.roomId,
+    required this.totalQty,
+    required this.remainingQty,
+    required this.isAvailable,
+    required this.message,
+  });
+
+  final int roomId;
+  final int totalQty;
+  final int remainingQty;
+  final bool isAvailable;
+  final String message;
+
+  factory CatalogRoomAvailability.fromJson(Map<String, dynamic> json) {
+    return CatalogRoomAvailability(
+      roomId: json['roomId'] as int? ?? 0,
+      totalQty: json['totalQty'] as int? ?? 0,
+      remainingQty: json['remainingQty'] as int? ?? 0,
+      isAvailable: json['isAvailable'] as bool? ?? false,
+      message: json['message'] as String? ?? '',
+    );
+  }
+}
+
 class CatalogBusSearchResult {
   const CatalogBusSearchResult({required this.total, required this.items});
 
