@@ -91,6 +91,8 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.CitySlug).HasMaxLength(80).IsUnicode(false).IsRequired();
             entity.Property(e => e.Province).HasMaxLength(120).IsRequired();
             entity.Property(e => e.Region).HasMaxLength(20).IsUnicode(false).IsRequired();
+            entity.Property(e => e.Latitude);
+            entity.Property(e => e.Longitude);
             entity.Property(e => e.CostLevel).HasDefaultValue(2);
             entity.Property(e => e.AverageRating).HasDefaultValue(0m).HasColumnType("decimal(3, 2)");
             entity.Property(e => e.RatingCount).HasDefaultValue(0);
@@ -179,11 +181,16 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.LikeCount).HasDefaultValue(0);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
             entity.HasIndex(e => new { e.ExplorePostId, e.CreatedAt });
+            entity.HasIndex(e => e.ParentCommentId);
 
             entity.HasOne(e => e.ExplorePost)
                 .WithMany(p => p.Comments)
                 .HasForeignKey(e => e.ExplorePostId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.ParentComment)
+                .WithMany(e => e.Replies)
+                .HasForeignKey(e => e.ParentCommentId)
+                .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.User)
                 .WithMany(u => u.ExploreComments)
                 .HasForeignKey(e => e.UserId)

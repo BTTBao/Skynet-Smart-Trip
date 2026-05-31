@@ -37,6 +37,10 @@ public class ExplorePostDto
 
     public string Region { get; set; } = string.Empty;
 
+    public double? Latitude { get; set; }
+
+    public double? Longitude { get; set; }
+
     public string AuthorName { get; set; } = string.Empty;
 
     public string AuthorAvatar { get; set; } = string.Empty;
@@ -68,6 +72,8 @@ public class ExploreCommentDto
 {
     public int Id { get; set; }
 
+    public int? ParentCommentId { get; set; }
+
     public string AuthorName { get; set; } = string.Empty;
 
     public string AuthorAvatar { get; set; } = string.Empty;
@@ -77,6 +83,8 @@ public class ExploreCommentDto
     public DateTime CreatedAt { get; set; }
 
     public int Likes { get; set; }
+
+    public List<ExploreCommentDto> Replies { get; set; } = [];
 }
 
 public class ExplorePostQueryDto
@@ -90,6 +98,10 @@ public class ExplorePostQueryDto
     public string? Province { get; set; }
 
     public string? Region { get; set; }
+
+    public double? Latitude { get; set; }
+
+    public double? Longitude { get; set; }
 
     public double? MinRating { get; set; }
 
@@ -118,6 +130,10 @@ public class CreateExplorePostDto
 
     public string? Region { get; set; }
 
+    public double? Latitude { get; set; }
+
+    public double? Longitude { get; set; }
+
     public int CostLevel { get; set; } = 2;
 
     public List<string> ImageUrls { get; set; } = [];
@@ -128,6 +144,8 @@ public class CreateExplorePostDto
 public class CreateExploreCommentDto
 {
     public string Content { get; set; } = string.Empty;
+
+    public int? ParentCommentId { get; set; }
 }
 
 public class RateExplorePostDto

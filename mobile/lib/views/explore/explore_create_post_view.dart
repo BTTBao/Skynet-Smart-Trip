@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/explore_post.dart';
 import '../../providers/explore_provider.dart';
+import '../../services/openstreetmap_geocoding_service.dart';
 import '../../utils/app_text.dart';
 import 'explore_ui_constants.dart';
 
@@ -15,21 +19,25 @@ class ExploreCreatePostView extends StatefulWidget {
 }
 
 class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
+  static const _geocoding = OpenStreetMapGeocodingService();
+
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   final _locationController = TextEditingController();
+  final _picker = ImagePicker();
+
+  final List<XFile> _selectedPhotos = [];
   bool _isBold = false;
   bool _isItalic = false;
   bool _isH1 = false;
   bool _isQuote = false;
   int _selectedCostLevel = 2;
   bool _isPosting = false;
-
-  // Simulated selected photos
-  final List<String> _selectedPhotos = [
-    'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=400',
-    'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400',
-  ];
+  bool _isResolvingLocation = false;
+  String? _errorText;
+  String? _progressText;
+  double? _latitude;
+  double? _longitude;
 
   bool get _canPost =>
       _titleController.text.trim().isNotEmpty &&
@@ -45,47 +53,198 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
     super.dispose();
   }
 
-  Future<void> _postPublish() async {
-    if (!_canPost) return;
-    HapticFeedback.lightImpact();
-
-    setState(() => _isPosting = true);
-    final success = await context.read<ExploreProvider>().createPost(
-          title: _titleController.text.trim(),
-          content: _contentController.text.trim(),
-          location: _locationController.text.trim(),
-          costLevel: _selectedCostLevel,
-          imageUrls: _selectedPhotos,
-        );
-    if (!mounted) return;
-    setState(() => _isPosting = false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.tr(
-          vi: success ? 'Bai viet da duoc dang!' : 'Khong dang duoc bai viet',
-          en: success ? 'Post published!' : 'Could not publish post',
-        )),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-    if (success) {
-      Navigator.of(context).maybePop();
-    }
-  }
-
-  void _addPhoto() {
-    // Simulate photo picker
-    setState(() {
-      _selectedPhotos.add(
-        'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400',
+  Future<void> _pickPhotos() async {
+    try {
+      final images = await _picker.pickMultiImage(
+        maxWidth: 1600,
+        imageQuality: 86,
       );
-    });
+      if (images.isEmpty || !mounted) {
+        return;
+      }
+
+      final remainingSlots = 10 - _selectedPhotos.length;
+      setState(() {
+        _selectedPhotos.addAll(images.take(remainingSlots));
+        _errorText = images.length > remainingSlots
+            ? context.tr(
+                vi: 'Mỗi bài viết tối đa 10 ảnh.',
+                en: 'Each post can contain up to 10 photos.',
+              )
+            : null;
+      });
+    } catch (error) {
+      _showError('Không mở được thư viện ảnh: $error');
+    }
   }
 
   void _removePhoto(int index) {
     setState(() => _selectedPhotos.removeAt(index));
+  }
+
+  Future<void> _useCurrentLocation() async {
+    setState(() {
+      _isResolvingLocation = true;
+      _errorText = null;
+    });
+
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) {
+        _showError('GPS đang tắt. Bạn vẫn có thể nhập vị trí thủ công.');
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _showError('Bạn chưa cấp quyền vị trí. Hãy nhập vị trí thủ công.');
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+
+      final latLng = LatLng(position.latitude, position.longitude);
+      final label = await _geocoding.reverseGeocode(latLng);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _latitude = latLng.latitude;
+        _longitude = latLng.longitude;
+        _locationController.text = label ?? 'Vị trí hiện tại';
+        _errorText = null;
+      });
+    } catch (error) {
+      _showError('Không lấy được vị trí hiện tại. Hãy nhập thủ công.');
+    } finally {
+      if (mounted) {
+        setState(() => _isResolvingLocation = false);
+      }
+    }
+  }
+
+  Future<void> _postPublish() async {
+    final validationError = _validate();
+    if (validationError != null) {
+      _showError(validationError);
+      return;
+    }
+
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isPosting = true;
+      _errorText = null;
+      _progressText = context.tr(
+        vi: 'Đang chuẩn bị bài viết...',
+        en: 'Preparing post...',
+      );
+    });
+
+    try {
+      final provider = context.read<ExploreProvider>();
+      final imageUrls = <String>[];
+
+      for (var i = 0; i < _selectedPhotos.length; i++) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _progressText = 'Đang tải ảnh ${i + 1}/${_selectedPhotos.length}...';
+        });
+        imageUrls.add(await provider.uploadImage(_selectedPhotos[i]));
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _progressText = context.tr(vi: 'Đang đăng bài...', en: 'Publishing...');
+      });
+
+      final success = await provider.createPost(
+        title: _titleController.text.trim(),
+        content: _contentController.text.trim(),
+        location: _locationController.text.trim(),
+        costLevel: _selectedCostLevel,
+        imageUrls: imageUrls,
+        latitude: _latitude,
+        longitude: _longitude,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!success) {
+        _showError(provider.error ?? 'Không đăng được bài viết.');
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.tr(vi: 'Bài viết đã được đăng!', en: 'Post published!'),
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).maybePop();
+    } catch (error) {
+      if (mounted) {
+        _showError(error.toString().replaceFirst('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPosting = false;
+          _progressText = null;
+        });
+      }
+    }
+  }
+
+  String? _validate() {
+    final title = _titleController.text.trim();
+    final content = _contentController.text.trim();
+    final location = _locationController.text.trim();
+
+    if (title.length < 5) {
+      return 'Tiêu đề cần ít nhất 5 ký tự.';
+    }
+
+    if (content.length < 10) {
+      return 'Nội dung cần ít nhất 10 ký tự.';
+    }
+
+    if (location.length < 2) {
+      return 'Vui lòng nhập vị trí hoặc dùng vị trí hiện tại.';
+    }
+
+    return null;
+  }
+
+  void _showError(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _errorText = message;
+      _isResolvingLocation = false;
+    });
   }
 
   @override
@@ -95,13 +254,15 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
       appBar: _buildAppBar(context),
       body: Column(
         children: [
+          if (_errorText != null)
+            _InlineNotice(text: _errorText!, isError: true)
+          else if (_progressText != null)
+            _InlineNotice(text: _progressText!, isError: false),
           Expanded(
             child: SingleChildScrollView(
-              padding: EdgeInsets.zero,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title input
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                     child: TextField(
@@ -117,7 +278,7 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
                       maxLines: null,
                       decoration: InputDecoration(
                         hintText: context.tr(
-                          vi: 'Tieu de bai viet...',
+                          vi: 'Tiêu đề bài viết...',
                           en: 'Post title...',
                         ),
                         hintStyle: const TextStyle(
@@ -130,8 +291,11 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
                       ),
                     ),
                   ),
-                  const Divider(indent: 20, endIndent: 20, color: ExploreColors.border),
-                  // Rich text toolbar
+                  const Divider(
+                    indent: 20,
+                    endIndent: 20,
+                    color: ExploreColors.border,
+                  ),
                   _RichTextToolbar(
                     isBold: _isBold,
                     isItalic: _isItalic,
@@ -141,10 +305,9 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
                     onItalic: () => setState(() => _isItalic = !_isItalic),
                     onH1: () => setState(() => _isH1 = !_isH1),
                     onQuote: () => setState(() => _isQuote = !_isQuote),
-                    onAddImage: _addPhoto,
+                    onAddImage: _pickPhotos,
                   ),
                   const Divider(height: 1, color: ExploreColors.border),
-                  // Content editor
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                     child: TextField(
@@ -153,17 +316,19 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
                       maxLines: null,
                       minLines: 8,
                       style: TextStyle(
-                        fontSize: 15,
-                        fontWeight:
-                            _isBold ? FontWeight.w700 : FontWeight.normal,
-                        fontStyle:
-                            _isItalic ? FontStyle.italic : FontStyle.normal,
+                        fontSize: _isH1 ? 18 : 15,
+                        fontWeight: _isBold || _isH1
+                            ? FontWeight.w700
+                            : FontWeight.normal,
+                        fontStyle: _isItalic
+                            ? FontStyle.italic
+                            : FontStyle.normal,
                         color: ExploreColors.textPrimary,
                         height: 1.7,
                       ),
                       decoration: InputDecoration(
                         hintText: context.tr(
-                          vi: 'Chia se trai nghiem cua ban...',
+                          vi: 'Chia sẻ trải nghiệm của bạn...',
                           en: 'Share your experience...',
                         ),
                         hintStyle: const TextStyle(
@@ -174,21 +339,25 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
                       ),
                     ),
                   ),
-                  // Photo grid
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                     child: _PhotoGrid(
                       photos: _selectedPhotos,
-                      onAdd: _addPhoto,
+                      onAdd: _pickPhotos,
                       onRemove: _removePhoto,
                     ),
                   ),
                   const SizedBox(height: 20),
                   const Divider(color: ExploreColors.border),
-                  // Location picker
                   _LocationPicker(
                     controller: _locationController,
-                    onChanged: () => setState(() {}),
+                    isResolving: _isResolvingLocation,
+                    hasGps: _latitude != null && _longitude != null,
+                    onChanged: () => setState(() {
+                      _latitude = null;
+                      _longitude = null;
+                    }),
+                    onUseCurrentLocation: _useCurrentLocation,
                   ),
                   const SizedBox(height: 16),
                   _CostLevelPicker(
@@ -197,7 +366,7 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
                       _selectedCostLevel = value;
                     }),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 28),
                 ],
               ),
             ),
@@ -220,21 +389,21 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               children: [
-                // Cancel
                 TextButton(
-                  onPressed: () => _showCancelDialog(context),
+                  onPressed: _isPosting
+                      ? null
+                      : () => _showCancelDialog(context),
                   child: Text(
-                    context.tr(vi: 'Huy', en: 'Cancel'),
+                    context.tr(vi: 'Hủy', en: 'Cancel'),
                     style: const TextStyle(
                       color: ExploreColors.textSecondary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                // Title
                 Expanded(
                   child: Text(
-                    context.tr(vi: 'Bai viet moi', en: 'New post'),
+                    context.tr(vi: 'Bài viết mới', en: 'New post'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 16,
@@ -243,10 +412,9 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
                     ),
                   ),
                 ),
-                // Publish
                 AnimatedOpacity(
                   duration: const Duration(milliseconds: 200),
-                  opacity: _canPost ? 1.0 : 0.4,
+                  opacity: _canPost ? 1.0 : 0.45,
                   child: ElevatedButton(
                     onPressed: _canPost ? _postPublish : null,
                     style: ElevatedButton.styleFrom(
@@ -271,7 +439,7 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
                             ),
                           )
                         : Text(
-                            context.tr(vi: 'Dang', en: 'Post'),
+                            context.tr(vi: 'Đăng', en: 'Post'),
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
@@ -292,17 +460,17 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(context.tr(vi: 'Huy bai viet?', en: 'Discard post?')),
+        title: Text(context.tr(vi: 'Hủy bài viết?', en: 'Discard post?')),
         content: Text(
           context.tr(
-            vi: 'Noi dung chua duoc luu se bi mat.',
+            vi: 'Nội dung chưa được lưu sẽ bị mất.',
             en: 'Unsaved content will be lost.',
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(context.tr(vi: 'Tiep tuc viet', en: 'Keep editing')),
+            child: Text(context.tr(vi: 'Tiếp tục viết', en: 'Keep editing')),
           ),
           TextButton(
             onPressed: () {
@@ -310,7 +478,7 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
               Navigator.of(context).maybePop();
             },
             child: Text(
-              context.tr(vi: 'Huy bai viet', en: 'Discard'),
+              context.tr(vi: 'Hủy bài viết', en: 'Discard'),
               style: const TextStyle(color: Colors.red),
             ),
           ),
@@ -320,104 +488,42 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
   }
 }
 
-class _CostLevelPicker extends StatelessWidget {
-  const _CostLevelPicker({
-    required this.selectedLevel,
-    required this.onChanged,
-  });
+class _InlineNotice extends StatelessWidget {
+  const _InlineNotice({required this.text, required this.isError});
 
-  final int selectedLevel;
-  final ValueChanged<int> onChanged;
+  final String text;
+  final bool isError;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final color = isError ? Colors.red.shade700 : ExploreColors.primary;
+    final bg = isError ? Colors.red.shade50 : const Color(0xFFF0FDF4);
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
         children: [
-          Text(
-            context.tr(vi: 'Muc chi phi', en: 'Cost level'),
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: ExploreColors.textSecondary,
-            ),
+          Icon(
+            isError ? Icons.error_outline_rounded : Icons.cloud_upload_rounded,
+            color: color,
+            size: 18,
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: ExplorePriceFilter.values.map((filter) {
-              final isSelected = selectedLevel == filter.level;
-              return ChoiceChip(
-                label: Text('${filter.symbol} ${filter.labelVi}'),
-                selected: isSelected,
-                onSelected: (_) => onChanged(filter.level),
-                selectedColor: ExploreColors.chipActiveBg,
-                labelStyle: TextStyle(
-                  color: isSelected
-                      ? ExploreColors.primary
-                      : ExploreColors.textSecondary,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  fontSize: 12,
-                ),
-                side: BorderSide(
-                  color: isSelected ? ExploreColors.primary : ExploreColors.border,
-                ),
-                backgroundColor: const Color(0xFFF9FAFB),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/*
-                    child: Text(
-                      context.tr(vi: 'Dang', en: 'Post'),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showCancelDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(context.tr(vi: 'Huy bai viet?', en: 'Discard post?')),
-        content: Text(
-          context.tr(
-            vi: 'Noi dung chua duoc luu se bi mat.',
-            en: 'Unsaved content will be lost.',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(context.tr(vi: 'Tiep tuc viet', en: 'Keep editing')),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              Navigator.of(context).maybePop();
-            },
+          const SizedBox(width: 8),
+          Expanded(
             child: Text(
-              context.tr(vi: 'Huy bai viet', en: 'Discard'),
-              style: const TextStyle(color: Colors.red),
+              text,
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -425,10 +531,6 @@ class _CostLevelPicker extends StatelessWidget {
     );
   }
 }
-
-// ─── Rich Text Toolbar ────────────────────────────────────────────────────────
-
-*/
 
 class _RichTextToolbar extends StatelessWidget {
   const _RichTextToolbar({
@@ -453,25 +555,11 @@ class _RichTextToolbar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          _ToolbarButton(
-            label: 'B',
-            isActive: isBold,
-            onTap: onBold,
-            isBold: true,
-          ),
+          _ToolbarButton(label: 'B', isActive: isBold, onTap: onBold),
           const SizedBox(width: 4),
-          _ToolbarButton(
-            label: 'I',
-            isActive: isItalic,
-            onTap: onItalic,
-            isItalic: true,
-          ),
+          _ToolbarButton(label: 'I', isActive: isItalic, onTap: onItalic),
           const SizedBox(width: 4),
-          _ToolbarButton(
-            label: 'H1',
-            isActive: isH1,
-            onTap: onH1,
-          ),
+          _ToolbarButton(label: 'H1', isActive: isH1, onTap: onH1),
           const SizedBox(width: 4),
           _ToolbarIconButton(
             icon: Icons.format_quote_rounded,
@@ -497,36 +585,23 @@ class _ToolbarButton extends StatelessWidget {
     required this.label,
     required this.isActive,
     required this.onTap,
-    this.isBold = false,
-    this.isItalic = false,
   });
 
   final String label;
-  final bool isActive, isBold, isItalic;
+  final bool isActive;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return _ToolbarShell(
+      isActive: isActive,
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive ? ExploreColors.chipActiveBg : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isActive ? ExploreColors.primary : ExploreColors.border,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isBold ? FontWeight.w900 : FontWeight.w600,
-            fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
-            color: isActive ? ExploreColors.primary : ExploreColors.textSecondary,
-          ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
+          color: isActive ? ExploreColors.primary : ExploreColors.textSecondary,
         ),
       ),
     );
@@ -546,11 +621,38 @@ class _ToolbarIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return _ToolbarShell(
+      isActive: isActive,
+      onTap: onTap,
+      child: Icon(
+        icon,
+        size: 18,
+        color: isActive ? ExploreColors.primary : ExploreColors.textSecondary,
+      ),
+    );
+  }
+}
+
+class _ToolbarShell extends StatelessWidget {
+  const _ToolbarShell({
+    required this.isActive,
+    required this.onTap,
+    required this.child,
+  });
+
+  final bool isActive;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.all(6),
+        width: 36,
+        height: 32,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: isActive ? ExploreColors.chipActiveBg : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
@@ -558,11 +660,7 @@ class _ToolbarIconButton extends StatelessWidget {
             color: isActive ? ExploreColors.primary : ExploreColors.border,
           ),
         ),
-        child: Icon(
-          icon,
-          size: 18,
-          color: isActive ? ExploreColors.primary : ExploreColors.textSecondary,
-        ),
+        child: child,
       ),
     );
   }
@@ -573,15 +671,9 @@ class _ToolbarDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 24,
-      color: ExploreColors.border,
-    );
+    return Container(width: 1, height: 24, color: ExploreColors.border);
   }
 }
-
-// ─── Photo Grid ───────────────────────────────────────────────────────────────
 
 class _PhotoGrid extends StatelessWidget {
   const _PhotoGrid({
@@ -590,7 +682,7 @@ class _PhotoGrid extends StatelessWidget {
     required this.onRemove,
   });
 
-  final List<String> photos;
+  final List<XFile> photos;
   final VoidCallback onAdd;
   final ValueChanged<int> onRemove;
 
@@ -600,7 +692,7 @@ class _PhotoGrid extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Anh (${photos.length})',
+          'Ảnh (${photos.length})',
           style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,
@@ -625,10 +717,7 @@ class _PhotoGrid extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFFF3F4F6),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: ExploreColors.border,
-                      style: BorderStyle.solid,
-                    ),
+                    border: Border.all(color: ExploreColors.border),
                   ),
                   child: const Icon(
                     Icons.add_photo_alternate_outlined,
@@ -638,22 +727,35 @@ class _PhotoGrid extends StatelessWidget {
                 ),
               );
             }
+
             final photoIndex = index - 1;
             return Stack(
               clipBehavior: Clip.none,
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    photos[photoIndex],
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: const Color(0xFFE5E7EB),
-                      child: const Icon(Icons.image_outlined,
-                          color: ExploreColors.textMuted),
-                    ),
+                  child: FutureBuilder<Uint8List>(
+                    future: photos[photoIndex].readAsBytes(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return Container(
+                          color: const Color(0xFFE5E7EB),
+                          alignment: Alignment.center,
+                          child: const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        );
+                      }
+
+                      return Image.memory(
+                        snapshot.data!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      );
+                    },
                   ),
                 ),
                 Positioned(
@@ -668,8 +770,11 @@ class _PhotoGrid extends StatelessWidget {
                         color: Colors.black87,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.close_rounded,
-                          color: Colors.white, size: 12),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        color: Colors.white,
+                        size: 12,
+                      ),
                     ),
                   ),
                 ),
@@ -682,16 +787,20 @@ class _PhotoGrid extends StatelessWidget {
   }
 }
 
-// ─── Location Picker ──────────────────────────────────────────────────────────
-
 class _LocationPicker extends StatelessWidget {
   const _LocationPicker({
     required this.controller,
+    required this.isResolving,
+    required this.hasGps,
     required this.onChanged,
+    required this.onUseCurrentLocation,
   });
 
   final TextEditingController controller;
+  final bool isResolving;
+  final bool hasGps;
   final VoidCallback onChanged;
+  final VoidCallback onUseCurrentLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -700,13 +809,25 @@ class _LocationPicker extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            context.tr(vi: 'Vi tri', en: 'Location'),
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: ExploreColors.textSecondary,
-            ),
+          Row(
+            children: [
+              Text(
+                context.tr(vi: 'Vị trí', en: 'Location'),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: ExploreColors.textSecondary,
+                ),
+              ),
+              if (hasGps) ...[
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.check_circle_rounded,
+                  size: 15,
+                  color: ExploreColors.primary,
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 8),
           Container(
@@ -724,7 +845,7 @@ class _LocationPicker extends StatelessWidget {
               ),
               decoration: InputDecoration(
                 hintText: context.tr(
-                  vi: 'Nhap ten dia danh...',
+                  vi: 'Nhập tên địa danh...',
                   en: 'Enter location name...',
                 ),
                 hintStyle: const TextStyle(
@@ -736,6 +857,17 @@ class _LocationPicker extends StatelessWidget {
                   color: ExploreColors.primary,
                   size: 20,
                 ),
+                suffixIcon: TextButton.icon(
+                  onPressed: isResolving ? null : onUseCurrentLocation,
+                  icon: isResolving
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.my_location_rounded, size: 16),
+                  label: Text(context.tr(vi: 'GPS', en: 'GPS')),
+                ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -743,6 +875,63 @@ class _LocationPicker extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CostLevelPicker extends StatelessWidget {
+  const _CostLevelPicker({
+    required this.selectedLevel,
+    required this.onChanged,
+  });
+
+  final int selectedLevel;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.tr(vi: 'Mức chi phí', en: 'Cost level'),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: ExploreColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: ExplorePriceFilter.values.map((filter) {
+              final isSelected = selectedLevel == filter.level;
+              return ChoiceChip(
+                label: Text('${filter.symbol} ${filter.labelVi}'),
+                selected: isSelected,
+                onSelected: (_) => onChanged(filter.level),
+                selectedColor: ExploreColors.chipActiveBg,
+                labelStyle: TextStyle(
+                  color: isSelected
+                      ? ExploreColors.primary
+                      : ExploreColors.textSecondary,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 12,
+                ),
+                side: BorderSide(
+                  color: isSelected
+                      ? ExploreColors.primary
+                      : ExploreColors.border,
+                ),
+                backgroundColor: const Color(0xFFF9FAFB),
+              );
+            }).toList(),
           ),
         ],
       ),

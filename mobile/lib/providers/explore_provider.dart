@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/explore_post.dart';
 import '../services/explore_service.dart';
@@ -183,6 +184,8 @@ class ExploreProvider with ChangeNotifier {
     required String location,
     required int costLevel,
     required List<String> imageUrls,
+    double? latitude,
+    double? longitude,
   }) async {
     _isLoading = true;
     _error = null;
@@ -197,6 +200,8 @@ class ExploreProvider with ChangeNotifier {
         costLevel: costLevel,
         imageUrls: imageUrls,
         city: city,
+        latitude: latitude,
+        longitude: longitude,
         region: city == null
             ? null
             : kPopularCities.firstWhere((item) => item.slug == city).region,
@@ -215,17 +220,36 @@ class ExploreProvider with ChangeNotifier {
   }
 
   Future<bool> addComment(int postId, String content) async {
+    return addCommentReply(postId: postId, content: content);
+  }
+
+  Future<bool> addCommentReply({
+    required int postId,
+    required String content,
+    int? parentCommentId,
+  }) async {
     final trimmed = content.trim();
     if (trimmed.isEmpty) return false;
 
     try {
-      final comment = await _service.addComment(postId, trimmed);
+      final comment = await _service.addCommentReply(
+        postId: postId,
+        content: trimmed,
+        parentCommentId: parentCommentId,
+      );
       final index = _allPosts.indexWhere((post) => post.id == postId);
       if (index != -1) {
         final post = _allPosts[index];
-        _allPosts[index] = post.copyWith(
-          comments: [comment, ...post.comments],
-        );
+        final updatedComments = parentCommentId == null
+            ? [comment, ...post.comments]
+            : post.comments.map((item) {
+                if (item.id != parentCommentId) {
+                  return item;
+                }
+
+                return item.copyWith(replies: [...item.replies, comment]);
+              }).toList();
+        _allPosts[index] = post.copyWith(comments: updatedComments);
         _applyFilters();
         notifyListeners();
       }
@@ -235,6 +259,26 @@ class ExploreProvider with ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  Future<String> uploadImage(XFile image) => _service.uploadPostImage(image);
+
+  void applyCityFilter(String citySlug) {
+    final updated = Set<String>.from(_filterState.selectedCities)
+      ..add(citySlug);
+    _filterState = _filterState.copyWith(selectedCities: updated);
+    _page = 1;
+    fetchPosts(forceRefresh: true);
+    notifyListeners();
+  }
+
+  void removeCityFilter(String citySlug) {
+    final updated = Set<String>.from(_filterState.selectedCities)
+      ..remove(citySlug);
+    _filterState = _filterState.copyWith(selectedCities: updated);
+    _page = 1;
+    fetchPosts(forceRefresh: true);
+    notifyListeners();
   }
 
   ExplorePost? getPostById(int id) {
@@ -273,7 +317,9 @@ class ExploreProvider with ChangeNotifier {
 
     if (_filterState.prices.isNotEmpty) {
       final levels = _filterState.prices.map((filter) => filter.level).toSet();
-      result = result.where((post) => levels.contains(post.priceLevel)).toList();
+      result = result
+          .where((post) => levels.contains(post.priceLevel))
+          .toList();
     }
 
     switch (_filterState.sortBy) {

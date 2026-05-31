@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../services/auth_service_shared.dart';
@@ -12,7 +13,20 @@ import '../services/secure_storage_service.dart';
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
   static const _storage = FlutterSecureStorage();
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: const ['email', 'profile'],
+    serverClientId: _googleWebClientId,
+    clientId: kIsWeb ? _googleWebClientId : null,
+  );
+
+  static String? get _googleWebClientId {
+    final value =
+        dotenv.env['GOOGLE_WEB_CLIENT_ID'] ??
+        dotenv.env['GoogleAuthSettings__GoogleClientIds__Web'];
+
+    final trimmed = value?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
 
   bool _isAuthenticated = false;
   bool _isLoading = false;

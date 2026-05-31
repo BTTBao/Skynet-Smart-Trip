@@ -11,10 +11,12 @@ namespace SmartTrip.API.Controllers;
 public class ExploreController : ControllerBase
 {
     private readonly IExploreService _exploreService;
+    private readonly IWebHostEnvironment _environment;
 
-    public ExploreController(IExploreService exploreService)
+    public ExploreController(IExploreService exploreService, IWebHostEnvironment environment)
     {
         _exploreService = exploreService;
+        _environment = environment;
     }
 
     [HttpGet("posts")]
@@ -63,6 +65,65 @@ public class ExploreController : ControllerBase
         {
             return NotFound(new { message = ex.Message });
         }
+    }
+
+    [Authorize]
+    [HttpPost("posts/images")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> UploadPostImage([FromForm] UploadExplorePostImageRequest request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+        {
+            return Unauthorized();
+        }
+
+        var file = request.File;
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { message = "Image file is required." });
+        }
+
+        if (file.Length > 5 * 1024 * 1024)
+        {
+            return BadRequest(new { message = "Image file must be 5MB or smaller." });
+        }
+
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp"
+        };
+        if (!allowedExtensions.Contains(extension))
+        {
+            return BadRequest(new { message = "Only JPG, PNG, or WEBP images are supported." });
+        }
+
+        var webRoot = _environment.WebRootPath;
+        if (string.IsNullOrWhiteSpace(webRoot))
+        {
+            webRoot = Path.Combine(_environment.ContentRootPath, "wwwroot");
+        }
+
+        var uploadDirectory = Path.Combine(webRoot, "uploads", "explore");
+        Directory.CreateDirectory(uploadDirectory);
+
+        var fileName = $"{userId.Value}-{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}{extension}";
+        var filePath = Path.Combine(uploadDirectory, fileName);
+
+        await using (var stream = System.IO.File.Create(filePath))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var relativeUrl = $"/uploads/explore/{fileName}";
+        var absoluteUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
+
+        return Ok(new { imageUrl = absoluteUrl, relativeUrl });
     }
 
     [Authorize]
@@ -185,4 +246,9 @@ public class ExploreController : ControllerBase
 
         return int.TryParse(rawUserId, out var userId) ? userId : null;
     }
+}
+
+public sealed class UploadExplorePostImageRequest
+{
+    public IFormFile? File { get; set; }
 }

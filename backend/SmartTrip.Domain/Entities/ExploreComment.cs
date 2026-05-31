@@ -6,6 +6,8 @@ public class ExploreComment
 
     public int ExplorePostId { get; set; }
 
+    public int? ParentCommentId { get; set; }
+
     public int UserId { get; set; }
 
     public string Content { get; set; } = string.Empty;
@@ -15,6 +17,10 @@ public class ExploreComment
     public DateTime CreatedAt { get; set; }
 
     public virtual ExplorePost ExplorePost { get; set; } = null!;
+
+    public virtual ExploreComment? ParentComment { get; set; }
+
+    public virtual ICollection<ExploreComment> Replies { get; set; } = new List<ExploreComment>();
 
     public virtual User User { get; set; } = null!;
 }

@@ -6,13 +6,9 @@ import '../../models/catalog_models.dart';
 import '../../models/create_fake_payment_request.dart';
 import '../../models/create_hotel_booking_request.dart';
 import '../../providers/catalog_provider.dart';
-import '../../providers/profile_provider.dart';
 import '../../providers/trip_provider.dart';
 import '../../services/catalog_service.dart';
 import '../../utils/app_currency_formatter.dart';
-import '../../models/my_trip_summary.dart';
-import '../../models/create_trip_itinerary_request.dart';
-import '../../models/create_trip_request.dart';
 
 class HotelDetailView extends StatefulWidget {
   const HotelDetailView({super.key, required this.hotelId});
@@ -650,6 +646,10 @@ class _HotelDetailViewState extends State<HotelDetailView> {
           ),
         );
 
+    if (!mounted) {
+      return;
+    }
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -713,6 +713,8 @@ class _HotelDetailViewState extends State<HotelDetailView> {
                   setSheetState(() => isCheckingAvailability = false);
                 }
               }
+
+              return null;
             }
 
             Future<void> pickDate({required bool isCheckIn}) async {
@@ -765,7 +767,34 @@ class _HotelDetailViewState extends State<HotelDetailView> {
               }
 
               setSheetState(() => isSubmitting = true);
-              await Future.delayed(const Duration(milliseconds: 600));
+              if (!sheetContext.mounted) {
+                return;
+              }
+
+              final tripProvider = sheetContext.read<TripProvider>();
+              final createdTrip = await tripProvider.createHotelBooking(
+                CreateHotelBookingRequest(
+                  userId: 1,
+                  hotelId: detail.id,
+                  roomId: selectedRoom.id,
+                  destinationId: detail.destinationId,
+                  destinationName: detail.destinationName,
+                  title: 'Đặt phòng - ${detail.name}',
+                  checkInDate: checkIn,
+                  checkOutDate: checkOut,
+                  quantity: roomQuantity,
+                ),
+              );
+
+              if (createdTrip == null) {
+                if (sheetContext.mounted) {
+                  setSheetState(() => isSubmitting = false);
+                }
+                _showMessage(
+                  tripProvider.error ?? 'Không thể tạo đơn đặt phòng.',
+                );
+                return;
+              }
 
               if (!mounted || !sheetContext.mounted) {
                 return;
@@ -773,10 +802,9 @@ class _HotelDetailViewState extends State<HotelDetailView> {
 
               setSheetState(() => isSubmitting = false);
               Navigator.of(sheetContext).pop();
-              
-              // Open the mock payment sheet directly with tripId: 0
+
               await _openFakePaymentSheet(
-                tripId: 0,
+                tripId: createdTrip.tripId,
                 hotelName: detail.name,
                 roomType: selectedRoom.roomType,
                 amount: totalPrice,

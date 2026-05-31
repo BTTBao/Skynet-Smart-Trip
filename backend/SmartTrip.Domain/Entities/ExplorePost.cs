@@ -22,6 +22,10 @@ public class ExplorePost
 
     public string Region { get; set; } = string.Empty;
 
+    public double? Latitude { get; set; }
+
+    public double? Longitude { get; set; }
+
     public int CostLevel { get; set; }
 
     public decimal AverageRating { get; set; }

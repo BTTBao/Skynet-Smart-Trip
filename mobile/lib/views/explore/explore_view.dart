@@ -12,7 +12,10 @@ import 'explore_filter_view.dart';
 import 'explore_post_detail_view.dart';
 
 class ExploreView extends StatefulWidget {
-  const ExploreView({super.key});
+  const ExploreView({super.key, this.initialCitySlug, this.initialCityName});
+
+  final String? initialCitySlug;
+  final String? initialCityName;
 
   @override
   State<ExploreView> createState() => _ExploreViewState();
@@ -27,7 +30,13 @@ class _ExploreViewState extends State<ExploreView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ExploreProvider>().fetchPosts();
+      final provider = context.read<ExploreProvider>();
+      final citySlug = widget.initialCitySlug;
+      if (citySlug != null && citySlug.isNotEmpty) {
+        provider.applyCityFilter(citySlug);
+      } else {
+        provider.fetchPosts();
+      }
     });
   }
 
@@ -40,9 +49,7 @@ class _ExploreViewState extends State<ExploreView> {
 
   void _openPostDetail(ExplorePost post) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ExplorePostDetailView(postId: post.id),
-      ),
+      MaterialPageRoute(builder: (_) => ExplorePostDetailView(postId: post.id)),
     );
   }
 
@@ -82,13 +89,12 @@ class _ExploreViewState extends State<ExploreView> {
                       filterState: provider.filterState,
                       activeFilters: provider.activeFilters,
                       onToggle: provider.toggleFilter,
+                      onRemoveCity: provider.removeCityFilter,
                       onOpenFilter: _openFilterSheet,
                     ),
                   ),
                   if (provider.isLoading)
-                    const SliverFillRemaining(
-                      child: _LoadingState(),
-                    )
+                    const SliverFillRemaining(child: _LoadingState())
                   else if (provider.error != null && provider.posts.isEmpty)
                     SliverFillRemaining(
                       child: _ErrorState(
@@ -107,20 +113,17 @@ class _ExploreViewState extends State<ExploreView> {
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                       sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final post = provider.posts[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 20),
-                              child: ExplorePostCard(
-                                post: post,
-                                onTap: () => _openPostDetail(post),
-                                onLike: () => provider.toggleLike(post.id),
-                              ),
-                            );
-                          },
-                          childCount: provider.posts.length,
-                        ),
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final post = provider.posts[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 20),
+                            child: ExplorePostCard(
+                              post: post,
+                              onTap: () => _openPostDetail(post),
+                              onLike: () => provider.toggleLike(post.id),
+                            ),
+                          );
+                        }, childCount: provider.posts.length),
                       ),
                     ),
                 ],
@@ -218,7 +221,7 @@ class _ExploreHeader extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -280,12 +283,14 @@ class _FilterBar extends StatelessWidget {
     required this.filterState,
     required this.activeFilters,
     required this.onToggle,
+    required this.onRemoveCity,
     required this.onOpenFilter,
   });
 
   final ExploreFilterState filterState;
   final Set<ExploreFilter> activeFilters;
   final ValueChanged<ExploreFilter> onToggle;
+  final ValueChanged<String> onRemoveCity;
   final VoidCallback onOpenFilter;
 
   static const _quickFilters = [
@@ -302,7 +307,10 @@ class _FilterBar extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          _FilterIconButton(onTap: onOpenFilter, hasActiveExtra: _hasExtraFilter()),
+          _FilterIconButton(
+            onTap: onOpenFilter,
+            hasActiveExtra: _hasExtraFilter(),
+          ),
           const SizedBox(width: 8),
           ..._quickFilters.map((f) {
             final isActive = activeFilters.contains(f);
@@ -315,9 +323,29 @@ class _FilterBar extends StatelessWidget {
               ),
             );
           }),
+          ...filterState.selectedCities.map((slug) {
+            final cityName = _cityName(slug);
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _ActiveCityChip(
+                label: cityName,
+                onRemove: () => onRemoveCity(slug),
+              ),
+            );
+          }),
         ],
       ),
     );
+  }
+
+  String _cityName(String slug) {
+    for (final city in kPopularCities) {
+      if (city.slug == slug) {
+        return city.name;
+      }
+    }
+
+    return slug;
   }
 
   bool _hasExtraFilter() {
@@ -325,6 +353,47 @@ class _FilterBar extends StatelessWidget {
     return filterState.selectedCities.isNotEmpty ||
         filterState.prices.isNotEmpty ||
         filterState.minRating != null;
+  }
+}
+
+class _ActiveCityChip extends StatelessWidget {
+  const _ActiveCityChip({required this.label, required this.onRemove});
+
+  final String label;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.only(left: 12, right: 6),
+      decoration: BoxDecoration(
+        color: ExploreColors.primary,
+        borderRadius: BorderRadius.circular(ExploreSpacing.chipRadius),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onRemove,
+            child: const Icon(
+              Icons.close_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -345,9 +414,7 @@ class _FilterIconButton extends StatelessWidget {
             height: 36,
             padding: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
-              color: hasActiveExtra
-                  ? ExploreColors.chipActiveBg
-                  : Colors.white,
+              color: hasActiveExtra ? ExploreColors.chipActiveBg : Colors.white,
               borderRadius: BorderRadius.circular(ExploreSpacing.chipRadius),
               border: Border.all(
                 color: hasActiveExtra
@@ -425,10 +492,17 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.wifi_off_rounded, size: 52, color: ExploreColors.textMuted),
+            const Icon(
+              Icons.wifi_off_rounded,
+              size: 52,
+              color: ExploreColors.textMuted,
+            ),
             const SizedBox(height: 16),
             Text(
-              context.tr(vi: 'Không tải được bài viết', en: 'Could not load posts'),
+              context.tr(
+                vi: 'Không tải được bài viết',
+                en: 'Could not load posts',
+              ),
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -472,12 +546,19 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.search_off_rounded, size: 52, color: ExploreColors.textMuted),
+            const Icon(
+              Icons.search_off_rounded,
+              size: 52,
+              color: ExploreColors.textMuted,
+            ),
             const SizedBox(height: 16),
             Text(
               query.isEmpty
                   ? context.tr(vi: 'Chưa có bài viết nào', en: 'No posts yet')
-                  : context.tr(vi: 'Không tìm thấy kết quả', en: 'No results found'),
+                  : context.tr(
+                      vi: 'Không tìm thấy kết quả',
+                      en: 'No results found',
+                    ),
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -497,7 +578,9 @@ class _EmptyState extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onReset,
               icon: const Icon(Icons.refresh_rounded),
-              label: Text(context.tr(vi: 'Đặt lại bộ lọc', en: 'Reset filters')),
+              label: Text(
+                context.tr(vi: 'Đặt lại bộ lọc', en: 'Reset filters'),
+              ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: ExploreColors.primary,
                 side: const BorderSide(color: ExploreColors.primary),
@@ -535,5 +618,3 @@ class _CreatePostFab extends StatelessWidget {
     );
   }
 }
-
-

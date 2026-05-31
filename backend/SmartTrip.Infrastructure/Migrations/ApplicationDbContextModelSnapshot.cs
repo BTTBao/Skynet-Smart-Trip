@@ -272,10 +272,15 @@ namespace SmartTrip.Infrastructure.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<int?>("ParentCommentId")
+                        .HasColumnType("int");
+
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ParentCommentId");
 
                     b.HasIndex("UserId");
 
@@ -329,6 +334,12 @@ namespace SmartTrip.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("float");
 
                     b.Property<string>("Province")
                         .IsRequired()
@@ -1317,6 +1328,11 @@ namespace SmartTrip.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SmartTrip.Domain.Entities.ExploreComment", "ParentComment")
+                        .WithMany("Replies")
+                        .HasForeignKey("ParentCommentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SmartTrip.Domain.Entities.User", "User")
                         .WithMany("ExploreComments")
                         .HasForeignKey("UserId")
@@ -1324,6 +1340,8 @@ namespace SmartTrip.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("ExplorePost");
+
+                    b.Navigation("ParentComment");
 
                     b.Navigation("User");
                 });
@@ -1574,6 +1592,11 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Navigation("Ratings");
 
                     b.Navigation("Saves");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExploreComment", b =>
+                {
+                    b.Navigation("Replies");
                 });
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Hotel", b =>

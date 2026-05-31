@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../models/explore_post.dart';
 import '../../providers/explore_provider.dart';
 import '../../utils/app_text.dart';
+import '../../utils/relative_time_formatter.dart';
+import 'explore_map_sheet.dart';
 import 'explore_ui_constants.dart';
 
 class ExplorePostDetailView extends StatefulWidget {
@@ -30,14 +32,17 @@ class _ExplorePostDetailViewState extends State<ExplorePostDetailView>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    _heartScaleAnim = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.4), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.4, end: 1.0), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 30),
-    ]).animate(CurvedAnimation(
-      parent: _heartAnimController,
-      curve: Curves.easeInOut,
-    ));
+    _heartScaleAnim =
+        TweenSequence([
+          TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.4), weight: 40),
+          TweenSequenceItem(tween: Tween(begin: 1.4, end: 1.0), weight: 30),
+          TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 30),
+        ]).animate(
+          CurvedAnimation(
+            parent: _heartAnimController,
+            curve: Curves.easeInOut,
+          ),
+        );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ExploreProvider>().fetchPostDetail(widget.postId);
     });
@@ -94,15 +99,13 @@ class _ExplorePostDetailViewState extends State<ExplorePostDetailView>
                   child: _PostBody(post: post),
                 ),
               ),
-              SliverToBoxAdapter(
-                child: _LocationWidget(location: post.location),
-              ),
+              SliverToBoxAdapter(child: _LocationWidget(post: post)),
               SliverToBoxAdapter(
                 child: _CommentsSection(
                   postId: post.id,
                   comments: post.comments,
                   controller: _commentController,
-                  onSubmit: provider.addComment,
+                  onSubmit: provider.addCommentReply,
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
@@ -154,11 +157,14 @@ class _DetailSliverAppBar extends StatelessWidget {
           onTap: () => Navigator.of(context).maybePop(),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.45),
+              color: Colors.black.withValues(alpha: 0.45),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: Colors.white, size: 18),
+            child: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
           ),
         ),
       ),
@@ -170,30 +176,33 @@ class _DetailSliverAppBar extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.45),
+                color: Colors.black.withValues(alpha: 0.45),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.share_rounded,
-                  color: Colors.white, size: 18),
+              child: const Icon(
+                Icons.share_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
           ),
         ),
       ],
       flexibleSpace: FlexibleSpaceBar(
-        stretchModes: const [
-          StretchMode.zoomBackground,
-          StretchMode.fadeTitle,
-        ],
+        stretchModes: const [StretchMode.zoomBackground, StretchMode.fadeTitle],
         background: Stack(
           fit: StackFit.expand,
           children: [
             Image.network(
               post.thumbnailUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              errorBuilder: (_, error, stackTrace) => Container(
                 color: const Color(0xFF1F2937),
-                child: const Icon(Icons.image_outlined,
-                    size: 48, color: Colors.white30),
+                child: const Icon(
+                  Icons.image_outlined,
+                  size: 48,
+                  color: Colors.white30,
+                ),
               ),
             ),
             // Gradient overlay
@@ -258,7 +267,7 @@ class _LocationChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: ExploreColors.primary.withOpacity(0.85),
+        color: ExploreColors.primary.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -302,7 +311,7 @@ class _PostBody extends StatelessWidget {
               CircleAvatar(
                 radius: 18,
                 backgroundImage: NetworkImage(post.authorAvatar),
-                onBackgroundImageError: (_, __) {},
+                onBackgroundImageError: (_, exception) {},
                 backgroundColor: const Color(0xFFE5E7EB),
               ),
               const SizedBox(width: 10),
@@ -349,11 +358,14 @@ class _PostBody extends StatelessWidget {
           child: Image.network(
             block.content,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
+            errorBuilder: (_, error, stackTrace) => Container(
               height: 160,
               color: const Color(0xFFF3F4F6),
-              child: const Icon(Icons.image_outlined,
-                  size: 40, color: ExploreColors.textMuted),
+              child: const Icon(
+                Icons.image_outlined,
+                size: 40,
+                color: ExploreColors.textMuted,
+              ),
             ),
           ),
         ),
@@ -404,9 +416,9 @@ class _ContentBlock {
 // ─── Location Widget ──────────────────────────────────────────────────────────
 
 class _LocationWidget extends StatelessWidget {
-  const _LocationWidget({required this.location});
+  const _LocationWidget({required this.post});
 
-  final String location;
+  final ExplorePost post;
 
   @override
   Widget build(BuildContext context) {
@@ -425,7 +437,7 @@ class _LocationWidget extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: ExploreColors.primary.withOpacity(0.12),
+                color: ExploreColors.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Icon(
@@ -448,7 +460,7 @@ class _LocationWidget extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    location,
+                    post.location,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -460,20 +472,18 @@ class _LocationWidget extends StatelessWidget {
             ),
             GestureDetector(
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      context.tr(vi: 'Dang mo ban do...', en: 'Opening map...'),
-                    ),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => ExploreMapSheet(post: post),
                 );
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: ExploreColors.primary,
                   borderRadius: BorderRadius.circular(999),
@@ -508,7 +518,12 @@ class _CommentsSection extends StatelessWidget {
   final int postId;
   final List<ExploreComment> comments;
   final TextEditingController controller;
-  final Future<bool> Function(int postId, String content) onSubmit;
+  final Future<bool> Function({
+    required int postId,
+    required String content,
+    int? parentCommentId,
+  })
+  onSubmit;
 
   @override
   Widget build(BuildContext context) {
@@ -521,8 +536,11 @@ class _CommentsSection extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.chat_bubble_outline_rounded,
-                  size: 18, color: ExploreColors.textPrimary),
+              const Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 18,
+                color: ExploreColors.textPrimary,
+              ),
               const SizedBox(width: 8),
               Text(
                 context.tr(
@@ -538,7 +556,9 @@ class _CommentsSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ...comments.map((c) => _CommentItem(comment: c)),
+          ...comments.map(
+            (c) => _CommentItem(postId: postId, comment: c, onSubmit: onSubmit),
+          ),
           const SizedBox(height: 12),
           // Comment input
           Row(
@@ -546,8 +566,11 @@ class _CommentsSection extends StatelessWidget {
               const CircleAvatar(
                 radius: 18,
                 backgroundColor: Color(0xFFE5E7EB),
-                child: Icon(Icons.person_rounded,
-                    size: 20, color: ExploreColors.textMuted),
+                child: Icon(
+                  Icons.person_rounded,
+                  size: 20,
+                  color: ExploreColors.textMuted,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -575,24 +598,31 @@ class _CommentsSection extends StatelessWidget {
                         vertical: 10,
                       ),
                       suffixIcon: IconButton(
-                        icon: const Icon(Icons.send_rounded,
-                            color: ExploreColors.primary, size: 18),
+                        icon: const Icon(
+                          Icons.send_rounded,
+                          color: ExploreColors.primary,
+                          size: 18,
+                        ),
                         onPressed: () {
                           final content = controller.text.trim();
                           if (content.isEmpty) return;
                           controller.clear();
-                          onSubmit(postId, content).then((success) {
+                          onSubmit(postId: postId, content: content).then((
+                            success,
+                          ) {
                             if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(context.tr(
-                                  vi: success
-                                      ? 'Binh luan da duoc gui!'
-                                      : 'Khong gui duoc binh luan',
-                                  en: success
-                                      ? 'Comment posted!'
-                                      : 'Could not post comment',
-                                )),
+                                content: Text(
+                                  context.tr(
+                                    vi: success
+                                        ? 'Binh luan da duoc gui!'
+                                        : 'Khong gui duoc binh luan',
+                                    en: success
+                                        ? 'Comment posted!'
+                                        : 'Could not post comment',
+                                  ),
+                                ),
                                 behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -614,85 +644,281 @@ class _CommentsSection extends StatelessWidget {
   }
 }
 
-class _CommentItem extends StatelessWidget {
-  const _CommentItem({required this.comment});
+class _CommentItem extends StatefulWidget {
+  const _CommentItem({
+    required this.postId,
+    required this.comment,
+    required this.onSubmit,
+  });
+
+  final int postId;
+  final ExploreComment comment;
+  final Future<bool> Function({
+    required int postId,
+    required String content,
+    int? parentCommentId,
+  })
+  onSubmit;
+
+  @override
+  State<_CommentItem> createState() => _CommentItemState();
+}
+
+class _CommentItemState extends State<_CommentItem> {
+  final _replyController = TextEditingController();
+  bool _isReplying = false;
+  bool _isSending = false;
+
+  @override
+  void dispose() {
+    _replyController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendReply() async {
+    final content = _replyController.text.trim();
+    if (content.isEmpty || _isSending) {
+      return;
+    }
+
+    setState(() => _isSending = true);
+    final success = await widget.onSubmit(
+      postId: widget.postId,
+      content: content,
+      parentCommentId: widget.comment.id,
+    );
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isSending = false;
+      if (success) {
+        _isReplying = false;
+        _replyController.clear();
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.tr(
+            vi: success ? 'Đã gửi phản hồi' : 'Không gửi được phản hồi',
+            en: success ? 'Reply posted' : 'Could not post reply',
+          ),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final comment = widget.comment;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        children: [
+          _CommentBubble(comment: comment),
+          Padding(
+            padding: const EdgeInsets.only(left: 44, top: 4),
+            child: Row(
+              children: [
+                Text(
+                  RelativeTimeFormatter.vi(comment.createdAt),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: ExploreColors.textMuted,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: () => setState(() => _isReplying = !_isReplying),
+                  child: Text(
+                    context.tr(vi: 'Trả lời', en: 'Reply'),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: ExploreColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (comment.replies.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 44, top: 10),
+              child: Column(
+                children: comment.replies
+                    .map((reply) => _ReplyBubble(reply: reply))
+                    .toList(),
+              ),
+            ),
+          if (_isReplying)
+            Padding(
+              padding: const EdgeInsets.only(left: 44, top: 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _replyController,
+                      minLines: 1,
+                      maxLines: 3,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: context.tr(
+                          vi: 'Viết phản hồi...',
+                          en: 'Write a reply...',
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFF9FAFB),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: ExploreColors.border,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _isSending ? null : _sendReply,
+                    icon: _isSending
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(
+                            Icons.send_rounded,
+                            color: ExploreColors.primary,
+                          ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommentBubble extends StatelessWidget {
+  const _CommentBubble({required this.comment});
 
   final ExploreComment comment;
 
   @override
   Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: 17,
+          backgroundImage: NetworkImage(comment.authorAvatar),
+          onBackgroundImageError: (_, exception) {},
+          backgroundColor: const Color(0xFFE5E7EB),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  comment.authorName,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: ExploreColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  comment.content,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: ExploreColors.textSecondary,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReplyBubble extends StatelessWidget {
+  const _ReplyBubble({required this.reply});
+
+  final ExploreComment reply;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
-            radius: 17,
-            backgroundImage: NetworkImage(comment.authorAvatar),
-            onBackgroundImageError: (_, __) {},
+            radius: 14,
+            backgroundImage: NetworkImage(reply.authorAvatar),
+            onBackgroundImageError: (_, exception) {},
             backgroundColor: const Color(0xFFE5E7EB),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                  padding: const EdgeInsets.fromLTRB(11, 9, 11, 9),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF3F4F6),
-                    borderRadius: BorderRadius.circular(16),
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: ExploreColors.border),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        comment.authorName,
+                        reply.authorName,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: ExploreColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       Text(
-                        comment.content,
+                        reply.content,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 12,
                           color: ExploreColors.textSecondary,
-                          height: 1.4,
+                          height: 1.35,
                         ),
                       ),
                     ],
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(left: 12, top: 4),
-                  child: Row(
-                    children: [
-                      Text(
-                        _formatDate(comment.createdAt),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: ExploreColors.textMuted,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Row(
-                        children: [
-                          const Icon(Icons.favorite_border_rounded,
-                              size: 12, color: ExploreColors.textMuted),
-                          const SizedBox(width: 3),
-                          Text(
-                            '${comment.likes}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: ExploreColors.textMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                  padding: const EdgeInsets.only(left: 8, top: 3),
+                  child: Text(
+                    RelativeTimeFormatter.vi(reply.createdAt),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: ExploreColors.textMuted,
+                    ),
                   ),
                 ),
               ],
@@ -702,23 +928,12 @@ class _CommentItem extends StatelessWidget {
       ),
     );
   }
-
-  String _formatDate(DateTime date) {
-    final diff = DateTime.now().difference(date);
-    if (diff.inHours < 1) return '${diff.inMinutes} phut truoc';
-    if (diff.inDays == 0) return '${diff.inHours} gio truoc';
-    if (diff.inDays == 1) return 'Hom qua';
-    return '${diff.inDays} ngay truoc';
-  }
 }
 
 // ─── Floating Action Bar ──────────────────────────────────────────────────────
 
 class _FloatingActionBar extends StatelessWidget {
-  const _FloatingActionBar({
-    required this.post,
-    required this.provider,
-  });
+  const _FloatingActionBar({required this.post, required this.provider});
 
   final ExplorePost post;
   final ExploreProvider provider;
@@ -733,7 +948,7 @@ class _FloatingActionBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.14),
+            color: Colors.black.withValues(alpha: 0.14),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -748,7 +963,9 @@ class _FloatingActionBar extends StatelessWidget {
                 ? Icons.favorite_rounded
                 : Icons.favorite_border_rounded,
             label: '${post.likes}',
-            color: post.isLiked ? ExploreColors.heartRed : ExploreColors.textSecondary,
+            color: post.isLiked
+                ? ExploreColors.heartRed
+                : ExploreColors.textSecondary,
             onTap: () {
               HapticFeedback.lightImpact();
               provider.toggleLike(post.id);
@@ -790,10 +1007,9 @@ class _FloatingActionBar extends StatelessWidget {
               HapticFeedback.lightImpact();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(context.tr(
-                    vi: 'Da sao chep lien ket',
-                    en: 'Link copied',
-                  )),
+                  content: Text(
+                    context.tr(vi: 'Da sao chep lien ket', en: 'Link copied'),
+                  ),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -855,10 +1071,6 @@ class _Divider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 28,
-      color: ExploreColors.border,
-    );
+    return Container(width: 1, height: 28, color: ExploreColors.border);
   }
 }

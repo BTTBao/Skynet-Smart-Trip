@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SmartTrip.Application.DTOs.Notifications;
 using SmartTrip.Application.DTOs.Explore;
@@ -61,6 +61,8 @@ public class ExploreService : IExploreService
                 City = post.CitySlug,
                 Province = post.Province,
                 Region = post.Region,
+                Latitude = post.Latitude,
+                Longitude = post.Longitude,
                 AuthorName = post.Author.FullName ?? post.Author.UserName ?? post.Author.Email,
                 AuthorAvatar = post.Author.AvatarUrl ?? DefaultAvatar,
                 PublishedAt = post.CreatedAt,
@@ -135,6 +137,8 @@ public class ExploreService : IExploreService
             CitySlug = location.Slug,
             Province = location.Province,
             Region = location.Region,
+            Latitude = request.Latitude,
+            Longitude = request.Longitude,
             CostLevel = request.CostLevel,
             Tags = JoinTags(request.Tags),
             AverageRating = 0m,
@@ -236,15 +240,17 @@ public class ExploreService : IExploreService
         var query = _context.ExploreComments
             .AsNoTracking()
             .Where(comment => comment.ExplorePostId == postId)
+            .Where(comment => comment.ParentCommentId == null)
             .OrderByDescending(comment => comment.CreatedAt);
 
         var totalItems = await query.CountAsync();
-        var comments = await query
+        var rootComments = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(comment => new ExploreCommentDto
             {
                 Id = comment.Id,
+                ParentCommentId = comment.ParentCommentId,
                 AuthorName = comment.User.FullName ?? comment.User.UserName ?? comment.User.Email,
                 AuthorAvatar = comment.User.AvatarUrl ?? DefaultAvatar,
                 Content = comment.Content,
@@ -252,10 +258,11 @@ public class ExploreService : IExploreService
                 Likes = comment.LikeCount
             })
             .ToListAsync();
+        await AttachRepliesAsync(rootComments);
 
         return new PagedResultDto<ExploreCommentDto>
         {
-            Items = comments,
+            Items = rootComments,
             Page = page,
             PageSize = pageSize,
             TotalItems = totalItems,
@@ -277,16 +284,35 @@ public class ExploreService : IExploreService
         }
 
         await EnsurePostAndUserExistAsync(postId, userId);
+        if (request.ParentCommentId.HasValue)
+        {
+            var parentExists = await _context.ExploreComments.AnyAsync(comment =>
+                comment.Id == request.ParentCommentId.Value &&
+                comment.ExplorePostId == postId &&
+                comment.ParentCommentId == null);
+            if (!parentExists)
+            {
+                throw new ArgumentException("Parent comment is invalid.");
+            }
+        }
 
         var post = await _context.ExplorePosts
             .AsNoTracking()
             .Where(item => item.Id == postId)
             .Select(item => new { item.AuthorId, item.Title })
             .FirstAsync();
+        var parentCommentAuthorId = request.ParentCommentId.HasValue
+            ? await _context.ExploreComments
+                .AsNoTracking()
+                .Where(item => item.Id == request.ParentCommentId.Value)
+                .Select(item => (int?)item.UserId)
+                .FirstOrDefaultAsync()
+            : null;
 
         var comment = new ExploreComment
         {
             ExplorePostId = postId,
+            ParentCommentId = request.ParentCommentId,
             UserId = userId,
             Content = content,
             LikeCount = 0,
@@ -296,10 +322,13 @@ public class ExploreService : IExploreService
         _context.ExploreComments.Add(comment);
         await _context.SaveChangesAsync();
 
-        if (post.AuthorId != userId)
-        {
-            await TryNotifyPostOwnerAsync(post.AuthorId, postId, post.Title);
-        }
+        await TryNotifyCommentTargetsAsync(
+            post.AuthorId,
+            parentCommentAuthorId,
+            postId,
+            post.Title,
+            userId,
+            request.ParentCommentId.HasValue);
 
         return await _context.ExploreComments
             .AsNoTracking()
@@ -307,33 +336,70 @@ public class ExploreService : IExploreService
             .Select(item => new ExploreCommentDto
             {
                 Id = item.Id,
+                ParentCommentId = item.ParentCommentId,
                 AuthorName = item.User.FullName ?? item.User.UserName ?? item.User.Email,
                 AuthorAvatar = item.User.AvatarUrl ?? DefaultAvatar,
                 Content = item.Content,
                 CreatedAt = item.CreatedAt,
-                Likes = item.LikeCount
+                Likes = item.LikeCount,
+                Replies = new List<ExploreCommentDto>()
             })
             .FirstAsync();
     }
 
-    private async Task TryNotifyPostOwnerAsync(int ownerId, int postId, string postTitle)
+    private async Task TryNotifyCommentTargetsAsync(
+        int postOwnerId,
+        int? parentCommentAuthorId,
+        int postId,
+        string postTitle,
+        int actorUserId,
+        bool isReply)
     {
-        try
+        if (isReply &&
+            parentCommentAuthorId.HasValue &&
+            parentCommentAuthorId.Value > 0 &&
+            parentCommentAuthorId.Value != actorUserId)
         {
-            await _notificationService.CreateAsync(new CreateNotificationDto
+            await TryCreateExploreNotificationAsync(new CreateNotificationDto
             {
-                UserId = ownerId,
-                Title = "Bài viết có bình luận mới",
-                Message = $"Bài viết \"{postTitle}\" vừa có bình luận mới.",
-                Type = "explore.comment_created",
+                UserId = parentCommentAuthorId.Value,
+                Title = "Bình luận của bạn có phản hồi mới",
+                Message = $"Có người vừa phản hồi bình luận trong bài viết \"{postTitle}\".",
+                Type = "explore.comment_replied",
                 ReferenceType = "explore_post",
                 ReferenceId = postId,
                 ActionUrl = $"/explore/posts/{postId}"
             });
         }
+
+        if (postOwnerId == actorUserId || parentCommentAuthorId == postOwnerId)
+        {
+            return;
+        }
+
+        await TryCreateExploreNotificationAsync(new CreateNotificationDto
+        {
+            UserId = postOwnerId,
+            Title = isReply ? "Bài viết có phản hồi mới" : "Bài viết có bình luận mới",
+            Message = isReply
+                ? $"Bài viết \"{postTitle}\" vừa có thêm phản hồi trong phần bình luận."
+                : $"Bài viết \"{postTitle}\" vừa có bình luận mới.",
+            Type = isReply ? "explore.comment_replied" : "explore.comment_created",
+            ReferenceType = "explore_post",
+            ReferenceId = postId,
+            ActionUrl = $"/explore/posts/{postId}"
+        });
+    }
+
+    private async Task TryCreateExploreNotificationAsync(CreateNotificationDto notification)
+    {
+        try
+        {
+            await _notificationService.CreateAsync(notification);
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create explore comment notification for post {PostId}", postId);
+            _logger.LogError(ex, "Failed to create explore notification {Type} for user {UserId}", notification.Type, notification.UserId);
         }
     }
 
@@ -478,6 +544,8 @@ public class ExploreService : IExploreService
                 City = item.CitySlug,
                 Province = item.Province,
                 Region = item.Region,
+                Latitude = item.Latitude,
+                Longitude = item.Longitude,
                 AuthorName = item.Author.FullName ?? item.Author.UserName ?? item.Author.Email,
                 AuthorAvatar = item.Author.AvatarUrl ?? DefaultAvatar,
                 PublishedAt = item.CreatedAt,
@@ -501,11 +569,13 @@ public class ExploreService : IExploreService
         post.Comments = await _context.ExploreComments
             .AsNoTracking()
             .Where(comment => comment.ExplorePostId == postId)
+            .Where(comment => comment.ParentCommentId == null)
             .OrderByDescending(comment => comment.CreatedAt)
             .Take(20)
             .Select(comment => new ExploreCommentDto
             {
                 Id = comment.Id,
+                ParentCommentId = comment.ParentCommentId,
                 AuthorName = comment.User.FullName ?? comment.User.UserName ?? comment.User.Email,
                 AuthorAvatar = comment.User.AvatarUrl ?? DefaultAvatar,
                 Content = comment.Content,
@@ -513,8 +583,47 @@ public class ExploreService : IExploreService
                 Likes = comment.LikeCount
             })
             .ToListAsync();
+        await AttachRepliesAsync(post.Comments);
 
         return post;
+    }
+
+    private async Task AttachRepliesAsync(List<ExploreCommentDto> rootComments)
+    {
+        if (rootComments.Count == 0)
+        {
+            return;
+        }
+
+        var rootIds = rootComments.Select(comment => comment.Id).ToList();
+        var replies = await _context.ExploreComments
+            .AsNoTracking()
+            .Where(comment => comment.ParentCommentId.HasValue && rootIds.Contains(comment.ParentCommentId.Value))
+            .OrderBy(comment => comment.CreatedAt)
+            .Select(comment => new ExploreCommentDto
+            {
+                Id = comment.Id,
+                ParentCommentId = comment.ParentCommentId,
+                AuthorName = comment.User.FullName ?? comment.User.UserName ?? comment.User.Email,
+                AuthorAvatar = comment.User.AvatarUrl ?? DefaultAvatar,
+                Content = comment.Content,
+                CreatedAt = comment.CreatedAt,
+                Likes = comment.LikeCount,
+                Replies = new List<ExploreCommentDto>()
+            })
+            .ToListAsync();
+
+        var grouped = replies
+            .Where(reply => reply.ParentCommentId.HasValue)
+            .GroupBy(reply => reply.ParentCommentId!.Value)
+            .ToDictionary(group => group.Key, group => group.ToList());
+
+        foreach (var comment in rootComments)
+        {
+            comment.Replies = grouped.TryGetValue(comment.Id, out var commentReplies)
+                ? commentReplies
+                : [];
+        }
     }
 
     private IQueryable<ExplorePost> ApplyFilters(IQueryable<ExplorePost> query, ExplorePostQueryDto filter)
@@ -639,6 +748,16 @@ public class ExploreService : IExploreService
         if (request.ImageUrls.Count > MaxImages)
         {
             throw new ArgumentException($"A post can contain at most {MaxImages} images.");
+        }
+
+        if (request.Latitude is < -90 or > 90)
+        {
+            throw new ArgumentException("Latitude must be between -90 and 90.");
+        }
+
+        if (request.Longitude is < -180 or > 180)
+        {
+            throw new ArgumentException("Longitude must be between -180 and 180.");
         }
     }
 
@@ -823,3 +942,4 @@ public class ExploreService : IExploreService
         new("can-tho", "Cần Thơ", "Cần Thơ", "south")
     ];
 }
+

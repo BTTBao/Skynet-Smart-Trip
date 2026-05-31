@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 import '../models/explore_post.dart';
 import 'api_service_base.dart';
@@ -75,6 +77,8 @@ class ExploreService extends ApiService {
     List<String> imageUrls = const [],
     String? city,
     String? region,
+    double? latitude,
+    double? longitude,
     List<String> tags = const [],
   }) async {
     final response = await postWithFallback(
@@ -86,6 +90,8 @@ class ExploreService extends ApiService {
         'location': location,
         'city': city,
         'region': region,
+        'latitude': latitude,
+        'longitude': longitude,
         'costLevel': costLevel,
         'imageUrls': imageUrls,
         'tags': tags,
@@ -121,12 +127,54 @@ class ExploreService extends ApiService {
   }
 
   Future<ExploreComment> addComment(int postId, String content) async {
+    return addCommentReply(postId: postId, content: content);
+  }
+
+  Future<ExploreComment> addCommentReply({
+    required int postId,
+    required String content,
+    int? parentCommentId,
+  }) async {
+    final payload = <String, dynamic>{'content': content};
+    if (parentCommentId != null) {
+      payload['parentCommentId'] = parentCommentId;
+    }
+
     final response = await postWithFallback(
       '/explore/posts/$postId/comments',
       requireAuth: true,
-      body: jsonEncode({'content': content}),
+      body: jsonEncode(payload),
     );
     final data = Map<String, dynamic>.from(handleResponse(response));
     return ExploreComment.fromJson(data);
+  }
+
+  Future<String> uploadPostImage(XFile image) async {
+    final request = http.MultipartRequest(
+      'POST',
+      buildUri(configuredBaseUrl, '/explore/posts/images'),
+    );
+    request.headers.addAll(await getHeaders(requireAuth: true));
+    if (kIsWeb) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          await image.readAsBytes(),
+          filename: image.name,
+        ),
+      );
+    } else {
+      request.files.add(await http.MultipartFile.fromPath('file', image.path));
+    }
+
+    final streamed = await request.send().timeout(const Duration(seconds: 40));
+    final response = await http.Response.fromStream(streamed);
+    final data = Map<String, dynamic>.from(handleResponse(response));
+    final imageUrl = data['imageUrl']?.toString();
+    if (imageUrl == null || imageUrl.isEmpty) {
+      throw Exception('Upload ảnh không trả về đường dẫn.');
+    }
+
+    return imageUrl;
   }
 }

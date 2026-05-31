@@ -13,27 +13,37 @@ import 'profile/profile_view.dart';
 import 'search/search_screen.dart';
 import 'trip/my_trips_view.dart';
 
+abstract class MainShellController {
+  void openTab(int index);
+
+  void openExplore({String? citySlug, String? cityName});
+}
+
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
+
+  static MainShellController? maybeOf(BuildContext context) {
+    return context.findAncestorStateOfType<_MainShellState>();
+  }
 
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> implements MainShellController {
   static const primaryColor = Color(0xFF80ED99);
 
   int _currentIndex = 0;
   Timer? _notificationTimer;
+  String? _exploreCitySlug;
+  String? _exploreCityName;
+  int _exploreViewVersion = 0;
 
-  final List<Widget> _pages = [
-    const HomeView(),
-    ChatbotView(),
-    const SearchScreen(),
-    const ExploreView(),
-    const MyTripsView(),
-    const ProfileView(),
-  ];
+  final Widget _homePage = const HomeView();
+  final Widget _chatbotPage = ChatbotView();
+  final Widget _searchPage = const SearchScreen();
+  final Widget _tripsPage = const MyTripsView();
+  final Widget _profilePage = const ProfileView();
 
   @override
   void initState() {
@@ -57,9 +67,49 @@ class _MainShellState extends State<MainShell> {
   }
 
   @override
+  void openTab(int index) {
+    if (!mounted || _currentIndex == index) {
+      return;
+    }
+
+    setState(() => _currentIndex = index);
+  }
+
+  @override
+  void openExplore({String? citySlug, String? cityName}) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _exploreCitySlug = citySlug;
+      _exploreCityName = cityName;
+      _exploreViewVersion += 1;
+      _currentIndex = 3;
+    });
+  }
+
+  List<Widget> _buildPages() {
+    return [
+      _homePage,
+      _chatbotPage,
+      _searchPage,
+      ExploreView(
+        key: ValueKey(
+          'explore-$_exploreViewVersion-${_exploreCitySlug ?? ''}-${_exploreCityName ?? ''}',
+        ),
+        initialCitySlug: _exploreCitySlug,
+        initialCityName: _exploreCityName,
+      ),
+      _tripsPage,
+      _profilePage,
+    ];
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _pages),
+      body: IndexedStack(index: _currentIndex, children: _buildPages()),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
