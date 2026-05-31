@@ -18,6 +18,7 @@ public interface IApplicationDbContext
     DbSet<Hotel> Hotels { get; set; }
     DbSet<Invoice> Invoices { get; set; }
     DbSet<Notification> Notifications { get; set; }
+    DbSet<UserFcmToken> UserFcmTokens { get; set; }
     DbSet<Payment> Payments { get; set; }
     DbSet<Promotion> Promotions { get; set; }
     DbSet<Review> Reviews { get; set; }

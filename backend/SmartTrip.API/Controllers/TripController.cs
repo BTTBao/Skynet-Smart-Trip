@@ -97,12 +97,39 @@ public class TripController : ControllerBase
         }
     }
 
+    [HttpPost("hotel-bookings")]
+    public async Task<IActionResult> CreateHotelBooking([FromBody] CreateHotelBookingDto request)
+    {
+        try
+        {
+            request.UserId = GetCurrentUserId();
+            var trip = await _tripService.CreateHotelBookingAsync(request);
+            return CreatedAtAction(nameof(GetTripById), new { tripId = trip.TripId }, trip);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
 
     [HttpPost("{tripId:int}/fake-payment")]
     public async Task<IActionResult> CompleteFakePayment(int tripId, [FromBody] CreateFakePaymentDto request)
     {
         try
         {
+            if (!await UserOwnsTripAsync(tripId))
+            {
+                return Forbid();
+            }
+
             var trip = await _tripService.CompleteFakePaymentAsync(tripId, request);
             return Ok(trip);
         }

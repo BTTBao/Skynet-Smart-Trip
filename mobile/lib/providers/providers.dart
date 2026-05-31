@@ -7,3 +7,4 @@ export 'explore_provider.dart';
 export 'destination_provider.dart';
 export 'hotel_provider.dart';
 export 'bus_provider.dart';
+export 'notification_provider.dart';

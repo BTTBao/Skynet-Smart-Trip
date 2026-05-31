@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "554220636389",
+    "project_id": "test-fcm-8ddcc",
+    "storage_bucket": "test-fcm-8ddcc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:554220636389:android:3d193acf3468becc56ec0c",
+        "android_client_info": {
+          "package_name": "com.skynet.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4nIr_vpvI5B3bG5EsF5YHfMhGOARloQw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

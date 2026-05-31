@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SmartTrip.Application.DTOs.Admin;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
@@ -311,12 +312,14 @@ public partial class AdminService
 
         var nextTripStatus = ParseTripStatus(request.TripStatus);
         var nextPaymentStatus = ParsePaymentStatus(request.PaymentStatus);
+        var previousTripStatus = trip.Status;
 
         trip.Status = nextTripStatus;
 
         var payment = trip.Payments
             .OrderByDescending(item => item.PaidAt ?? DateTime.MinValue)
             .FirstOrDefault();
+        var previousPaymentStatus = payment?.Status;
 
         if (payment is null)
         {
@@ -346,6 +349,11 @@ public partial class AdminService
         }
 
         await _context.SaveChangesAsync();
+
+        if (previousTripStatus != trip.Status || previousPaymentStatus != payment.Status)
+        {
+            await NotifyBookingStatusChangedAsync(trip, payment.Status);
+        }
 
         return MapBooking(trip);
     }
@@ -571,5 +579,53 @@ public partial class AdminService
         }
 
         return $"{trip.StartDate.Value:dd/MM/yyyy} - {trip.EndDate.Value:dd/MM/yyyy}";
+    }
+
+    private async Task NotifyBookingStatusChangedAsync(Trip trip, PaymentStatus? paymentStatus)
+    {
+        if (!trip.UserId.HasValue)
+        {
+            return;
+        }
+
+        var statusLabel = MapPaymentStatus(paymentStatus);
+
+        try
+        {
+            await _notificationService.CreateAsync(new SmartTrip.Application.DTOs.Notifications.CreateNotificationDto
+            {
+                UserId = trip.UserId.Value,
+                Title = "Booking đã được cập nhật",
+                Message = $"Booking \"{trip.Title ?? $"#{trip.Id}"}\" hiện ở trạng thái {statusLabel}.",
+                Type = "booking.status_changed",
+                ReferenceType = "booking",
+                ReferenceId = trip.Id,
+                ActionUrl = $"/trips/{trip.Id}"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create booking status notification for booking {BookingId}", trip.Id);
+        }
+
+        try
+        {
+            var user = trip.User;
+            if (user == null || !await _notificationService.AreEmailNotificationsEnabledAsync(user.Id))
+            {
+                return;
+            }
+
+            await _emailService.SendBookingStatusChangedEmailAsync(
+                user.Email,
+                user.FullName ?? user.Email,
+                trip.Title ?? $"Booking #{trip.Id}",
+                statusLabel,
+                trip.TotalAmount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send booking status email for booking {BookingId}", trip.Id);
+        }
     }
 }

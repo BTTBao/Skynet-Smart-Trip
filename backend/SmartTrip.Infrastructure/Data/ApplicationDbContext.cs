@@ -24,6 +24,7 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
     public virtual DbSet<Hotel> Hotels { get; set; }
     public virtual DbSet<Invoice> Invoices { get; set; }
     public virtual DbSet<Notification> Notifications { get; set; }
+    public virtual DbSet<UserFcmToken> UserFcmTokens { get; set; }
     public virtual DbSet<Payment> Payments { get; set; }
     public virtual DbSet<Promotion> Promotions { get; set; }
     public virtual DbSet<Review> Reviews { get; set; }
@@ -225,11 +226,33 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
 
         modelBuilder.Entity<Notification>(entity =>
         {
+            entity.Property(e => e.ActionUrl).HasMaxLength(255);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
             entity.Property(e => e.IsRead).HasDefaultValue(false);
+            entity.Property(e => e.ReferenceType).HasMaxLength(50).IsUnicode(false);
             entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.Type).HasMaxLength(80).IsUnicode(false);
 
             entity.HasOne(d => d.User).WithMany(p => p.Notifications).HasForeignKey(d => d.UserId);
+        });
+
+        modelBuilder.Entity<UserFcmToken>(entity =>
+        {
+            entity.Property(e => e.Token).HasMaxLength(512).IsUnicode(false).IsRequired();
+            entity.Property(e => e.Platform).HasMaxLength(30).IsUnicode(false).IsRequired();
+            entity.Property(e => e.DeviceId).HasMaxLength(120).IsUnicode(false);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.Property(e => e.LastUsedAt).HasColumnType("datetime");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+
+            entity.HasIndex(e => e.Token).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.IsActive });
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.FcmTokens)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Payment>(entity =>

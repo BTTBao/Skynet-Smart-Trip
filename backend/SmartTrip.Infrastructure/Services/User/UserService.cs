@@ -6,12 +6,17 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using System.Globalization;
+using Microsoft.Extensions.Logging;
+using SmartTrip.Application.DTOs.Notifications;
+using SmartTrip.Application.Interfaces.Email;
+using SmartTrip.Application.Interfaces.Notifications;
 
 namespace SmartTrip.Infrastructure.Services.User;
 
 public class UserService : IUserService
 {
     private const string PushNotificationKey = "push_notifications";
+    private const string EmailNotificationKey = "email_notifications";
     private const string EmailOfferKey = "email_offers";
     private const string DarkModeKey = "dark_mode";
     private const string LanguageKey = "language";
@@ -20,12 +25,24 @@ public class UserService : IUserService
     private readonly ApplicationDbContext _context;
     private readonly IWebHostEnvironment _environment;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IEmailService _emailService;
+    private readonly INotificationService _notificationService;
+    private readonly ILogger<UserService> _logger;
 
-    public UserService(ApplicationDbContext context, IWebHostEnvironment environment, IHttpContextAccessor httpContextAccessor)
+    public UserService(
+        ApplicationDbContext context,
+        IWebHostEnvironment environment,
+        IHttpContextAccessor httpContextAccessor,
+        IEmailService emailService,
+        INotificationService notificationService,
+        ILogger<UserService> logger)
     {
         _context = context;
         _environment = environment;
         _httpContextAccessor = httpContextAccessor;
+        _emailService = emailService;
+        _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task<UserDto?> GetUserProfileAsync(int userId)
@@ -373,6 +390,7 @@ public class UserService : IUserService
         }
 
         await UpsertPreferenceAsync(userId, PushNotificationKey, request.PushNotificationEnabled.ToString().ToLowerInvariant());
+        await UpsertPreferenceAsync(userId, EmailNotificationKey, request.EmailNotificationEnabled.ToString().ToLowerInvariant());
         await UpsertPreferenceAsync(userId, EmailOfferKey, request.EmailOfferEnabled.ToString().ToLowerInvariant());
         await UpsertPreferenceAsync(userId, DarkModeKey, request.DarkModeEnabled.ToString().ToLowerInvariant());
         await UpsertPreferenceAsync(userId, LanguageKey, request.Language.Trim().ToLowerInvariant());
@@ -433,6 +451,19 @@ public class UserService : IUserService
         user.RefreshTokenExpiry = null;
 
         await _context.SaveChangesAsync();
+
+        await _notificationService.CreateAsync(new CreateNotificationDto
+        {
+            UserId = userId,
+            Title = "Mật khẩu đã được thay đổi",
+            Message = "Mật khẩu tài khoản SmartTrip của bạn đã được cập nhật thành công.",
+            Type = "account.password_changed",
+            ReferenceType = "account",
+            ReferenceId = userId,
+            ActionUrl = "/profile/security"
+        });
+
+        await SendPasswordChangedEmailAsync(user);
 
         return new UserActionResultDto
         {
@@ -601,6 +632,7 @@ public class UserService : IUserService
             Email = user.Email,
             IsEmailVerified = user.IsEmailVerified,
             PushNotificationEnabled = GetBoolPreference(preferences, PushNotificationKey, true),
+            EmailNotificationEnabled = GetBoolPreference(preferences, EmailNotificationKey, true),
             EmailOfferEnabled = GetBoolPreference(preferences, EmailOfferKey, false),
             DarkModeEnabled = GetBoolPreference(preferences, DarkModeKey, false),
             Language = GetStringPreference(preferences, LanguageKey, "vi"),
@@ -641,6 +673,25 @@ public class UserService : IUserService
 
         existing.PreferenceValue = value;
         existing.UpdatedAt = DateTime.UtcNow;
+    }
+
+    private async Task SendPasswordChangedEmailAsync(SmartTrip.Domain.Entities.User user)
+    {
+        try
+        {
+            if (!await _notificationService.AreEmailNotificationsEnabledAsync(user.Id))
+            {
+                return;
+            }
+
+            await _emailService.SendPasswordChangedEmailAsync(
+                user.Email,
+                user.FullName ?? user.Email);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send password changed email for user {UserId}", user.Id);
+        }
     }
 
     private static string GetMemberTier(int loyaltyPoints)

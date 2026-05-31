@@ -31,6 +31,7 @@ public class UserSettingsDto
     public string Email { get; set; } = string.Empty;
     public bool IsEmailVerified { get; set; }
     public bool PushNotificationEnabled { get; set; }
+    public bool EmailNotificationEnabled { get; set; }
     public bool EmailOfferEnabled { get; set; }
     public bool DarkModeEnabled { get; set; }
     public string Language { get; set; } = "vi";
@@ -40,6 +41,7 @@ public class UserSettingsDto
 public class UpdateUserSettingsDto
 {
     public bool PushNotificationEnabled { get; set; }
+    public bool EmailNotificationEnabled { get; set; } = true;
     public bool EmailOfferEnabled { get; set; }
     public bool DarkModeEnabled { get; set; }
     public string Language { get; set; } = "vi";
