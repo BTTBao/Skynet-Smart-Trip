@@ -92,11 +92,6 @@ public class NotificationService : INotificationService
             return null;
         }
 
-        if (!await AreInAppNotificationsEnabledAsync(request.UserId, cancellationToken))
-        {
-            return null;
-        }
-
         var title = request.Title.Trim();
         var message = request.Message.Trim();
         var type = string.IsNullOrWhiteSpace(request.Type) ? "general" : request.Type.Trim();
@@ -139,6 +134,11 @@ public class NotificationService : INotificationService
         await _context.SaveChangesAsync(cancellationToken);
 
         var notificationDto = MapNotification(notification);
+
+        if (!await ArePushNotificationsEnabledAsync(request.UserId, cancellationToken))
+        {
+            return notificationDto;
+        }
 
         try
         {
@@ -234,7 +234,7 @@ public class NotificationService : INotificationService
         return !bool.TryParse(value, out var enabled) || enabled;
     }
 
-    private async Task<bool> AreInAppNotificationsEnabledAsync(int userId, CancellationToken cancellationToken)
+    public async Task<bool> ArePushNotificationsEnabledAsync(int userId, CancellationToken cancellationToken = default)
     {
         var value = await _context.UserPreferences
             .AsNoTracking()

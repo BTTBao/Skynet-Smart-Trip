@@ -9,6 +9,7 @@ public interface INotificationService
     Task<NotificationDto?> MarkAsReadAsync(int userId, int notificationId, CancellationToken cancellationToken = default);
     Task MarkAllAsReadAsync(int userId, CancellationToken cancellationToken = default);
     Task<NotificationDto?> CreateAsync(CreateNotificationDto request, CancellationToken cancellationToken = default);
+    Task<bool> ArePushNotificationsEnabledAsync(int userId, CancellationToken cancellationToken = default);
     Task<bool> AreEmailNotificationsEnabledAsync(int userId, CancellationToken cancellationToken = default);
     Task RegisterFcmTokenAsync(int userId, FcmTokenRequestDto request, CancellationToken cancellationToken = default);
     Task UnregisterFcmTokenAsync(int userId, FcmTokenRequestDto request, CancellationToken cancellationToken = default);

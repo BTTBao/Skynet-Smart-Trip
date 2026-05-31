@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using SmartTrip.Application.DTOs.Notifications;
@@ -199,43 +199,47 @@ public class TripService : ITripService
             throw new InvalidOperationException("Booking transaction is not supported by the current data context.");
         }
 
-        await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync();
-        try
+        var executionStrategy = dbContext.Database.CreateExecutionStrategy();
+        return await executionStrategy.ExecuteAsync(async () =>
         {
-            var trip = await CreateTripInternalAsync(new CreateTripDto
+            await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync();
+            try
             {
-                UserId = request.UserId,
-                DestinationId = request.DestinationId,
-                DestinationName = request.DestinationName,
-                Title = request.Title,
-                StartDate = request.CheckInDate,
-                EndDate = request.CheckOutDate,
-                Status = PendingStatus
-            }, sendCreatedNotification: false);
+                var trip = await CreateTripInternalAsync(new CreateTripDto
+                {
+                    UserId = request.UserId,
+                    DestinationId = request.DestinationId,
+                    DestinationName = request.DestinationName,
+                    Title = request.Title,
+                    StartDate = request.CheckInDate,
+                    EndDate = request.CheckOutDate,
+                    Status = PendingStatus
+                }, sendCreatedNotification: false);
 
-            await _itineraryService.AddItineraryAsync(trip.TripId, new CreateTripItineraryDto
+                await _itineraryService.AddItineraryAsync(trip.TripId, new CreateTripItineraryDto
+                {
+                    DayNumber = 1,
+                    ServiceType = "HOTEL",
+                    ServiceId = request.RoomId,
+                    Quantity = request.Quantity
+                });
+
+                await transaction.CommitAsync();
+
+                var createdBooking = await GetTripSummaryAsync(trip.TripId)
+                    ?? throw new InvalidOperationException("Hotel booking was created but could not be loaded.");
+
+                await NotifyHotelBookingCreatedAsync(createdBooking);
+                await SendHotelBookingEmailAsync(createdBooking);
+
+                return createdBooking;
+            }
+            catch
             {
-                DayNumber = 1,
-                ServiceType = "HOTEL",
-                ServiceId = request.RoomId,
-                Quantity = request.Quantity
-            });
-
-            await transaction.CommitAsync();
-
-            var createdBooking = await GetTripSummaryAsync(trip.TripId)
-                ?? throw new InvalidOperationException("Hotel booking was created but could not be loaded.");
-
-            await NotifyHotelBookingCreatedAsync(createdBooking);
-            await SendHotelBookingEmailAsync(createdBooking);
-
-            return createdBooking;
-        }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+                await transaction.RollbackAsync();
+                throw;
+            }
+        });
     }
 
     public async Task<TripSummaryDto> CompleteFakePaymentAsync(int tripId, CreateFakePaymentDto request)
@@ -663,3 +667,4 @@ public class TripService : ITripService
         return $"{startDate.Value:dd/MM/yyyy} - {endDate.Value:dd/MM/yyyy}";
     }
 }
+

@@ -1,4 +1,4 @@
-using SmartTrip.Application.DTOs.User;
+﻿using SmartTrip.Application.DTOs.User;
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
@@ -702,3 +702,4 @@ public class UserService : IUserService
         return "Member";
     }
 }
+

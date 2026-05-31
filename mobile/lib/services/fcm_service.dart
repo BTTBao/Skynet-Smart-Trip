@@ -180,14 +180,14 @@ class FcmService extends ApiService {
       if (kDebugMode) {
         debugPrint('[FCM] Foreground message received: ${message.messageId}');
       }
-      _refreshUnreadCount();
+      _refreshNotificationState();
       await _showForegroundNotification(message);
     });
   }
 
   void _listenForNotificationTaps() {
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      _refreshUnreadCount();
+      _refreshNotificationState();
       unawaited(_handleNotificationData(message.data));
     });
   }
@@ -199,7 +199,7 @@ class FcmService extends ApiService {
     }
 
     await Future<void>.delayed(const Duration(milliseconds: 600));
-    _refreshUnreadCount();
+    _refreshNotificationState();
     await _handleNotificationData(message.data);
   }
 
@@ -278,13 +278,15 @@ class FcmService extends ApiService {
     unawaited(_handleNotificationData(const <String, dynamic>{}));
   }
 
-  void _refreshUnreadCount() {
+  void _refreshNotificationState() {
     final context = _navigatorKey?.currentContext;
     if (context == null) {
       return;
     }
 
-    context.read<NotificationProvider>().fetchUnreadCount();
+    final provider = context.read<NotificationProvider>();
+    unawaited(provider.fetchNotifications(silent: true));
+    unawaited(provider.fetchUnreadCount());
   }
 
   String get _platformName {

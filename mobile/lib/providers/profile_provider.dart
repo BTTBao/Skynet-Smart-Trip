@@ -4,6 +4,7 @@ import '../models/user_favorite.dart';
 import '../models/user_profile.dart';
 import '../models/user_settings.dart';
 import '../services/api_service_base.dart';
+import '../services/fcm_service.dart';
 import '../services/profile_service.dart';
 
 class ProfileProvider with ChangeNotifier {
@@ -156,7 +157,18 @@ class ProfileProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      final previousPushEnabled = _settings?.pushNotificationEnabled ?? true;
       _settings = await _apiService.updateSettings(settings);
+      final currentPushEnabled = _settings?.pushNotificationEnabled ?? true;
+
+      if (previousPushEnabled != currentPushEnabled) {
+        if (currentPushEnabled) {
+          await FcmService.instance.registerCurrentToken();
+        } else {
+          await FcmService.instance.unregisterCurrentToken();
+        }
+      }
+
       return true;
     } catch (error) {
       _setError(error);
