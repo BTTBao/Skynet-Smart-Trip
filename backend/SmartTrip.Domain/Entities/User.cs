@@ -50,7 +50,19 @@ public class User
 
     public virtual ICollection<BlogPost> BlogPosts { get; set; } = new List<BlogPost>();
 
+    public virtual ICollection<ExplorePost> ExplorePosts { get; set; } = new List<ExplorePost>();
+
+    public virtual ICollection<ExplorePostLike> ExplorePostLikes { get; set; } = new List<ExplorePostLike>();
+
+    public virtual ICollection<ExplorePostSave> ExplorePostSaves { get; set; } = new List<ExplorePostSave>();
+
+    public virtual ICollection<ExplorePostRating> ExplorePostRatings { get; set; } = new List<ExplorePostRating>();
+
+    public virtual ICollection<ExploreComment> ExploreComments { get; set; } = new List<ExploreComment>();
+
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+
+    public virtual ICollection<UserFcmToken> FcmTokens { get; set; } = new List<UserFcmToken>();
 
     public virtual ICollection<Review> Reviews { get; set; } = new List<Review>();
 

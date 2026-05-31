@@ -5,6 +5,7 @@ class MenuItemTile extends StatelessWidget {
   final String title;
   final Color color;
   final VoidCallback onTap;
+  final int badgeCount;
 
   const MenuItemTile({
     super.key,
@@ -12,6 +13,7 @@ class MenuItemTile extends StatelessWidget {
     required this.title,
     required this.color,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   @override
@@ -43,6 +45,26 @@ class MenuItemTile extends StatelessWidget {
                   ),
                 ),
               ),
+              if (badgeCount > 0) ...[
+                Container(
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 22),
+                  padding: const EdgeInsets.symmetric(horizontal: 7),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade600,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    badgeCount > 99 ? '99+' : '$badgeCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               Icon(Icons.chevron_right, color: Colors.grey.shade400),
             ],
           ),

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/explore_post.dart';
 import '../../providers/destination_provider.dart';
-import '../destination/destination_article_screen.dart';
+import '../main_shell.dart';
+import '../explore/explore_view.dart';
 import '../resort_search/resort_search_screen.dart';
 import '../transport/transport_search_screen.dart';
 
 class SearchScreen extends StatelessWidget {
-  const SearchScreen({Key? key}) : super(key: key);
+  const SearchScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +17,10 @@ class SearchScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Tìm kiếm', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Tìm kiếm',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
@@ -40,18 +45,22 @@ class SearchScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            const Text('Điểm đến phổ biến', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const Text(
+              'Điểm đến phổ biến',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
             const SizedBox(height: 16),
-            Expanded(
-              child: _buildDestinationsGrid(context, destProvider),
-            )
+            Expanded(child: _buildDestinationsGrid(context, destProvider)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDestinationsGrid(BuildContext context, DestinationProvider destProvider) {
+  Widget _buildDestinationsGrid(
+    BuildContext context,
+    DestinationProvider destProvider,
+  ) {
     if (destProvider.isLoading) {
       return const Center(
         child: CircularProgressIndicator(
@@ -74,9 +83,15 @@ class SearchScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => destProvider.fetchDestinations(forceRefresh: true),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D6B42)),
-              child: const Text('Thử lại', style: TextStyle(color: Colors.white)),
+              onPressed: () =>
+                  destProvider.fetchDestinations(forceRefresh: true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0D6B42),
+              ),
+              child: const Text(
+                'Thử lại',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -85,7 +100,10 @@ class SearchScreen extends StatelessWidget {
 
     if (destProvider.destinations.isEmpty) {
       return const Center(
-        child: Text('Không tìm thấy điểm đến nào.', style: TextStyle(color: Colors.grey)),
+        child: Text(
+          'Không tìm thấy điểm đến nào.',
+          style: TextStyle(color: Colors.grey),
+        ),
       );
     }
 
@@ -99,23 +117,33 @@ class SearchScreen extends StatelessWidget {
       itemCount: destProvider.destinations.length,
       itemBuilder: (context, index) {
         final destination = destProvider.destinations[index];
-        
+
         // Cung cấp các ảnh đẹp chất lượng cao tương ứng với các địa điểm nổi tiếng làm fallback
         String imageUrl = destination.coverImageUrl.trim();
-        if (imageUrl.isEmpty || !imageUrl.startsWith('http') || imageUrl.contains('example.com')) {
+        if (imageUrl.isEmpty ||
+            !imageUrl.startsWith('http') ||
+            imageUrl.contains('example.com')) {
           final lowerName = destination.name.toLowerCase();
           if (lowerName.contains('da nang') || lowerName.contains('đà nẵng')) {
-            imageUrl = 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
-          } else if (lowerName.contains('hoi an') || lowerName.contains('hội an')) {
-            imageUrl = 'https://images.unsplash.com/photo-1588001400947-6385aef4ab0e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+            imageUrl =
+                'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+          } else if (lowerName.contains('hoi an') ||
+              lowerName.contains('hội an')) {
+            imageUrl =
+                'https://images.unsplash.com/photo-1588001400947-6385aef4ab0e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
           } else if (lowerName.contains('hue') || lowerName.contains('huế')) {
-            imageUrl = 'https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
-          } else if (lowerName.contains('da lat') || lowerName.contains('đà lạt')) {
-            imageUrl = 'https://images.unsplash.com/photo-1589308078059-be1415eab4c3?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+            imageUrl =
+                'https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+          } else if (lowerName.contains('da lat') ||
+              lowerName.contains('đà lạt')) {
+            imageUrl =
+                'https://images.unsplash.com/photo-1589308078059-be1415eab4c3?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
           } else if (lowerName.contains('nha trang')) {
-            imageUrl = 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+            imageUrl =
+                'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
           } else {
-            imageUrl = 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+            imageUrl =
+                'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
           }
         }
 
@@ -131,7 +159,12 @@ class SearchScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDestinationCard(BuildContext context, {required String title, required String imageUrl, required VoidCallback onTap}) {
+  Widget _buildDestinationCard(
+    BuildContext context, {
+    required String title,
+    required String imageUrl,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -148,21 +181,29 @@ class SearchScreen extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.bottomCenter,
               end: Alignment.topCenter,
-              colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+              colors: [Colors.black.withValues(alpha: 0.7), Colors.transparent],
             ),
           ),
           alignment: Alignment.bottomLeft,
           padding: const EdgeInsets.all(16),
           child: Text(
             title,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
           ),
         ),
       ),
     );
   }
 
-  void _showActionSheet(BuildContext context, String destination, int destinationId) {
+  void _showActionSheet(
+    BuildContext context,
+    String destination,
+    int destinationId,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -181,14 +222,27 @@ class SearchScreen extends StatelessWidget {
               children: [
                 Center(
                   child: Container(
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
-                Text('Bạn muốn làm gì tại $destination?', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                Text(
+                  'Bạn muốn làm gì tại $destination?',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text('Khám phá dịch vụ tốt nhất dành cho chuyến đi của bạn.', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                Text(
+                  'Khám phá dịch vụ tốt nhất dành cho chuyến đi của bạn.',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
                 const SizedBox(height: 24),
                 _buildOptionCard(
                   sheetContext,
@@ -198,7 +252,15 @@ class SearchScreen extends StatelessWidget {
                   description: 'Tìm Khách sạn / Resort',
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ResortSearchScreen(destinationId: destinationId, destinationName: destination)));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ResortSearchScreen(
+                          destinationId: destinationId,
+                          destinationName: destination,
+                        ),
+                      ),
+                    );
                   },
                 ),
                 const SizedBox(height: 12),
@@ -210,15 +272,44 @@ class SearchScreen extends StatelessWidget {
                   description: 'Đặt vé xe Limousine',
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => TransportSearchScreen(toDestId: destinationId, toDestName: destination)));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TransportSearchScreen(
+                          toDestId: destinationId,
+                          toDestName: destination,
+                        ),
+                      ),
+                    );
                   },
                 ),
                 const SizedBox(height: 24),
                 Center(
                   child: TextButton(
                     onPressed: () {
+                      final citySlug = _resolveExploreCitySlug(destination);
                       Navigator.pop(sheetContext);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const DestinationArticleScreen()));
+
+                      final shell =
+                          MainShell.maybeOf(context) ??
+                          MainShell.maybeOf(sheetContext);
+                      if (shell != null) {
+                        shell.openExplore(
+                          citySlug: citySlug,
+                          cityName: destination,
+                        );
+                        return;
+                      }
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ExploreView(
+                            initialCitySlug: citySlug,
+                            initialCityName: destination,
+                          ),
+                        ),
+                      );
                     },
                     child: Text(
                       'Hoặc khám phá bài viết giới thiệu $destination',
@@ -230,7 +321,7 @@ class SearchScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ),
@@ -239,7 +330,14 @@ class SearchScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildOptionCard(BuildContext context, {required IconData icon, required Color color, required String label, required String description, required VoidCallback onTap}) {
+  Widget _buildOptionCard(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    required String label,
+    required String description,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -247,14 +345,20 @@ class SearchScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: Colors.white, size: 28),
@@ -264,9 +368,24 @@ class SearchScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(description, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -275,5 +394,95 @@ class SearchScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String? _resolveExploreCitySlug(String destination) {
+    final normalized = _normalize(destination);
+    for (final city in kPopularCities) {
+      if (_normalize(city.name) == normalized || city.slug == normalized) {
+        return city.slug;
+      }
+    }
+
+    return null;
+  }
+
+  String _normalize(String value) {
+    const replacements = {
+      'đ': 'd',
+      'Đ': 'd',
+      'à': 'a',
+      'á': 'a',
+      'ạ': 'a',
+      'ả': 'a',
+      'ã': 'a',
+      'ă': 'a',
+      'ằ': 'a',
+      'ắ': 'a',
+      'ặ': 'a',
+      'ẳ': 'a',
+      'ẵ': 'a',
+      'â': 'a',
+      'ầ': 'a',
+      'ấ': 'a',
+      'ậ': 'a',
+      'ẩ': 'a',
+      'ẫ': 'a',
+      'è': 'e',
+      'é': 'e',
+      'ẹ': 'e',
+      'ẻ': 'e',
+      'ẽ': 'e',
+      'ê': 'e',
+      'ề': 'e',
+      'ế': 'e',
+      'ệ': 'e',
+      'ể': 'e',
+      'ễ': 'e',
+      'ì': 'i',
+      'í': 'i',
+      'ị': 'i',
+      'ỉ': 'i',
+      'ĩ': 'i',
+      'ò': 'o',
+      'ó': 'o',
+      'ọ': 'o',
+      'ỏ': 'o',
+      'õ': 'o',
+      'ô': 'o',
+      'ồ': 'o',
+      'ố': 'o',
+      'ộ': 'o',
+      'ổ': 'o',
+      'ỗ': 'o',
+      'ơ': 'o',
+      'ờ': 'o',
+      'ớ': 'o',
+      'ợ': 'o',
+      'ở': 'o',
+      'ỡ': 'o',
+      'ù': 'u',
+      'ú': 'u',
+      'ụ': 'u',
+      'ủ': 'u',
+      'ũ': 'u',
+      'ư': 'u',
+      'ừ': 'u',
+      'ứ': 'u',
+      'ự': 'u',
+      'ử': 'u',
+      'ữ': 'u',
+      'ỳ': 'y',
+      'ý': 'y',
+      'ỵ': 'y',
+      'ỷ': 'y',
+      'ỹ': 'y',
+    };
+
+    var result = value.trim().toLowerCase().replaceAll(' ', '-');
+    replacements.forEach((source, target) {
+      result = result.replaceAll(source, target);
+    });
+    return result;
   }
 }

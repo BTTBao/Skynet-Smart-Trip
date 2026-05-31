@@ -49,6 +49,10 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>SmartTrip dùng vị trí hiện tại để gắn địa điểm bài viết và hiển thị bạn trên bản đồ.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SmartTrip cần quyền thư viện ảnh để bạn chọn ảnh cho bài viết.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

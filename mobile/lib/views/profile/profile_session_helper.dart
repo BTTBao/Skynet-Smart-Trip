@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../utils/app_text.dart';
 import '../auth/login_screen.dart';
@@ -11,7 +12,6 @@ Future<void> showSessionExpiredDialog(
   BuildContext context, {
   String? message,
 }) async {
-  // Hoãn việc hiển thị dialog lại sau khi widget tree đã build xong hoàn toàn để tránh crash Navigator
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     if (!context.mounted) {
       return;
@@ -40,24 +40,27 @@ Future<void> showSessionExpiredDialog(
           actions: [
             FilledButton(
               onPressed: () async {
+                final authProvider = context.read<AuthProvider>();
+                final chatProvider = context.read<ChatProvider>();
+                final notificationProvider = context
+                    .read<NotificationProvider>();
+                final profileProvider = context.read<ProfileProvider>();
+
                 Navigator.of(dialogContext, rootNavigator: true).pop();
-                await context.read<AuthProvider>().logout();
-                context.read<ChatProvider>().resetForSignedOutUser();
-                context.read<ProfileProvider>().logout();
-                if (!context.mounted) {
+                await authProvider.logout();
+                chatProvider.resetForSignedOutUser();
+                notificationProvider.reset();
+                profileProvider.logout();
+                if (!rootNavigator.mounted) {
                   return;
                 }
+
                 rootNavigator.pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
                   (route) => false,
                 );
               },
-              child: Text(
-                context.tr(
-                  vi: 'Dang nhap lai',
-                  en: 'Sign in again',
-                ),
-              ),
+              child: Text(context.tr(vi: 'Dang nhap lai', en: 'Sign in again')),
             ),
           ],
         );

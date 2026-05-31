@@ -11,6 +11,14 @@
 *.sln.docstates
 *.env
 backend/SmartTrip.API/appsettings.Development.json
+# VS Code
+.vscode/
+
+# IntelliJ IDEA / Android Studio
+.idea/
+
+# JetBrains
+*.iml
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

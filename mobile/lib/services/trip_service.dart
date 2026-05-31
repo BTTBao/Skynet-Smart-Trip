@@ -48,6 +48,7 @@ class TripService extends ApiService {
     final response = await postWithFallback(
       '/trips/hotel-bookings',
       body: jsonEncode(request.toJson()),
+      requireAuth: true,
     );
 
     final data = Map<String, dynamic>.from(handleResponse(response));
@@ -61,6 +62,7 @@ class TripService extends ApiService {
     final response = await postWithFallback(
       '/trips/$tripId/fake-payment',
       body: jsonEncode(request.toJson()),
+      requireAuth: true,
     );
 
     final data = Map<String, dynamic>.from(handleResponse(response));

@@ -1,8 +1,12 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using SmartTrip.Application.DTOs.Notifications;
 using SmartTrip.Application.DTOs.Trip;
+using SmartTrip.Application.Interfaces.Email;
+using SmartTrip.Application.Interfaces.Notifications;
 using SmartTrip.Application.Interfaces.Trip;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
@@ -21,17 +25,26 @@ public class TripController : ControllerBase
     private readonly ITripService _tripService;
     private readonly IItineraryService _itineraryService;
     private readonly ITripServiceOptionService _optionService;
+    private readonly INotificationService _notificationService;
+    private readonly IEmailService _emailService;
+    private readonly ILogger<TripController> _logger;
     private readonly ApplicationDbContext _context;
 
     public TripController(
         ITripService tripService,
         IItineraryService itineraryService,
         ITripServiceOptionService optionService,
+        INotificationService notificationService,
+        IEmailService emailService,
+        ILogger<TripController> logger,
         ApplicationDbContext context)
     {
         _tripService = tripService;
         _itineraryService = itineraryService;
         _optionService = optionService;
+        _notificationService = notificationService;
+        _emailService = emailService;
+        _logger = logger;
         _context = context;
     }
 
@@ -97,12 +110,39 @@ public class TripController : ControllerBase
         }
     }
 
+    [HttpPost("hotel-bookings")]
+    public async Task<IActionResult> CreateHotelBooking([FromBody] CreateHotelBookingDto request)
+    {
+        try
+        {
+            request.UserId = GetCurrentUserId();
+            var trip = await _tripService.CreateHotelBookingAsync(request);
+            return CreatedAtAction(nameof(GetTripById), new { tripId = trip.TripId }, trip);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
 
     [HttpPost("{tripId:int}/fake-payment")]
     public async Task<IActionResult> CompleteFakePayment(int tripId, [FromBody] CreateFakePaymentDto request)
     {
         try
         {
+            if (!await UserOwnsTripAsync(tripId))
+            {
+                return Forbid();
+            }
+
             var trip = await _tripService.CompleteFakePaymentAsync(tripId, request);
             return Ok(trip);
         }
@@ -236,7 +276,13 @@ public class TripController : ControllerBase
     {
         try
         {
+            if (!await UserOwnsTripAsync(tripId))
+            {
+                return Forbid();
+            }
+
             var trip = await _context.Trips
+                .Include(t => t.User)
                 .Include(t => t.TripItineraries)
                 .FirstOrDefaultAsync(t => t.Id == tripId);
 
@@ -286,6 +332,7 @@ public class TripController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
+            await TryNotifyConfirmedPaymentAsync(trip, payment);
             return Ok(new { message = "Thanh toán thành công.", tripId = trip.Id, status = "PAID" });
         }
         catch (Exception ex)
@@ -319,6 +366,52 @@ public class TripController : ControllerBase
 
         return await _context.Trips.AnyAsync(t => t.Id == itinerary.TripId && t.UserId == GetCurrentUserId());
     }
+
+    private async Task TryNotifyConfirmedPaymentAsync(Trip trip, Payment payment)
+    {
+        if (!trip.UserId.HasValue || trip.UserId.Value <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await _notificationService.CreateAsync(new CreateNotificationDto
+            {
+                UserId = trip.UserId.Value,
+                Title = "Thanh toán thành công",
+                Message = $"Thanh toán cho \"{trip.Title ?? "booking"}\" đã hoàn tất.",
+                Type = "payment.succeeded",
+                ReferenceType = "payment",
+                ReferenceId = payment.Id,
+                ActionUrl = $"/trips/{trip.Id}"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create payment notification for trip {TripId}", trip.Id);
+        }
+
+        try
+        {
+            var user = trip.User;
+            if (user == null || !await _notificationService.AreEmailNotificationsEnabledAsync(user.Id))
+            {
+                return;
+            }
+
+            await _emailService.SendPaymentSuccessEmailAsync(
+                user.Email,
+                user.FullName ?? user.Email,
+                trip.Title ?? "Booking SmartTrip",
+                payment.Amount ?? 0m,
+                payment.TransactionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send payment success email for trip {TripId}", trip.Id);
+        }
+    }
 }
 
 public class ConfirmPaymentDto
@@ -328,4 +421,5 @@ public class ConfirmPaymentDto
     public decimal Amount { get; set; }
     public List<string>? SelectedSeats { get; set; }
 }
+
 
