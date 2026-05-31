@@ -115,9 +115,78 @@ public class TripController : ControllerBase
     {
         try
         {
-            request.UserId = GetCurrentUserId();
-            var trip = await _tripService.CreateHotelBookingAsync(request);
-            return CreatedAtAction(nameof(GetTripById), new { tripId = trip.TripId }, trip);
+            var strategy = _context.Database.CreateExecutionStrategy();
+
+            return await strategy.ExecuteAsync<IActionResult>(async () =>
+            {
+                await using var transaction = await _context.Database.BeginTransactionAsync();
+
+                if (request.HotelId <= 0)
+                {
+                    return BadRequest(new { message = "HotelId must be greater than 0." });
+                }
+
+                if (request.RoomId <= 0)
+                {
+                    return BadRequest(new { message = "RoomId must be greater than 0." });
+                }
+
+                var room = await _context.Rooms
+                    .AsNoTracking()
+                    .Include(item => item.Hotel)
+                    .FirstOrDefaultAsync(item => item.Id == request.RoomId);
+
+                if (room?.Hotel == null || room.HotelId != request.HotelId || room.Hotel.IsAvailable == false)
+                {
+                    return NotFound(new { message = "Room was not found for this hotel or is not available." });
+                }
+
+                var nights = Math.Max(1, request.CheckOutDate.DayNumber - request.CheckInDate.DayNumber);
+                var trip = await _tripService.CreateTripAsync(new CreateTripDto
+                {
+                    UserId = GetCurrentUserId(),
+                    DestinationId = request.DestinationId,
+                    DestinationName = request.DestinationName,
+                    Title = string.IsNullOrWhiteSpace(request.Title)
+                        ? $"Hotel booking - {room.Hotel.Name}"
+                        : request.Title,
+                    StartDate = request.CheckInDate,
+                    EndDate = request.CheckOutDate,
+                    Status = "PENDING"
+                });
+
+                await _itineraryService.AddItineraryAsync(trip.TripId, new CreateTripItineraryDto
+                {
+                    DayNumber = 1,
+                    ServiceType = "HOTEL",
+                    ServiceId = request.RoomId,
+                    Quantity = request.Quantity,
+                    BookedPrice = (room.PricePerNight ?? 0) * nights,
+                    BookedCommissionRate = room.CommissionRate,
+                    ServiceDate = request.CheckInDate
+                });
+
+                await transaction.CommitAsync();
+
+                var createdTrip = await _tripService.GetTripByIdAsync(trip.TripId);
+                return CreatedAtAction(nameof(GetTripById), new { tripId = trip.TripId }, new TripSummaryDto
+                {
+                    TripId = trip.TripId,
+                    UserId = trip.UserId,
+                    DestinationId = trip.DestinationId,
+                    DestinationName = trip.DestinationName,
+                    DestinationDescription = trip.DestinationDescription,
+                    DestinationCoverImageUrl = trip.DestinationCoverImageUrl,
+                    Title = trip.Title,
+                    StartDate = trip.StartDate,
+                    EndDate = trip.EndDate,
+                    TotalAmount = createdTrip?.TotalAmount ?? trip.TotalAmount,
+                    TotalProfit = createdTrip?.TotalProfit ?? trip.TotalProfit,
+                    Status = createdTrip?.Status ?? trip.Status,
+                    CreatedAt = trip.CreatedAt,
+                    ItineraryCount = createdTrip?.ItineraryCount ?? trip.ItineraryCount
+                });
+            });
         }
         catch (ArgumentException ex)
         {

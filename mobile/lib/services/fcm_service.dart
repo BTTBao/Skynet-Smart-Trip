@@ -30,7 +30,6 @@ class FcmService extends ApiService {
         importance: fln.Importance.high,
       );
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final fln.FlutterLocalNotificationsPlugin _localNotifications =
       fln.FlutterLocalNotificationsPlugin();
 
@@ -38,8 +37,14 @@ class FcmService extends ApiService {
   StreamSubscription<String>? _tokenRefreshSubscription;
   bool _initialized = false;
 
+  FirebaseMessaging get _messaging => FirebaseMessaging.instance;
+
   Future<void> initialize(GlobalKey<NavigatorState> navigatorKey) async {
     _navigatorKey = navigatorKey;
+    if (kIsWeb) {
+      return;
+    }
+
     if (_initialized) {
       return;
     }
@@ -88,6 +93,10 @@ class FcmService extends ApiService {
   }
 
   Future<void> registerCurrentToken() async {
+    if (kIsWeb) {
+      return;
+    }
+
     try {
       await requestNotificationPermissions();
       final token = await _messaging.getToken();
@@ -115,6 +124,10 @@ class FcmService extends ApiService {
   }
 
   Future<void> unregisterCurrentToken() async {
+    if (kIsWeb) {
+      return;
+    }
+
     try {
       final token = await _messaging.getToken();
       if (token == null || token.isEmpty) {
@@ -315,5 +328,9 @@ class FcmService extends ApiService {
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  if (kIsWeb) {
+    return;
+  }
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 }

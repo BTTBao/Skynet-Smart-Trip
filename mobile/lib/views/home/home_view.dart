@@ -10,7 +10,9 @@ import '../catalog/hotel_detail_view.dart';
 import '../catalog/search_view.dart';
 
 class HomeView extends StatefulWidget {
-  const HomeView({super.key});
+  const HomeView({super.key, this.onOpenExplore});
+
+  final VoidCallback? onOpenExplore;
 
   @override
   State<HomeView> createState() => _HomeViewState();
@@ -111,7 +113,7 @@ class _HomeViewState extends State<HomeView> {
                         label: 'Khám phá',
                         color: const Color(0xFF22C55E),
                         background: const Color(0xFFF0FDF4),
-                        onTap: _openSearch,
+                        onTap: _openExplore,
                       ),
                     ],
                   ),
@@ -245,6 +247,15 @@ class _HomeViewState extends State<HomeView> {
         ),
       ),
     );
+  }
+
+  void _openExplore() {
+    if (widget.onOpenExplore != null) {
+      widget.onOpenExplore!();
+      return;
+    }
+
+    _openSearch();
   }
 
   void _openHotel(CatalogHotelCard hotel) {

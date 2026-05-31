@@ -44,10 +44,19 @@ class _MainShellState extends State<MainShell> implements MainShellController {
   final Widget _searchPage = const SearchScreen();
   final Widget _tripsPage = const MyTripsView();
   final Widget _profilePage = const ProfileView();
+  late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
+
+    _pages = [
+      HomeView(onOpenExplore: () => setState(() => _currentIndex = 2)),
+      ChatbotView(),
+      const SearchScreen(),
+      const MyTripsView(),
+      const ProfileView(),
+    ];
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProfileProvider>().fetchProfile(forceRefresh: false);
