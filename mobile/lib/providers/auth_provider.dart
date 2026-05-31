@@ -1,19 +1,17 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import '../services/auth_service_shared.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
   static const _storage = FlutterSecureStorage();
-
-  late final GoogleSignIn _googleSignIn = GoogleSignIn(
-    serverClientId: dotenv.env['GoogleAuthSettings__GoogleClientIds__Web'],
-    scopes: ['email', 'profile'],
-  );
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   bool _isAuthenticated = false;
   bool _isLoading = false;
@@ -215,8 +213,6 @@ class AuthProvider with ChangeNotifier {
       if (storedRefresh != null) {
         await _authService.logout(storedRefresh);
       }
-      // Sign out Google nếu đang đăng nhập bằng Google
-      await _googleSignIn.signOut();
     } catch (_) {
       // Server-side logout thất bại → vẫn xóa local token
     } finally {

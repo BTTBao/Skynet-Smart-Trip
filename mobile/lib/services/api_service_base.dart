@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+
+import 'secure_storage_service.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiException implements Exception {
   ApiException(this.statusCode, this.message, {this.rawBody});
@@ -24,7 +26,6 @@ abstract class ApiService {
     'API_BASE_URL',
     defaultValue: '',
   );
-  static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
   String get configuredBaseUrl {
     if (_configuredBaseUrlFromEnv.isNotEmpty) {
@@ -62,7 +63,7 @@ abstract class ApiService {
       if (extraHeaders != null) ...extraHeaders,
     };
 
-    final token = await _storage.read(key: 'access_token');
+    final token = await SecureStorageService.read('access_token');
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     } else if (requireAuth) {
@@ -90,7 +91,7 @@ abstract class ApiService {
     return _sendWithFallback((baseUrl) {
       return http
           .get(buildUri(baseUrl, path), headers: requestHeaders)
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
     });
   }
 
@@ -108,7 +109,7 @@ abstract class ApiService {
     return _sendWithFallback((baseUrl) {
       return http
           .post(buildUri(baseUrl, path), headers: requestHeaders, body: body)
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
     });
   }
 
@@ -126,7 +127,7 @@ abstract class ApiService {
     return _sendWithFallback((baseUrl) {
       return http
           .put(buildUri(baseUrl, path), headers: requestHeaders, body: body)
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
     });
   }
 
@@ -143,7 +144,7 @@ abstract class ApiService {
     return _sendWithFallback((baseUrl) {
       return http
           .delete(buildUri(baseUrl, path), headers: requestHeaders)
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
     });
   }
 
@@ -165,7 +166,7 @@ abstract class ApiService {
       request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
 
       final streamedResponse = await request.send().timeout(
-        const Duration(seconds: 20),
+        const Duration(seconds: 40),
       );
 
       return http.Response.fromStream(streamedResponse);

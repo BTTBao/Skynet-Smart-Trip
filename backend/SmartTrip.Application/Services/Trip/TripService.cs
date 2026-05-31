@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using SmartTrip.Application.DTOs.Trip;
 using SmartTrip.Application.Interfaces;
 using SmartTrip.Application.Interfaces.Trip;
@@ -95,7 +96,9 @@ public class TripService : ITripService
         }
 
         var itineraryItems = trip.TripItineraries
-            .OrderBy(item => item.DayNumber ?? int.MaxValue)
+            .OrderBy(item => item.ServiceDate ?? DateOnly.MaxValue)
+            .ThenBy(item => item.DayNumber ?? int.MaxValue)
+            .ThenBy(item => item.DepartureTime ?? TimeOnly.MaxValue)
             .ThenBy(item => item.Id)
             .ToList();
 
@@ -158,6 +161,80 @@ public class TripService : ITripService
 
         return await GetTripSummaryAsync(trip.Id)
             ?? throw new InvalidOperationException("Trip was created but could not be loaded.");
+    }
+
+
+    public async Task<TripSummaryDto> CompleteFakePaymentAsync(int tripId, CreateFakePaymentDto request)
+    {
+        if (tripId <= 0)
+        {
+            throw new ArgumentException("TripId must be greater than 0.");
+        }
+
+        var trip = await _context.Trips
+            .Include(item => item.Payments)
+            .Include(item => item.TripItineraries)
+            .FirstOrDefaultAsync(item => item.Id == tripId);
+
+        if (trip == null)
+        {
+            throw new KeyNotFoundException($"Trip {tripId} was not found.");
+        }
+
+        if (!trip.TripItineraries.Any())
+        {
+            throw new InvalidOperationException("Booking has no services to pay for.");
+        }
+
+        if (trip.Status == TripStatus.Cancelled)
+        {
+            throw new InvalidOperationException("Cancelled bookings cannot be paid.");
+        }
+
+        var latestPaidPayment = trip.Payments
+            .Where(item => item.Status == PaymentStatus.Paid)
+            .OrderByDescending(item => item.PaidAt)
+            .FirstOrDefault();
+
+        if (latestPaidPayment != null)
+        {
+            throw new InvalidOperationException("This booking has already been paid.");
+        }
+
+        var amount = trip.TotalAmount ?? trip.TripItineraries.Sum(item =>
+            (item.BookedPrice ?? 0) * (item.Quantity ?? 1));
+
+        if (amount <= 0)
+        {
+            throw new InvalidOperationException("Booking total amount is invalid.");
+        }
+
+        var payment = trip.Payments
+            .OrderByDescending(item => item.PaidAt)
+            .FirstOrDefault();
+
+        if (payment == null)
+        {
+            payment = new Payment
+            {
+                TripId = trip.Id,
+                TransactionId = $"FAKE-{trip.Id:D6}-{DateTime.UtcNow:yyyyMMddHHmmss}",
+            };
+
+            _context.Payments.Add(payment);
+            trip.Payments.Add(payment);
+        }
+
+        payment.PaymentMethod = ParsePaymentMethod(request.PaymentMethod);
+        payment.Amount = amount;
+        payment.Status = PaymentStatus.Paid;
+        payment.PaidAt = DateTime.UtcNow;
+        trip.Status = TripStatus.Paid;
+
+        await _context.SaveChangesAsync();
+
+        return await GetTripSummaryAsync(trip.Id)
+            ?? throw new InvalidOperationException("Payment was saved but booking could not be reloaded.");
     }
 
     private async Task<TripSummaryDto?> GetTripSummaryAsync(int tripId)
@@ -286,6 +363,23 @@ public class TripService : ITripService
         {
             throw new ArgumentException("EndDate must be greater than or equal to StartDate.");
         }
+    }
+
+
+    private static PaymentMethod ParsePaymentMethod(string? paymentMethod)
+    {
+        if (Enum.TryParse<PaymentMethod>(paymentMethod, true, out var parsedMethod))
+        {
+            return parsedMethod;
+        }
+
+        return paymentMethod?.Trim().ToLowerInvariant() switch
+        {
+            "momo" => PaymentMethod.Momo,
+            "vnpay" => PaymentMethod.Vnpay,
+            "card" => PaymentMethod.Card,
+            _ => throw new ArgumentException("PaymentMethod must be Momo, Vnpay, or Card.")
+        };
     }
 
     private static string NormalizeTripStatus(string? status)

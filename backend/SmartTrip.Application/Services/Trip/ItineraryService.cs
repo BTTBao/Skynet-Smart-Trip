@@ -46,6 +46,11 @@ public class ItineraryService : IItineraryService
             throw new KeyNotFoundException($"Service {request.ServiceId} with type {normalizedServiceType} was not found.");
         }
 
+        if (normalizedServiceType == HotelServiceType)
+        {
+            await ValidateHotelBookingAsync(trip, request);
+        }
+
         var itinerary = new TripItinerary
         {
             TripId = tripId,
@@ -53,7 +58,7 @@ public class ItineraryService : IItineraryService
             ServiceType = TripServiceOptionService.ParseServiceTypeEnum(request.ServiceType),
             ServiceId = request.ServiceId,
             Quantity = request.Quantity,
-            BookedPrice = request.BookedPrice ?? serviceOption.DefaultPrice ?? 0,
+            BookedPrice = request.BookedPrice ?? await ResolveDefaultBookedPriceAsync(normalizedServiceType, request.ServiceId, trip) ?? serviceOption.DefaultPrice ?? 0,
             BookedCommissionRate = request.BookedCommissionRate ?? serviceOption.DefaultCommissionRate ?? 0
         };
 
@@ -73,34 +78,53 @@ public class ItineraryService : IItineraryService
 
         if (normalizedServiceType == HotelServiceType && itinerary.ServiceId.HasValue)
         {
-            var hotel = await _context.Hotels
+            var room = await _context.Rooms
                 .AsNoTracking()
-                .FirstOrDefaultAsync(h => h.Id == itinerary.ServiceId.Value);
+                .Include(item => item.Hotel)
+                .ThenInclude(item => item!.Destination)
+                .FirstOrDefaultAsync(item => item.Id == itinerary.ServiceId.Value);
 
-            if (hotel != null)
+            if (room?.Hotel != null)
             {
-                serviceName = hotel.Name;
+                serviceName = room.Hotel.Name;
                 serviceSubtitle = string.Join(" • ", new[]
                 {
-                    hotel.Address,
-                    hotel.StarRating.HasValue ? $"{hotel.StarRating.Value} sao" : null,
-                    hotel.Description
+                    room.RoomType,
+                    room.Hotel.Address,
+                    room.Capacity.HasValue ? $"Suc chua {room.Capacity.Value} nguoi" : null,
+                    room.Hotel.StarRating.HasValue ? $"{room.Hotel.StarRating.Value} sao" : null
                 }.Where(value => !string.IsNullOrWhiteSpace(value)));
+            }
+            else
+            {
+                var hotel = await _context.Hotels
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(item => item.Id == itinerary.ServiceId.Value);
+
+                if (hotel != null)
+                {
+                    serviceName = hotel.Name;
+                    serviceSubtitle = string.Join(" • ", new[]
+                    {
+                        hotel.Address,
+                        hotel.StarRating.HasValue ? $"{hotel.StarRating.Value} sao" : null,
+                        hotel.Description
+                    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+                }
             }
         }
         else if (normalizedServiceType == BusServiceType && itinerary.ServiceId.HasValue)
         {
             var busSchedule = await _context.BusSchedules
                 .AsNoTracking()
-                .Include(s => s.Company)
-                .Include(s => s.FromDest)
-                .Include(s => s.ToDest)
-                .FirstOrDefaultAsync(s => s.Id == itinerary.ServiceId.Value);
+                .Include(item => item.Company)
+                .Include(item => item.FromDest)
+                .Include(item => item.ToDest)
+                .FirstOrDefaultAsync(item => item.Id == itinerary.ServiceId.Value);
 
             if (busSchedule != null)
             {
                 serviceName = $"{(busSchedule.Company != null ? busSchedule.Company.Name : "Xe khach")} - {(busSchedule.FromDest != null ? busSchedule.FromDest.Name : "N/A")} -> {(busSchedule.ToDest != null ? busSchedule.ToDest.Name : "N/A")}";
-                // Manual subtitle build to avoid dependency on private methods if not shared
                 var departure = busSchedule.DepartureTime?.ToString("HH:mm dd/MM");
                 var arrival = busSchedule.ArrivalTime?.ToString("HH:mm dd/MM");
                 serviceSubtitle = string.Join(" • ", new[]
@@ -128,7 +152,7 @@ public class ItineraryService : IItineraryService
 
     public async Task<TripItineraryDto> UpdateItineraryAsync(int itineraryId, UpdateTripItineraryDto request)
     {
-        var itinerary = await _context.TripItineraries.FirstOrDefaultAsync(i => i.Id == itineraryId);
+        var itinerary = await _context.TripItineraries.FirstOrDefaultAsync(item => item.Id == itineraryId);
         if (itinerary == null)
         {
             throw new KeyNotFoundException($"Itinerary {itineraryId} was not found.");
@@ -136,14 +160,25 @@ public class ItineraryService : IItineraryService
 
         if (request.DayNumber.HasValue)
         {
-            var trip = await _context.Trips.FirstAsync(t => t.Id == itinerary.TripId);
+            var trip = await _context.Trips.FirstAsync(item => item.Id == itinerary.TripId);
             ValidateDayNumber(trip, request.DayNumber.Value);
             itinerary.DayNumber = request.DayNumber.Value;
         }
 
-        if (request.Quantity.HasValue) itinerary.Quantity = request.Quantity.Value;
-        if (request.BookedPrice.HasValue) itinerary.BookedPrice = request.BookedPrice.Value;
-        if (request.BookedCommissionRate.HasValue) itinerary.BookedCommissionRate = request.BookedCommissionRate.Value;
+        if (request.Quantity.HasValue)
+        {
+            itinerary.Quantity = request.Quantity.Value;
+        }
+
+        if (request.BookedPrice.HasValue)
+        {
+            itinerary.BookedPrice = request.BookedPrice.Value;
+        }
+
+        if (request.BookedCommissionRate.HasValue)
+        {
+            itinerary.BookedCommissionRate = request.BookedCommissionRate.Value;
+        }
 
         await _context.SaveChangesAsync();
         if (itinerary.TripId.HasValue)
@@ -156,7 +191,7 @@ public class ItineraryService : IItineraryService
 
     public async Task<bool> DeleteItineraryAsync(int itineraryId)
     {
-        var itinerary = await _context.TripItineraries.FirstOrDefaultAsync(i => i.Id == itineraryId);
+        var itinerary = await _context.TripItineraries.FirstOrDefaultAsync(item => item.Id == itineraryId);
         if (itinerary == null)
         {
             return false;
@@ -170,7 +205,116 @@ public class ItineraryService : IItineraryService
         {
             await RecalculateTripTotalsAsync(tripId.Value);
         }
+
         return true;
+    }
+
+    private async Task ValidateHotelBookingAsync(TripEntity trip, CreateTripItineraryDto request)
+    {
+        if (trip.StartDate == null || trip.EndDate == null)
+        {
+            throw new ArgumentException("Hotel bookings require check-in and check-out dates.");
+        }
+
+        var checkIn = trip.StartDate.Value;
+        var checkOut = trip.EndDate.Value;
+        if (checkOut <= checkIn)
+        {
+            throw new ArgumentException("Check-out date must be after check-in date.");
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (checkIn < today)
+        {
+            throw new ArgumentException("Check-in date cannot be in the past.");
+        }
+
+        var room = await _context.Rooms
+            .AsNoTracking()
+            .Include(item => item.Hotel)
+            .FirstOrDefaultAsync(item => item.Id == request.ServiceId);
+
+        if (room?.Hotel == null || room.Hotel.IsAvailable == false)
+        {
+            throw new KeyNotFoundException($"Room {request.ServiceId} was not found or is not available.");
+        }
+
+        var totalRooms = room.AvailableQty ?? 0;
+        if (totalRooms <= 0)
+        {
+            throw new InvalidOperationException("This room type is currently sold out.");
+        }
+
+        if (request.Quantity > totalRooms)
+        {
+            throw new InvalidOperationException($"Only {totalRooms} room(s) are available for the selected room type.");
+        }
+
+        var duplicateInTrip = await _context.TripItineraries
+            .AsNoTracking()
+            .AnyAsync(item =>
+                item.TripId == trip.Id &&
+                item.ServiceType == TripServiceType.Hotel &&
+                item.ServiceId == request.ServiceId);
+
+        if (duplicateInTrip)
+        {
+            throw new InvalidOperationException("This room type is already included in the selected trip.");
+        }
+
+        var overlappingBookings = await _context.TripItineraries
+            .AsNoTracking()
+            .Include(item => item.Trip)
+            .Where(item =>
+                item.ServiceType == TripServiceType.Hotel &&
+                item.ServiceId == request.ServiceId &&
+                item.TripId != trip.Id &&
+                item.Trip != null &&
+                item.Trip.Status != TripStatus.Cancelled &&
+                item.Trip.StartDate.HasValue &&
+                item.Trip.EndDate.HasValue)
+            .ToListAsync();
+
+        var conflictingUserBooking = overlappingBookings.Any(item =>
+            item.Trip?.UserId == trip.UserId &&
+            DateRangesOverlap(checkIn, checkOut, item.Trip!.StartDate!.Value, item.Trip.EndDate!.Value));
+
+        if (conflictingUserBooking)
+        {
+            throw new InvalidOperationException("You already have an active booking for this room type during these dates.");
+        }
+
+        var bookedRooms = overlappingBookings
+            .Where(item => DateRangesOverlap(checkIn, checkOut, item.Trip!.StartDate!.Value, item.Trip.EndDate!.Value))
+            .Sum(item => item.Quantity ?? 1);
+
+        var remainingRooms = totalRooms - bookedRooms;
+        if (request.Quantity > remainingRooms)
+        {
+            throw new InvalidOperationException($"Only {Math.Max(remainingRooms, 0)} room(s) are still available for these dates.");
+        }
+    }
+
+    private async Task<decimal?> ResolveDefaultBookedPriceAsync(string normalizedServiceType, int serviceId, TripEntity trip)
+    {
+        if (normalizedServiceType != HotelServiceType || trip.StartDate == null || trip.EndDate == null)
+        {
+            return null;
+        }
+
+        var nights = Math.Max(1, trip.EndDate.Value.DayNumber - trip.StartDate.Value.DayNumber);
+        var pricePerNight = await _context.Rooms
+            .AsNoTracking()
+            .Where(item => item.Id == serviceId && (item.AvailableQty ?? 0) > 0)
+            .Select(item => item.PricePerNight)
+            .FirstOrDefaultAsync();
+
+        return (pricePerNight ?? 0) * nights;
+    }
+
+    private static bool DateRangesOverlap(DateOnly start, DateOnly end, DateOnly otherStart, DateOnly otherEnd)
+    {
+        return start < otherEnd && end > otherStart;
     }
 
     private async Task RecalculateTripTotalsAsync(int tripId)

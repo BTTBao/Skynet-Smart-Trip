@@ -28,6 +28,8 @@ public interface IApplicationDbContext
     DbSet<SmartTrip.Domain.Entities.User> Users { get; set; }
     DbSet<UserWallet> UserWallets { get; set; }
     DbSet<Wishlist> Wishlists { get; set; }
+    DbSet<ChatHistory> ChatHistories { get; set; }
+    DbSet<UserPreference> UserPreferences { get; set; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

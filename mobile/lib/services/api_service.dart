@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import '../utils/app_storage.dart';
+
+import 'secure_storage_service.dart';
 
 abstract class ApiService {
-  static const _storage = FlutterSecureStorage();
-
   // URL Backend .NET — đổi thành IP/domain thực khi deploy
   // Android emulator dùng 10.0.2.2 để trỏ tới localhost của máy host
   // iOS simulator dùng localhost hoặc 127.0.0.1
@@ -17,7 +17,7 @@ abstract class ApiService {
       'Accept': 'application/json',
     };
 
-    final token = await _storage.read(key: 'access_token');
+    final token = await SecureStorageService.read('access_token');
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     } else if (requireAuth) {

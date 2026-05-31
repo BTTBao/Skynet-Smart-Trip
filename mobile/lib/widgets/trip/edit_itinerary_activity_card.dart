@@ -8,10 +8,12 @@ class EditItineraryActivityCard extends StatelessWidget {
     super.key,
     required this.activity,
     required this.onDelete,
+    this.onEdit,
   });
 
   final EditItineraryActivity activity;
   final VoidCallback onDelete;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +24,7 @@ class EditItineraryActivityCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -109,22 +111,46 @@ class EditItineraryActivityCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          InkWell(
-            onTap: onDelete,
-            borderRadius: BorderRadius.circular(12),
-            child: Ink(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF1F1),
+          Column(
+            children: [
+              if (onEdit != null) ...[
+                InkWell(
+                  onTap: onEdit,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Ink(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8FFF0),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.edit_location_alt_outlined,
+                      size: 18,
+                      color: TripUiColors.timelineGreen,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              InkWell(
+                onTap: onDelete,
                 borderRadius: BorderRadius.circular(12),
+                child: Ink(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF1F1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    size: 18,
+                    color: Color(0xFFE25555),
+                  ),
+                ),
               ),
-              child: const Icon(
-                Icons.delete_outline_rounded,
-                size: 18,
-                color: Color(0xFFE25555),
-              ),
-            ),
+            ],
           ),
         ],
       ),
