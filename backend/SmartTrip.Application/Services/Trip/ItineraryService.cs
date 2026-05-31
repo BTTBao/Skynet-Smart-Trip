@@ -46,9 +46,32 @@ public class ItineraryService : IItineraryService
             throw new KeyNotFoundException($"Service {request.ServiceId} with type {normalizedServiceType} was not found.");
         }
 
+        var existingHotelItinerary = normalizedServiceType == HotelServiceType
+            ? await _context.TripItineraries.FirstOrDefaultAsync(item =>
+                item.TripId == tripId &&
+                item.ServiceType == TripServiceType.Hotel &&
+                item.ServiceId == request.ServiceId &&
+                item.ServiceDate == request.ServiceDate)
+            : null;
+
         if (normalizedServiceType == HotelServiceType)
         {
-            await ValidateHotelBookingAsync(trip, request);
+            await ValidateHotelBookingAsync(trip, request, existingHotelItinerary?.Quantity ?? 0);
+        }
+
+        if (existingHotelItinerary != null)
+        {
+            existingHotelItinerary.Quantity = (existingHotelItinerary.Quantity ?? 1) + request.Quantity;
+            existingHotelItinerary.BookedPrice = request.BookedPrice ?? existingHotelItinerary.BookedPrice;
+            existingHotelItinerary.BookedCommissionRate = request.BookedCommissionRate ?? existingHotelItinerary.BookedCommissionRate;
+            existingHotelItinerary.ServiceDate = request.ServiceDate ?? existingHotelItinerary.ServiceDate;
+            existingHotelItinerary.DepartureTime = request.DepartureTime ?? existingHotelItinerary.DepartureTime;
+            existingHotelItinerary.ServiceAddress = request.ServiceAddress ?? existingHotelItinerary.ServiceAddress;
+
+            await _context.SaveChangesAsync();
+            await RecalculateTripTotalsAsync(tripId);
+
+            return await MapItineraryAsync(existingHotelItinerary);
         }
 
         var itinerary = new TripItinerary
@@ -59,7 +82,10 @@ public class ItineraryService : IItineraryService
             ServiceId = request.ServiceId,
             Quantity = request.Quantity,
             BookedPrice = request.BookedPrice ?? await ResolveDefaultBookedPriceAsync(normalizedServiceType, request.ServiceId, trip) ?? serviceOption.DefaultPrice ?? 0,
-            BookedCommissionRate = request.BookedCommissionRate ?? serviceOption.DefaultCommissionRate ?? 0
+            BookedCommissionRate = request.BookedCommissionRate ?? serviceOption.DefaultCommissionRate ?? 0,
+            ServiceDate = request.ServiceDate,
+            DepartureTime = request.DepartureTime,
+            ServiceAddress = request.ServiceAddress
         };
 
         _context.TripItineraries.Add(itinerary);
@@ -146,7 +172,10 @@ public class ItineraryService : IItineraryService
             ServiceSubtitle = serviceSubtitle,
             Quantity = itinerary.Quantity ?? 1,
             BookedPrice = itinerary.BookedPrice,
-            BookedCommissionRate = itinerary.BookedCommissionRate
+            BookedCommissionRate = itinerary.BookedCommissionRate,
+            ServiceDate = itinerary.ServiceDate,
+            DepartureTime = itinerary.DepartureTime,
+            ServiceAddress = itinerary.ServiceAddress
         };
     }
 
@@ -180,6 +209,21 @@ public class ItineraryService : IItineraryService
             itinerary.BookedCommissionRate = request.BookedCommissionRate.Value;
         }
 
+        if (request.ServiceDate.HasValue)
+        {
+            itinerary.ServiceDate = request.ServiceDate.Value;
+        }
+
+        if (request.DepartureTime.HasValue)
+        {
+            itinerary.DepartureTime = request.DepartureTime.Value;
+        }
+
+        if (request.ServiceAddress != null)
+        {
+            itinerary.ServiceAddress = request.ServiceAddress;
+        }
+
         await _context.SaveChangesAsync();
         if (itinerary.TripId.HasValue)
         {
@@ -209,19 +253,16 @@ public class ItineraryService : IItineraryService
         return true;
     }
 
-    private async Task ValidateHotelBookingAsync(TripEntity trip, CreateTripItineraryDto request)
+    private async Task ValidateHotelBookingAsync(TripEntity trip, CreateTripItineraryDto request, int existingQuantityInTrip)
     {
         if (trip.StartDate == null || trip.EndDate == null)
         {
             throw new ArgumentException("Hotel bookings require check-in and check-out dates.");
         }
 
-        var checkIn = trip.StartDate.Value;
-        var checkOut = trip.EndDate.Value;
-        if (checkOut <= checkIn)
-        {
-            throw new ArgumentException("Check-out date must be after check-in date.");
-        }
+        var tripStart = trip.StartDate.Value;
+        var tripEnd = trip.EndDate.Value;
+        var checkIn = request.ServiceDate ?? tripStart;
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         if (checkIn < today)
@@ -239,27 +280,27 @@ public class ItineraryService : IItineraryService
             throw new KeyNotFoundException($"Room {request.ServiceId} was not found or is not available.");
         }
 
+        var checkOut = ResolveHotelCheckOutDate(request, room, checkIn, tripEnd);
+        if (checkOut <= checkIn)
+        {
+            throw new ArgumentException("Check-out date must be after check-in date.");
+        }
+
+        if (checkIn < tripStart || checkOut > tripEnd)
+        {
+            throw new ArgumentException("Hotel booking dates must be within the selected trip dates.");
+        }
+
         var totalRooms = room.AvailableQty ?? 0;
         if (totalRooms <= 0)
         {
             throw new InvalidOperationException("This room type is currently sold out.");
         }
 
-        if (request.Quantity > totalRooms)
+        var requestedTotalInTrip = existingQuantityInTrip + request.Quantity;
+        if (requestedTotalInTrip > totalRooms)
         {
             throw new InvalidOperationException($"Only {totalRooms} room(s) are available for the selected room type.");
-        }
-
-        var duplicateInTrip = await _context.TripItineraries
-            .AsNoTracking()
-            .AnyAsync(item =>
-                item.TripId == trip.Id &&
-                item.ServiceType == TripServiceType.Hotel &&
-                item.ServiceId == request.ServiceId);
-
-        if (duplicateInTrip)
-        {
-            throw new InvalidOperationException("This room type is already included in the selected trip.");
         }
 
         var overlappingBookings = await _context.TripItineraries
@@ -275,21 +316,22 @@ public class ItineraryService : IItineraryService
                 item.Trip.EndDate.HasValue)
             .ToListAsync();
 
-        var conflictingUserBooking = overlappingBookings.Any(item =>
-            item.Trip?.UserId == trip.UserId &&
-            DateRangesOverlap(checkIn, checkOut, item.Trip!.StartDate!.Value, item.Trip.EndDate!.Value));
-
-        if (conflictingUserBooking)
-        {
-            throw new InvalidOperationException("You already have an active booking for this room type during these dates.");
-        }
-
         var bookedRooms = overlappingBookings
-            .Where(item => DateRangesOverlap(checkIn, checkOut, item.Trip!.StartDate!.Value, item.Trip.EndDate!.Value))
+            .Where(item =>
+            {
+                var bookedCheckIn = item.ServiceDate ?? item.Trip!.StartDate!.Value;
+                var bookedCheckOut = ResolveHotelCheckOutDate(
+                    item.BookedPrice,
+                    room.PricePerNight,
+                    bookedCheckIn,
+                    item.Trip!.EndDate!.Value);
+
+                return DateRangesOverlap(checkIn, checkOut, bookedCheckIn, bookedCheckOut);
+            })
             .Sum(item => item.Quantity ?? 1);
 
         var remainingRooms = totalRooms - bookedRooms;
-        if (request.Quantity > remainingRooms)
+        if (requestedTotalInTrip > remainingRooms)
         {
             throw new InvalidOperationException($"Only {Math.Max(remainingRooms, 0)} room(s) are still available for these dates.");
         }
@@ -315,6 +357,36 @@ public class ItineraryService : IItineraryService
     private static bool DateRangesOverlap(DateOnly start, DateOnly end, DateOnly otherStart, DateOnly otherEnd)
     {
         return start < otherEnd && end > otherStart;
+    }
+
+    private static DateOnly ResolveHotelCheckOutDate(
+        CreateTripItineraryDto request,
+        Room room,
+        DateOnly checkIn,
+        DateOnly fallbackCheckOut)
+    {
+        return ResolveHotelCheckOutDate(request.BookedPrice, room.PricePerNight, checkIn, fallbackCheckOut);
+    }
+
+    private static DateOnly ResolveHotelCheckOutDate(
+        decimal? bookedPrice,
+        decimal? pricePerNight,
+        DateOnly checkIn,
+        DateOnly fallbackCheckOut)
+    {
+        var nightlyPrice = pricePerNight ?? 0;
+        if (bookedPrice.HasValue && nightlyPrice > 0)
+        {
+            var nightsValue = bookedPrice.Value / nightlyPrice;
+            var roundedNights = (int)Math.Round(nightsValue, MidpointRounding.AwayFromZero);
+
+            if (roundedNights > 0 && Math.Abs(nightsValue - roundedNights) < 0.01m)
+            {
+                return checkIn.AddDays(roundedNights);
+            }
+        }
+
+        return fallbackCheckOut;
     }
 
     private async Task RecalculateTripTotalsAsync(int tripId)

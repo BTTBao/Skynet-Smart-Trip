@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/destination_provider.dart';
+import '../catalog/search_view.dart';
 import '../destination/destination_article_screen.dart';
-import '../resort_search/resort_search_screen.dart';
-import '../transport/transport_search_screen.dart';
 
 class SearchScreen extends StatelessWidget {
   const SearchScreen({Key? key}) : super(key: key);
@@ -14,12 +13,6 @@ class SearchScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Tìm kiếm', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: false,
-      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -31,8 +24,10 @@ class SearchScreen extends StatelessWidget {
                 color: Colors.grey[100],
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const TextField(
-                decoration: InputDecoration(
+              child: TextField(
+                readOnly: true,
+                onTap: () => _openUnifiedSearch(context),
+                decoration: const InputDecoration(
                   icon: Icon(Icons.search, color: Colors.grey),
                   hintText: 'Bạn muốn đi đâu?',
                   border: InputBorder.none,
@@ -198,7 +193,12 @@ class SearchScreen extends StatelessWidget {
                   description: 'Tìm Khách sạn / Resort',
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ResortSearchScreen(destinationId: destinationId, destinationName: destination)));
+                    _openUnifiedSearch(
+                      context,
+                      mode: SearchMode.hotel,
+                      destinationId: destinationId,
+                      initialQuery: destination,
+                    );
                   },
                 ),
                 const SizedBox(height: 12),
@@ -210,7 +210,12 @@ class SearchScreen extends StatelessWidget {
                   description: 'Đặt vé xe Limousine',
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => TransportSearchScreen(toDestId: destinationId, toDestName: destination)));
+                    _openUnifiedSearch(
+                      context,
+                      mode: SearchMode.bus,
+                      destinationId: destinationId,
+                      initialQuery: destination,
+                    );
                   },
                 ),
                 const SizedBox(height: 24),
@@ -236,6 +241,24 @@ class SearchScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  void _openUnifiedSearch(
+    BuildContext context, {
+    SearchMode mode = SearchMode.hotel,
+    int? destinationId,
+    String? initialQuery,
+  }) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SearchView(
+          initialMode: mode,
+          initialDestinationId: destinationId,
+          initialQuery: initialQuery,
+        ),
+      ),
     );
   }
 

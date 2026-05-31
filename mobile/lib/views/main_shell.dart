@@ -23,18 +23,19 @@ class _MainShellState extends State<MainShell> {
   static const primaryColor = Color(0xFF80ED99);
 
   int _currentIndex = 0;
-
-  final List<Widget> _pages = [
-    const HomeView(),
-    ChatbotView(),
-    const SearchScreen(),
-    const MyTripsView(),
-    const ProfileView(),
-  ];
+  late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
+
+    _pages = [
+      HomeView(onOpenExplore: () => setState(() => _currentIndex = 2)),
+      ChatbotView(),
+      const SearchScreen(),
+      const MyTripsView(),
+      const ProfileView(),
+    ];
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProfileProvider>().fetchProfile(

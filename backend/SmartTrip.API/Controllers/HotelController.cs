@@ -151,15 +151,17 @@ public class HotelController : ControllerBase
         if (hotel is null) return NotFound();
         if (!hotel.Rooms.Any()) return Ok(new { hotelId = id, year, month, days = Array.Empty<object>() });
 
-        // Lấy tất cả trip đã đặt khách sạn này trong khoảng tháng cần xem
+        // Lấy tất cả trip đã đặt các phòng của khách sạn này trong khoảng tháng cần xem
         var startOfMonth = new DateOnly(year, month, 1);
         var endOfMonth = startOfMonth.AddMonths(1);
+        var roomIds = hotel.Rooms.Select(room => room.Id).ToList();
 
         var bookedItineraries = await _context.TripItineraries
             .Include(ti => ti.Trip)
             .Where(ti =>
                 ti.ServiceType == TripServiceType.Hotel &&
-                ti.ServiceId == id &&
+                ti.ServiceId.HasValue &&
+                roomIds.Contains(ti.ServiceId.Value) &&
                 ti.Trip != null &&
                 ti.Trip.StartDate < endOfMonth &&
                 ti.Trip.EndDate > startOfMonth &&

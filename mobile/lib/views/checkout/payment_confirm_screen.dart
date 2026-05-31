@@ -93,10 +93,14 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       }
 
       // 2. Thêm phòng khách sạn vào Itinerary
+      if (widget.selectedRoom == null) {
+        throw Exception('Vui lòng chọn hạng phòng trước khi thanh toán.');
+      }
+
       final itineraryRequest = CreateTripItineraryRequest(
         dayNumber: 1,
         serviceType: 'HOTEL',
-        serviceId: widget.hotel.id,
+        serviceId: widget.selectedRoom!.id,
         quantity: 1,
         bookedPrice: widget.totalPrice,
       );

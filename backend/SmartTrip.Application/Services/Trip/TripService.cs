@@ -191,17 +191,7 @@ public class TripService : ITripService
             throw new InvalidOperationException("Cancelled bookings cannot be paid.");
         }
 
-        var latestPaidPayment = trip.Payments
-            .Where(item => item.Status == PaymentStatus.Paid)
-            .OrderByDescending(item => item.PaidAt)
-            .FirstOrDefault();
-
-        if (latestPaidPayment != null)
-        {
-            throw new InvalidOperationException("This booking has already been paid.");
-        }
-
-        var amount = trip.TotalAmount ?? trip.TripItineraries.Sum(item =>
+        var amount = request.Amount ?? trip.TotalAmount ?? trip.TripItineraries.Sum(item =>
             (item.BookedPrice ?? 0) * (item.Quantity ?? 1));
 
         if (amount <= 0)
@@ -209,27 +199,20 @@ public class TripService : ITripService
             throw new InvalidOperationException("Booking total amount is invalid.");
         }
 
-        var payment = trip.Payments
-            .OrderByDescending(item => item.PaidAt)
-            .FirstOrDefault();
-
-        if (payment == null)
+        var payment = new Payment
         {
-            payment = new Payment
-            {
-                TripId = trip.Id,
-                TransactionId = $"FAKE-{trip.Id:D6}-{DateTime.UtcNow:yyyyMMddHHmmss}",
-            };
+            TripId = trip.Id,
+            TransactionId = $"FAKE-{trip.Id:D6}-{DateTime.UtcNow:yyyyMMddHHmmss}",
+        };
 
-            _context.Payments.Add(payment);
-            trip.Payments.Add(payment);
-        }
+        _context.Payments.Add(payment);
+        trip.Payments.Add(payment);
 
         payment.PaymentMethod = ParsePaymentMethod(request.PaymentMethod);
         payment.Amount = amount;
         payment.Status = PaymentStatus.Paid;
         payment.PaidAt = DateTime.UtcNow;
-        trip.Status = TripStatus.Paid;
+        trip.Status = TripStatus.Pending;
 
         await _context.SaveChangesAsync();
 

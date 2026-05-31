@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../resort_search/resort_search_screen.dart';
-import '../transport/transport_search_screen.dart';
+import '../catalog/search_view.dart';
 
 class DestinationArticleScreen extends StatelessWidget {
   const DestinationArticleScreen({Key? key}) : super(key: key);
@@ -207,7 +206,7 @@ class DestinationArticleScreen extends StatelessWidget {
             const SizedBox(height: 16),
             InkWell(
               onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const ResortSearchScreen()));
+                _openUnifiedSearch(context, mode: SearchMode.hotel);
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -237,7 +236,7 @@ class DestinationArticleScreen extends StatelessWidget {
             const SizedBox(height: 12),
             InkWell(
               onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const TransportSearchScreen()));
+                _openUnifiedSearch(context, mode: SearchMode.bus);
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -269,5 +268,13 @@ class DestinationArticleScreen extends StatelessWidget {
       ),
     );
   }
+
+  void _openUnifiedSearch(BuildContext context, {required SearchMode mode}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => SearchView(initialMode: mode)),
+    );
+  }
+
 }
 
