@@ -24,8 +24,10 @@ class _MainShellState extends State<MainShell> {
 
   int _currentIndex = 0;
 
-  final List<Widget> _pages = [
-    const HomeView(),
+  late final List<Widget> _pages = [
+    HomeView(
+      onNavigateToExplore: () => setState(() => _currentIndex = 2),
+    ),
     ChatbotView(),
     const SearchScreen(),
     const MyTripsView(),

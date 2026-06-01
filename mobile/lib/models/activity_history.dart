@@ -80,6 +80,7 @@ class HotelHistoryItem {
   final int quantity;
   final double bookedPrice;
   final String status;
+  final bool isReviewed;
 
   const HotelHistoryItem({
     required this.tripId,
@@ -94,6 +95,7 @@ class HotelHistoryItem {
     required this.quantity,
     required this.bookedPrice,
     required this.status,
+    required this.isReviewed,
   });
 
   factory HotelHistoryItem.fromJson(Map<String, dynamic> json) {
@@ -110,6 +112,7 @@ class HotelHistoryItem {
       quantity: json['quantity'] ?? 0,
       bookedPrice: (json['bookedPrice'] ?? 0).toDouble(),
       status: json['status'] ?? '',
+      isReviewed: json['isReviewed'] ?? false,
     );
   }
 }
@@ -118,6 +121,7 @@ class BusHistoryItem {
   final int tripId;
   final int itineraryId;
   final int serviceId;
+  final int companyId;
   final String tripTitle;
   final String companyName;
   final String fromDestination;
@@ -127,11 +131,13 @@ class BusHistoryItem {
   final int quantity;
   final double bookedPrice;
   final String status;
+  final bool isReviewed;
 
   const BusHistoryItem({
     required this.tripId,
     required this.itineraryId,
     required this.serviceId,
+    required this.companyId,
     required this.tripTitle,
     required this.companyName,
     required this.fromDestination,
@@ -141,6 +147,7 @@ class BusHistoryItem {
     required this.quantity,
     required this.bookedPrice,
     required this.status,
+    required this.isReviewed,
   });
 
   factory BusHistoryItem.fromJson(Map<String, dynamic> json) {
@@ -148,6 +155,7 @@ class BusHistoryItem {
       tripId: json['tripId'] ?? 0,
       itineraryId: json['itineraryId'] ?? 0,
       serviceId: json['serviceId'] ?? 0,
+      companyId: json['companyId'] ?? 0,
       tripTitle: json['tripTitle'] ?? '',
       companyName: json['companyName'] ?? '',
       fromDestination: json['fromDestination'] ?? '',
@@ -157,6 +165,7 @@ class BusHistoryItem {
       quantity: json['quantity'] ?? 0,
       bookedPrice: (json['bookedPrice'] ?? 0).toDouble(),
       status: json['status'] ?? '',
+      isReviewed: json['isReviewed'] ?? false,
     );
   }
 }

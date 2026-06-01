@@ -16,9 +16,11 @@ class SearchView extends StatefulWidget {
     this.initialMode = SearchMode.hotel,
     this.initialDestinationId,
     this.initialQuery,
+    this.showBackButton = true,
   });
 
   final SearchMode initialMode;
+  final bool showBackButton;
   final int? initialDestinationId;
   final String? initialQuery;
 
@@ -447,19 +449,21 @@ class _SearchViewState extends State<SearchView> {
                     children: [
                       Row(
                         children: [
-                          IconButton(
-                            onPressed: () => Navigator.of(context).maybePop(),
-                            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: AppColors.textHeading,
-                              minimumSize: const Size(56, 56),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(18),
+                          if (widget.showBackButton) ...[
+                            IconButton(
+                              onPressed: () => Navigator.of(context).maybePop(),
+                              icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: AppColors.textHeading,
+                                minimumSize: const Size(56, 56),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
+                            const SizedBox(width: 12),
+                          ],
                           Expanded(
                             child: Container(
                               decoration: BoxDecoration(

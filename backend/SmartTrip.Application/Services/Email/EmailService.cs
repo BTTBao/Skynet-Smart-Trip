@@ -42,6 +42,34 @@ namespace SmartTrip.Application.Services.Email
         public Task SendEmailVerificationAsync(string toEmail, string fullName, string otp) =>
             SendEmailAsync(toEmail, "Xác thực email SmartTrip", BuildEmailVerificationHtml(fullName, otp));
 
+        public Task SendBookingConfirmationEmailAsync(
+            string toEmail, 
+            string fullName, 
+            string bookingCode, 
+            string hotelName, 
+            string dateRange, 
+            string roomInfo, 
+            string totalPrice, 
+            string paymentMethod)
+        {
+            var content = 
+                $"<h2>Xác nhận đặt chỗ thành công! 🎉</h2>" +
+                $"<p>Chào <strong>{fullName}</strong>,</p>" +
+                $"<p>Cảm ơn bạn đã lựa chọn dịch vụ của <strong>SmartTrip</strong>. Giao dịch đặt chỗ của bạn đã được thanh toán thành công.</p>" +
+                $"<div style=\"background: #f0f7ff; padding: 20px; border-radius: 8px; margin: 20px 0;\">" +
+                $"  <p style=\"margin: 0 0 10px 0;\"><strong>Mã đặt chỗ:</strong> <span style=\"color: #1a7ca1; font-weight: bold;\">{bookingCode}</span></p>" +
+                $"  <p style=\"margin: 0 0 10px 0;\"><strong>Khách sạn:</strong> {hotelName}</p>" +
+                $"  <p style=\"margin: 0 0 10px 0;\"><strong>Thời gian:</strong> {dateRange}</p>" +
+                $"  <p style=\"margin: 0 0 10px 0;\"><strong>Thông tin phòng:</strong> {roomInfo}</p>" +
+                $"  <p style=\"margin: 0 0 10px 0;\"><strong>Tổng tiền:</strong> {totalPrice}</p>" +
+                $"  <p style=\"margin: 0;\"><strong>Hình thức thanh toán:</strong> {paymentMethod}</p>" +
+                $"</div>" +
+                $"<p>Vui lòng xuất trình email này hoặc vé điện tử trên ứng dụng di động SmartTrip khi làm thủ tục check-in tại khách sạn.</p>" +
+                $"<div class=\"note\">Chúc bạn có một chuyến đi vui vẻ và ý nghĩa! 🗺️</div>";
+
+            return SendEmailAsync(toEmail, $"[SmartTrip] Xác nhận đặt chỗ thành công {bookingCode}", WrapInBaseLayout("Xác nhận đặt chỗ thành công", content));
+        }
+
         // ──────────────────────────────────────────────
         // Private helpers
         // ──────────────────────────────────────────────

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/resort_model.dart';
+import '../../providers/profile_provider.dart';
 import '../../widgets/checkout/checkout_stepper.dart';
+import '../profile/edit_profile_view.dart';
 import 'payment_confirm_screen.dart';
 
 class CustomerInfoScreen extends StatefulWidget {
@@ -31,6 +34,8 @@ class CustomerInfoScreen extends StatefulWidget {
 
 class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
   bool isPassenger = true;
+  bool _isCheckingProfile = true;
+  bool _redirectingToProfile = false;
 
   late final TextEditingController _fullNameController;
   late final TextEditingController _emailController;
@@ -40,10 +45,11 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
   @override
   void initState() {
     super.initState();
-    _fullNameController = TextEditingController(text: 'Nguyễn Văn A');
-    _emailController = TextEditingController(text: 'vanta@example.com');
-    _phoneController = TextEditingController(text: '0901234567');
+    _fullNameController = TextEditingController();
+    _emailController = TextEditingController();
+    _phoneController = TextEditingController();
     _specialRequestController = TextEditingController();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadProfileInfo());
   }
 
   @override
@@ -56,11 +62,91 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
   }
 
   String _formatPriceFull(double price) {
-    final formatted = price.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]}.',
-    );
+    final formatted = price
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]}.',
+        );
     return '$formatted₫';
+  }
+
+  bool _hasRequiredProfileInfo() {
+    return _fullNameController.text.trim().isNotEmpty &&
+        _emailController.text.trim().isNotEmpty &&
+        _phoneController.text.trim().isNotEmpty;
+  }
+
+  Future<void> _loadProfileInfo({bool forceRefresh = false}) async {
+    final provider = context.read<ProfileProvider>();
+    if (provider.profileData == null || forceRefresh) {
+      await provider.fetchProfile(forceRefresh: true);
+    }
+
+    if (!mounted) return;
+
+    final profile = provider.profileData;
+    _fullNameController.text = profile?.name ?? '';
+    _emailController.text = profile?.email ?? '';
+    _phoneController.text = profile?.phone ?? '';
+
+    setState(() => _isCheckingProfile = false);
+
+    if (!_hasRequiredProfileInfo() && !_redirectingToProfile) {
+      _redirectingToProfile = true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui long cap nhat ho so truoc khi dat phong.'),
+        ),
+      );
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const EditProfileView()),
+      );
+      if (!mounted) return;
+      await _loadProfileInfo(forceRefresh: true);
+      _redirectingToProfile = false;
+    }
+  }
+
+  Future<void> _continueToPayment() async {
+    if (!_hasRequiredProfileInfo()) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const EditProfileView()),
+      );
+      if (!mounted) return;
+      await _loadProfileInfo(forceRefresh: true);
+      if (!mounted) return;
+      if (!_hasRequiredProfileInfo()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ho so van thieu ho ten, email hoac so dien thoai.'),
+          ),
+        );
+        return;
+      }
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentConfirmScreen(
+          hotel: widget.hotel,
+          selectedRoom: widget.selectedRoom,
+          checkIn: widget.checkIn,
+          checkOut: widget.checkOut,
+          adultCount: widget.adultCount,
+          childCount: widget.childCount,
+          infantCount: widget.infantCount,
+          totalPrice: widget.totalPrice,
+          fullName: _fullNameController.text,
+          email: _emailController.text,
+          phone: _phoneController.text,
+          specialRequest: _specialRequestController.text,
+        ),
+      ),
+    );
   }
 
   @override
@@ -80,73 +166,100 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: const CheckoutStepper(currentStep: 2),
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Tôi là người đi',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Tự động điền thông tin cá nhân của bạn',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                        ),
-                      ],
+      body: _isCheckingProfile
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: const CheckoutStepper(currentStep: 2),
+                  ),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Tôi là người đi',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Tự động điền thông tin cá nhân của bạn',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Switch(
+                            value: isPassenger,
+                            onChanged: (val) =>
+                                setState(() => isPassenger = val),
+                            activeColor: Colors.white,
+                            activeTrackColor: Colors.green[400],
+                          ),
+                        ],
+                      ),
                     ),
-                    Switch(
-                      value: isPassenger,
-                      onChanged: (val) => setState(() => isPassenger = val),
-                      activeColor: Colors.white,
-                      activeTrackColor: Colors.green[400],
-                    )
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'Chi tiết liên hệ',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildInputField(
+                    'Họ và tên',
+                    'Nguyễn Văn A',
+                    _fullNameController,
+                    isRequired: true,
+                  ),
+                  _buildInputField(
+                    'Địa chỉ Email',
+                    'vanta@example.com',
+                    _emailController,
+                    isRequired: true,
+                  ),
+                  _buildPhoneField(_phoneController),
+                  _buildTextAreaField(_specialRequestController),
+                  const SizedBox(height: 32),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Chi tiết liên hệ',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildInputField('Họ và tên', 'Nguyễn Văn A', _fullNameController, isRequired: true),
-            _buildInputField('Địa chỉ Email', 'vanta@example.com', _emailController, isRequired: true),
-            _buildPhoneField(_phoneController),
-            _buildTextAreaField(_specialRequestController),
-            const SizedBox(height: 32),
-          ],
-        ),
-      ),
       bottomNavigationBar: _buildBottomBar(context),
     );
   }
 
-  Widget _buildInputField(String label, String hint, TextEditingController controller, {bool isRequired = false}) {
+  Widget _buildInputField(
+    String label,
+    String hint,
+    TextEditingController controller, {
+    bool isRequired = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -155,9 +268,18 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           RichText(
             text: TextSpan(
               text: label,
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 14),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+                fontSize: 14,
+              ),
               children: isRequired
-                  ? const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))]
+                  ? const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ]
                   : [],
             ),
           ),
@@ -169,7 +291,11 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
               hintStyle: const TextStyle(color: Colors.black87),
               filled: true,
               fillColor: Colors.white,
-              suffixIcon: const Icon(Icons.check_circle, color: Colors.green, size: 20),
+              suffixIcon: const Icon(
+                Icons.check_circle,
+                color: Colors.green,
+                size: 20,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.grey[300]!),
@@ -178,7 +304,10 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.grey[300]!),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
             ),
           ),
         ],
@@ -195,18 +324,33 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           RichText(
             text: const TextSpan(
               text: 'Số điện thoại',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 14),
-              children: [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+                fontSize: 14,
+              ),
+              children: [
+                TextSpan(
+                  text: ' *',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 8),
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    bottomLeft: Radius.circular(12),
+                  ),
                   border: Border.all(color: Colors.grey[300]!),
                 ),
                 child: const Text('+84', style: TextStyle(color: Colors.grey)),
@@ -220,16 +364,29 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                     hintStyle: const TextStyle(color: Colors.black87),
                     filled: true,
                     fillColor: Colors.white,
-                    suffixIcon: const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                    suffixIcon: const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 20,
+                    ),
                     border: OutlineInputBorder(
-                      borderRadius: const BorderRadius.only(topRight: Radius.circular(12), bottomRight: Radius.circular(12)),
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(12),
+                        bottomRight: Radius.circular(12),
+                      ),
                       borderSide: BorderSide(color: Colors.grey[300]!),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: const BorderRadius.only(topRight: Radius.circular(12), bottomRight: Radius.circular(12)),
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(12),
+                        bottomRight: Radius.circular(12),
+                      ),
                       borderSide: BorderSide(color: Colors.grey[300]!),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
                   ),
                 ),
               ),
@@ -246,7 +403,14 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Yêu cầu đặc biệt', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 14)),
+          const Text(
+            'Yêu cầu đặc biệt',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+              fontSize: 14,
+            ),
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: controller,
@@ -264,7 +428,10 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.grey[300]!),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
             ),
           ),
         ],
@@ -278,7 +445,11 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), offset: const Offset(0, -2), blurRadius: 10),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            offset: const Offset(0, -2),
+            blurRadius: 10,
+          ),
         ],
       ),
       child: SafeArea(
@@ -289,53 +460,64 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('TỔNG THANH TOÁN', style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+                const Text(
+                  'TỔNG THANH TOÁN',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 Row(
                   children: [
                     Text(
                       _formatPriceFull(widget.totalPrice),
-                      style: const TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'CHI TIẾT',
-                      style: TextStyle(color: Colors.green[400], fontSize: 10, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.green[400],
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    Icon(Icons.keyboard_arrow_down, color: Colors.green[400], size: 16),
+                    Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Colors.green[400],
+                      size: 16,
+                    ),
                   ],
                 ),
               ],
             ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PaymentConfirmScreen(
-                      hotel: widget.hotel,
-                      selectedRoom: widget.selectedRoom,
-                      checkIn: widget.checkIn,
-                      checkOut: widget.checkOut,
-                      adultCount: widget.adultCount,
-                      childCount: widget.childCount,
-                      infantCount: widget.infantCount,
-                      totalPrice: widget.totalPrice,
-                      fullName: _fullNameController.text,
-                      email: _emailController.text,
-                      phone: _phoneController.text,
-                      specialRequest: _specialRequestController.text,
-                    ),
-                  ),
-                );
-              },
+              onPressed: _continueToPayment,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green[300],
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
               child: const Row(
                 children: [
-                  Text('Tiếp tục', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(
+                    'Tiếp tục',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                   SizedBox(width: 8),
                   Icon(Icons.arrow_forward, color: Colors.black, size: 20),
                 ],

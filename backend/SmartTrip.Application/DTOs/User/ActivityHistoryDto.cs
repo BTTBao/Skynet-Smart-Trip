@@ -35,6 +35,7 @@ public class HotelHistoryItemDto
     public int Quantity { get; set; }
     public decimal BookedPrice { get; set; }
     public string Status { get; set; } = string.Empty;
+    public bool IsReviewed { get; set; }
 }
 
 public class BusHistoryItemDto
@@ -42,6 +43,7 @@ public class BusHistoryItemDto
     public int TripId { get; set; }
     public int ItineraryId { get; set; }
     public int ServiceId { get; set; }
+    public int CompanyId { get; set; }
     public string TripTitle { get; set; } = string.Empty;
     public string CompanyName { get; set; } = string.Empty;
     public string FromDestination { get; set; } = string.Empty;
@@ -51,6 +53,7 @@ public class BusHistoryItemDto
     public int Quantity { get; set; }
     public decimal BookedPrice { get; set; }
     public string Status { get; set; } = string.Empty;
+    public bool IsReviewed { get; set; }
 }
 
 public class PaymentHistoryItemDto

@@ -10,6 +10,11 @@ import '../../utils/app_text.dart';
 import '../../widgets/widgets.dart';
 import '../trip/trip_itinerary_detail_view.dart';
 import 'profile_session_helper.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../services/payment_service.dart';
+import '../../services/bus_service.dart';
+import '../../providers/trip_provider.dart';
+import '../../services/trip_service.dart';
 
 enum _HistorySection { bookings, hotels, buses, payments }
 
@@ -24,6 +29,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
   static const primaryColor = Color(0xFF80ED99);
 
   final ActivityHistoryService _service = ActivityHistoryService();
+  final TripService _tripService = TripService();
   ActivityHistory? _history;
   bool _isLoading = true;
   String? _error;
@@ -308,6 +314,10 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       status: item.status,
       dateText: _joinDateRange(item.startDate, item.endDate),
       onTap: item.tripId > 0 ? () => _openTrip(item.tripId, item.title) : null,
+      actionLabel: item.status.toUpperCase() == 'PENDING' ? 'Thanh toán' : null,
+      onActionTap: item.status.toUpperCase() == 'PENDING'
+          ? () => _showPaymentModal(item.tripId, item.totalAmount, 'Thanh toán ${item.tripId}', 'HOTEL')
+          : null,
       extraLines: [
         if ((item.invoiceNumber ?? '').isNotEmpty)
           '${context.tr(vi: 'Hoa don', en: 'Invoice')}: ${item.invoiceNumber}',
@@ -318,6 +328,9 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
   }
 
   Widget _buildHotelCard(HotelHistoryItem item) {
+    final canReview = !item.isReviewed && (item.status.toUpperCase() == 'PAID' || item.status.toUpperCase() == 'SUCCESS' || item.status.toUpperCase() == 'COMPLETED');
+    final isReviewed = item.isReviewed;
+
     return _HistoryCard(
       title: item.hotelName,
       subtitle: '${item.destinationName} - ${item.address}',
@@ -325,6 +338,18 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       status: item.status,
       dateText: _joinDateRange(item.checkInDate, item.checkOutDate),
       onTap: item.tripId > 0 ? () => _openTrip(item.tripId, item.tripTitle) : null,
+      actionLabel: isReviewed 
+          ? 'Đã đánh giá'
+          : canReview 
+              ? 'Viết đánh giá' 
+              : (item.status.toUpperCase() == 'PENDING' ? 'Thanh toán' : null),
+      onActionTap: isReviewed
+          ? null
+          : canReview
+              ? () => _showReviewDialog(item.tripId, 'Hotel', item.serviceId, item.hotelName)
+              : (item.status.toUpperCase() == 'PENDING'
+                  ? () => _showPaymentModal(item.tripId, item.bookedPrice, 'Thanh toán ${item.tripId}', 'HOTEL')
+                  : null),
       extraLines: [
         '${context.tr(vi: 'Chuyen di', en: 'Trip')}: ${item.tripTitle}',
         '${context.tr(vi: 'So luong', en: 'Quantity')}: ${item.quantity}',
@@ -333,6 +358,9 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
   }
 
   Widget _buildBusCard(BusHistoryItem item) {
+    final canReview = !item.isReviewed && (item.status.toUpperCase() == 'PAID' || item.status.toUpperCase() == 'SUCCESS' || item.status.toUpperCase() == 'COMPLETED');
+    final isReviewed = item.isReviewed;
+
     return _HistoryCard(
       title: item.companyName,
       subtitle: '${item.fromDestination} -> ${item.toDestination}',
@@ -340,6 +368,16 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       status: item.status,
       dateText: _joinDateRange(item.departureTime, item.arrivalTime),
       onTap: item.tripId > 0 ? () => _openTrip(item.tripId, item.tripTitle) : null,
+      actionLabel: isReviewed 
+          ? 'Đã đánh giá'
+          : canReview 
+              ? 'Viết đánh giá' 
+              : null,
+      onActionTap: isReviewed
+          ? null
+          : canReview
+              ? () => _showReviewDialog(item.tripId, 'BusCompany', item.companyId, item.companyName)
+              : null,
       extraLines: [
         '${context.tr(vi: 'Chuyen di', en: 'Trip')}: ${item.tripTitle}',
         '${context.tr(vi: 'So luong', en: 'Quantity')}: ${item.quantity}',
@@ -373,6 +411,142 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
           tripTitle: title,
         ),
       ),
+    );
+  }
+
+  void _showReviewDialog(int tripId, String targetType, int targetId, String name) {
+    int selectedRating = 5;
+    final TextEditingController commentController = TextEditingController();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text(
+                'Đánh giá $name',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Hãy chia sẻ trải nghiệm của bạn về dịch vụ này nhé!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(5, (index) {
+                        final starRating = index + 1;
+                        return IconButton(
+                          icon: Icon(
+                            starRating <= selectedRating ? Icons.star : Icons.star_border,
+                            color: Colors.amber,
+                            size: 36,
+                          ),
+                          onPressed: isSubmitting
+                              ? null
+                              : () {
+                                  setDialogState(() {
+                                    selectedRating = starRating;
+                                  });
+                                },
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: commentController,
+                      maxLines: 4,
+                      enabled: !isSubmitting,
+                      decoration: InputDecoration(
+                        hintText: 'Nhập ý kiến đánh giá của bạn tại đây...',
+                        hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFF0D6B42)),
+                        ),
+                        contentPadding: const EdgeInsets.all(12),
+                      ),
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                  child: const Text('Hủy', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          setDialogState(() {
+                            isSubmitting = true;
+                          });
+
+                          try {
+                            await _tripService.submitReview(
+                              tripId: tripId,
+                              targetType: targetType,
+                              targetId: targetId,
+                              rating: selectedRating,
+                              comment: commentController.text.trim(),
+                            );
+
+                            if (mounted) {
+                              Navigator.pop(context); // Close dialog
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Cảm ơn bạn đã gửi đánh giá!'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                              _fetchHistory(); // Refresh list to update button
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              setDialogState(() {
+                                isSubmitting = false;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Lỗi: $e'),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D6B42),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text('Gửi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -427,6 +601,185 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
     _handledSessionExpired = true;
     await showSessionExpiredDialog(context, message: message);
   }
+
+  Future<void> _showPaymentModal(int tripId, double amount, String description, String type) async {
+    double finalAmount = amount;
+    if (finalAmount <= 0) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+      try {
+        final tripProvider = context.read<TripProvider>();
+        final tripDetail = await tripProvider.fetchTripDetail(tripId);
+        if (tripDetail != null && tripDetail.totalAmount != null) {
+          finalAmount = tripDetail.totalAmount!;
+        }
+      } finally {
+        if (mounted) Navigator.pop(context);
+      }
+    }
+
+    if (finalAmount <= 0) {
+      _processInternalPayment(tripId, 0, 4); // Tự động duyệt đơn 0đ thông qua index 4 'Promotion'
+      return;
+    }
+
+    final method = await showModalBottomSheet<int>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Chọn phương thức thanh toán', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: const Icon(Icons.qr_code_2, color: Colors.blue),
+                  title: const Text('Thẻ tín dụng/Ghi nợ (PayOS)'),
+                  subtitle: Text('Tổng tiền: ${_currency(finalAmount)}'),
+                  onTap: () => Navigator.pop(context, 0),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.account_balance_wallet, color: Colors.pink),
+                  title: const Text('Ví MoMo'),
+                  subtitle: Text('Tổng tiền: ${_currency(finalAmount)}'),
+                  onTap: () => Navigator.pop(context, 1),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.payment, color: Colors.blueAccent),
+                  title: const Text('ZaloPay'),
+                  subtitle: Text('Tổng tiền: ${_currency(finalAmount)}'),
+                  onTap: () => Navigator.pop(context, 2),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.account_balance, color: Colors.green),
+                  title: const Text('Chuyển khoản ngân hàng'),
+                  subtitle: Text('Tổng tiền: ${_currency(finalAmount)}'),
+                  onTap: () => Navigator.pop(context, 3),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (method == null) return;
+
+    if (method == 0) {
+      _processPayOs(tripId, finalAmount, description, type);
+    } else {
+      _processInternalPayment(tripId, finalAmount, method);
+    }
+  }
+
+  int _generateOrderCode(int tripId) {
+    final timePart = DateTime.now().millisecondsSinceEpoch % 10000000000;
+    return (timePart * 1000) + (tripId % 1000);
+  }
+
+  Future<void> _processPayOs(int tripId, double amount, String description, String type) async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+      
+      final orderCode = _generateOrderCode(tripId);
+      final payment = await PaymentService().createPayOsPayment(
+        tripId: tripId,
+        amount: amount,
+        description: description,
+        orderCode: orderCode,
+        metadata: {
+          'type': type,
+        },
+      );
+
+      if (mounted) Navigator.pop(context); // close loading
+
+      final checkoutUrl = payment.checkoutUrl;
+      if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
+        await launchUrl(Uri.parse(checkoutUrl), mode: LaunchMode.externalApplication);
+        
+        if (mounted) {
+          await showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (dialogContext) {
+              return AlertDialog(
+                title: const Text('Hoàn tất thanh toán PayOS'),
+                content: const Text(
+                  'Trang PayOS đã được mở. Sau khi thanh toán xong, quay lại app và bấm kiểm tra.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                      _fetchHistory();
+                    },
+                    child: const Text('Xong'),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // close loading
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      }
+    }
+  }
+
+  Future<void> _processInternalPayment(int tripId, double amount, int methodIndex) async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final methods = ['PayOS', 'Momo', 'Zalopay', 'BankTransfer', 'Promotion'];
+      final methodName = methods[methodIndex];
+
+      final payService = BusService();
+      final success = await payService.confirmPayment(
+        tripId: tripId,
+        paymentMethod: methodName,
+        transactionId: 'TXN-REPAY-$tripId-${DateTime.now().millisecondsSinceEpoch}',
+        amount: amount,
+      );
+
+      if (mounted) Navigator.pop(context); // close loading
+      
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Thanh toán thành công!')));
+        }
+        _fetchHistory();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Thanh toán thất bại.')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // close loading
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      }
+    }
+  }
 }
 
 class _HistoryCard extends StatelessWidget {
@@ -438,6 +791,8 @@ class _HistoryCard extends StatelessWidget {
     required this.dateText,
     required this.extraLines,
     this.onTap,
+    this.actionLabel,
+    this.onActionTap,
   });
 
   final String title;
@@ -447,6 +802,8 @@ class _HistoryCard extends StatelessWidget {
   final String dateText;
   final List<String> extraLines;
   final VoidCallback? onTap;
+  final String? actionLabel;
+  final VoidCallback? onActionTap;
 
   @override
   Widget build(BuildContext context) {
@@ -521,22 +878,52 @@ class _HistoryCard extends StatelessWidget {
                   ),
                 ),
               ],
-              if (onTap != null) ...[
+              if (onTap != null || actionLabel != null) ...[
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Text(
-                      'Xem chi tiet chuyen di',
-                      style: TextStyle(
-                        color: Colors.green.shade700,
-                        fontWeight: FontWeight.w700,
+                    if (onTap != null)
+                      Expanded(
+                        child: InkWell(
+                          onTap: onTap,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Xem chi tiet chuyen di',
+                                  style: TextStyle(
+                                    color: Colors.green.shade700,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.chevron_right,
+                                  color: Colors.green.shade700,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.chevron_right,
-                      color: Colors.green.shade700,
-                    ),
+                    if (actionLabel != null)
+                      ElevatedButton(
+                        onPressed: onActionTap,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade600,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          minimumSize: const Size(0, 36),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        child: Text(
+                          actionLabel!,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
                   ],
                 ),
               ],

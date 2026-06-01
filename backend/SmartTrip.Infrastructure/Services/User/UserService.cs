@@ -79,6 +79,11 @@ public class UserService : IUserService
             return null;
         }
 
+        var reviews = await _context.Reviews
+            .AsNoTracking()
+            .Where(r => r.UserId == userId)
+            .ToListAsync();
+
         var trips = await _context.Trips
             .AsNoTracking()
             .Include(t => t.Destination)
@@ -128,12 +133,17 @@ public class UserService : IUserService
             {
                 hotelsById.TryGetValue(i.ServiceId ?? 0, out var hotel);
                 tripsById.TryGetValue(i.TripId ?? 0, out var trip);
+                var targetHotelId = hotel?.Id ?? i.ServiceId ?? 0;
+                var isReviewed = reviews.Any(r => 
+                    r.TripId == i.TripId && 
+                    r.TargetType == ReviewTargetType.Hotel && 
+                    r.TargetId == targetHotelId);
 
                 return new HotelHistoryItemDto
                 {
                     TripId = i.TripId ?? 0,
                     ItineraryId = i.Id,
-                    ServiceId = hotel?.Id ?? i.ServiceId ?? 0,
+                    ServiceId = targetHotelId,
                     TripTitle = trip?.Title ?? "Chuyen di",
                     HotelName = hotel?.Name ?? "Khach san",
                     Address = hotel?.Address ?? string.Empty,
@@ -142,7 +152,8 @@ public class UserService : IUserService
                     CheckOutDate = trip?.EndDate?.ToString("yyyy-MM-dd"),
                     Quantity = i.Quantity ?? 0,
                     BookedPrice = i.BookedPrice ?? 0,
-                    Status = trip?.Status?.ToString() ?? TripStatus.Draft.ToString()
+                    Status = trip?.Status?.ToString() ?? TripStatus.Draft.ToString(),
+                    IsReviewed = isReviewed
                 };
             })
             .ToList();
@@ -172,12 +183,18 @@ public class UserService : IUserService
             {
                 busSchedulesById.TryGetValue(i.ServiceId ?? 0, out var schedule);
                 tripsById.TryGetValue(i.TripId ?? 0, out var trip);
+                var targetCompanyId = schedule?.CompanyId ?? 0;
+                var isReviewed = reviews.Any(r => 
+                    r.TripId == i.TripId && 
+                    r.TargetType == ReviewTargetType.BusCompany && 
+                    r.TargetId == targetCompanyId);
 
                 return new BusHistoryItemDto
                 {
                     TripId = i.TripId ?? 0,
                     ItineraryId = i.Id,
                     ServiceId = schedule?.Id ?? i.ServiceId ?? 0,
+                    CompanyId = targetCompanyId,
                     TripTitle = trip?.Title ?? "Chuyen di",
                     CompanyName = schedule?.Company?.Name ?? "Nha xe",
                     FromDestination = schedule?.FromDest?.Name ?? string.Empty,
@@ -186,7 +203,8 @@ public class UserService : IUserService
                     ArrivalTime = schedule?.ArrivalTime?.ToString("O"),
                     Quantity = i.Quantity ?? 0,
                     BookedPrice = i.BookedPrice ?? 0,
-                    Status = trip?.Status?.ToString() ?? TripStatus.Draft.ToString()
+                    Status = trip?.Status?.ToString() ?? TripStatus.Draft.ToString(),
+                    IsReviewed = isReviewed
                 };
             })
             .ToList();

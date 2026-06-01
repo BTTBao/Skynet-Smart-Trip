@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../widgets/checkout/resort_summary_card.dart';
 import '../main_shell.dart'; // To go back to home
+import '../trip/trip_itinerary_detail_view.dart';
 
 class PaymentSuccessScreen extends StatelessWidget {
   final int bookingId;
@@ -134,8 +135,21 @@ class PaymentSuccessScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // Navigate back to home
-                    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const MainShell()), (route) => false);
+                    // Reset stack to MainShell and push TripItineraryDetailView
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MainShell()),
+                      (route) => false,
+                    );
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TripItineraryDetailView(
+                          tripId: bookingId,
+                          tripTitle: hotelName,
+                        ),
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.airplane_ticket, color: Colors.black),
                   label: const Text('Xem vé điện tử', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
