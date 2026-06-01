@@ -273,8 +273,8 @@ class _HomeViewState extends State<HomeView> {
   }
 
   void _openExplore() {
-    if (widget.onOpenExplore != null) {
-      widget.onOpenExplore!();
+    if (widget.onNavigateToExplore != null) {
+      widget.onNavigateToExplore!();
       return;
     }
 

@@ -71,7 +71,6 @@ public class PayOsPaymentService : IPaymentService
         {
             TripId = tripId,
             Amount = request.Amount,
-            TripId = ExtractTripId(request.Metadata),
             OrderCode = request.OrderCode,
             Description = request.Description.Trim(),
             ReturnUrl = request.ReturnUrl.Trim(),

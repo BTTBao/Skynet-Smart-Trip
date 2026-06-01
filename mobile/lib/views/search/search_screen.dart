@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/explore_post.dart';
 import '../../providers/destination_provider.dart';
 import '../catalog/search_view.dart';
+import '../destination/destination_article_screen.dart';
 import '../explore/explore_view.dart';
 import '../main_shell.dart';
 import '../resort_search/resort_search_screen.dart';

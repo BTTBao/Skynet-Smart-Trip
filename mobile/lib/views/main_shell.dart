@@ -34,28 +34,22 @@ class _MainShellState extends State<MainShell> implements MainShellController {
   static const primaryColor = Color(0xFF80ED99);
 
   int _currentIndex = 0;
+  Timer? _notificationTimer;
+  String? _exploreCitySlug;
+  String? _exploreCityName;
+  int _exploreViewVersion = 0;
 
-  late final List<Widget> _pages = [
-    HomeView(
-      onNavigateToExplore: () => setState(() => _currentIndex = 2),
-    ),
-    ChatbotView(),
-    const SearchScreen(),
-    const MyTripsView(),
-    const ProfileView(),
-  ];
+  late final Widget _homePage = HomeView(
+    onNavigateToExplore: () => setState(() => _currentIndex = 3),
+  );
+  late final Widget _chatbotPage = ChatbotView();
+  late final Widget _searchPage = const SearchScreen();
+  late final Widget _tripsPage = const MyTripsView();
+  late final Widget _profilePage = const ProfileView();
 
   @override
   void initState() {
     super.initState();
-
-    _pages = [
-      HomeView(onOpenExplore: () => setState(() => _currentIndex = 2)),
-      ChatbotView(),
-      const SearchScreen(),
-      const MyTripsView(),
-      const ProfileView(),
-    ];
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProfileProvider>().fetchProfile(forceRefresh: false);
