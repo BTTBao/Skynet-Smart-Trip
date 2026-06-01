@@ -8,9 +8,15 @@ import '../../utils/app_currency_formatter.dart';
 import '../catalog/bus_detail_view.dart';
 import '../catalog/hotel_detail_view.dart';
 import '../catalog/search_view.dart';
+import '../resort_detail/resort_detail_screen.dart';
+import '../resort_search/resort_search_screen.dart';
+import '../transport/transport_search_screen.dart';
+import '../destination/destination_article_screen.dart';
 
 class HomeView extends StatefulWidget {
-  const HomeView({super.key});
+  const HomeView({super.key, this.onNavigateToExplore});
+
+  final VoidCallback? onNavigateToExplore;
 
   @override
   State<HomeView> createState() => _HomeViewState();
@@ -90,14 +96,22 @@ class _HomeViewState extends State<HomeView> {
                         label: 'Khách sạn',
                         color: const Color(0xFF3B82F6),
                         background: const Color(0xFFEFF6FF),
-                        onTap: _openSearch,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const ResortSearchScreen()),
+                          );
+                        },
                       ),
                       _CategoryItem(
                         icon: Icons.directions_bus_rounded,
                         label: 'Xe khách',
                         color: const Color(0xFFF97316),
                         background: const Color(0xFFFFF7ED),
-                        onTap: () => _openSearch(mode: SearchMode.bus),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const TransportSearchScreen()),
+                          );
+                        },
                       ),
                       _CategoryItem(
                         icon: Icons.map_outlined,
@@ -111,7 +125,13 @@ class _HomeViewState extends State<HomeView> {
                         label: 'Khám phá',
                         color: const Color(0xFF22C55E),
                         background: const Color(0xFFF0FDF4),
-                        onTap: _openSearch,
+                        onTap: () {
+                          if (widget.onNavigateToExplore != null) {
+                            widget.onNavigateToExplore!();
+                          } else {
+                            _openSearch();
+                          }
+                        },
                       ),
                     ],
                   ),
@@ -134,10 +154,9 @@ class _HomeViewState extends State<HomeView> {
                         separatorBuilder: (_, _) => const SizedBox(width: 14),
                         itemBuilder: (context, index) => _DestinationCard(
                           item: home.popularDestinations[index],
-                          onTap: () => _openSearch(
-                            mode: SearchMode.hotel,
-                            destinationId: home.popularDestinations[index].id,
-                            initialQuery: home.popularDestinations[index].name,
+                          onTap: () => _showDestinationActionSheet(
+                            home.popularDestinations[index].name,
+                            home.popularDestinations[index].id,
                           ),
                         ),
                       ),
@@ -192,7 +211,13 @@ class _HomeViewState extends State<HomeView> {
                   _SectionHeader(
                     title: 'Gợi ý cho bạn',
                     actionLabel: 'Khám phá',
-                    onTap: _openSearch,
+                    onTap: () {
+                      if (widget.onNavigateToExplore != null) {
+                        widget.onNavigateToExplore!();
+                      } else {
+                        _openSearch();
+                      }
+                    },
                   ),
                   const SizedBox(height: 14),
                   if (provider.isLoadingHome && home == null)
@@ -247,15 +272,188 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  void _openExplore() {
+    if (widget.onNavigateToExplore != null) {
+      widget.onNavigateToExplore!();
+      return;
+    }
+
+    _openSearch();
+  }
+
   void _openHotel(CatalogHotelCard hotel) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => HotelDetailView(hotelId: hotel.id)),
+      MaterialPageRoute(
+        builder: (_) => ResortDetailScreen(hotelId: hotel.id),
+      ),
     );
   }
 
   void _openBus(CatalogBusCard bus) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => BusDetailView(scheduleId: bus.id)),
+      MaterialPageRoute(
+        builder: (_) => const TransportSearchScreen(),
+      ),
+    );
+  }
+
+  void _showDestinationActionSheet(String destinationName, int destinationId) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Container(
+          padding: const EdgeInsets.only(left: 24, right: 24, top: 16, bottom: 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 50,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Khám phá $destinationName',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.black87),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Chọn loại hình dịch vụ bạn muốn trải nghiệm.',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                ),
+                const SizedBox(height: 24),
+                _buildActionOptionCard(
+                  sheetContext,
+                  icon: Icons.hotel_rounded,
+                  color: const Color(0xFF0D6B42),
+                  label: 'LƯU TRÚ',
+                  description: 'Tìm Khách sạn / Resort sang trọng',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ResortSearchScreen(
+                          destinationId: destinationId,
+                          destinationName: destinationName,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildActionOptionCard(
+                  sheetContext,
+                  icon: Icons.directions_bus_rounded,
+                  color: const Color(0xFF1B5E20),
+                  label: 'DI CHUYỂN',
+                  description: 'Đặt vé xe Limousine chất lượng cao',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TransportSearchScreen(
+                          toDestId: destinationId,
+                          toDestName: destinationName,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const DestinationArticleScreen()));
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.menu_book_rounded, color: Colors.green[800], size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Đọc cẩm nang chi tiết về $destinationName',
+                          style: TextStyle(
+                            color: Colors.green[800],
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActionOptionCard(
+    BuildContext sheetContext, {
+    required IconData icon,
+    required Color color,
+    required String label,
+    required String description,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+          ],
+        ),
+      ),
     );
   }
 }

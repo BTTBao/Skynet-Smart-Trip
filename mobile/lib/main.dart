@@ -1,17 +1,29 @@
 import 'dart:ui' show PointerDeviceKind;
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'core/app_theme.dart';
-import 'views/auth/splash_screen.dart';
-import 'providers/providers.dart';
-import 'providers/auth_provider.dart';
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'core/app_theme.dart';
+import 'firebase_options.dart';
+import 'providers/auth_provider.dart';
+import 'providers/providers.dart';
+import 'services/fcm_service.dart';
+import 'views/auth/splash_screen.dart';
+
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (!kIsWeb) {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    await FcmService.instance.initialize(appNavigatorKey);
+  }
   await dotenv.load(fileName: ".env");
 
   runApp(
@@ -22,6 +34,13 @@ void main() async {
         ChangeNotifierProvider(create: (_) => CatalogProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => TripProvider()),
+        ChangeNotifierProvider(create: (_) => ExploreProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(
+          create: (_) => DestinationProvider()..fetchDestinations(),
+        ),
+        ChangeNotifierProvider(create: (_) => HotelProvider()),
+        ChangeNotifierProvider(create: (_) => BusProvider()),
         ChangeNotifierProvider(
           create: (_) => AppSettingsProvider()..initialize(),
         ),
@@ -39,6 +58,7 @@ class MyApp extends StatelessWidget {
     final appSettings = context.watch<AppSettingsProvider>();
 
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       title: 'Skynet Smart Trip',
       debugShowCheckedModeBanner: false,
       scrollBehavior: const _AppScrollBehavior(),

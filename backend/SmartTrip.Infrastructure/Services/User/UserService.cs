@@ -1,4 +1,4 @@
-using SmartTrip.Application.DTOs.User;
+﻿using SmartTrip.Application.DTOs.User;
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
@@ -6,12 +6,17 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using System.Globalization;
+using Microsoft.Extensions.Logging;
+using SmartTrip.Application.DTOs.Notifications;
+using SmartTrip.Application.Interfaces.Email;
+using SmartTrip.Application.Interfaces.Notifications;
 
 namespace SmartTrip.Infrastructure.Services.User;
 
 public class UserService : IUserService
 {
     private const string PushNotificationKey = "push_notifications";
+    private const string EmailNotificationKey = "email_notifications";
     private const string EmailOfferKey = "email_offers";
     private const string DarkModeKey = "dark_mode";
     private const string LanguageKey = "language";
@@ -20,12 +25,24 @@ public class UserService : IUserService
     private readonly ApplicationDbContext _context;
     private readonly IWebHostEnvironment _environment;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IEmailService _emailService;
+    private readonly INotificationService _notificationService;
+    private readonly ILogger<UserService> _logger;
 
-    public UserService(ApplicationDbContext context, IWebHostEnvironment environment, IHttpContextAccessor httpContextAccessor)
+    public UserService(
+        ApplicationDbContext context,
+        IWebHostEnvironment environment,
+        IHttpContextAccessor httpContextAccessor,
+        IEmailService emailService,
+        INotificationService notificationService,
+        ILogger<UserService> logger)
     {
         _context = context;
         _environment = environment;
         _httpContextAccessor = httpContextAccessor;
+        _emailService = emailService;
+        _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task<UserDto?> GetUserProfileAsync(int userId)
@@ -79,6 +96,11 @@ public class UserService : IUserService
             return null;
         }
 
+        var reviews = await _context.Reviews
+            .AsNoTracking()
+            .Where(r => r.UserId == userId)
+            .ToListAsync();
+
         var trips = await _context.Trips
             .AsNoTracking()
             .Include(t => t.Destination)
@@ -128,12 +150,17 @@ public class UserService : IUserService
             {
                 hotelsById.TryGetValue(i.ServiceId ?? 0, out var hotel);
                 tripsById.TryGetValue(i.TripId ?? 0, out var trip);
+                var targetHotelId = hotel?.Id ?? i.ServiceId ?? 0;
+                var isReviewed = reviews.Any(r => 
+                    r.TripId == i.TripId && 
+                    r.TargetType == ReviewTargetType.Hotel && 
+                    r.TargetId == targetHotelId);
 
                 return new HotelHistoryItemDto
                 {
                     TripId = i.TripId ?? 0,
                     ItineraryId = i.Id,
-                    ServiceId = hotel?.Id ?? i.ServiceId ?? 0,
+                    ServiceId = targetHotelId,
                     TripTitle = trip?.Title ?? "Chuyen di",
                     HotelName = hotel?.Name ?? "Khach san",
                     Address = hotel?.Address ?? string.Empty,
@@ -142,7 +169,8 @@ public class UserService : IUserService
                     CheckOutDate = trip?.EndDate?.ToString("yyyy-MM-dd"),
                     Quantity = i.Quantity ?? 0,
                     BookedPrice = i.BookedPrice ?? 0,
-                    Status = trip?.Status?.ToString() ?? TripStatus.Draft.ToString()
+                    Status = trip?.Status?.ToString() ?? TripStatus.Draft.ToString(),
+                    IsReviewed = isReviewed
                 };
             })
             .ToList();
@@ -172,12 +200,18 @@ public class UserService : IUserService
             {
                 busSchedulesById.TryGetValue(i.ServiceId ?? 0, out var schedule);
                 tripsById.TryGetValue(i.TripId ?? 0, out var trip);
+                var targetCompanyId = schedule?.CompanyId ?? 0;
+                var isReviewed = reviews.Any(r => 
+                    r.TripId == i.TripId && 
+                    r.TargetType == ReviewTargetType.BusCompany && 
+                    r.TargetId == targetCompanyId);
 
                 return new BusHistoryItemDto
                 {
                     TripId = i.TripId ?? 0,
                     ItineraryId = i.Id,
                     ServiceId = schedule?.Id ?? i.ServiceId ?? 0,
+                    CompanyId = targetCompanyId,
                     TripTitle = trip?.Title ?? "Chuyen di",
                     CompanyName = schedule?.Company?.Name ?? "Nha xe",
                     FromDestination = schedule?.FromDest?.Name ?? string.Empty,
@@ -186,7 +220,8 @@ public class UserService : IUserService
                     ArrivalTime = schedule?.ArrivalTime?.ToString("O"),
                     Quantity = i.Quantity ?? 0,
                     BookedPrice = i.BookedPrice ?? 0,
-                    Status = trip?.Status?.ToString() ?? TripStatus.Draft.ToString()
+                    Status = trip?.Status?.ToString() ?? TripStatus.Draft.ToString(),
+                    IsReviewed = isReviewed
                 };
             })
             .ToList();
@@ -373,6 +408,7 @@ public class UserService : IUserService
         }
 
         await UpsertPreferenceAsync(userId, PushNotificationKey, request.PushNotificationEnabled.ToString().ToLowerInvariant());
+        await UpsertPreferenceAsync(userId, EmailNotificationKey, request.EmailNotificationEnabled.ToString().ToLowerInvariant());
         await UpsertPreferenceAsync(userId, EmailOfferKey, request.EmailOfferEnabled.ToString().ToLowerInvariant());
         await UpsertPreferenceAsync(userId, DarkModeKey, request.DarkModeEnabled.ToString().ToLowerInvariant());
         await UpsertPreferenceAsync(userId, LanguageKey, request.Language.Trim().ToLowerInvariant());
@@ -433,6 +469,19 @@ public class UserService : IUserService
         user.RefreshTokenExpiry = null;
 
         await _context.SaveChangesAsync();
+
+        await _notificationService.CreateAsync(new CreateNotificationDto
+        {
+            UserId = userId,
+            Title = "Mật khẩu đã được thay đổi",
+            Message = "Mật khẩu tài khoản SmartTrip của bạn đã được cập nhật thành công.",
+            Type = "account.password_changed",
+            ReferenceType = "account",
+            ReferenceId = userId,
+            ActionUrl = "/profile/security"
+        });
+
+        await SendPasswordChangedEmailAsync(user);
 
         return new UserActionResultDto
         {
@@ -601,6 +650,7 @@ public class UserService : IUserService
             Email = user.Email,
             IsEmailVerified = user.IsEmailVerified,
             PushNotificationEnabled = GetBoolPreference(preferences, PushNotificationKey, true),
+            EmailNotificationEnabled = GetBoolPreference(preferences, EmailNotificationKey, true),
             EmailOfferEnabled = GetBoolPreference(preferences, EmailOfferKey, false),
             DarkModeEnabled = GetBoolPreference(preferences, DarkModeKey, false),
             Language = GetStringPreference(preferences, LanguageKey, "vi"),
@@ -643,6 +693,25 @@ public class UserService : IUserService
         existing.UpdatedAt = DateTime.UtcNow;
     }
 
+    private async Task SendPasswordChangedEmailAsync(SmartTrip.Domain.Entities.User user)
+    {
+        try
+        {
+            if (!await _notificationService.AreEmailNotificationsEnabledAsync(user.Id))
+            {
+                return;
+            }
+
+            await _emailService.SendPasswordChangedEmailAsync(
+                user.Email,
+                user.FullName ?? user.Email);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send password changed email for user {UserId}", user.Id);
+        }
+    }
+
     private static string GetMemberTier(int loyaltyPoints)
     {
         if (loyaltyPoints >= 1000) return "Platinum Member";
@@ -651,3 +720,4 @@ public class UserService : IUserService
         return "Member";
     }
 }
+

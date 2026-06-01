@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/user_settings.dart';
 import '../services/secure_storage_service.dart';
 import '../utils/app_currency_formatter.dart';
+import '../utils/app_storage.dart';
 
 class AppSettingsProvider with ChangeNotifier {
   static const _themeKey = 'app_theme_mode';
@@ -93,7 +95,7 @@ class AppSettingsProvider with ChangeNotifier {
   }
 
   Future<void> _persist() async {
-    await Future.wait([
+    await Future.wait<void>([
       SecureStorageService.write(
         key: _themeKey,
         value: _themeMode == ThemeMode.dark ? 'dark' : 'light',

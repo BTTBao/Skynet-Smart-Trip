@@ -23,6 +23,7 @@ public class ChatResponseDto
     public List<QuickActionDto>? QuickActions { get; set; }
     public WeatherInfoDto? WeatherInfo { get; set; }
     public List<HotelCardDto>? HotelCards { get; set; }
+    public List<TransportCardDto>? TransportCards { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }
 
@@ -80,16 +81,71 @@ public class HotelRoomCardDto
     public int AvailableQty { get; set; }
 }
 
+public class TransportCardDto
+{
+    public int? ScheduleId { get; set; }
+    public int? FromDestinationId { get; set; }
+    public string? FromDestinationName { get; set; }
+    public int? ToDestinationId { get; set; }
+    public string? ToDestinationName { get; set; }
+    public string CompanyName { get; set; } = string.Empty;
+    public decimal? Price { get; set; }
+    public DateTime? DepartureTime { get; set; }
+    public DateTime? ArrivalTime { get; set; }
+    public int? TotalSeats { get; set; }
+}
+
 // === ITINERARY ===
 
 public class ItineraryDto
 {
     public string Title { get; set; } = string.Empty;
     public string Destination { get; set; } = string.Empty;
+    public int? DestinationId { get; set; }
     public int TotalDays { get; set; }
     public string? EstimatedBudget { get; set; }
     public string? TravelStyle { get; set; }
+    public HotelPlanSuggestionDto? HotelSuggestion { get; set; }
+    public TransportPlanSuggestionDto? TransportSuggestion { get; set; }
+    public ItineraryCostBreakdownDto? CostBreakdown { get; set; }
     public List<ItineraryDayDto> Days { get; set; } = new();
+}
+
+public class HotelPlanSuggestionDto
+{
+    public int? HotelId { get; set; }
+    public int? RoomId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? RoomType { get; set; }
+    public string? Address { get; set; }
+    public string? DestinationName { get; set; }
+    public decimal? PricePerNight { get; set; }
+    public int? Capacity { get; set; }
+    public int? AvailableQty { get; set; }
+}
+
+public class TransportPlanSuggestionDto
+{
+    public int? ScheduleId { get; set; }
+    public int? FromDestinationId { get; set; }
+    public string? FromDestinationName { get; set; }
+    public int? ToDestinationId { get; set; }
+    public string? ToDestinationName { get; set; }
+    public string CompanyName { get; set; } = string.Empty;
+    public decimal? Price { get; set; }
+    public DateTime? DepartureTime { get; set; }
+    public DateTime? ArrivalTime { get; set; }
+    public int? TotalSeats { get; set; }
+}
+
+public class ItineraryCostBreakdownDto
+{
+    public decimal? TransportCost { get; set; }
+    public decimal? HotelCost { get; set; }
+    public decimal? FoodCost { get; set; }
+    public decimal? ActivityCost { get; set; }
+    public decimal? TotalCost { get; set; }
+    public string Currency { get; set; } = "VND";
 }
 
 public class ItineraryDayDto

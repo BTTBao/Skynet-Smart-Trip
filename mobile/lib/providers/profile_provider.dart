@@ -4,6 +4,7 @@ import '../models/user_favorite.dart';
 import '../models/user_profile.dart';
 import '../models/user_settings.dart';
 import '../services/api_service_base.dart';
+import '../services/fcm_service.dart';
 import '../services/profile_service.dart';
 
 class ProfileProvider with ChangeNotifier {
@@ -33,7 +34,8 @@ class ProfileProvider with ChangeNotifier {
   bool get isSavingSettings => _isSavingSettings;
   bool get isChangingPassword => _isChangingPassword;
   String? get error => _error;
-  bool get hasSessionExpired => _lastStatusCode == 401;
+  bool get hasSessionExpired =>
+      _lastStatusCode == 401 || _lastStatusCode == 404;
 
   Future<void> fetchProfile({bool forceRefresh = true}) async {
     if (!forceRefresh && (_profileData != null || _isLoading)) {
@@ -155,7 +157,18 @@ class ProfileProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      final previousPushEnabled = _settings?.pushNotificationEnabled ?? true;
       _settings = await _apiService.updateSettings(settings);
+      final currentPushEnabled = _settings?.pushNotificationEnabled ?? true;
+
+      if (previousPushEnabled != currentPushEnabled) {
+        if (currentPushEnabled) {
+          await FcmService.instance.registerCurrentToken();
+        } else {
+          await FcmService.instance.unregisterCurrentToken();
+        }
+      }
+
       return true;
     } catch (error) {
       _setError(error);
@@ -207,8 +220,8 @@ class ProfileProvider with ChangeNotifier {
   void _setError(Object error) {
     if (error is ApiException) {
       _lastStatusCode = error.statusCode;
-      _error = error.isUnauthorized
-          ? 'Phien dang nhap da het han. Vui long dang nhap lai.'
+      _error = error.isUnauthorized || error.statusCode == 404
+          ? 'Phien dang nhap khong con hop le. Vui long dang nhap lai.'
           : error.message;
       return;
     }

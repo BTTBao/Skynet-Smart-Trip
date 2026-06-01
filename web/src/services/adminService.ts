@@ -163,6 +163,9 @@ export interface AdminHotel {
   description: string;
   isAvailable: boolean;
   roomCount: number;
+  availableRoomQty: number;
+  lowestPrice: number;
+  totalRevenue: number;
 }
 
 export interface AdminHotelRequest {
@@ -172,6 +175,29 @@ export interface AdminHotelRequest {
   starRating: number;
   description: string;
   isAvailable: boolean;
+}
+
+export interface AdminRoom {
+  id: number;
+  hotelId: number;
+  roomType: string;
+  capacity: number;
+  pricePerNight: number;
+  commissionRate: number;
+  availableQty: number;
+  isSelling: boolean;
+}
+
+export interface AdminHotelDetail extends AdminHotel {
+  rooms: AdminRoom[];
+}
+
+export interface AdminRoomRequest {
+  roomType: string;
+  capacity: number;
+  pricePerNight: number;
+  commissionRate: number;
+  availableQty: number;
 }
 
 export interface AdminPromotion {
@@ -407,6 +433,11 @@ export const adminService = {
     return response.data;
   },
 
+  getHotelDetail: async (hotelId: number): Promise<AdminHotelDetail> => {
+    const response = await apiClient.get<AdminHotelDetail>(`/admin/hotels/${hotelId}`);
+    return response.data;
+  },
+
   createHotel: async (payload: AdminHotelRequest): Promise<AdminHotel> => {
     const response = await apiClient.post<AdminHotel>('/admin/hotels', payload);
     return response.data;
@@ -419,6 +450,20 @@ export const adminService = {
 
   deleteHotel: async (hotelId: number) => {
     await apiClient.delete(`/admin/hotels/${hotelId}`);
+  },
+
+  createRoom: async (hotelId: number, payload: AdminRoomRequest): Promise<AdminRoom> => {
+    const response = await apiClient.post<AdminRoom>(`/admin/hotels/${hotelId}/rooms`, payload);
+    return response.data;
+  },
+
+  updateRoom: async (roomId: number, payload: AdminRoomRequest): Promise<AdminRoom> => {
+    const response = await apiClient.put<AdminRoom>(`/admin/rooms/${roomId}`, payload);
+    return response.data;
+  },
+
+  deleteRoom: async (roomId: number) => {
+    await apiClient.delete(`/admin/rooms/${roomId}`);
   },
 
   getPromotions: async (): Promise<AdminPromotion[]> => {

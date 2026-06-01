@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
@@ -7,7 +7,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SmartTrip.Application.Configurations;
+using SmartTrip.Application.DTOs.Notifications;
 using SmartTrip.Application.DTOs.Payment;
+using SmartTrip.Application.Interfaces.Email;
+using SmartTrip.Application.Interfaces.Notifications;
 using SmartTrip.Application.Interfaces.Payment;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
@@ -21,17 +24,23 @@ public class PayOsPaymentService : IPaymentService
     private readonly IApplicationDbContext _context;
     private readonly HttpClient _httpClient;
     private readonly PayOsSettings _settings;
+    private readonly INotificationService _notificationService;
+    private readonly IEmailService _emailService;
     private readonly ILogger<PayOsPaymentService> _logger;
 
     public PayOsPaymentService(
         IApplicationDbContext context,
         HttpClient httpClient,
         IOptions<PayOsSettings> options,
+        INotificationService notificationService,
+        IEmailService emailService,
         ILogger<PayOsPaymentService> logger)
     {
         _context = context;
         _httpClient = httpClient;
         _settings = options.Value;
+        _notificationService = notificationService;
+        _emailService = emailService;
         _logger = logger;
     }
 
@@ -57,8 +66,10 @@ public class PayOsPaymentService : IPaymentService
         }
 
         var now = DateTime.UtcNow;
+        var tripId = TryGetTripId(request.Metadata);
         var payment = new SmartTrip.Domain.Entities.Payment
         {
+            TripId = tripId,
             Amount = request.Amount,
             OrderCode = request.OrderCode,
             Description = request.Description.Trim(),
@@ -178,6 +189,8 @@ public class PayOsPaymentService : IPaymentService
         }
 
         var payment = await _context.Payments
+            .Include(item => item.Trip)
+                .ThenInclude(trip => trip!.User)
             .FirstOrDefaultAsync(item => item.OrderCode == orderCode.Value, cancellationToken);
 
         if (payment == null)
@@ -201,9 +214,32 @@ public class PayOsPaymentService : IPaymentService
         if (webhookStatus == PaymentStatus.Paid)
         {
             payment.PaidAt = ParsePayOsDateTime(GetString(webhook.Data, "transactionDateTime")) ?? DateTime.UtcNow;
+            if (payment.TripId.HasValue)
+            {
+                var trip = await _context.Trips
+                    .FirstOrDefaultAsync(item => item.Id == payment.TripId.Value, cancellationToken);
+                if (trip != null && trip.Status != TripStatus.Cancelled)
+                {
+                    trip.Status = TripStatus.Paid;
+                }
+
+                await MarkBusSeatsBookedAsync(payment, cancellationToken);
+            }
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        if (webhookStatus == PaymentStatus.Paid)
+        {
+            await NotifyPaymentSucceededAsync(payment, cancellationToken);
+            await SendPaymentSucceededEmailAsync(payment, cancellationToken);
+        }
+        else if (webhookStatus is PaymentStatus.Failed or PaymentStatus.Cancelled or PaymentStatus.Expired)
+        {
+            await NotifyPaymentFailedAsync(payment, webhookStatus, cancellationToken);
+            await SendPaymentFailedEmailAsync(payment, webhookStatus, cancellationToken);
+        }
+
         return MapPayment(payment);
     }
 
@@ -246,6 +282,76 @@ public class PayOsPaymentService : IPaymentService
         if (!Uri.TryCreate(request.CancelUrl, UriKind.Absolute, out _))
         {
             throw new ArgumentException("CancelUrl must be an absolute URL.");
+        }
+    }
+
+    private static int? TryGetTripId(JsonElement? metadata)
+    {
+        if (!metadata.HasValue || metadata.Value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        var data = metadata.Value;
+        if (!data.TryGetProperty("tripId", out var tripIdElement) &&
+            !data.TryGetProperty("TripId", out tripIdElement))
+        {
+            return null;
+        }
+
+        if (tripIdElement.ValueKind == JsonValueKind.Number && tripIdElement.TryGetInt32(out var tripId))
+        {
+            return tripId > 0 ? tripId : null;
+        }
+
+        return int.TryParse(tripIdElement.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedTripId) &&
+               parsedTripId > 0
+            ? parsedTripId
+            : null;
+    }
+
+    private async Task MarkBusSeatsBookedAsync(SmartTrip.Domain.Entities.Payment payment, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(payment.MetadataJson))
+        {
+            return;
+        }
+
+        using var document = JsonDocument.Parse(payment.MetadataJson);
+        var metadata = document.RootElement;
+        var type = GetString(metadata, "type");
+        if (!string.Equals(type, "BUS", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var scheduleId = GetInt(metadata, "scheduleId");
+        if (!scheduleId.HasValue || !metadata.TryGetProperty("selectedSeats", out var seatsElement) ||
+            seatsElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        var selectedSeats = seatsElement
+            .EnumerateArray()
+            .Select(item => item.GetString())
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .ToList();
+
+        if (selectedSeats.Count == 0)
+        {
+            return;
+        }
+
+        var seats = await _context.Seats
+            .Where(item => item.ScheduleId == scheduleId.Value &&
+                           item.SeatNumber != null &&
+                           selectedSeats.Contains(item.SeatNumber))
+            .ToListAsync(cancellationToken);
+
+        foreach (var seat in seats)
+        {
+            seat.Status = SeatStatus.Booked;
         }
     }
 
@@ -363,6 +469,121 @@ public class PayOsPaymentService : IPaymentService
         };
     }
 
+    private static int? ExtractTripId(JsonElement? metadata)
+    {
+        if (!metadata.HasValue || metadata.Value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        if (!metadata.Value.TryGetProperty("tripId", out var value))
+        {
+            return null;
+        }
+
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var tripId))
+        {
+            return tripId;
+        }
+
+        return int.TryParse(value.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : null;
+    }
+
+    private async Task NotifyPaymentSucceededAsync(SmartTrip.Domain.Entities.Payment payment, CancellationToken cancellationToken)
+    {
+        await TryCreateNotificationAsync(payment, new CreateNotificationDto
+        {
+            UserId = payment.Trip?.UserId ?? 0,
+            Title = "Thanh toán thành công",
+            Message = $"Thanh toán cho \"{payment.Trip?.Title ?? payment.Description ?? "booking"}\" đã hoàn tất.",
+            Type = "payment.succeeded",
+            ReferenceType = "payment",
+            ReferenceId = payment.Id,
+            ActionUrl = payment.TripId.HasValue ? $"/trips/{payment.TripId.Value}" : null
+        }, cancellationToken);
+    }
+
+    private async Task NotifyPaymentFailedAsync(SmartTrip.Domain.Entities.Payment payment, PaymentStatus status, CancellationToken cancellationToken)
+    {
+        await TryCreateNotificationAsync(payment, new CreateNotificationDto
+        {
+            UserId = payment.Trip?.UserId ?? 0,
+            Title = "Thanh toán chưa hoàn tất",
+            Message = $"Thanh toán cho \"{payment.Trip?.Title ?? payment.Description ?? "booking"}\" đang ở trạng thái {NormalizeStatus(status)}.",
+            Type = "payment.failed",
+            ReferenceType = "payment",
+            ReferenceId = payment.Id,
+            ActionUrl = payment.TripId.HasValue ? $"/trips/{payment.TripId.Value}" : null
+        }, cancellationToken);
+    }
+
+    private async Task TryCreateNotificationAsync(
+        SmartTrip.Domain.Entities.Payment payment,
+        CreateNotificationDto notification,
+        CancellationToken cancellationToken)
+    {
+        if (notification.UserId <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await _notificationService.CreateAsync(notification, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create payment notification for payment {PaymentId}", payment.Id);
+        }
+    }
+
+    private async Task SendPaymentSucceededEmailAsync(SmartTrip.Domain.Entities.Payment payment, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var user = payment.Trip?.User;
+            if (user == null || !await _notificationService.AreEmailNotificationsEnabledAsync(user.Id, cancellationToken))
+            {
+                return;
+            }
+
+            await _emailService.SendPaymentSuccessEmailAsync(
+                user.Email,
+                user.FullName ?? user.Email,
+                payment.Trip?.Title ?? payment.Description ?? "Booking SmartTrip",
+                payment.Amount ?? 0m,
+                payment.TransactionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send payment success email for payment {PaymentId}", payment.Id);
+        }
+    }
+
+    private async Task SendPaymentFailedEmailAsync(SmartTrip.Domain.Entities.Payment payment, PaymentStatus status, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var user = payment.Trip?.User;
+            if (user == null || !await _notificationService.AreEmailNotificationsEnabledAsync(user.Id, cancellationToken))
+            {
+                return;
+            }
+
+            await _emailService.SendPaymentFailedEmailAsync(
+                user.Email,
+                user.FullName ?? user.Email,
+                payment.Trip?.Title ?? payment.Description ?? "Booking SmartTrip",
+                NormalizeStatus(status));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send payment failed email for payment {PaymentId}", payment.Id);
+        }
+    }
+
     private static string? GetString(JsonElement element, string propertyName)
     {
         if (!element.TryGetProperty(propertyName, out var value) || value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
@@ -390,6 +611,23 @@ public class PayOsPaymentService : IPaymentService
             : null;
     }
 
+    private static int? GetInt(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var value))
+        {
+            return null;
+        }
+
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number))
+        {
+            return number;
+        }
+
+        return int.TryParse(value.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : null;
+    }
+
     private static DateTime? ParsePayOsDateTime(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -402,3 +640,4 @@ public class PayOsPaymentService : IPaymentService
             : null;
     }
 }
+
