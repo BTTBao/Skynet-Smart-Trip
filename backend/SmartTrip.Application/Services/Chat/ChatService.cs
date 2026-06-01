@@ -306,8 +306,19 @@ public class ChatService : IChatService
                     Description = h.Description,
                     PricePerNight = GetLowestHotelPrice(h),
                     DestinationName = h.Destination?.Name,
+                    DestinationId = h.DestinationId,
                     Amenities = h.Amenities.Select(a => a.Name ?? string.Empty).ToList(),
-                    IsAvailable = h.IsAvailable
+                    IsAvailable = h.IsAvailable,
+                    Rooms = h.Rooms
+                        .Where(r => (r.AvailableQty ?? 0) > 0)
+                        .Select(r => new HotelRoomCardDto
+                        {
+                            Id = r.Id,
+                            RoomType = r.RoomType ?? "Standard",
+                            PricePerNight = r.PricePerNight ?? 0,
+                            Capacity = r.Capacity ?? 2,
+                            AvailableQty = r.AvailableQty ?? 0
+                        }).ToList()
                 }).ToList();
 
                 if (response.ResponseType == "text")

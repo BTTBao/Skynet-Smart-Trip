@@ -65,8 +65,19 @@ public class HotelCardDto
     public string? Description { get; set; }
     public decimal? PricePerNight { get; set; }
     public string? DestinationName { get; set; }
+    public int? DestinationId { get; set; }
     public List<string>? Amenities { get; set; }
     public bool? IsAvailable { get; set; }
+    public List<HotelRoomCardDto>? Rooms { get; set; }
+}
+
+public class HotelRoomCardDto
+{
+    public int Id { get; set; }
+    public string RoomType { get; set; } = string.Empty;
+    public decimal PricePerNight { get; set; }
+    public int Capacity { get; set; }
+    public int AvailableQty { get; set; }
 }
 
 // === ITINERARY ===

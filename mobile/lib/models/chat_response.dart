@@ -164,8 +164,10 @@ class HotelCard {
   final String? description;
   final double? pricePerNight;
   final String? destinationName;
+  final int? destinationId;
   final List<String>? amenities;
   final bool? isAvailable;
+  final List<HotelRoomCard>? rooms;
 
   HotelCard({
     this.id,
@@ -175,8 +177,10 @@ class HotelCard {
     this.description,
     this.pricePerNight,
     this.destinationName,
+    this.destinationId,
     this.amenities,
     this.isAvailable,
+    this.rooms,
   });
 
   factory HotelCard.fromJson(Map<String, dynamic> json) {
@@ -188,10 +192,42 @@ class HotelCard {
       description: json['description'],
       pricePerNight: (json['pricePerNight'] as num?)?.toDouble(),
       destinationName: json['destinationName'],
+      destinationId: json['destinationId'],
       amenities: json['amenities'] != null
           ? List<String>.from(json['amenities'])
           : null,
       isAvailable: json['isAvailable'],
+      rooms: json['rooms'] != null
+          ? (json['rooms'] as List)
+              .map((e) => HotelRoomCard.fromJson(e))
+              .toList()
+          : null,
+    );
+  }
+}
+
+class HotelRoomCard {
+  final int id;
+  final String roomType;
+  final double pricePerNight;
+  final int capacity;
+  final int availableQty;
+
+  const HotelRoomCard({
+    required this.id,
+    required this.roomType,
+    required this.pricePerNight,
+    required this.capacity,
+    required this.availableQty,
+  });
+
+  factory HotelRoomCard.fromJson(Map<String, dynamic> json) {
+    return HotelRoomCard(
+      id: json['id'] ?? 0,
+      roomType: json['roomType'] ?? 'Standard',
+      pricePerNight: (json['pricePerNight'] as num?)?.toDouble() ?? 0,
+      capacity: json['capacity'] ?? 2,
+      availableQty: json['availableQty'] ?? 0,
     );
   }
 }

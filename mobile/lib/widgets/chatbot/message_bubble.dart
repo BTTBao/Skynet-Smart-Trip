@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/chat_message.dart';
+import '../../models/chat_response.dart';
 import 'destination_card_bubble.dart';
 import 'hotel_card_bubble.dart';
 import 'itinerary_bubble.dart';
@@ -8,8 +9,13 @@ import 'weather_bubble.dart';
 
 class MessageBubble extends StatelessWidget {
   final ChatMessage message;
+  final void Function(HotelCard card)? onBookRoom;
 
-  const MessageBubble({super.key, required this.message});
+  const MessageBubble({
+    super.key,
+    required this.message,
+    this.onBookRoom,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +134,10 @@ class MessageBubble extends StatelessWidget {
 
           // Hotel cards
           if (data.hotelCards != null && data.hotelCards!.isNotEmpty)
-            HotelCardBubble(cards: data.hotelCards!),
+            HotelCardBubble(
+              cards: data.hotelCards!,
+              onBookRoom: onBookRoom,
+            ),
 
           // Itinerary
           if (data.suggestedItinerary != null)
