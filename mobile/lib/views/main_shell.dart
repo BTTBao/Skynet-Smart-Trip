@@ -34,17 +34,16 @@ class _MainShellState extends State<MainShell> implements MainShellController {
   static const primaryColor = Color(0xFF80ED99);
 
   int _currentIndex = 0;
-  Timer? _notificationTimer;
-  String? _exploreCitySlug;
-  String? _exploreCityName;
-  int _exploreViewVersion = 0;
 
-  final Widget _homePage = const HomeView();
-  final Widget _chatbotPage = ChatbotView();
-  final Widget _searchPage = const SearchScreen();
-  final Widget _tripsPage = const MyTripsView();
-  final Widget _profilePage = const ProfileView();
-  late final List<Widget> _pages;
+  late final List<Widget> _pages = [
+    HomeView(
+      onNavigateToExplore: () => setState(() => _currentIndex = 2),
+    ),
+    ChatbotView(),
+    const SearchScreen(),
+    const MyTripsView(),
+    const ProfileView(),
+  ];
 
   @override
   void initState() {

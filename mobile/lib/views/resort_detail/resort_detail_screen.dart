@@ -108,7 +108,7 @@ class _ResortDetailScreenState extends State<ResortDetailScreen> {
             // Room types
             _buildRoomTypesSection(hotel),
             const Divider(color: Color(0xFFEEEEEE), thickness: 1),
-            ResortLocationMap(),
+            ResortLocationMap(location: hotel.address),
             const Divider(color: Color(0xFFEEEEEE), thickness: 1),
             ResortReviews(reviews: hotel.reviews),
             const SizedBox(height: 20),

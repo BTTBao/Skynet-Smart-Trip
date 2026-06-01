@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using SmartTrip.Application.Interfaces.Email;
 
 namespace SmartTrip.API.Controllers;
 
@@ -29,15 +30,14 @@ public class TripController : ControllerBase
     private readonly IEmailService _emailService;
     private readonly ILogger<TripController> _logger;
     private readonly ApplicationDbContext _context;
+    private readonly IEmailService _emailService;
 
     public TripController(
         ITripService tripService,
         IItineraryService itineraryService,
         ITripServiceOptionService optionService,
-        INotificationService notificationService,
-        IEmailService emailService,
-        ILogger<TripController> logger,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        IEmailService emailService)
     {
         _tripService = tripService;
         _itineraryService = itineraryService;
@@ -46,6 +46,7 @@ public class TripController : ControllerBase
         _emailService = emailService;
         _logger = logger;
         _context = context;
+        _emailService = emailService;
     }
 
     [HttpGet]
@@ -401,7 +402,55 @@ public class TripController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
-            await TryNotifyConfirmedPaymentAsync(trip, payment);
+
+            // Send booking confirmation email asynchronously
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    // Create a new scope to safely access DbContext inside a background task
+                    using (var scope = HttpContext.RequestServices.CreateScope())
+                    {
+                        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                        var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+
+                        var dbTrip = await dbContext.Trips.FirstOrDefaultAsync(t => t.Id == tripId);
+                        if (dbTrip == null) return;
+
+                        var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == dbTrip.UserId);
+                        if (user != null && !string.IsNullOrWhiteSpace(user.Email))
+                        {
+                            var bookingCode = $"ST{dbTrip.Id}";
+                            var hotelName = dbTrip.Title ?? "Khách sạn & Resort";
+                            var dateRange = dbTrip.StartDate.HasValue && dbTrip.EndDate.HasValue 
+                                ? $"{dbTrip.StartDate.Value:dd/MM/yyyy} - {dbTrip.EndDate.Value:dd/MM/yyyy}"
+                                : "Chi tiết hành trình";
+                            var roomInfo = "Chi tiết phòng và các dịch vụ xem tại ứng dụng di động SmartTrip";
+                            var totalPrice = $"{dbTrip.TotalAmount:N0}đ";
+                            var paymentMethodName = request.PaymentMethod == "Momo" ? "Ví điện tử MoMo" 
+                                                   : request.PaymentMethod == "Zalopay" ? "Ví điện tử ZaloPay" 
+                                                   : request.PaymentMethod == "Promotion" ? "Khuyến mãi (0đ)"
+                                                   : "Thẻ ngân hàng";
+
+                            await emailService.SendBookingConfirmationEmailAsync(
+                                user.Email,
+                                user.FullName ?? user.Email,
+                                bookingCode,
+                                hotelName,
+                                dateRange,
+                                roomInfo,
+                                totalPrice,
+                                paymentMethodName
+                            );
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Email Error] Failed to send booking confirmation email for trip {tripId}: {ex.Message}");
+                }
+            });
+
             return Ok(new { message = "Thanh toán thành công.", tripId = trip.Id, status = "PAID" });
         }
         catch (Exception ex)

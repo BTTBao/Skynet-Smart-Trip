@@ -143,4 +143,25 @@ class TripService extends ApiService {
 
     handleResponse(response);
   }
+
+  Future<void> submitReview({
+    required int tripId,
+    required String targetType,
+    required int targetId,
+    required int rating,
+    required String comment,
+  }) async {
+    final response = await postWithFallback(
+      '/reviews',
+      body: jsonEncode({
+        'tripId': tripId,
+        'targetType': targetType,
+        'targetId': targetId,
+        'rating': rating,
+        'comment': comment,
+      }),
+      requireAuth: true,
+    );
+    handleResponse(response);
+  }
 }

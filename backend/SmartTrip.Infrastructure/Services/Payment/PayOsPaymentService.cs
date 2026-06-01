@@ -66,8 +66,10 @@ public class PayOsPaymentService : IPaymentService
         }
 
         var now = DateTime.UtcNow;
+        var tripId = TryGetTripId(request.Metadata);
         var payment = new SmartTrip.Domain.Entities.Payment
         {
+            TripId = tripId,
             Amount = request.Amount,
             TripId = ExtractTripId(request.Metadata),
             OrderCode = request.OrderCode,
@@ -213,6 +215,17 @@ public class PayOsPaymentService : IPaymentService
         if (webhookStatus == PaymentStatus.Paid)
         {
             payment.PaidAt = ParsePayOsDateTime(GetString(webhook.Data, "transactionDateTime")) ?? DateTime.UtcNow;
+            if (payment.TripId.HasValue)
+            {
+                var trip = await _context.Trips
+                    .FirstOrDefaultAsync(item => item.Id == payment.TripId.Value, cancellationToken);
+                if (trip != null && trip.Status != TripStatus.Cancelled)
+                {
+                    trip.Status = TripStatus.Paid;
+                }
+
+                await MarkBusSeatsBookedAsync(payment, cancellationToken);
+            }
         }
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -270,6 +283,76 @@ public class PayOsPaymentService : IPaymentService
         if (!Uri.TryCreate(request.CancelUrl, UriKind.Absolute, out _))
         {
             throw new ArgumentException("CancelUrl must be an absolute URL.");
+        }
+    }
+
+    private static int? TryGetTripId(JsonElement? metadata)
+    {
+        if (!metadata.HasValue || metadata.Value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        var data = metadata.Value;
+        if (!data.TryGetProperty("tripId", out var tripIdElement) &&
+            !data.TryGetProperty("TripId", out tripIdElement))
+        {
+            return null;
+        }
+
+        if (tripIdElement.ValueKind == JsonValueKind.Number && tripIdElement.TryGetInt32(out var tripId))
+        {
+            return tripId > 0 ? tripId : null;
+        }
+
+        return int.TryParse(tripIdElement.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedTripId) &&
+               parsedTripId > 0
+            ? parsedTripId
+            : null;
+    }
+
+    private async Task MarkBusSeatsBookedAsync(SmartTrip.Domain.Entities.Payment payment, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(payment.MetadataJson))
+        {
+            return;
+        }
+
+        using var document = JsonDocument.Parse(payment.MetadataJson);
+        var metadata = document.RootElement;
+        var type = GetString(metadata, "type");
+        if (!string.Equals(type, "BUS", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var scheduleId = GetInt(metadata, "scheduleId");
+        if (!scheduleId.HasValue || !metadata.TryGetProperty("selectedSeats", out var seatsElement) ||
+            seatsElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        var selectedSeats = seatsElement
+            .EnumerateArray()
+            .Select(item => item.GetString())
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .ToList();
+
+        if (selectedSeats.Count == 0)
+        {
+            return;
+        }
+
+        var seats = await _context.Seats
+            .Where(item => item.ScheduleId == scheduleId.Value &&
+                           item.SeatNumber != null &&
+                           selectedSeats.Contains(item.SeatNumber))
+            .ToListAsync(cancellationToken);
+
+        foreach (var seat in seats)
+        {
+            seat.Status = SeatStatus.Booked;
         }
     }
 
@@ -525,6 +608,23 @@ public class PayOsPaymentService : IPaymentService
         }
 
         return long.TryParse(value.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : null;
+    }
+
+    private static int? GetInt(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var value))
+        {
+            return null;
+        }
+
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number))
+        {
+            return number;
+        }
+
+        return int.TryParse(value.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
             ? parsed
             : null;
     }

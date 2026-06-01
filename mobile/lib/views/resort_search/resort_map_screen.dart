@@ -14,6 +14,10 @@ class ResortMapScreen extends StatelessWidget {
             child: Image.network(
               'https://images.unsplash.com/photo-1524661135-423995f22d0b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1500&q=80',
               fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: const Color(0xFFDDEEE0),
+                child: const Center(child: Text('Map background placeholder')),
+              ),
             ),
           ),
           SafeArea(
@@ -121,6 +125,10 @@ class ResortMapScreen extends StatelessWidget {
                 child: Image.network(
                   'https://images.unsplash.com/photo-1542314831-c6a4d14d837e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80',
                   width: 120, height: 120, fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    width: 120, height: 120, color: const Color(0xFFE2E8F0),
+                    child: const Icon(Icons.hotel, color: Colors.grey),
+                  ),
                 ),
               ),
               Expanded(
