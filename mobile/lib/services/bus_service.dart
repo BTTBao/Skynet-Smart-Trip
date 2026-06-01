@@ -43,6 +43,7 @@ class BusService extends ApiService {
   }) async {
     final response = await postWithFallback(
       '/trips/$tripId/pay',
+      requireAuth: true,
       body: jsonEncode({
         'paymentMethod': paymentMethod,
         'transactionId': transactionId,

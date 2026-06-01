@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/explore_post.dart';
 import '../../providers/destination_provider.dart';
-import '../destination/destination_article_screen.dart';
+import '../catalog/search_view.dart';
+import '../explore/explore_view.dart';
+import '../main_shell.dart';
 import '../resort_search/resort_search_screen.dart';
 import '../transport/transport_search_screen.dart';
 
@@ -385,7 +388,10 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildDestinationsGrid(BuildContext context, DestinationProvider destProvider) {
+  Widget _buildDestinationsGrid(
+    BuildContext context,
+    DestinationProvider destProvider,
+  ) {
     if (destProvider.isLoading) {
       return const Center(
         child: Padding(
@@ -504,22 +510,31 @@ class _SearchScreenState extends State<SearchScreen> {
         final destination = filteredDestinations[index];
         
         String imageUrl = destination.coverImageUrl.trim();
-        if (imageUrl.isEmpty || !imageUrl.startsWith('http') || imageUrl.contains('example.com')) {
+        if (imageUrl.isEmpty ||
+            !imageUrl.startsWith('http') ||
+            imageUrl.contains('example.com')) {
           final lowerName = destination.name.toLowerCase();
           if (lowerName.contains('da nang') || lowerName.contains('đà nẵng')) {
-            imageUrl = 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
-          } else if (lowerName.contains('hoi an') || lowerName.contains('hội an')) {
-            imageUrl = 'https://images.unsplash.com/photo-1588001400947-6385aef4ab0e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+            imageUrl =
+                'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+          } else if (lowerName.contains('hoi an') ||
+              lowerName.contains('hội an')) {
+            imageUrl =
+                'https://images.unsplash.com/photo-1588001400947-6385aef4ab0e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
           } else if (lowerName.contains('hue') || lowerName.contains('huế')) {
-            imageUrl = 'https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
-          } else if (lowerName.contains('da lat') || lowerName.contains('đà lạt')) {
-            imageUrl = 'https://images.unsplash.com/photo-1589308078059-be1415eab4c3?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+            imageUrl =
+                'https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+          } else if (lowerName.contains('da lat') ||
+              lowerName.contains('đà lạt')) {
+            imageUrl =
+                'https://images.unsplash.com/photo-1589308078059-be1415eab4c3?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
           } else if (lowerName.contains('nha trang')) {
             imageUrl = 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
           } else if (lowerName.contains('ha long') || lowerName.contains('hạ long')) {
             imageUrl = 'https://images.unsplash.com/photo-1524230507669-e29f7363618d?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
           } else {
-            imageUrl = 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+            imageUrl =
+                'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
           }
         }
 
@@ -888,8 +903,29 @@ class _SearchScreenState extends State<SearchScreen> {
                 Center(
                   child: TextButton(
                     onPressed: () {
+                      final citySlug = _resolveExploreCitySlug(destination);
                       Navigator.pop(sheetContext);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const DestinationArticleScreen()));
+
+                      final shell =
+                          MainShell.maybeOf(context) ??
+                          MainShell.maybeOf(sheetContext);
+                      if (shell != null) {
+                        shell.openExplore(
+                          citySlug: citySlug,
+                          cityName: destination,
+                        );
+                        return;
+                      }
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ExploreView(
+                            initialCitySlug: citySlug,
+                            initialCityName: destination,
+                          ),
+                        ),
+                      );
                     },
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -907,7 +943,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       ],
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ),
@@ -986,5 +1022,95 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
       ),
     );
+  }
+
+  String? _resolveExploreCitySlug(String destination) {
+    final normalized = _normalize(destination);
+    for (final city in kPopularCities) {
+      if (_normalize(city.name) == normalized || city.slug == normalized) {
+        return city.slug;
+      }
+    }
+
+    return null;
+  }
+
+  String _normalize(String value) {
+    const replacements = {
+      'đ': 'd',
+      'Đ': 'd',
+      'à': 'a',
+      'á': 'a',
+      'ạ': 'a',
+      'ả': 'a',
+      'ã': 'a',
+      'ă': 'a',
+      'ằ': 'a',
+      'ắ': 'a',
+      'ặ': 'a',
+      'ẳ': 'a',
+      'ẵ': 'a',
+      'â': 'a',
+      'ầ': 'a',
+      'ấ': 'a',
+      'ậ': 'a',
+      'ẩ': 'a',
+      'ẫ': 'a',
+      'è': 'e',
+      'é': 'e',
+      'ẹ': 'e',
+      'ẻ': 'e',
+      'ẽ': 'e',
+      'ê': 'e',
+      'ề': 'e',
+      'ế': 'e',
+      'ệ': 'e',
+      'ể': 'e',
+      'ễ': 'e',
+      'ì': 'i',
+      'í': 'i',
+      'ị': 'i',
+      'ỉ': 'i',
+      'ĩ': 'i',
+      'ò': 'o',
+      'ó': 'o',
+      'ọ': 'o',
+      'ỏ': 'o',
+      'õ': 'o',
+      'ô': 'o',
+      'ồ': 'o',
+      'ố': 'o',
+      'ộ': 'o',
+      'ổ': 'o',
+      'ỗ': 'o',
+      'ơ': 'o',
+      'ờ': 'o',
+      'ớ': 'o',
+      'ợ': 'o',
+      'ở': 'o',
+      'ỡ': 'o',
+      'ù': 'u',
+      'ú': 'u',
+      'ụ': 'u',
+      'ủ': 'u',
+      'ũ': 'u',
+      'ư': 'u',
+      'ừ': 'u',
+      'ứ': 'u',
+      'ự': 'u',
+      'ử': 'u',
+      'ữ': 'u',
+      'ỳ': 'y',
+      'ý': 'y',
+      'ỵ': 'y',
+      'ỷ': 'y',
+      'ỹ': 'y',
+    };
+
+    var result = value.trim().toLowerCase().replaceAll(' ', '-');
+    replacements.forEach((source, target) {
+      result = result.replaceAll(source, target);
+    });
+    return result;
   }
 }

@@ -272,6 +272,15 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  void _openExplore() {
+    if (widget.onOpenExplore != null) {
+      widget.onOpenExplore!();
+      return;
+    }
+
+    _openSearch();
+  }
+
   void _openHotel(CatalogHotelCard hotel) {
     Navigator.of(context).push(
       MaterialPageRoute(

@@ -9,16 +9,21 @@ using SmartTrip.Application.Interfaces.Chat;
 using SmartTrip.Application.Interfaces.Catalog;
 using SmartTrip.Application.Interfaces.Auth;
 using SmartTrip.Application.Interfaces.Email;
+using SmartTrip.Application.Interfaces.Explore;
+using SmartTrip.Application.Interfaces.Notifications;
 using SmartTrip.Application.Interfaces.Payment;
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Application.Services.Auth;
 using SmartTrip.Application.Services.Catalog;
 using SmartTrip.Application.Services.Chat;
 using SmartTrip.Application.Services.Email;
+using SmartTrip.Application.Services.Explore;
+using SmartTrip.Application.Services.Notifications;
 using SmartTrip.Infrastructure.Repositories;
 using SmartTrip.Infrastructure.Services.Admin;
 using SmartTrip.Infrastructure.Services.AI;
 using SmartTrip.Infrastructure.Services.Payment;
+using SmartTrip.Infrastructure.Services.Notifications;
 using SmartTrip.Infrastructure.Services.User;
 using System.Text;
 
@@ -68,6 +73,9 @@ public static class ServiceExtensions
         services.AddScoped<ICatalogService, CatalogService>();
         services.AddSingleton<ITokenService, TokenService>();
         services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IExploreService, ExploreService>();
+        services.AddScoped<IFcmPushService, FcmPushService>();
+        services.AddScoped<INotificationService, NotificationService>();
         services.AddHttpClient<IGrokAiService, GrokAiService>();
         services.AddHttpClient<IPaymentService, PayOsPaymentService>((provider, client) =>
         {

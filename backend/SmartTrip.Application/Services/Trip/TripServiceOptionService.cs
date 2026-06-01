@@ -99,31 +99,33 @@ public class TripServiceOptionService : ITripServiceOptionService
 
         if (normalizedServiceType == HotelServiceType)
         {
-            var hotel = await _context.Hotels
+            var room = await _context.Rooms
                 .AsNoTracking()
-                .Include(item => item.Destination)
-                .Include(item => item.Rooms)
-                .FirstOrDefaultAsync(item => item.Id == serviceId && item.IsAvailable != false);
+                .Include(item => item.Hotel)
+                .ThenInclude(item => item!.Destination)
+                .FirstOrDefaultAsync(item =>
+                    item.Id == serviceId &&
+                    item.Hotel != null &&
+                    item.Hotel.IsAvailable != false);
 
-            if (hotel == null)
+            if (room?.Hotel == null)
             {
                 return null;
             }
 
             return new TripServiceOptionDto
             {
-                ServiceId = hotel.Id,
+                ServiceId = room.Id,
                 ServiceType = HotelServiceType,
-                Title = hotel.Name,
+                Title = room.Hotel.Name,
                 Subtitle = string.Join(" • ", new[]
                 {
-                    hotel.Destination != null ? hotel.Destination.Name : null,
-                    hotel.Address
+                    room.RoomType,
+                    room.Hotel.Destination != null ? room.Hotel.Destination.Name : null,
+                    room.Hotel.Address
                 }.Where(value => !string.IsNullOrWhiteSpace(value))),
-                DefaultPrice = hotel.Rooms
-                    .OrderBy(room => room.PricePerNight)
-                    .Select(room => room.PricePerNight)
-                    .FirstOrDefault()
+                DefaultPrice = room.PricePerNight,
+                DefaultCommissionRate = room.CommissionRate
             };
         }
 

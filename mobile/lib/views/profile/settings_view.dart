@@ -150,6 +150,20 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
                 const Divider(height: 1),
                 SwitchListTile.adaptive(
+                  value: settings.emailNotificationEnabled,
+                  onChanged: (value) => _saveSetting(
+                    provider,
+                    settings.copyWith(emailNotificationEnabled: value),
+                  ),
+                  title: Text(
+                    context.tr(
+                      vi: 'Email thong bao quan trong',
+                      en: 'Important email notifications',
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                SwitchListTile.adaptive(
                   value: settings.emailOfferEnabled,
                   onChanged: (value) => _saveSetting(
                     provider,
