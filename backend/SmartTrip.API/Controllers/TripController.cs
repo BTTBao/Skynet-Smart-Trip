@@ -14,7 +14,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using SmartTrip.Application.Interfaces.Email;
 
 namespace SmartTrip.API.Controllers;
 
@@ -30,13 +29,14 @@ public class TripController : ControllerBase
     private readonly IEmailService _emailService;
     private readonly ILogger<TripController> _logger;
     private readonly ApplicationDbContext _context;
-    private readonly IEmailService _emailService;
 
     public TripController(
         ITripService tripService,
         IItineraryService itineraryService,
         ITripServiceOptionService optionService,
         ApplicationDbContext context,
+        INotificationService notificationService,
+        ILogger<TripController> logger,
         IEmailService emailService)
     {
         _tripService = tripService;
@@ -46,7 +46,6 @@ public class TripController : ControllerBase
         _emailService = emailService;
         _logger = logger;
         _context = context;
-        _emailService = emailService;
     }
 
     [HttpGet]
