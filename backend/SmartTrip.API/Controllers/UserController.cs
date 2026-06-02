@@ -288,6 +288,13 @@ public class UserController : ControllerBase
             return BadRequest("Ngay sinh khong hop le");
         }
 
+        if (!string.IsNullOrWhiteSpace(request.IdentityNumber) &&
+            request.IdentityNumber.Trim().Length != 9 &&
+            request.IdentityNumber.Trim().Length != 12)
+        {
+            return BadRequest("So can cuoc cong dan khong hop le (phai co 9 hoac 12 so)");
+        }
+
         var updated = await _userService.UpdateUserProfileAsync(id, request);
         if (!updated)
         {

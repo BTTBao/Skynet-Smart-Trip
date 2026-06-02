@@ -22,6 +22,8 @@ public class User
 
     public DateTime? BirthDate { get; set; }
 
+    public string? IdentityNumber { get; set; }
+
     public AuthProvider? AuthProvider { get; set; }
 
     public string? SocialId { get; set; }

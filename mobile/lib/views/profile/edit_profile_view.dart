@@ -20,6 +20,7 @@ class _EditProfileViewState extends State<EditProfileView> {
   late final TextEditingController _emailController;
   late final TextEditingController _phoneController;
   late final TextEditingController _birthDateController;
+  late final TextEditingController _identityController;
   bool _handledSessionExpired = false;
 
   @override
@@ -30,6 +31,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     _emailController = TextEditingController(text: user?.email ?? '');
     _phoneController = TextEditingController(text: user?.phone ?? '');
     _birthDateController = TextEditingController(text: user?.birthDate ?? '');
+    _identityController = TextEditingController(text: user?.identityNumber ?? '');
   }
 
   @override
@@ -38,6 +40,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     _emailController.dispose();
     _phoneController.dispose();
     _birthDateController.dispose();
+    _identityController.dispose();
     super.dispose();
   }
 
@@ -182,6 +185,27 @@ class _EditProfileViewState extends State<EditProfileView> {
                       onTap: _pickBirthDate,
                       suffixIcon: const Icon(Icons.expand_more),
                     ),
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      label: context.tr(vi: 'So CCCD / CMND', en: 'ID Card Number'),
+                      icon: Icons.credit_card_outlined,
+                      controller: _identityController,
+                      hintText: context.tr(
+                        vi: 'Nhap so CCCD hoac CMND',
+                        en: 'Enter your ID card number',
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        final raw = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                        if (raw.isNotEmpty && raw.length != 9 && raw.length != 12) {
+                          return context.trRead(
+                            vi: 'So CCCD/CMND khong hop le (9 hoac 12 so).',
+                            en: 'ID number must be 9 or 12 digits.',
+                          );
+                        }
+                        return null;
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -295,7 +319,8 @@ class _EditProfileViewState extends State<EditProfileView> {
 
     return _nameController.text.trim() != user.name.trim() ||
         _phoneController.text.trim() != user.phone.trim() ||
-        _birthDateController.text.trim() != (user.birthDate ?? '').trim();
+        _birthDateController.text.trim() != (user.birthDate ?? '').trim() ||
+        _identityController.text.trim() != (user.identityNumber ?? '').trim();
   }
 
   Future<void> _handleBackNavigation(ProfileProvider provider) async {
@@ -379,6 +404,9 @@ class _EditProfileViewState extends State<EditProfileView> {
       name: _nameController.text.trim(),
       phone: _phoneController.text.trim(),
       birthDate: _birthDateController.text.trim(),
+      identityNumber: _identityController.text.trim().isEmpty
+          ? null
+          : _identityController.text.trim(),
     );
 
     final success = await provider.updateProfile(updatedUser);

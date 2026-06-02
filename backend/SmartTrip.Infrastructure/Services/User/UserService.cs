@@ -81,7 +81,8 @@ public class UserService : IUserService
             TripsCount = tripsCount,
             Coins = loyaltyPoints,
             Vouchers = vouchersCount,
-            BirthDate = user.BirthDate?.ToString("yyyy-MM-dd")
+            BirthDate = user.BirthDate?.ToString("yyyy-MM-dd"),
+            IdentityNumber = user.IdentityNumber
         };
     }
 
@@ -274,6 +275,7 @@ public class UserService : IUserService
         user.FullName = request.Name.Trim();
         user.Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
         user.BirthDate = ParseBirthDate(request.BirthDate);
+        user.IdentityNumber = string.IsNullOrWhiteSpace(request.IdentityNumber) ? null : request.IdentityNumber.Trim();
 
         await _context.SaveChangesAsync();
         return true;

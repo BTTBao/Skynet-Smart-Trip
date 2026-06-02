@@ -5,6 +5,7 @@ public class UpdateUserProfileRequestDto
     public string Name { get; set; } = string.Empty;
     public string? Phone { get; set; }
     public string? BirthDate { get; set; }
+    public string? IdentityNumber { get; set; }
 }
 
 public class UserFavoriteDto

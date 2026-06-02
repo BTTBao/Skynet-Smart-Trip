@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 import 'secure_storage_service.dart';
 
@@ -151,7 +152,7 @@ abstract class ApiService {
   Future<http.Response> multipartPostWithFallback(
     String path, {
     required String fileField,
-    required String filePath,
+    required XFile file,
     bool requireAuth = false,
     Map<String, String>? extraHeaders,
   }) async {
@@ -163,7 +164,18 @@ abstract class ApiService {
     return _sendWithFallback((baseUrl) async {
       final request = http.MultipartRequest('POST', buildUri(baseUrl, path));
       request.headers.addAll(requestHeaders);
-      request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
+
+      if (kIsWeb) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            fileField,
+            await file.readAsBytes(),
+            filename: file.name,
+          ),
+        );
+      } else {
+        request.files.add(await http.MultipartFile.fromPath(fileField, file.path));
+      }
 
       final streamedResponse = await request.send().timeout(
         const Duration(seconds: 40),

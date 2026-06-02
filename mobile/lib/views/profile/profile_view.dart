@@ -165,6 +165,14 @@ class _ProfileViewState extends State<ProfileView> {
                             ? context.tr(vi: 'Chua cap nhat', en: 'Not updated')
                             : user.birthDate,
                       ),
+                      const Divider(height: 1),
+                      _InfoTile(
+                        icon: Icons.credit_card_outlined,
+                        title: context.tr(vi: 'So CCCD / CMND', en: 'ID Card Number'),
+                        subtitle: (user.identityNumber == null || user.identityNumber!.isEmpty)
+                            ? context.tr(vi: 'Chua cap nhat', en: 'Not updated')
+                            : user.identityNumber!,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 20),
