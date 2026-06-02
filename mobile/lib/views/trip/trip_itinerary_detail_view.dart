@@ -5,10 +5,10 @@ import '../../models/create_trip_itinerary_request.dart';
 import '../../models/trip_day_item.dart';
 import '../../models/trip_detail.dart';
 import '../../models/trip_timeline_entry.dart';
+import '../../models/update_trip_itinerary_request.dart';
 import '../../providers/trip_provider.dart';
 import '../../widgets/trip/widgets.dart';
-import 'create_trip_view.dart';
-import 'edit_itinerary_view.dart';
+import '../transport/transport_checkout_screen.dart';
 import 'trip_itinerary_map_view.dart';
 import 'trip_ui_constants.dart';
 
@@ -95,19 +95,6 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
     return entry.dayNumber ?? 1;
   }
 
-  void _openEditItinerary(List<TripTimelineEntry> entries, String title) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => EditItineraryView(
-          tripId: widget.tripId,
-          tripTitle: title,
-          travelerInitial: widget.travelerInitial,
-          entries: entries,
-        ),
-      ),
-    );
-  }
-
   void _openMapView(TripDetail? detail, String title) {
     final entries = detail?.itineraries ?? const <TripTimelineEntry>[];
     Navigator.of(context).push(
@@ -115,6 +102,92 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
         builder: (_) => TripItineraryMapView(
           tripTitle: title,
           entries: entries,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openEditEntrySheet(
+    TripProvider provider,
+    TripDetail detail,
+    TripTimelineEntry entry,
+  ) async {
+    if (entry.itineraryId == null) {
+      return;
+    }
+
+    final request = await showModalBottomSheet<UpdateTripItineraryRequest>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _EditTimelineEntrySheet(
+        entry: entry,
+        tripStartDate: detail.startDate,
+        tripEndDate: detail.endDate,
+      ),
+    );
+
+    if (request == null || !mounted) {
+      return;
+    }
+
+    final success = await provider.updateItinerary(entry.itineraryId!, request);
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success ? 'Đã cập nhật lịch trình.' : (provider.error ?? 'Cập nhật thất bại.'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteEntry(
+    TripProvider provider,
+    TripTimelineEntry entry,
+  ) async {
+    final itineraryId = entry.itineraryId;
+    if (itineraryId == null) {
+      return;
+    }
+
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa mục này?'),
+        content: Text('Bạn có chắc muốn xóa "${entry.caption}" khỏi lịch trình không?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true || !mounted) {
+      return;
+    }
+
+    final success = await provider.deleteItinerary(itineraryId);
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success ? 'Đã xóa khỏi lịch trình.' : (provider.error ?? 'Xóa thất bại.'),
         ),
       ),
     );
@@ -128,7 +201,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
     DateTime? tripStartDate,
     DateTime? tripEndDate,
   ) async {
-    final request = await showModalBottomSheet<CreateTripItineraryRequest>(
+    final result = await showModalBottomSheet<Object>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -136,6 +209,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (_) => AddTripServiceSheet(
+        tripId: widget.tripId,
         dayNumber: selectedDayNumber,
         destinationId: detail?.destinationId,
         initialServiceDate: selectedServiceDate,
@@ -144,10 +218,30 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
       ),
     );
 
-    if (request == null) {
+    if (result == null) {
       return;
     }
 
+    if (result is TripBusCheckoutRequest) {
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => TransportCheckoutScreen(
+            existingTripId: result.tripId,
+            itineraryDayNumber: result.dayNumber,
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (result is! CreateTripItineraryRequest) {
+      return;
+    }
+
+    final request = result;
     final success = await provider.addItinerary(widget.tripId, request);
     if (!mounted) {
       return;
@@ -156,7 +250,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          success ? 'Da them dich vu vao lich trinh.' : (provider.error ?? 'Them dich vu that bai.'),
+          success ? 'Đã thêm dịch vụ vào lịch trình.' : (provider.error ?? 'Thêm dịch vụ thất bại.'),
         ),
       ),
     );
@@ -225,7 +319,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      tripProvider.error ?? 'Khong tai duoc lich trinh.',
+                      tripProvider.error ?? 'Không tải được lịch trình.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
@@ -264,30 +358,6 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
                           ),
                         ),
                       ),
-                      TripCircleButton(
-                        icon: Icons.info_outline_rounded,
-                        onTap: () {
-                          if (detail != null) {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => CreateTripView(
-                                  editTripId: detail.tripId,
-                                  initialTitle: detail.title,
-                                  initialDestination: detail.destinationName,
-                                  initialStartDate: detail.startDate,
-                                  initialEndDate: detail.endDate,
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                      const SizedBox(width: 10),
-                      TripCircleButton(
-                        icon: Icons.edit_note_rounded,
-                        onTap: () => _openEditItinerary(selectedEntries, resolvedTitle),
-                      ),
-                      const SizedBox(width: 10),
                       Container(
                         width: 38,
                         height: 38,
@@ -384,7 +454,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
                                 Text(
                                   tripProvider.isSubmitting
                                       ? 'Dang xu ly...'
-                                      : 'Them dich vu',
+                                      : 'Thêm dịch vụ',
                                   style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
@@ -408,14 +478,27 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
                             ),
                           )
                         else
-                          TripTimeline(entries: selectedEntries),
+                          TripTimeline(
+                            entries: selectedEntries,
+                            onEditEntry: detail == null
+                                ? null
+                                : (entry) => _openEditEntrySheet(
+                                      tripProvider,
+                                      detail,
+                                      entry,
+                                    ),
+                            onDeleteEntry: (entry) => _deleteEntry(
+                              tripProvider,
+                              entry,
+                            ),
+                          ),
                         const SizedBox(height: 14),
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton.icon(
                             onPressed: () => _openMapView(detail, resolvedTitle),
                             icon: const Icon(Icons.route_rounded),
-                            label: const Text('Xem lich trinh tren map'),
+                            label: const Text('Xem lịch trình trên map'),
                           ),
                         ),
                       ],
@@ -427,6 +510,280 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
           ),
         );
       },
+    );
+  }
+}
+
+class _EditTimelineEntrySheet extends StatefulWidget {
+  const _EditTimelineEntrySheet({
+    required this.entry,
+    required this.tripStartDate,
+    required this.tripEndDate,
+  });
+
+  final TripTimelineEntry entry;
+  final DateTime tripStartDate;
+  final DateTime tripEndDate;
+
+  @override
+  State<_EditTimelineEntrySheet> createState() => _EditTimelineEntrySheetState();
+}
+
+class _EditTimelineEntrySheetState extends State<_EditTimelineEntrySheet> {
+  late final TextEditingController _contentController;
+  late DateTime _serviceDate;
+  late TimeOfDay _departureTime;
+
+  bool get _isNote => (widget.entry.serviceType ?? '').toUpperCase() == 'NOTE';
+
+  @override
+  void initState() {
+    super.initState();
+    final initialDate = widget.entry.serviceDate ?? widget.tripStartDate;
+    _serviceDate = DateTime(
+      initialDate.year,
+      initialDate.month,
+      initialDate.day,
+    );
+    _departureTime = _parseTime(widget.entry.departureTime) ?? TimeOfDay.now();
+    _contentController = TextEditingController(
+      text: widget.entry.serviceAddress ?? (_isNote ? widget.entry.description : ''),
+    );
+  }
+
+  @override
+  void dispose() {
+    _contentController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _serviceDate,
+      firstDate: widget.tripStartDate,
+      lastDate: widget.tripEndDate,
+      helpText: 'Chọn ngày',
+    );
+
+    if (picked == null) {
+      return;
+    }
+
+    setState(() {
+      _serviceDate = DateTime(picked.year, picked.month, picked.day);
+    });
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _departureTime,
+      helpText: _isNote ? 'Chọn thời gian' : 'Chọn giờ',
+    );
+
+    if (picked == null) {
+      return;
+    }
+
+    setState(() => _departureTime = picked);
+  }
+
+  int _resolveDayNumber() {
+    final tripStart = DateTime(
+      widget.tripStartDate.year,
+      widget.tripStartDate.month,
+      widget.tripStartDate.day,
+    );
+    return _serviceDate.difference(tripStart).inDays + 1;
+  }
+
+  void _submit() {
+    final content = _contentController.text.trim();
+    if (_isNote && content.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nhập nội dung ghi chú.')),
+      );
+      return;
+    }
+
+    final timeText =
+        '${_departureTime.hour.toString().padLeft(2, '0')}:${_departureTime.minute.toString().padLeft(2, '0')}:00';
+
+    Navigator.of(context).pop(
+      UpdateTripItineraryRequest(
+        dayNumber: _resolveDayNumber(),
+        serviceDate: _serviceDate,
+        departureTime: timeText,
+        serviceAddress: content,
+      ),
+    );
+  }
+
+  String _dateLabel(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  String _timeLabel(TimeOfDay time) {
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  static TimeOfDay? _parseTime(String? value) {
+    final parts = (value ?? '').split(':');
+    if (parts.length < 2) {
+      return null;
+    }
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) {
+      return null;
+    }
+
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset + 16),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD7DDE3),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              _isNote ? 'Sửa ghi chú' : 'Sửa mục lịch trình',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: TripUiColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _InlineSheetButton(
+                    icon: Icons.calendar_month_rounded,
+                    label: _dateLabel(_serviceDate),
+                    onTap: _pickDate,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _InlineSheetButton(
+                    icon: Icons.access_time_rounded,
+                    label: _timeLabel(_departureTime),
+                    onTap: _pickTime,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
+              _isNote ? 'Nội dung ghi chú' : 'Địa chỉ / ghi chú',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: TripUiColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _contentController,
+              minLines: _isNote ? 3 : 1,
+              maxLines: _isNote ? 5 : 3,
+              decoration: InputDecoration(
+                hintText: _isNote
+                    ? 'Nhập nội dung ghi chú'
+                    : 'Nhập địa chỉ hoặc ghi chú ngắn',
+                filled: true,
+                fillColor: const Color(0xFFF1F4F6),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: TripUiColors.timelineGreen,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                icon: const Icon(Icons.check_rounded),
+                label: const Text('Lưu thay đổi'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineSheetButton extends StatelessWidget {
+  const _InlineSheetButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F4F6),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: TripUiColors.textSecondary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: TripUiColors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

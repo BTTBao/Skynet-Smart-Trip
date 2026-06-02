@@ -1,14 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/bus_schedule_model.dart';
 import '../../models/create_trip_itinerary_request.dart';
+import '../../models/destination.dart';
 import '../../models/trip_service_option.dart';
+import '../../providers/bus_provider.dart';
+import '../../providers/destination_provider.dart';
 import '../../providers/trip_provider.dart';
 import '../../views/trip/trip_ui_constants.dart';
+
+class TripBusCheckoutRequest {
+  const TripBusCheckoutRequest({
+    required this.tripId,
+    required this.dayNumber,
+  });
+
+  final int tripId;
+  final int dayNumber;
+}
 
 class AddTripServiceSheet extends StatefulWidget {
   const AddTripServiceSheet({
     super.key,
+    required this.tripId,
     required this.dayNumber,
     required this.initialServiceDate,
     this.destinationId,
@@ -16,6 +31,7 @@ class AddTripServiceSheet extends StatefulWidget {
     this.tripEndDate,
   });
 
+  final int tripId;
   final int dayNumber;
   final DateTime initialServiceDate;
   final int? destinationId;
@@ -37,6 +53,14 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
   late Future<List<TripServiceOption>> _optionsFuture;
   late DateTime _selectedServiceDate;
   TimeOfDay? _selectedDepartureTime;
+  int? _busFromDestId;
+  int? _busToDestId;
+  BusScheduleModel? _selectedBusSchedule;
+  int _seatSelectionToken = 0;
+  int? _loadingSeatScheduleId;
+
+  bool get _isNote => _selectedServiceType == 'NOTE';
+  bool get _isBus => _selectedServiceType == 'BUS';
 
   @override
   void initState() {
@@ -47,6 +71,7 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
       widget.initialServiceDate.day,
     );
     _optionsFuture = _loadOptions();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrapBusForm());
   }
 
   @override
@@ -64,13 +89,177 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
         );
   }
 
+  Future<void> _bootstrapBusForm() async {
+    if (!mounted) {
+      return;
+    }
+
+    final destinationProvider = context.read<DestinationProvider>();
+    if (destinationProvider.destinations.isEmpty) {
+      await destinationProvider.fetchDestinations(forceRefresh: true);
+    }
+
+    if (!mounted || destinationProvider.destinations.isEmpty) {
+      return;
+    }
+
+    final destinations = destinationProvider.destinations;
+    final initialTo = widget.destinationId != null
+        ? destinations.firstWhere(
+            (destination) => destination.id == widget.destinationId,
+            orElse: () => destinations.length > 1 ? destinations[1] : destinations.first,
+          )
+        : (destinations.length > 1 ? destinations[1] : destinations.first);
+    final initialFrom = destinations.firstWhere(
+      (destination) => destination.id != initialTo.id,
+      orElse: () => destinations.first,
+    );
+
+    setState(() {
+      _busFromDestId = initialFrom.id;
+      _busToDestId = initialTo.id;
+    });
+
+    if (_isBus) {
+      _loadBusSchedules();
+    }
+  }
+
+  String _dateQuery(DateTime date) {
+    return '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  void _clearBusProviderSelection() {
+    context.read<BusProvider>().selectSchedule(null);
+  }
+
+  Future<void> _loadBusSchedules() async {
+    final fromDestId = _busFromDestId;
+    final toDestId = _busToDestId;
+    if (!_isBus || fromDestId == null || toDestId == null || fromDestId == toDestId) {
+      return;
+    }
+
+    await context.read<BusProvider>().fetchSchedules(
+          fromDestId: fromDestId,
+          toDestId: toDestId,
+          date: _dateQuery(_selectedServiceDate),
+        );
+  }
+
+  Destination? _destinationById(int? id) {
+    if (id == null) {
+      return null;
+    }
+
+    final destinations = context.read<DestinationProvider>().destinations;
+    for (final destination in destinations) {
+      if (destination.id == id) {
+        return destination;
+      }
+    }
+
+    return null;
+  }
+
+  Future<void> _showBusDestinationPicker({required bool isFrom}) async {
+    final destinationProvider = context.read<DestinationProvider>();
+    if (destinationProvider.destinations.isEmpty) {
+      await destinationProvider.fetchDestinations(forceRefresh: true);
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    final selected = await showModalBottomSheet<Destination>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (sheetContext) {
+        final destinations = context.read<DestinationProvider>().destinations;
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(sheetContext).size.height * 0.55,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+                  child: Text(
+                    isFrom ? 'Chọn điểm đi' : 'Chọn điểm đến',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: TripUiColors.textPrimary,
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: destinations.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, index) {
+                      final destination = destinations[index];
+                      final disabled = isFrom
+                          ? destination.id == _busToDestId
+                          : destination.id == _busFromDestId;
+                      return ListTile(
+                        enabled: !disabled,
+                        leading: const Icon(Icons.place_outlined),
+                        title: Text(destination.name),
+                        subtitle: disabled ? const Text('Không thể trùng điểm còn lại') : null,
+                        onTap: disabled ? null : () => Navigator.pop(sheetContext, destination),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      if (isFrom) {
+        _busFromDestId = selected.id;
+      } else {
+        _busToDestId = selected.id;
+      }
+      _selectedBusSchedule = null;
+      _loadingSeatScheduleId = null;
+      _seatSelectionToken++;
+    });
+    _clearBusProviderSelection();
+    _loadBusSchedules();
+  }
+
   void _onServiceTypeChanged(String serviceType) {
     setState(() {
       _selectedServiceType = serviceType;
       _selectedOption = null;
       _priceController.clear();
       _optionsFuture = _loadOptions();
+      if (serviceType != 'BUS') {
+        _selectedBusSchedule = null;
+        _loadingSeatScheduleId = null;
+        _seatSelectionToken++;
+      }
     });
+    if (serviceType != 'BUS') {
+      _clearBusProviderSelection();
+    }
+    if (serviceType == 'BUS') {
+      _loadBusSchedules();
+    }
   }
 
   Future<void> _pickServiceDate() async {
@@ -79,7 +268,7 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
       initialDate: _selectedServiceDate,
       firstDate: widget.tripStartDate ?? DateTime(2020, 1, 1),
       lastDate: widget.tripEndDate ?? DateTime(2100, 12, 31),
-      helpText: 'Chon ngay di',
+      helpText: 'Chọn ngày đi',
     );
 
     if (picked == null) {
@@ -88,14 +277,23 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
 
     setState(() {
       _selectedServiceDate = DateTime(picked.year, picked.month, picked.day);
+      if (_isBus) {
+        _selectedBusSchedule = null;
+        _loadingSeatScheduleId = null;
+        _seatSelectionToken++;
+      }
     });
+    if (_isBus) {
+      _clearBusProviderSelection();
+      _loadBusSchedules();
+    }
   }
 
   Future<void> _pickDepartureTime() async {
     final picked = await showTimePicker(
       context: context,
       initialTime: _selectedDepartureTime ?? TimeOfDay.now(),
-      helpText: 'Chon gio khoi hanh',
+      helpText: 'Chọn giờ khởi hành',
     );
 
     if (picked == null) {
@@ -119,13 +317,45 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
   }
 
   void _submit() {
-    if (!_formKey.currentState!.validate() || _selectedOption == null) {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_isBus) {
+      final schedule = _selectedBusSchedule;
+      final selectedSeats = context.read<BusProvider>().selectedSeatNumbers;
+      if (schedule == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vui lòng chọn chuyến xe.')),
+        );
+        return;
+      }
+
+      if (selectedSeats.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vui lòng chọn ít nhất một ghế.')),
+        );
+        return;
+      }
+
+      Navigator.of(context).pop(
+        TripBusCheckoutRequest(
+          tripId: widget.tripId,
+          dayNumber: _resolveDayNumber(),
+        ),
+      );
+      return;
+    }
+
+    if (!_isNote && _selectedOption == null) {
       return;
     }
 
     if (_selectedDepartureTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui long chon gio khoi hanh.')),
+        SnackBar(
+          content: Text(_isNote ? 'Vui lòng chọn thời gian ghi chú.' : 'Vui lòng chọn giờ khởi hành.'),
+        ),
       );
       return;
     }
@@ -141,11 +371,11 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
     Navigator.of(context).pop(
       CreateTripItineraryRequest(
         dayNumber: _resolveDayNumber(),
-        serviceType: _selectedOption!.serviceType,
-        serviceId: _selectedOption!.serviceId,
-        quantity: quantity,
-        bookedPrice: price,
-        bookedCommissionRate: _selectedOption!.defaultCommissionRate,
+        serviceType: _isNote ? 'NOTE' : _selectedOption!.serviceType,
+        serviceId: _isNote ? 1 : _selectedOption!.serviceId,
+        quantity: _isNote ? 1 : quantity,
+        bookedPrice: _isNote ? 0 : price,
+        bookedCommissionRate: _isNote ? 0 : _selectedOption!.defaultCommissionRate,
         serviceDate: _selectedServiceDate,
         departureTime: departureText,
         serviceAddress: _addressController.text.trim(),
@@ -159,14 +389,492 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
 
   String _timeLabel(TimeOfDay? time) {
     if (time == null) {
-      return 'Chon gio khoi hanh';
+      return 'Chọn giờ khởi hành';
     }
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _timeText(DateTime value) {
+    return '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _moneyText(double value) {
+    final text = value.toStringAsFixed(0);
+    final buffer = StringBuffer();
+    for (var i = 0; i < text.length; i++) {
+      final remaining = text.length - i;
+      buffer.write(text[i]);
+      if (remaining > 1 && remaining % 3 == 1) {
+        buffer.write('.');
+      }
+    }
+    return '${buffer} VND';
+  }
+
+  Future<void> _selectBusSchedule(BusScheduleModel schedule) async {
+    final token = ++_seatSelectionToken;
+    setState(() {
+      _selectedBusSchedule = schedule;
+      _loadingSeatScheduleId = schedule.id;
+    });
+    final busProvider = context.read<BusProvider>();
+    busProvider.selectSchedule(schedule);
+    try {
+      await busProvider.fetchSeats(schedule.id);
+      if (!mounted) {
+        return;
+      }
+      if (token != _seatSelectionToken || busProvider.selectedSchedule?.id != schedule.id) {
+        return;
+      }
+      _showBusSeatSelection(schedule);
+    } finally {
+      if (mounted && token == _seatSelectionToken) {
+        setState(() {
+          _loadingSeatScheduleId = null;
+        });
+      }
+    }
+  }
+
+  void _showBusSeatSelection(BusScheduleModel schedule) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Consumer<BusProvider>(
+          builder: (context, provider, child) {
+            final seats = provider.seats;
+            final selectedSeats = provider.selectedSeatNumbers;
+            final total = selectedSeats.length * schedule.price;
+            final isCurrentSchedule = provider.selectedSchedule?.id == schedule.id;
+
+            return Container(
+              padding: const EdgeInsets.all(24),
+              height: MediaQuery.of(sheetContext).size.height * 0.75,
+              child: Column(
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Chọn vị trí ghế ngồi - ${schedule.companyName}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  Text(
+                    'Tuyến: ${schedule.fromDestName} → ${schedule.toDestName}',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildSeatLegend(Colors.grey[200]!, 'Trống'),
+                      _buildSeatLegend(const Color(0xFF0D6B42), 'Đang chọn'),
+                      _buildSeatLegend(Colors.red[100]!, 'Đã đặt'),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Đầu Xe (Tài xế)',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: !isCurrentSchedule
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFF0D6B42),
+                              ),
+                            ),
+                          )
+                        : provider.isLoadingSeats
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFF0D6B42),
+                              ),
+                            ),
+                          )
+                        : provider.seatError != null
+                            ? Center(
+                                child: Text(
+                                  provider.seatError!,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.red),
+                                ),
+                              )
+                            : GridView.builder(
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 5,
+                                  crossAxisSpacing: 10,
+                                  mainAxisSpacing: 10,
+                                  childAspectRatio: 1.0,
+                                ),
+                                itemCount: ((seats.length / 4).ceil() * 5),
+                                itemBuilder: (context, index) {
+                                  final seatRow = index ~/ 5;
+                                  final seatCol = index % 5;
+
+                                  if (seatCol == 2) {
+                                    return const Center(
+                                      child: Text(
+                                        'Aisle',
+                                        style: TextStyle(
+                                          fontSize: 8,
+                                          color: Colors.grey,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    );
+                                  }
+
+                                  final realCol = seatCol > 2 ? seatCol - 1 : seatCol;
+                                  final seatIndex = seatRow * 4 + realCol;
+
+                                  if (seatIndex >= seats.length) {
+                                    return const SizedBox.shrink();
+                                  }
+
+                                  final seat = seats[seatIndex];
+                                  final isSelected = selectedSeats.contains(seat.seatNumber);
+                                  final isUnavailable = seat.isBooked || seat.isLocked;
+
+                                  Color seatBg = Colors.grey[200]!;
+                                  Color textColor = Colors.black87;
+                                  if (isUnavailable) {
+                                    seatBg = Colors.red[100]!;
+                                    textColor = Colors.red[800]!;
+                                  } else if (isSelected) {
+                                    seatBg = const Color(0xFF0D6B42);
+                                    textColor = Colors.white;
+                                  }
+
+                                  return GestureDetector(
+                                    onTap: isUnavailable
+                                        ? null
+                                        : () => provider.toggleSeatSelection(seat.seatNumber),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: seatBg,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? const Color(0xFF0D6B42)
+                                              : Colors.grey[300]!,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        seat.seatNumber,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${selectedSeats.length} ghế đã chọn',
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                            Text(
+                              _moneyText(total),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                                color: Color(0xFF0D6B42),
+                              ),
+                            ),
+                          ],
+                        ),
+                        ElevatedButton(
+                          onPressed: selectedSeats.isEmpty || !isCurrentSchedule
+                              ? null
+                              : () {
+                                  Navigator.pop(sheetContext);
+                                  Navigator.of(context).pop(
+                                    TripBusCheckoutRequest(
+                                      tripId: widget.tripId,
+                                      dayNumber: _resolveDayNumber(),
+                                    ),
+                                  );
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0D6B42),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          ),
+                          child: const Text(
+                            'Tiếp tục',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSeatLegend(Color color, String label) {
+    return Row(
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(label, style: const TextStyle(fontSize: 12)),
+      ],
+    );
+  }
+
+  Widget _buildBusPlanner(
+    BusProvider busProvider,
+    DestinationProvider destinationProvider,
+  ) {
+    final from = _destinationById(_busFromDestId);
+    final to = _destinationById(_busToDestId);
+    final hasSameDestination = _busFromDestId != null && _busFromDestId == _busToDestId;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SheetNotice(
+          text: 'Chọn điểm đi, điểm đến và ngày đi để lọc các chuyến xe phù hợp. Sau khi chọn chuyến, bạn chọn ghế ngay bên dưới.',
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: _BusSelectButton(
+                icon: Icons.trip_origin_rounded,
+                title: 'Điểm đi',
+                label: from?.name ?? 'Chọn điểm đi',
+                onTap: () => _showBusDestinationPicker(isFrom: true),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _BusSelectButton(
+                icon: Icons.place_rounded,
+                title: 'Điểm đến',
+                label: to?.name ?? 'Chọn điểm đến',
+                onTap: () => _showBusDestinationPicker(isFrom: false),
+              ),
+            ),
+          ],
+        ),
+        if (hasSameDestination) ...[
+          const SizedBox(height: 8),
+          const Text(
+            'Điểm đi và điểm đến không được trùng nhau.',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFFD14343),
+            ),
+          ),
+        ],
+        const SizedBox(height: 14),
+        const _SheetLabel('Ngày đi'),
+        const SizedBox(height: 10),
+        _SelectFieldButton(
+          icon: Icons.calendar_month_rounded,
+          label: _dateLabel(_selectedServiceDate),
+          onTap: _pickServiceDate,
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            const Expanded(child: _SheetLabel('Chuyến xe phù hợp')),
+            if (busProvider.isLoadingSchedules)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (destinationProvider.isLoading && destinationProvider.destinations.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 18),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (hasSameDestination)
+          const _SheetNotice(text: 'Hãy chọn hai địa điểm khác nhau để tìm chuyến xe.')
+        else if (busProvider.scheduleError != null)
+          _SheetNotice(text: busProvider.scheduleError!)
+        else if (busProvider.schedules.isEmpty && !busProvider.isLoadingSchedules)
+          const _SheetNotice(text: 'Không có chuyến xe phù hợp trong ngày đã chọn.')
+        else
+          _buildBusScheduleList(busProvider.schedules),
+      ],
+    );
+  }
+
+  Widget _buildBusScheduleList(List<BusScheduleModel> schedules) {
+    final listHeight = schedules.length > 3 ? 330.0 : schedules.length * 112.0;
+    return SizedBox(
+      height: listHeight,
+      child: ListView.separated(
+        padding: EdgeInsets.zero,
+        itemCount: schedules.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          final schedule = schedules[index];
+          final isSelected = _selectedBusSchedule?.id == schedule.id;
+          final isLoadingSeats = _loadingSeatScheduleId == schedule.id;
+          return InkWell(
+            onTap: schedule.spotsLeft <= 0 || _loadingSeatScheduleId != null
+                ? null
+                : () => _selectBusSchedule(schedule),
+            borderRadius: BorderRadius.circular(16),
+            child: Ink(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFFEAFBF1) : const Color(0xFFF7FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isSelected ? TripUiColors.timelineGreen : const Color(0xFFE2E8F0),
+                  width: isSelected ? 1.5 : 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          schedule.companyName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: TripUiColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        _moneyText(schedule.price),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: TripUiColors.timelineGreen,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${_timeText(schedule.departureTime)} - ${_timeText(schedule.arrivalTime)} • ${schedule.duration}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: TripUiColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${schedule.fromDestName} → ${schedule.toDestName} • Còn ${schedule.spotsLeft}/${schedule.totalSeats} ghế',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: TripUiColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: schedule.spotsLeft <= 0
+                            ? const Color(0xFFE2E8F0)
+                            : const Color(0xFFEAFBF1),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        schedule.spotsLeft <= 0
+                            ? 'Hết ghế'
+                            : isLoadingSeats
+                                ? 'Đang tải ghế'
+                                : 'Chọn ghế',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: schedule.spotsLeft <= 0
+                              ? TripUiColors.textSecondary
+                              : TripUiColors.timelineGreen,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final busProvider = context.watch<BusProvider>();
+    final destinationProvider = context.watch<DestinationProvider>();
 
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset + 16),
@@ -189,7 +897,7 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
               ),
               const SizedBox(height: 18),
               Text(
-                'Them dich vu cho ngay ${widget.dayNumber}',
+                'Thêm dịch vụ cho ngày ${widget.dayNumber}',
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -198,88 +906,100 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Bo sung ngay, gio va dia chi de toi uu hien thi lo trinh tren ban do.',
+                'Bổ sung ngày, giờ và địa chỉ để tối ưu hiển thị lộ trình trên bản đồ.',
                 style: TextStyle(
                   fontSize: 13,
                   color: TripUiColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 18),
-              const _SheetLabel('Loai dich vu'),
+              const _SheetLabel('Loại dịch vụ'),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _buildTypeChip(label: 'Di chuyen', value: 'BUS'),
-                  _buildTypeChip(label: 'Luu tru', value: 'HOTEL'),
+                  _buildTypeChip(label: 'Di chuyển', value: 'BUS'),
+                  _buildTypeChip(label: 'Lưu trú', value: 'HOTEL'),
+                  _buildTypeChip(label: 'Ghi chú', value: 'NOTE'),
                 ],
               ),
-              const SizedBox(height: 16),
-              const _SheetLabel('Danh sach dich vu'),
-              const SizedBox(height: 10),
-              FutureBuilder<List<TripServiceOption>>(
-                future: _optionsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-
-                  if (snapshot.hasError) {
-                    return const _SheetNotice(
-                      text:
-                          'Khong tai duoc danh sach dich vu. Thu dong lai sheet de thu lai.',
-                    );
-                  }
-
-                  final options = snapshot.data ?? const <TripServiceOption>[];
-                  if (options.isEmpty) {
-                    return const _SheetNotice(
-                      text: 'Khong co dich vu phu hop cho diem den nay.',
-                    );
-                  }
-
-                  return DropdownButtonFormField<TripServiceOption>(
-                    value: _selectedOption,
-                    items: options.map((option) {
-                      return DropdownMenuItem<TripServiceOption>(
-                        value: option,
-                        child: Text(option.title),
+              if (_isBus) ...[
+                const SizedBox(height: 16),
+                _buildBusPlanner(busProvider, destinationProvider),
+              ] else if (!_isNote) ...[
+                const SizedBox(height: 16),
+                const _SheetLabel('Danh sách dịch vụ'),
+                const SizedBox(height: 10),
+                FutureBuilder<List<TripServiceOption>>(
+                  future: _optionsFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Center(child: CircularProgressIndicator()),
                       );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedOption = value;
-                        _priceController.text =
-                            value?.defaultPrice?.toStringAsFixed(0) ?? '';
-                      });
-                    },
-                    validator: (value) => value == null ? 'Chon mot dich vu' : null,
-                    decoration: InputDecoration(
-                      hintText: 'Chon dich vu',
-                      filled: true,
-                      fillColor: const Color(0xFFF1F4F6),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 14,
+                    }
+
+                    if (snapshot.hasError) {
+                      return const _SheetNotice(
+                        text:
+                            'Không tải được danh sách dịch vụ. Thử đóng lại sheet để thử lại.',
+                      );
+                    }
+
+                    final options = snapshot.data ?? const <TripServiceOption>[];
+                    if (options.isEmpty) {
+                      return const _SheetNotice(
+                        text: 'Không có dịch vụ phù hợp cho điểm đến này.',
+                      );
+                    }
+
+                    return DropdownButtonFormField<TripServiceOption>(
+                      value: _selectedOption,
+                      items: options.map((option) {
+                        return DropdownMenuItem<TripServiceOption>(
+                          value: option,
+                          child: Text(option.title),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedOption = value;
+                          _priceController.text =
+                              value?.defaultPrice?.toStringAsFixed(0) ?? '';
+                        });
+                      },
+                      validator: (value) => value == null ? 'Chọn một dịch vụ' : null,
+                      decoration: InputDecoration(
+                        hintText: 'Chọn dịch vụ',
+                        filled: true,
+                        fillColor: const Color(0xFFF1F4F6),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              if (_selectedOption != null) ...[
-                const SizedBox(height: 12),
-                _SheetNotice(
-                  text: _selectedOption!.subtitle ?? 'Khong co mo ta them.',
+                    );
+                  },
+                ),
+              ] else ...[
+                const SizedBox(height: 16),
+                const _SheetNotice(
+                  text: 'Ghi lại nơi bạn muốn đi, việc cần làm hoặc thời gian hẹn trong chuyến đi.',
                 ),
               ],
+              if (!_isBus && !_isNote && _selectedOption != null) ...[
+                const SizedBox(height: 12),
+                _SheetNotice(
+                  text: _selectedOption!.subtitle ?? 'Không có mô tả thêm.',
+                ),
+              ],
+              if (!_isBus) ...[
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -287,7 +1007,7 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const _SheetLabel('Ngay di'),
+                        const _SheetLabel('Ngày đi'),
                         const SizedBox(height: 10),
                         _SelectFieldButton(
                           icon: Icons.calendar_month_rounded,
@@ -302,7 +1022,7 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const _SheetLabel('Gio khoi hanh'),
+                        _SheetLabel(_isNote ? 'Thời gian' : 'Giờ khởi hành'),
                         const SizedBox(height: 10),
                         _SelectFieldButton(
                           icon: Icons.access_time_rounded,
@@ -315,75 +1035,84 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
                 ],
               ),
               const SizedBox(height: 16),
-              const _SheetLabel('Dia chi dich vu (khong bat buoc)'),
+              _SheetLabel(_isNote ? 'Nội dung ghi chú' : 'Địa chỉ dịch vụ (không bắt buộc)'),
               const SizedBox(height: 8),
-              const Text(
-                'Nen nhap de su dung tinh nang map va ve lo trinh chinh xac hon.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: TripUiColors.textSecondary,
+              if (!_isNote)
+                const Text(
+                  'Nên nhập để sử dụng tính năng map và vẽ lộ trình chính xác hơn.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: TripUiColors.textSecondary,
+                  ),
                 ),
-              ),
               const SizedBox(height: 8),
               _SheetTextField(
                 controller: _addressController,
-                hintText: 'Vi du: 45 Le Loi, Quan 1, TP.HCM',
-                validator: (_) => null,
+                hintText: _isNote ? 'Ví dụ: 19:00 đi chợ đêm, ăn tối, chụp ảnh' : 'Ví dụ: 45 Lê Lợi, Quận 1, TP.HCM',
+                validator: (value) {
+                  if (_isNote && (value ?? '').trim().isEmpty) {
+                    return 'Nhập nội dung ghi chú';
+                  }
+                  return null;
+                },
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const _SheetLabel('So luong'),
-                        const SizedBox(height: 10),
-                        _SheetTextField(
-                          controller: _quantityController,
-                          hintText: '1',
-                          keyboardType: TextInputType.number,
-                          validator: (value) {
-                            final quantity = int.tryParse((value ?? '').trim());
-                            if (quantity == null || quantity <= 0) {
-                              return 'Nhap so hop le';
-                            }
-                            return null;
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const _SheetLabel('Gia dat'),
-                        const SizedBox(height: 10),
-                        _SheetTextField(
-                          controller: _priceController,
-                          hintText: 'Nhap gia',
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
+              if (!_isNote) ...[
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _SheetLabel('Số lượng'),
+                          const SizedBox(height: 10),
+                          _SheetTextField(
+                            controller: _quantityController,
+                            hintText: '1',
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              final quantity = int.tryParse((value ?? '').trim());
+                              if (quantity == null || quantity <= 0) {
+                                return 'Nhập số hợp lệ';
+                              }
+                              return null;
+                            },
                           ),
-                          validator: (value) {
-                            if ((value ?? '').trim().isEmpty) {
-                              return 'Nhap gia';
-                            }
-                            final parsed =
-                                double.tryParse(value!.trim().replaceAll(',', ''));
-                            if (parsed == null || parsed < 0) {
-                              return 'Gia khong hop le';
-                            }
-                            return null;
-                          },
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _SheetLabel('Giá đặt'),
+                          const SizedBox(height: 10),
+                          _SheetTextField(
+                            controller: _priceController,
+                            hintText: 'Nhập giá',
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            validator: (value) {
+                              if ((value ?? '').trim().isEmpty) {
+                              return 'Nhập giá';
+                              }
+                              final parsed =
+                                  double.tryParse(value!.trim().replaceAll(',', ''));
+                              if (parsed == null || parsed < 0) {
+                              return 'Giá không hợp lệ';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              ],
               const SizedBox(height: 22),
               SizedBox(
                 width: double.infinity,
@@ -398,9 +1127,13 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text(
-                    'Them vao lich trinh',
-                    style: TextStyle(
+                  child: Text(
+                    _isBus
+                        ? 'Thêm chuyến xe'
+                        : _isNote
+                            ? 'Thêm ghi chú'
+                            : 'Thêm vào lịch trình',
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
                     ),
@@ -434,6 +1167,66 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
         borderRadius: BorderRadius.circular(18),
       ),
       onSelected: (_) => _onServiceTypeChanged(value),
+    );
+  }
+}
+
+class _BusSelectButton extends StatelessWidget {
+  const _BusSelectButton({
+    required this.icon,
+    required this.title,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F4F6),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: TripUiColors.timelineGreen),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: TripUiColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: TripUiColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -79,7 +79,7 @@ class BusSeatModel {
     );
   }
 
-  bool get isAvailable => status == 'available';
-  bool get isBooked => status == 'booked';
-  bool get isLocked => status == 'locked';
+  bool get isAvailable => status.toLowerCase() == 'available';
+  bool get isBooked => status.toLowerCase() == 'booked';
+  bool get isLocked => status.toLowerCase() == 'locked';
 }

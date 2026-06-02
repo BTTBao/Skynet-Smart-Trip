@@ -12,6 +12,7 @@ public class ItineraryService : IItineraryService
 {
     private const string HotelServiceType = "HOTEL";
     private const string BusServiceType = "BUS";
+    private const string NoteServiceType = "NOTE";
 
     private readonly IApplicationDbContext _context;
     private readonly ITripServiceOptionService _optionService;
@@ -161,6 +162,11 @@ public class ItineraryService : IItineraryService
                     }.Where(value => !string.IsNullOrWhiteSpace(value)));
                 }
             }
+        }
+        else if (normalizedServiceType == NoteServiceType)
+        {
+            serviceName = "Ghi chú";
+            serviceSubtitle = itinerary.ServiceAddress;
         }
         else if (normalizedServiceType == BusServiceType && itinerary.ServiceId.HasValue)
         {

@@ -59,12 +59,17 @@ class TripTimelineEntry {
     final parsedHotelCheckOutDate = _parseServiceDate(json['hotelCheckOutDate']);
     final parsedDeparture = _normalizeTime(json['departureTime']?.toString());
 
-    final descriptionParts = <String>[
-      if (subtitle.isNotEmpty) subtitle,
-      if ((serviceAddress ?? '').isNotEmpty) 'Dia chi: $serviceAddress',
-      if (priceLabel != null) 'Gia: $priceLabel',
-      'So luong: $quantity',
-    ];
+    final descriptionParts = serviceType == 'NOTE'
+        ? <String>[
+            if ((serviceAddress ?? '').isNotEmpty) serviceAddress!,
+            if (subtitle.isNotEmpty && subtitle != serviceAddress) subtitle,
+          ]
+        : <String>[
+            if (subtitle.isNotEmpty) subtitle,
+            if ((serviceAddress ?? '').isNotEmpty) 'Địa chỉ: $serviceAddress',
+            if (priceLabel != null) 'Giá: $priceLabel',
+            'Số lượng: $quantity',
+          ];
 
     return TripTimelineEntry(
       itineraryId: (json['itineraryId'] as num?)?.toInt(),
@@ -144,9 +149,11 @@ class TripTimelineEntry {
   static String _sectionTitleForServiceType(String serviceType) {
     switch (serviceType) {
       case 'HOTEL':
-        return 'Luu tru';
+        return 'Lưu trú';
       case 'BUS':
-        return 'Di chuyen';
+        return 'Di chuyển';
+      case 'NOTE':
+        return 'Ghi chú';
       default:
         return 'Dich vu';
     }
@@ -158,6 +165,8 @@ class TripTimelineEntry {
         return Icons.hotel_rounded;
       case 'BUS':
         return Icons.directions_bus_rounded;
+      case 'NOTE':
+        return Icons.sticky_note_2_rounded;
       default:
         return Icons.place_rounded;
     }
@@ -169,6 +178,8 @@ class TripTimelineEntry {
         return const Color(0xFFEAF4FF);
       case 'BUS':
         return const Color(0xFFE4FFF0);
+      case 'NOTE':
+        return const Color(0xFFFFF7ED);
       default:
         return const Color(0xFFF1F4F6);
     }
@@ -180,6 +191,8 @@ class TripTimelineEntry {
         return const Color(0xFF2A6FD6);
       case 'BUS':
         return const Color(0xFF20B15A);
+      case 'NOTE':
+        return const Color(0xFFC2410C);
       default:
         return const Color(0xFF4B5563);
     }

@@ -12,7 +12,14 @@ import '../checkout/payment_failed_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class TransportCheckoutScreen extends StatefulWidget {
-  const TransportCheckoutScreen({Key? key}) : super(key: key);
+  const TransportCheckoutScreen({
+    Key? key,
+    this.existingTripId,
+    this.itineraryDayNumber = 1,
+  }) : super(key: key);
+
+  final int? existingTripId;
+  final int itineraryDayNumber;
 
   @override
   State<TransportCheckoutScreen> createState() =>
@@ -75,6 +82,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
       }
 
       context.read<TripProvider>().fetchTrips(silent: true);
+      if (widget.existingTripId != null) {
+        context.read<TripProvider>().fetchTripDetail(widget.existingTripId!);
+      }
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
@@ -151,6 +161,36 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
 
       if (_pendingTripId != null) {
         currentTripId = _pendingTripId!;
+      } else if (widget.existingTripId != null) {
+        currentTripId = widget.existingTripId!;
+
+        final itineraryRequest = CreateTripItineraryRequest(
+          dayNumber: widget.itineraryDayNumber,
+          serviceType: 'BUS',
+          serviceId: schedule.id,
+          quantity: seats.length,
+          bookedPrice: totalPrice,
+          bookedCommissionRate: 0.08,
+          serviceDate: schedule.departureTime,
+          departureTime:
+              '${schedule.departureTime.hour.toString().padLeft(2, '0')}:${schedule.departureTime.minute.toString().padLeft(2, '0')}:00',
+          serviceAddress: [
+            '${schedule.fromDestName} → ${schedule.toDestName}',
+            'Ghế: ${seats.join(', ')}',
+          ].join(' • '),
+        );
+
+        final itinerarySuccess = await tripProvider.addItinerary(
+          currentTripId,
+          itineraryRequest,
+        );
+        if (!itinerarySuccess) {
+          throw Exception(
+            tripProvider.error ??
+                'Không thể thêm thông tin vé xe vào lịch trình.',
+          );
+        }
+        _pendingTripId = currentTripId;
       } else {
         // 1. Tạo Trip trên Backend
         final tripRequest = CreateTripRequest(
@@ -178,6 +218,14 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
           serviceId: schedule.id,
           quantity: seats.length,
           bookedPrice: totalPrice,
+          bookedCommissionRate: 0.08,
+          serviceDate: schedule.departureTime,
+          departureTime:
+              '${schedule.departureTime.hour.toString().padLeft(2, '0')}:${schedule.departureTime.minute.toString().padLeft(2, '0')}:00',
+          serviceAddress: [
+            '${schedule.fromDestName} → ${schedule.toDestName}',
+            'Ghế: ${seats.join(', ')}',
+          ].join(' • '),
         );
 
         final itinerarySuccess = await tripProvider.addItinerary(
@@ -242,6 +290,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
 
       // Refresh list trips in background
       tripProvider.fetchTrips(silent: true);
+      if (widget.existingTripId != null) {
+        tripProvider.fetchTripDetail(widget.existingTripId!);
+      }
 
       // 4. Chuyển hướng sang màn hình Chi tiết vé
       if (mounted && context.mounted) {

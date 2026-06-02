@@ -7,9 +7,13 @@ class TripTimeline extends StatelessWidget {
   const TripTimeline({
     super.key,
     required this.entries,
+    this.onEditEntry,
+    this.onDeleteEntry,
   });
 
   final List<TripTimelineEntry> entries;
+  final ValueChanged<TripTimelineEntry>? onEditEntry;
+  final ValueChanged<TripTimelineEntry>? onDeleteEntry;
 
   @override
   Widget build(BuildContext context) {
@@ -114,6 +118,26 @@ class TripTimeline extends StatelessWidget {
                                   ),
                                 ),
                               ),
+                              if (entry.itineraryId != null) ...[
+                                IconButton(
+                                  onPressed: onEditEntry == null
+                                      ? null
+                                      : () => onEditEntry!(entry),
+                                  icon: const Icon(Icons.edit_outlined),
+                                  iconSize: 18,
+                                  color: TripUiColors.textSecondary,
+                                  tooltip: 'Sửa',
+                                ),
+                                IconButton(
+                                  onPressed: onDeleteEntry == null
+                                      ? null
+                                      : () => onDeleteEntry!(entry),
+                                  icon: const Icon(Icons.delete_outline_rounded),
+                                  iconSize: 18,
+                                  color: Colors.redAccent,
+                                  tooltip: 'Xóa',
+                                ),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 6),
