@@ -27,6 +27,7 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
   final _picker = ImagePicker();
 
   final List<XFile> _selectedPhotos = [];
+  final List<Uint8List> _selectedPhotoBytes = [];
   bool _isBold = false;
   bool _isItalic = false;
   bool _isH1 = false;
@@ -64,10 +65,23 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
       }
 
       final remainingSlots = 10 - _selectedPhotos.length;
+      final addedImages = images.take(remainingSlots).toList();
+      
+      final List<Uint8List> addedBytes = [];
+      for (final img in addedImages) {
+        final bytes = await img.readAsBytes();
+        addedBytes.add(bytes);
+      }
+
+      if (!mounted) {
+        return;
+      }
+
       setState(() {
-        _selectedPhotos.addAll(images.take(remainingSlots));
+        _selectedPhotos.addAll(addedImages);
+        _selectedPhotoBytes.addAll(addedBytes);
         _errorText = images.length > remainingSlots
-            ? context.tr(
+            ? context.trRead(
                 vi: 'Mỗi bài viết tối đa 10 ảnh.',
                 en: 'Each post can contain up to 10 photos.',
               )
@@ -79,7 +93,10 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
   }
 
   void _removePhoto(int index) {
-    setState(() => _selectedPhotos.removeAt(index));
+    setState(() {
+      _selectedPhotos.removeAt(index);
+      _selectedPhotoBytes.removeAt(index);
+    });
   }
 
   Future<void> _useCurrentLocation() async {
@@ -145,7 +162,7 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
     setState(() {
       _isPosting = true;
       _errorText = null;
-      _progressText = context.tr(
+      _progressText = context.trRead(
         vi: 'Đang chuẩn bị bài viết...',
         en: 'Preparing post...',
       );
@@ -171,7 +188,7 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
       }
 
       setState(() {
-        _progressText = context.tr(vi: 'Đang đăng bài...', en: 'Publishing...');
+        _progressText = context.trRead(vi: 'Đang đăng bài...', en: 'Publishing...');
       });
 
       final success = await provider.createPost(
@@ -196,7 +213,7 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            context.tr(vi: 'Bài viết đã được đăng!', en: 'Post published!'),
+            context.trRead(vi: 'Bài viết đã được đăng!', en: 'Post published!'),
           ),
           behavior: SnackBarBehavior.floating,
         ),
@@ -343,6 +360,7 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                     child: _PhotoGrid(
                       photos: _selectedPhotos,
+                      photoBytes: _selectedPhotoBytes,
                       onAdd: _pickPhotos,
                       onRemove: _removePhoto,
                     ),
@@ -460,9 +478,9 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(context.tr(vi: 'Hủy bài viết?', en: 'Discard post?')),
+        title: Text(ctx.trRead(vi: 'Hủy bài viết?', en: 'Discard post?')),
         content: Text(
-          context.tr(
+          ctx.trRead(
             vi: 'Nội dung chưa được lưu sẽ bị mất.',
             en: 'Unsaved content will be lost.',
           ),
@@ -470,7 +488,7 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(context.tr(vi: 'Tiếp tục viết', en: 'Keep editing')),
+            child: Text(ctx.trRead(vi: 'Tiếp tục viết', en: 'Keep editing')),
           ),
           TextButton(
             onPressed: () {
@@ -478,7 +496,7 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
               Navigator.of(context).maybePop();
             },
             child: Text(
-              context.tr(vi: 'Hủy bài viết', en: 'Discard'),
+              ctx.trRead(vi: 'Hủy bài viết', en: 'Discard'),
               style: const TextStyle(color: Colors.red),
             ),
           ),
@@ -678,11 +696,13 @@ class _ToolbarDivider extends StatelessWidget {
 class _PhotoGrid extends StatelessWidget {
   const _PhotoGrid({
     required this.photos,
+    required this.photoBytes,
     required this.onAdd,
     required this.onRemove,
   });
 
   final List<XFile> photos;
+  final List<Uint8List> photoBytes;
   final VoidCallback onAdd;
   final ValueChanged<int> onRemove;
 
@@ -734,28 +754,11 @@ class _PhotoGrid extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: FutureBuilder<Uint8List>(
-                    future: photos[photoIndex].readAsBytes(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return Container(
-                          color: const Color(0xFFE5E7EB),
-                          alignment: Alignment.center,
-                          child: const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        );
-                      }
-
-                      return Image.memory(
-                        snapshot.data!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                      );
-                    },
+                  child: Image.memory(
+                    photoBytes[photoIndex],
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
                   ),
                 ),
                 Positioned(

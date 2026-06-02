@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:http/http.dart' as http;
 
 import '../../models/trip_timeline_entry.dart';
 import '../../services/openstreetmap_geocoding_service.dart';
@@ -35,6 +37,8 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
   String? _mapError;
   TripTimelineEntry? _focusedEntry;
 
+  List<LatLng> _osrmRouteCoordinates = <LatLng>[];
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +46,56 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
       ..sort(_compareEntries);
 
     _loadMapPoints();
+  }
+
+  Future<void> _fetchRoadRoute() async {
+    final routePoints = _routePoints;
+    if (routePoints.length < 2) {
+      setState(() {
+        _osrmRouteCoordinates = <LatLng>[];
+      });
+      return;
+    }
+
+    try {
+      final coordsString = routePoints
+          .map((point) => '${point.latLng.longitude},${point.latLng.latitude}')
+          .join(';');
+
+      final uri = Uri.parse(
+          'https://router.project-osrm.org/route/v1/driving/$coordsString?overview=full&geometries=geojson');
+
+      final response = await http.get(uri);
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final data = jsonDecode(response.body);
+        final routes = data['routes'];
+        if (routes is List && routes.isNotEmpty) {
+          final geometry = routes[0]['geometry'];
+          final coordinates = geometry['coordinates'];
+          if (coordinates is List) {
+            final List<LatLng> roadCoords = [];
+            for (final coord in coordinates) {
+              if (coord is List && coord.length >= 2) {
+                final double lon = double.parse(coord[0].toString());
+                final double lat = double.parse(coord[1].toString());
+                roadCoords.add(LatLng(lat, lon));
+              }
+            }
+            setState(() {
+              _osrmRouteCoordinates = roadCoords;
+            });
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('OSRM routing error: $e');
+    }
+
+    // Fallback
+    setState(() {
+      _osrmRouteCoordinates = routePoints.map((e) => e.latLng).toList();
+    });
   }
 
   Future<void> _loadMapPoints() async {
@@ -82,9 +136,10 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
       }
     });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
         _fitCameraToVisiblePoints();
+        await _fetchRoadRoute();
       }
     });
   }
@@ -144,9 +199,10 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
       }
     });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
         _fitCameraToVisiblePoints();
+        await _fetchRoadRoute();
       }
     });
   }
@@ -207,7 +263,6 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
   @override
   Widget build(BuildContext context) {
     final visiblePoints = _mappedPointsInTime;
-    final routePoints = _routePoints;
 
     return Scaffold(
       backgroundColor: TripUiColors.background,
@@ -239,13 +294,11 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
                                 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                             userAgentPackageName: 'com.skynet.smarttrip.mobile',
                           ),
-                          if (routePoints.length > 1)
+                          if (_osrmRouteCoordinates.length > 1)
                             PolylineLayer(
                               polylines: [
                                 Polyline(
-                                  points: routePoints
-                                      .map((e) => e.latLng)
-                                      .toList(),
+                                  points: _osrmRouteCoordinates,
                                   strokeWidth: 5,
                                   color: const Color(0xFF0A9E4E),
                                 ),

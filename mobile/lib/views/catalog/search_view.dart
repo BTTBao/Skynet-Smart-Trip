@@ -42,11 +42,12 @@ class _SearchViewState extends State<SearchView> {
   final Set<int> _selectedStars = {4, 5};
   int? _destinationId;
   int? _fromDestId;
-  String _fromDestName = 'Đà Nẵng';
+  String _fromDestName = 'Chọn điểm đi';
   int? _toDestId;
-  String _toDestName = 'Hội An';
+  String _toDestName = 'Chọn điểm đến';
   DateTime _selectedBusDate = DateTime.now().add(const Duration(days: 2));
   bool _isPreparingBusSearch = false;
+  int _selectedBusFilterIndex = 0;
 
   @override
   void initState() {
@@ -110,35 +111,27 @@ class _SearchViewState extends State<SearchView> {
     }
 
     if (destProvider.destinations.isNotEmpty) {
-      final fromMatch = destProvider.destinations.firstWhere(
-        (d) =>
-            d.name.toLowerCase().contains('đà nẵng') ||
-            d.name.toLowerCase().contains('da nang'),
-        orElse: () => destProvider.destinations.first,
-      );
-
-      final preferredTo = widget.initialQuery ?? _toDestName;
-      final toMatch = destProvider.destinations.firstWhere(
-        (d) =>
-            widget.initialDestinationId != null &&
-            d.id == widget.initialDestinationId,
-        orElse: () => destProvider.destinations.firstWhere(
+      if (_toDestId == null && (widget.initialDestinationId != null || widget.initialQuery != null)) {
+        final toMatch = destProvider.destinations.firstWhere(
           (d) =>
-              d.name.toLowerCase() == preferredTo.toLowerCase() ||
-              d.name.toLowerCase().contains(preferredTo.toLowerCase()),
-          orElse: () => destProvider.destinations.length > 1
-              ? destProvider.destinations[1]
-              : destProvider.destinations.first,
-        ),
-      );
-
-      if (mounted) {
-        setState(() {
-          _fromDestId = fromMatch.id;
-          _fromDestName = fromMatch.name;
-          _toDestId = toMatch.id;
-          _toDestName = toMatch.name;
-        });
+              widget.initialDestinationId != null &&
+              d.id == widget.initialDestinationId,
+          orElse: () {
+            final q = widget.initialQuery ?? '';
+            return destProvider.destinations.firstWhere(
+              (d) =>
+                  d.name.toLowerCase() == q.toLowerCase() ||
+                  d.name.toLowerCase().contains(q.toLowerCase()),
+              orElse: () => destProvider.destinations.first,
+            );
+          },
+        );
+        if (mounted) {
+          setState(() {
+            _toDestId = toMatch.id;
+            _toDestName = toMatch.name;
+          });
+        }
       }
     }
 
@@ -147,6 +140,9 @@ class _SearchViewState extends State<SearchView> {
   }
 
   void _loadBusSchedules() {
+    if (_fromDestId == null || _toDestId == null || _fromDestId == _toDestId) {
+      return;
+    }
     final dateStr =
         '${_selectedBusDate.year}-${_selectedBusDate.month.toString().padLeft(2, '0')}-${_selectedBusDate.day.toString().padLeft(2, '0')}';
     context.read<BusProvider>().fetchSchedules(
@@ -155,6 +151,21 @@ class _SearchViewState extends State<SearchView> {
       date: dateStr,
     );
   }
+
+  void _swapDestinations() {
+    setState(() {
+      final tempId = _fromDestId;
+      final tempName = _fromDestName;
+      _fromDestId = _toDestId;
+      _fromDestName = _toDestId == null ? 'Chọn điểm đi' : _toDestName;
+      _toDestId = tempId;
+      _toDestName = tempId == null ? 'Chọn điểm đến' : tempName;
+    });
+    _loadBusSchedules();
+  }
+
+  String _formatDate(DateTime dt) =>
+      '${dt.day} Tháng ${dt.month}, ${dt.year}';
 
   void _changeFromDestination(int id, String name) {
     setState(() {
@@ -199,8 +210,6 @@ class _SearchViewState extends State<SearchView> {
     setState(() => _selectedBusDate = picked);
     _loadBusSchedules();
   }
-
-  String _formatBusDate(DateTime date) => '${date.day} Thg ${date.month}';
 
   String _formatTransportPrice(double price) {
     final formatted = price.toStringAsFixed(0).replaceAllMapped(
@@ -778,7 +787,60 @@ class _SearchViewState extends State<SearchView> {
       const SizedBox(height: 16),
       _buildBusFilters(),
       const SizedBox(height: 18),
-      if (busProvider.isLoadingSchedules)
+      if (_fromDestId == null || _toDestId == null)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 80),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.directions_bus_filled_outlined, color: Colors.grey, size: 54),
+                SizedBox(height: 12),
+                Text(
+                  'Vui lòng chọn điểm đi và điểm đến',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Chọn đủ thông tin để tìm kiếm chuyến xe thích hợp',
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        )
+      else if (_fromDestId == _toDestId)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 80),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 54),
+                SizedBox(height: 12),
+                Text(
+                  'Tuyến đường không hợp lệ',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Điểm đi và điểm đến không thể trùng nhau.',
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        )
+      else if (busProvider.isLoadingSchedules)
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 48),
           child: Center(
@@ -800,7 +862,7 @@ class _SearchViewState extends State<SearchView> {
         )
       else if (busProvider.schedules.isEmpty)
         const Padding(
-          padding: EdgeInsets.symmetric(vertical: 180),
+          padding: EdgeInsets.symmetric(vertical: 80),
           child: Center(
             child: Text(
               'Không tìm thấy chuyến xe phù hợp cho tuyến đường này.',
@@ -821,61 +883,218 @@ class _SearchViewState extends State<SearchView> {
 
   Widget _buildBusSearchForm(DestinationProvider destProvider) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         children: [
+          // From
           GestureDetector(
             onTap: () => _showDestinationSelector(destProvider, isFrom: true),
-            child: _buildBusFormRow(
-              Icons.location_on,
-              'Điểm đi: $_fromDestName',
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D6B42).withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.radio_button_checked, color: Color(0xFF0D6B42), size: 18),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Điểm đi',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _fromDestName,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: _fromDestId == null ? Colors.grey[400] : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[400]),
+                ],
+              ),
             ),
           ),
-          const Divider(height: 24, indent: 36),
+
+          // Swap divider
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SizedBox(
+              height: 38,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  Divider(color: Colors.grey[200]!, height: 1),
+                  Positioned(
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: _swapDestinations,
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0D6B42),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF0D6B42).withValues(alpha: 0.4),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.swap_vert_rounded, color: Colors.white, size: 18),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // To
           GestureDetector(
             onTap: () => _showDestinationSelector(destProvider, isFrom: false),
-            child: _buildBusFormRow(
-              Icons.navigation,
-              'Điểm đến: $_toDestName',
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.location_on_rounded, color: Colors.orange[600], size: 18),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Điểm đến',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _toDestName,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: _toDestId == null ? Colors.grey[400] : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[400]),
+                ],
+              ),
             ),
           ),
-          const Divider(height: 24, indent: 36),
+
+          Divider(color: Colors.grey[100], height: 1, thickness: 1),
+
+          // Date
           GestureDetector(
             onTap: _selectBusDate,
-            child: _buildBusFormRow(
-              Icons.calendar_today,
-              'Ngày đi: ${_formatBusDate(_selectedBusDate)}',
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.calendar_today_rounded, color: Colors.blue[600], size: 18),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ngày đi',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _formatDate(_selectedBusDate),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D6B42).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'Đổi ngày',
+                      style: TextStyle(
+                        color: Color(0xFF0D6B42),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildBusFormRow(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, color: const Color(0xFF0D6B42), size: 20),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15),
-          ),
-        ),
-        const Icon(Icons.arrow_drop_down, color: Colors.grey),
-      ],
     );
   }
 
@@ -886,55 +1105,124 @@ class _SearchViewState extends State<SearchView> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return SafeArea(
-          child: SizedBox(
-            height: 420,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    isFrom ? 'Chọn điểm khởi hành' : 'Chọn điểm đến',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final filtered = destProvider.destinations.where((dest) {
+              final name = dest.name.toLowerCase();
+              final query = searchQuery.toLowerCase();
+              return name.contains(query);
+            }).toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.65,
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: destProvider.destinations.length,
-                    itemBuilder: (context, index) {
-                      final destination = destProvider.destinations[index];
-                      return ListTile(
-                        title: Text(destination.name),
-                        onTap: () {
-                          Navigator.pop(context);
-                          if (isFrom) {
-                            _changeFromDestination(
-                              destination.id,
-                              destination.name,
-                            );
-                          } else {
-                            _changeToDestination(
-                              destination.id,
-                              destination.name,
-                            );
-                          }
-                        },
-                      );
-                    },
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isFrom ? 'Chọn điểm khởi hành' : 'Chọn điểm đến',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4F7F5),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.grey[200]!),
+                      ),
+                      child: TextField(
+                        onChanged: (val) => setSheetState(() => searchQuery = val),
+                        decoration: const InputDecoration(
+                          hintText: 'Tìm kiếm địa điểm...',
+                          hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+                          prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF0D6B42)),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Text(
+                                'Không tìm thấy địa điểm nào phù hợp.',
+                                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: filtered.length,
+                            itemBuilder: (ctx, idx) {
+                              final dest = filtered[idx];
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+                                leading: Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0D6B42).withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.location_on_rounded,
+                                      color: Color(0xFF0D6B42), size: 18),
+                                ),
+                                title: Text(
+                                  dest.name,
+                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                                ),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  if (isFrom) {
+                                    _changeFromDestination(dest.id, dest.name);
+                                  } else {
+                                    _changeToDestination(dest.id, dest.name);
+                                  }
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -942,30 +1230,50 @@ class _SearchViewState extends State<SearchView> {
 
   Widget _buildBusFilters() {
     const filters = [
-      'Phổ biến nhất',
-      'Giá thấp nhất',
-      'Giờ chạy sớm nhất',
-      'Nhà xe ưu tiên',
+      'Phổ biến',
+      'Giá thấp',
+      'Giờ sớm',
+      'Ưu tiên',
     ];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: List.generate(filters.length, (index) {
-          final isSelected = index == 0;
+          final active = index == _selectedBusFilterIndex;
           return Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(filters[index]),
-              selected: isSelected,
-              onSelected: (_) {},
-              selectedColor: const Color(0xFF0D6B42),
-              backgroundColor: Colors.grey[200],
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.white : Colors.black87,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedBusFilterIndex = index),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: active ? const Color(0xFF0D6B42) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: active ? const Color(0xFF0D6B42) : Colors.grey[300]!,
+                  ),
+                  boxShadow: active
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFF0D6B42).withValues(alpha: 0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          )
+                        ]
+                      : [],
+                ),
+                child: Text(
+                  filters[index],
+                  style: TextStyle(
+                    color: active ? Colors.white : Colors.grey[700],
+                    fontWeight:
+                        active ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ),
           );
@@ -975,202 +1283,303 @@ class _SearchViewState extends State<SearchView> {
   }
 
   Widget _buildTransportCard(BusScheduleModel schedule) {
-    final departureStr =
+    final dep =
         '${schedule.departureTime.hour.toString().padLeft(2, '0')}:${schedule.departureTime.minute.toString().padLeft(2, '0')}';
-    final arrivalStr =
+    final arr =
         '${schedule.arrivalTime.hour.toString().padLeft(2, '0')}:${schedule.arrivalTime.minute.toString().padLeft(2, '0')}';
 
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 14,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: schedule.companyLogoUrl.isNotEmpty
-                          ? Image.network(
-                              schedule.companyLogoUrl,
-                              width: 40,
-                              height: 40,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => _busLogoFallback(),
-                            )
-                          : _busLogoFallback(),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            schedule.companyName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                          Text(
-                            '${schedule.totalSeats} CHỖ GIƯỜNG NẰM',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+              // Left accent
+              Container(
+                width: 5,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF0D6B42), Color(0xFF1A9058)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
                 ),
               ),
-              Row(
-                children: [
-                  const Icon(Icons.star, color: Color(0xFF0D6B42), size: 14),
-                  const SizedBox(width: 4),
-                  Text(
-                    schedule.rating.toString(),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0D6B42),
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildTimePoint(departureStr, schedule.fromDestName),
+              // Content
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        schedule.duration,
-                        style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                      ),
+                      // Company row
                       Row(
                         children: [
-                          const Icon(
-                            Icons.circle,
-                            size: 8,
-                            color: Color(0xFF0D6B42),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: schedule.companyLogoUrl.isNotEmpty
+                                ? Image.network(
+                                    schedule.companyLogoUrl,
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (ctx, err, st) =>
+                                        _busLogoFallback(),
+                                  )
+                                : _busLogoFallback(),
                           ),
-                          Expanded(child: Container(height: 1, color: Colors.grey[300])),
-                          const Icon(
-                            Icons.directions_bus,
-                            size: 16,
-                            color: Color(0xFF0D6B42),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(schedule.companyName,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15)),
+                                const SizedBox(height: 5),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE8F5EE),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '${schedule.totalSeats} chỗ giường nằm',
+                                    style: const TextStyle(
+                                      color: Color(0xFF0D6B42),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          Expanded(child: Container(height: 1, color: Colors.grey[300])),
-                          Icon(Icons.circle, size: 8, color: Colors.grey[300]),
+                          // Rating badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF0D6B42),
+                                  Color(0xFF1A9058)
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.star_rounded,
+                                    color: Colors.white, size: 12),
+                                const SizedBox(width: 3),
+                                Text(
+                                  schedule.rating.toStringAsFixed(1),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Route
+                      Row(
+                        children: [
+                          // Dep
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(dep,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 24,
+                                      color: Colors.black87)),
+                              Text(schedule.fromDestName,
+                                  style:
+                                      TextStyle(color: Colors.grey[500], fontSize: 12)),
+                            ],
+                          ),
+                          // Line
+                          Expanded(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
+                              child: Column(
+                                children: [
+                                  Text(schedule.duration,
+                                      style: TextStyle(
+                                          color: Colors.grey[500],
+                                          fontSize: 11)),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFF0D6B42),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            Container(
+                                                height: 1.5,
+                                                color: Colors.grey[200]),
+                                            const Icon(
+                                                Icons.directions_bus_rounded,
+                                                color: Color(0xFF0D6B42),
+                                                size: 18),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: BoxDecoration(
+                                          border: Border.all(
+                                              color: Colors.grey[400]!,
+                                              width: 1.5),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          // Arr
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(arr,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 24,
+                                      color: Colors.black87)),
+                              Text(schedule.toDestName,
+                                  style: TextStyle(
+                                      color: Colors.grey[500], fontSize: 12)),
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+                      Divider(color: Colors.grey[100], height: 1),
+                      const SizedBox(height: 14),
+
+                      // Footer
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _formatTransportPrice(schedule.price),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                    color: Color(0xFF0D6B42),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(Icons.event_seat_rounded,
+                                        color: Colors.red[400], size: 13),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Còn ${schedule.spotsLeft} ghế',
+                                      style: TextStyle(
+                                          color: Colors.red[400],
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => _showSeatSelection(schedule),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 22, vertical: 12),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF0D6B42),
+                                    Color(0xFF1A9058)
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF0D6B42).withValues(alpha: 0.35),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Text('Chọn ghế',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14)),
+                            ),
+                          ),
                         ],
                       ),
                     ],
                   ),
                 ),
               ),
-              _buildTimePoint(arrivalStr, schedule.toDestName),
             ],
           ),
-          const SizedBox(height: 20),
-          const Divider(height: 1, color: Color(0xFFEEEEEE)),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _formatTransportPrice(schedule.price),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Color(0xFF0D6B42),
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      const Icon(Icons.person, color: Colors.red, size: 12),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Còn ${schedule.spotsLeft} ghế trống',
-                        style: const TextStyle(color: Colors.red, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              ElevatedButton(
-                onPressed: () => _showSeatSelection(schedule),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0D6B42),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Chọn ghế',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _busLogoFallback() {
     return Container(
-      width: 40,
-      height: 40,
-      color: Colors.grey[200],
-      child: const Icon(Icons.directions_bus, color: Colors.grey),
-    );
-  }
-
-  Widget _buildTimePoint(String time, String destination) {
-    return Column(
-      children: [
-        Text(
-          time,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-        ),
-        Text(
-          destination,
-          style: TextStyle(color: Colors.grey[500], fontSize: 12),
-        ),
-      ],
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D6B42).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Icon(Icons.directions_bus_rounded,
+          color: Color(0xFF0D6B42), size: 24),
     );
   }
 
@@ -1653,92 +2062,7 @@ class _HotelCard extends StatelessWidget {
   }
 }
 
-class _BusCard extends StatelessWidget {
-  const _BusCard({required this.bus, required this.onTap});
 
-  final CatalogBusCard bus;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF7ED),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: bus.imageUrl.isEmpty
-                  ? const Icon(
-                      Icons.directions_bus_rounded,
-                      color: Color(0xFFF97316),
-                    )
-                  : Image.network(
-                      bus.imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const Icon(
-                        Icons.directions_bus_rounded,
-                        color: Color(0xFFF97316),
-                      ),
-                    ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    bus.companyName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textHeading,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${bus.fromDestination} → ${bus.toDestination}',
-                    style: const TextStyle(color: AppColors.textHeading),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Ghế: ${bus.totalSeats} • ${bus.rating}★',
-                    style: const TextStyle(color: AppColors.textMuted),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              AppCurrencyFormatter.format(bus.price),
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.message, required this.onRetry});

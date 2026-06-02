@@ -126,18 +126,22 @@ class ExploreService extends ApiService {
     );
   }
 
-  Future<ExploreComment> addComment(int postId, String content) async {
-    return addCommentReply(postId: postId, content: content);
+  Future<ExploreComment> addComment(int postId, String content, {String? imageUrl}) async {
+    return addCommentReply(postId: postId, content: content, imageUrl: imageUrl);
   }
 
   Future<ExploreComment> addCommentReply({
     required int postId,
     required String content,
+    String? imageUrl,
     int? parentCommentId,
   }) async {
     final payload = <String, dynamic>{'content': content};
     if (parentCommentId != null) {
       payload['parentCommentId'] = parentCommentId;
+    }
+    if (imageUrl != null) {
+      payload['imageUrl'] = imageUrl;
     }
 
     final response = await postWithFallback(

@@ -219,13 +219,14 @@ class ExploreProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> addComment(int postId, String content) async {
-    return addCommentReply(postId: postId, content: content);
+  Future<bool> addComment(int postId, String content, {String? imageUrl}) async {
+    return addCommentReply(postId: postId, content: content, imageUrl: imageUrl);
   }
 
   Future<bool> addCommentReply({
     required int postId,
     required String content,
+    String? imageUrl,
     int? parentCommentId,
   }) async {
     final trimmed = content.trim();
@@ -235,6 +236,7 @@ class ExploreProvider with ChangeNotifier {
       final comment = await _service.addCommentReply(
         postId: postId,
         content: trimmed,
+        imageUrl: imageUrl,
         parentCommentId: parentCommentId,
       );
       final index = _allPosts.indexWhere((post) => post.id == postId);

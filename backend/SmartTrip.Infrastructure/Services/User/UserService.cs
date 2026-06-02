@@ -1,4 +1,4 @@
-﻿using SmartTrip.Application.DTOs.User;
+using SmartTrip.Application.DTOs.User;
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
@@ -221,7 +221,8 @@ public class UserService : IUserService
                     Quantity = i.Quantity ?? 0,
                     BookedPrice = i.BookedPrice ?? 0,
                     Status = trip?.Status?.ToString() ?? TripStatus.Draft.ToString(),
-                    IsReviewed = isReviewed
+                    IsReviewed = isReviewed,
+                    SelectedSeats = i.SelectedSeats
                 };
             })
             .ToList();

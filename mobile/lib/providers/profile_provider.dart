@@ -7,6 +7,22 @@ import '../services/api_service_base.dart';
 import '../services/fcm_service.dart';
 import '../services/profile_service.dart';
 
+class PersonalVoucher {
+  final String code;
+  final String title;
+  final String description;
+  final String expiry;
+  int quantity;
+
+  PersonalVoucher({
+    required this.code,
+    required this.title,
+    required this.description,
+    required this.expiry,
+    required this.quantity,
+  });
+}
+
 class ProfileProvider with ChangeNotifier {
   final ProfileService _apiService = ProfileService();
 
@@ -22,6 +38,47 @@ class ProfileProvider with ChangeNotifier {
   bool _isChangingPassword = false;
   String? _error;
   int? _lastStatusCode;
+
+  final List<PersonalVoucher> _myVouchers = [
+    PersonalVoucher(
+      code: 'FREE100',
+      title: 'Miễn phí đặt chỗ (100% OFF)',
+      description: 'Áp dụng cho mọi dịch vụ. Giảm tối đa 100% tổng hóa đơn.',
+      expiry: 'Hạn dùng: 31/12/2026',
+      quantity: 1,
+    ),
+    PersonalVoucher(
+      code: 'SUMMER15',
+      title: 'Khuyến mãi hè rực rỡ (15% OFF)',
+      description: 'Áp dụng cho mọi dịch vụ. Giảm giá 15% tổng hóa đơn.',
+      expiry: 'Hạn dùng: 30/09/2026',
+      quantity: 2,
+    ),
+    PersonalVoucher(
+      code: 'LIMOSMART',
+      title: 'Trải nghiệm tiện nghi (-30k)',
+      description: 'Giảm 30.000đ trực tiếp vào hóa đơn dịch vụ.',
+      expiry: 'Hạn dùng: 31/08/2026',
+      quantity: 5,
+    ),
+  ];
+
+  List<PersonalVoucher> get myVouchers => _myVouchers;
+
+  int get totalVoucherCount => _myVouchers.fold(0, (sum, v) => sum + v.quantity);
+
+  void useVoucher(String code) {
+    for (var v in _myVouchers) {
+      if (v.code == code && v.quantity > 0) {
+        v.quantity--;
+        if (_profileData != null) {
+          _profileData = _profileData!.copyWith(vouchers: totalVoucherCount);
+        }
+        notifyListeners();
+        break;
+      }
+    }
+  }
 
   UserProfile? get profileData => _profileData;
   UserSettings? get settings => _settings;
@@ -48,6 +105,9 @@ class ProfileProvider with ChangeNotifier {
 
     try {
       _profileData = await _apiService.getProfile();
+      if (_profileData != null) {
+        _profileData = _profileData!.copyWith(vouchers: totalVoucherCount);
+      }
     } catch (error) {
       _setError(error);
     } finally {

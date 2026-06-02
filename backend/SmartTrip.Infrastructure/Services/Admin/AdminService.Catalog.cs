@@ -491,7 +491,7 @@ public partial class AdminService
             ValidUntil = validUntil.ToString("yyyy-MM-dd"),
             UsageLimit = promotion.UsageLimit ?? 0,
             UsedCount = promotion.UsedCount ?? 0,
-            IsActive = validUntil >= DateTime.UtcNow
+            IsActive = validUntil >= DateTime.UtcNow && (promotion.UsageLimit == null || promotion.UsedCount < promotion.UsageLimit)
         };
     }
 

@@ -1,9 +1,13 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/explore_post.dart';
 import '../../providers/explore_provider.dart';
+import '../../providers/profile_provider.dart';
 import '../../utils/app_text.dart';
 import '../../utils/relative_time_formatter.dart';
 import 'explore_map_sheet.dart';
@@ -249,7 +253,7 @@ class _DetailSliverAppBar extends StatelessWidget {
     HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Da sao chep lien ket: ${post.title}'),
+        content: Text('Đã sao chép liên kết: ${post.title}'),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -507,7 +511,7 @@ class _LocationWidget extends StatelessWidget {
 
 // ─── Comments Section ─────────────────────────────────────────────────────────
 
-class _CommentsSection extends StatelessWidget {
+class _CommentsSection extends StatefulWidget {
   const _CommentsSection({
     required this.postId,
     required this.comments,
@@ -521,9 +525,95 @@ class _CommentsSection extends StatelessWidget {
   final Future<bool> Function({
     required int postId,
     required String content,
+    String? imageUrl,
     int? parentCommentId,
-  })
-  onSubmit;
+  }) onSubmit;
+
+  @override
+  State<_CommentsSection> createState() => _CommentsSectionState();
+}
+
+class _CommentsSectionState extends State<_CommentsSection> {
+  XFile? _selectedImage;
+  bool _isUploading = false;
+
+  Future<void> _pickImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
+      if (image != null) {
+        setState(() {
+          _selectedImage = image;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+    }
+  }
+
+  void _clearImage() {
+    setState(() {
+      _selectedImage = null;
+    });
+  }
+
+  Future<void> _submitComment() async {
+    final content = widget.controller.text.trim();
+    if (content.isEmpty && _selectedImage == null) return;
+
+    setState(() => _isUploading = true);
+    String? imageUrl;
+
+    try {
+      if (_selectedImage != null) {
+        imageUrl = await context.read<ExploreProvider>().uploadImage(_selectedImage!);
+      }
+      
+      final success = await widget.onSubmit(
+        postId: widget.postId,
+        content: content,
+        imageUrl: imageUrl,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+          if (success) {
+            _selectedImage = null;
+            widget.controller.clear();
+          }
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.tr(
+                vi: success ? 'Bình luận đã được gửi!' : 'Không gửi được bình luận',
+                en: success ? 'Comment posted!' : 'Could not post comment',
+              ),
+            ),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi gửi bình luận: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -544,8 +634,8 @@ class _CommentsSection extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 context.tr(
-                  vi: 'Binh luan (${comments.length})',
-                  en: 'Comments (${comments.length})',
+                  vi: 'Bình luận (${widget.comments.length})',
+                  en: 'Comments (${widget.comments.length})',
                 ),
                 style: const TextStyle(
                   fontSize: 16,
@@ -556,83 +646,160 @@ class _CommentsSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ...comments.map(
-            (c) => _CommentItem(postId: postId, comment: c, onSubmit: onSubmit),
+          ...widget.comments.map(
+            (c) => _CommentItem(postId: widget.postId, comment: c, onSubmit: widget.onSubmit),
           ),
           const SizedBox(height: 12),
+          // Thumbnail Preview
+          if (_selectedImage != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 48, bottom: 8),
+              child: Stack(
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(11),
+                      child: kIsWeb
+                          ? Image.network(
+                              _selectedImage!.path,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            )
+                          : Image.file(
+                              File(_selectedImage!.path),
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 2,
+                    right: 2,
+                    child: GestureDetector(
+                      onTap: _clearImage,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_isUploading)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black26,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           // Comment input
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const CircleAvatar(
-                radius: 18,
-                backgroundColor: Color(0xFFE5E7EB),
-                child: Icon(
-                  Icons.person_rounded,
-                  size: 20,
-                  color: ExploreColors.textMuted,
-                ),
+              Builder(
+                builder: (context) {
+                  final profileUrl = context.watch<ProfileProvider>().profileData?.avatarUrl;
+                  return CircleAvatar(
+                    radius: 18,
+                    backgroundImage: profileUrl != null && profileUrl.isNotEmpty ? NetworkImage(profileUrl) : null,
+                    backgroundColor: const Color(0xFFE5E7EB),
+                    child: profileUrl == null || profileUrl.isEmpty
+                        ? const Icon(
+                            Icons.person_rounded,
+                            size: 20,
+                            color: ExploreColors.textMuted,
+                          )
+                        : null,
+                  );
+                }
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
                     color: const Color(0xFFF9FAFB),
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: ExploreColors.border),
                   ),
-                  child: TextField(
-                    controller: controller,
-                    style: const TextStyle(fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: context.tr(
-                        vi: 'Them binh luan...',
-                        en: 'Add a comment...',
-                      ),
-                      hintStyle: const TextStyle(
-                        color: ExploreColors.textMuted,
-                        fontSize: 13,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      suffixIcon: IconButton(
-                        icon: const Icon(
-                          Icons.send_rounded,
-                          color: ExploreColors.primary,
-                          size: 18,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: widget.controller,
+                          style: const TextStyle(fontSize: 13),
+                          decoration: InputDecoration(
+                            hintText: context.tr(
+                              vi: 'Thêm bình luận...',
+                              en: 'Add a comment...',
+                            ),
+                            hintStyle: const TextStyle(
+                              color: ExploreColors.textMuted,
+                              fontSize: 13,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                          ),
                         ),
-                        onPressed: () {
-                          final content = controller.text.trim();
-                          if (content.isEmpty) return;
-                          controller.clear();
-                          onSubmit(postId: postId, content: content).then((
-                            success,
-                          ) {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  context.tr(
-                                    vi: success
-                                        ? 'Binh luan da duoc gui!'
-                                        : 'Khong gui duoc binh luan',
-                                    en: success
-                                        ? 'Comment posted!'
-                                        : 'Could not post comment',
-                                  ),
-                                ),
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            );
-                          });
-                        },
                       ),
-                    ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.camera_alt_outlined,
+                          color: ExploreColors.textMuted,
+                          size: 20,
+                        ),
+                        onPressed: _isUploading ? null : _pickImage,
+                        tooltip: 'Chọn ảnh',
+                      ),
+                      IconButton(
+                        icon: _isUploading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: ExploreColors.primary,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.send_rounded,
+                                color: ExploreColors.primary,
+                                size: 18,
+                              ),
+                        onPressed: _isUploading ? null : _submitComment,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -849,6 +1016,17 @@ class _CommentBubble extends StatelessWidget {
                     height: 1.4,
                   ),
                 ),
+                if (comment.imageUrl != null && comment.imageUrl!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      comment.imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -908,6 +1086,17 @@ class _ReplyBubble extends StatelessWidget {
                           height: 1.35,
                         ),
                       ),
+                      if (reply.imageUrl != null && reply.imageUrl!.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.network(
+                            reply.imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -986,7 +1175,7 @@ class _FloatingActionBar extends StatelessWidget {
                 ? Icons.bookmark_rounded
                 : Icons.bookmark_border_rounded,
             label: context.tr(
-              vi: post.isBookmarked ? 'Da luu' : 'Luu',
+              vi: post.isBookmarked ? 'Đã lưu' : 'Lưu',
               en: post.isBookmarked ? 'Saved' : 'Save',
             ),
             color: post.isBookmarked
@@ -1001,14 +1190,14 @@ class _FloatingActionBar extends StatelessWidget {
           // Share
           _ActionButton(
             icon: Icons.share_rounded,
-            label: context.tr(vi: 'Chia se', en: 'Share'),
+            label: context.tr(vi: 'Chia sẻ', en: 'Share'),
             color: ExploreColors.textSecondary,
             onTap: () {
               HapticFeedback.lightImpact();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    context.tr(vi: 'Da sao chep lien ket', en: 'Link copied'),
+                    context.tr(vi: 'Đã sao chép liên kết', en: 'Link copied'),
                   ),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(

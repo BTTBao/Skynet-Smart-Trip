@@ -71,6 +71,38 @@ namespace SmartTrip.Application.Services.Email
 
             return SendEmailAsync(toEmail, $"[SmartTrip] Xác nhận đặt chỗ thành công {bookingCode}", WrapInBaseLayout("Xác nhận đặt chỗ thành công", content));
         }
+
+        public Task SendBusBookingConfirmationEmailAsync(
+            string toEmail,
+            string fullName,
+            string bookingCode,
+            string companyName,
+            string fromDest,
+            string toDest,
+            string departureTime,
+            string arrivalTime,
+            string seats,
+            string totalPrice)
+        {
+            var content =
+                $"<h2>Xác nhận đặt vé xe thành công! 🚌</h2>" +
+                $"<p>Chào <strong>{fullName}</strong>,</p>" +
+                $"<p>Cảm ơn bạn đã lựa chọn dịch vụ của <strong>SmartTrip</strong>. Giao dịch đặt vé xe khách của bạn đã được xác nhận thành công.</p>" +
+                $"<div style=\"background: #f0f7ff; padding: 20px; border-radius: 8px; margin: 20px 0;\">" +
+                $"  <p style=\"margin: 0 0 10px 0;\"><strong>Mã đặt vé:</strong> <span style=\"color: #0d6b42; font-weight: bold;\">{bookingCode}</span></p>" +
+                $"  <p style=\"margin: 0 0 10px 0;\"><strong>Nhà xe:</strong> {companyName}</p>" +
+                $"  <p style=\"margin: 0 0 10px 0;\"><strong>Tuyến đường:</strong> {fromDest} ➔ {toDest}</p>" +
+                $"  <p style=\"margin: 0 0 10px 0;\"><strong>Thời gian xuất phát:</strong> {departureTime}</p>" +
+                $"  <p style=\"margin: 0 0 10px 0;\"><strong>Thời gian đến nơi:</strong> {arrivalTime}</p>" +
+                $"  <p style=\"margin: 0 0 10px 0;\"><strong>Số ghế:</strong> {seats}</p>" +
+                $"  <p style=\"margin: 0;\"><strong>Tổng thanh toán:</strong> {totalPrice}</p>" +
+                $"</div>" +
+                $"<p>Vui lòng xuất trình email này hoặc vé điện tử trên ứng dụng di động SmartTrip khi lên xe.</p>" +
+                $"<div class=\"note\">Chúc bạn có một chuyến đi an toàn và vui vẻ! 🗺️</div>";
+
+            return SendEmailAsync(toEmail, $"[SmartTrip] Xác nhận đặt vé xe thành công {bookingCode}", WrapInBaseLayout("Xác nhận đặt vé xe thành công", content));
+        }
+
         public Task SendHotelBookingCreatedEmailAsync(string toEmail, string fullName, string bookingTitle, string travelWindow) =>
             SendEmailAsync(
                 toEmail,

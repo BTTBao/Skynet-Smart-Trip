@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
@@ -547,6 +547,61 @@ public class PayOsPaymentService : IPaymentService
             if (user == null || !await _notificationService.AreEmailNotificationsEnabledAsync(user.Id, cancellationToken))
             {
                 return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(payment.MetadataJson))
+            {
+                try
+                {
+                    using var document = JsonDocument.Parse(payment.MetadataJson);
+                    var metadata = document.RootElement;
+                    var type = GetString(metadata, "type");
+                    if (string.Equals(type, "BUS", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var scheduleId = GetInt(metadata, "scheduleId");
+                        if (scheduleId.HasValue)
+                        {
+                            var schedule = await _context.BusSchedules
+                                .Include(s => s.Company)
+                                .Include(s => s.FromDest)
+                                .Include(s => s.ToDest)
+                                .FirstOrDefaultAsync(s => s.Id == scheduleId.Value, cancellationToken);
+
+                            if (schedule != null)
+                            {
+                                var bookingCode = $"SKN-{payment.Id.ToString().PadLeft(4, '0')}";
+                                var selectedSeats = "";
+                                if (metadata.TryGetProperty("selectedSeats", out var seatsElement) && seatsElement.ValueKind == JsonValueKind.Array)
+                                {
+                                    selectedSeats = string.Join(", ", seatsElement.EnumerateArray()
+                                        .Select(item => item.GetString())
+                                        .Where(item => !string.IsNullOrWhiteSpace(item)));
+                                }
+
+                                var departureStr = schedule.DepartureTime?.ToString("HH:mm dd/MM/yyyy") ?? "";
+                                var arrivalStr = schedule.ArrivalTime?.ToString("HH:mm dd/MM/yyyy") ?? "";
+                                var priceStr = string.Format(CultureInfo.GetCultureInfo("vi-VN"), "{0:N0} đ", payment.Amount ?? 0m);
+
+                                await _emailService.SendBusBookingConfirmationEmailAsync(
+                                    user.Email,
+                                    user.FullName ?? user.Email,
+                                    bookingCode,
+                                    schedule.Company?.Name ?? "SmartTrip Express",
+                                    schedule.FromDest?.Name ?? "",
+                                    schedule.ToDest?.Name ?? "",
+                                    departureStr,
+                                    arrivalStr,
+                                    selectedSeats,
+                                    priceStr);
+                                return;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to parse metadata or fetch bus schedule details for payment {PaymentId}. Falling back to general success email.", payment.Id);
+                }
             }
 
             await _emailService.SendPaymentSuccessEmailAsync(

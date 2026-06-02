@@ -357,9 +357,47 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
     );
   }
 
+  Future<void> _repayBusTicket(BusHistoryItem item) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: primaryColor)),
+    );
+
+    try {
+      await _tripService.reLockSeats(item.tripId);
+      
+      if (mounted) Navigator.pop(context);
+
+      if (mounted) {
+        await _showPaymentModal(
+          item.tripId,
+          item.bookedPrice,
+          'Thanh toán vé xe ${item.companyName}',
+          'BUS',
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+
+      if (mounted) {
+        final errorMsg = e is ApiException
+            ? e.message
+            : e.toString().replaceFirst('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể thanh toán: $errorMsg'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildBusCard(BusHistoryItem item) {
     final canReview = !item.isReviewed && (item.status.toUpperCase() == 'PAID' || item.status.toUpperCase() == 'SUCCESS' || item.status.toUpperCase() == 'COMPLETED');
     final isReviewed = item.isReviewed;
+    final isPending = item.status.toUpperCase() == 'PENDING';
 
     return _HistoryCard(
       title: item.companyName,
@@ -372,15 +410,21 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
           ? 'Đã đánh giá'
           : canReview 
               ? 'Viết đánh giá' 
-              : null,
+              : isPending
+                  ? 'Thanh toán'
+                  : null,
       onActionTap: isReviewed
           ? null
           : canReview
               ? () => _showReviewDialog(item.tripId, 'BusCompany', item.companyId, item.companyName)
-              : null,
+              : isPending
+                  ? () => _repayBusTicket(item)
+                  : null,
       extraLines: [
         '${context.tr(vi: 'Chuyen di', en: 'Trip')}: ${item.tripTitle}',
         '${context.tr(vi: 'So luong', en: 'Quantity')}: ${item.quantity}',
+        if (item.selectedSeats != null && item.selectedSeats!.isNotEmpty)
+          'Số ghế: ${item.selectedSeats}',
       ],
     );
   }

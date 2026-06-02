@@ -132,6 +132,7 @@ class BusHistoryItem {
   final double bookedPrice;
   final String status;
   final bool isReviewed;
+  final String? selectedSeats;
 
   const BusHistoryItem({
     required this.tripId,
@@ -148,6 +149,7 @@ class BusHistoryItem {
     required this.bookedPrice,
     required this.status,
     required this.isReviewed,
+    this.selectedSeats,
   });
 
   factory BusHistoryItem.fromJson(Map<String, dynamic> json) {
@@ -166,6 +168,7 @@ class BusHistoryItem {
       bookedPrice: (json['bookedPrice'] ?? 0).toDouble(),
       status: json['status'] ?? '',
       isReviewed: json['isReviewed'] ?? false,
+      selectedSeats: json['selectedSeats'],
     );
   }
 }

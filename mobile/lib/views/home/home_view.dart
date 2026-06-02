@@ -5,12 +5,9 @@ import '../../core/app_theme.dart';
 import '../../models/catalog_models.dart';
 import '../../providers/catalog_provider.dart';
 import '../../utils/app_currency_formatter.dart';
-import '../catalog/bus_detail_view.dart';
-import '../catalog/hotel_detail_view.dart';
 import '../catalog/search_view.dart';
 import '../resort_detail/resort_detail_screen.dart';
 import '../resort_search/resort_search_screen.dart';
-import '../transport/transport_search_screen.dart';
 import '../destination/destination_article_screen.dart';
 
 class HomeView extends StatefulWidget {
@@ -109,7 +106,11 @@ class _HomeViewState extends State<HomeView> {
                         background: const Color(0xFFFFF7ED),
                         onTap: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const TransportSearchScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const SearchView(
+                                initialMode: SearchMode.bus,
+                              ),
+                            ),
                           );
                         },
                       ),
@@ -272,14 +273,6 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  void _openExplore() {
-    if (widget.onNavigateToExplore != null) {
-      widget.onNavigateToExplore!();
-      return;
-    }
-
-    _openSearch();
-  }
 
   void _openHotel(CatalogHotelCard hotel) {
     Navigator.of(context).push(
@@ -292,7 +285,10 @@ class _HomeViewState extends State<HomeView> {
   void _openBus(CatalogBusCard bus) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => const TransportSearchScreen(),
+        builder: (_) => SearchView(
+          initialMode: SearchMode.bus,
+          initialQuery: bus.toDestination,
+        ),
       ),
     );
   }
@@ -366,9 +362,10 @@ class _HomeViewState extends State<HomeView> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => TransportSearchScreen(
-                          toDestId: destinationId,
-                          toDestName: destinationName,
+                        builder: (_) => SearchView(
+                          initialMode: SearchMode.bus,
+                          initialDestinationId: destinationId,
+                          initialQuery: destinationName,
                         ),
                       ),
                     );
@@ -379,7 +376,39 @@ class _HomeViewState extends State<HomeView> {
                   child: TextButton(
                     onPressed: () {
                       Navigator.pop(sheetContext);
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const DestinationArticleScreen()));
+                      final nameLower = destinationName.toLowerCase();
+                      String slug = 'da-lat';
+                      String title = 'Đà Lạt: Bản Tình Ca Giữa Màn Sương';
+                      String imageUrl = 'https://images.unsplash.com/photo-1596423735880-532688b1ccfc?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+                      String category = 'Cẩm nang';
+                      String readTime = '4 phút đọc';
+
+                      if (nameLower.contains('nẵng') || nameLower.contains('nang')) {
+                        slug = 'da-nang';
+                        title = 'Kinh nghiệm du lịch Đà Nẵng tự túc từ A-Z';
+                        imageUrl = 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+                        category = 'Cẩm nang';
+                        readTime = '5 phút đọc';
+                      } else if (nameLower.contains('lộng') || nameLower.contains('long')) {
+                        slug = 'ha-long';
+                        title = 'Hạ Long có gì chơi? Gợi ý lịch trình 2 ngày 1 đêm';
+                        imageUrl = 'https://images.unsplash.com/photo-1524230507669-e29f7363618d?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+                        category = 'Lịch trình';
+                        readTime = '6 phút đọc';
+                      }
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DestinationArticleScreen(
+                            title: title,
+                            imageUrl: imageUrl,
+                            category: category,
+                            readTime: readTime,
+                            citySlug: slug,
+                          ),
+                        ),
+                      );
                     },
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
