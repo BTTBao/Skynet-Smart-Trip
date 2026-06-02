@@ -101,6 +101,7 @@ public class ItineraryService : IItineraryService
         var normalizedServiceType = TripServiceOptionService.NormalizeServiceType(itinerary.ServiceType?.ToString());
         var serviceName = $"Service #{itinerary.ServiceId}";
         string? serviceSubtitle = null;
+        DateOnly? hotelCheckOutDate = null;
 
         if (normalizedServiceType == HotelServiceType && itinerary.ServiceId.HasValue)
         {
@@ -112,10 +113,32 @@ public class ItineraryService : IItineraryService
 
             if (room?.Hotel != null)
             {
+                var tripDates = itinerary.TripId.HasValue
+                    ? await _context.Trips
+                        .AsNoTracking()
+                        .Where(item => item.Id == itinerary.TripId.Value)
+                        .Select(item => new { item.StartDate, item.EndDate })
+                        .FirstOrDefaultAsync()
+                    : null;
+                var checkInDate = itinerary.ServiceDate ?? tripDates?.StartDate;
+                var fallbackCheckOutDate = tripDates?.EndDate;
+
+                if (checkInDate.HasValue && fallbackCheckOutDate.HasValue)
+                {
+                    hotelCheckOutDate = ResolveHotelCheckOutDate(
+                        itinerary.BookedPrice,
+                        room.PricePerNight,
+                        checkInDate.Value,
+                        fallbackCheckOutDate.Value);
+                }
+
                 serviceName = room.Hotel.Name;
                 serviceSubtitle = string.Join(" • ", new[]
                 {
                     room.RoomType,
+                    checkInDate.HasValue
+                        ? FormatHotelBookingDateRange(checkInDate.Value, hotelCheckOutDate)
+                        : null,
                     room.Hotel.Address,
                     room.Capacity.HasValue ? $"Suc chua {room.Capacity.Value} nguoi" : null,
                     room.Hotel.StarRating.HasValue ? $"{room.Hotel.StarRating.Value} sao" : null
@@ -174,6 +197,7 @@ public class ItineraryService : IItineraryService
             BookedPrice = itinerary.BookedPrice,
             BookedCommissionRate = itinerary.BookedCommissionRate,
             ServiceDate = itinerary.ServiceDate,
+            HotelCheckOutDate = hotelCheckOutDate,
             DepartureTime = itinerary.DepartureTime,
             ServiceAddress = itinerary.ServiceAddress
         };
@@ -387,6 +411,16 @@ public class ItineraryService : IItineraryService
         }
 
         return fallbackCheckOut;
+    }
+
+    private static string FormatHotelBookingDateRange(DateOnly checkIn, DateOnly? checkOut)
+    {
+        if (!checkOut.HasValue)
+        {
+            return $"Nhan phong {checkIn:dd/MM/yyyy}";
+        }
+
+        return $"Nhan phong {checkIn:dd/MM/yyyy} - Tra phong {checkOut.Value:dd/MM/yyyy}";
     }
 
     private async Task RecalculateTripTotalsAsync(int tripId)

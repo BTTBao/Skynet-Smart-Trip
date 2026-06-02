@@ -16,6 +16,7 @@ class TripTimelineEntry {
     this.quantity,
     this.bookedPrice,
     this.serviceDate,
+    this.hotelCheckOutDate,
     this.departureTime,
     this.serviceAddress,
     this.badge,
@@ -32,6 +33,7 @@ class TripTimelineEntry {
   final int? quantity;
   final double? bookedPrice;
   final DateTime? serviceDate;
+  final DateTime? hotelCheckOutDate;
   final String? departureTime;
   final String? serviceAddress;
   final String time;
@@ -54,6 +56,7 @@ class TripTimelineEntry {
         bookedPrice == null ? null : AppCurrencyFormatter.format(bookedPrice);
     final serviceAddress = json['serviceAddress']?.toString().trim();
     final parsedServiceDate = _parseServiceDate(json['serviceDate']);
+    final parsedHotelCheckOutDate = _parseServiceDate(json['hotelCheckOutDate']);
     final parsedDeparture = _normalizeTime(json['departureTime']?.toString());
 
     final descriptionParts = <String>[
@@ -71,6 +74,7 @@ class TripTimelineEntry {
       quantity: quantity,
       bookedPrice: bookedPrice,
       serviceDate: parsedServiceDate,
+      hotelCheckOutDate: parsedHotelCheckOutDate,
       departureTime: parsedDeparture,
       serviceAddress: (serviceAddress ?? '').isEmpty ? null : serviceAddress,
       time: parsedDeparture ?? '',
@@ -83,6 +87,12 @@ class TripTimelineEntry {
       badgeTextColor: _badgeTextForServiceType(serviceType),
     );
   }
+
+  String? get hotelBookingDateLabel => _hotelDateLabel(
+        serviceType ?? '',
+        serviceDate,
+        hotelCheckOutDate,
+      );
 
   static DateTime? _parseServiceDate(dynamic rawValue) {
     final text = rawValue?.toString().trim();
@@ -111,6 +121,24 @@ class TripTimelineEntry {
     }
 
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  }
+
+  static String? _hotelDateLabel(
+    String serviceType,
+    DateTime? checkIn,
+    DateTime? checkOut,
+  ) {
+    if (serviceType != 'HOTEL' || checkIn == null) {
+      return null;
+    }
+
+    final checkInText = _formatDate(checkIn);
+    final checkOutText = checkOut == null ? 'Dang cap nhat' : _formatDate(checkOut);
+    return 'Nhan phong: $checkInText - Tra phong: $checkOutText';
+  }
+
+  static String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
   static String _sectionTitleForServiceType(String serviceType) {

@@ -22,6 +22,7 @@ class HotelProvider with ChangeNotifier {
   String? _calendarError;
   int _calendarYear = 0;
   int _calendarMonth = 0;
+  int? _calendarRoomId;
 
   // Getters
   List<ResortModel> get hotels => List.unmodifiable(_hotels);
@@ -55,8 +56,13 @@ class HotelProvider with ChangeNotifier {
   }
 
   /// Lấy chi tiết một hotel
-  Future<void> fetchHotelDetail(int hotelId) async {
-    if (_selectedHotel?.id == hotelId && _selectedHotel != null && !_isLoadingDetail) return;
+  Future<void> fetchHotelDetail(int hotelId, {bool forceRefresh = false}) async {
+    if (!forceRefresh &&
+        _selectedHotel?.id == hotelId &&
+        _selectedHotel != null &&
+        !_isLoadingDetail) {
+      return;
+    }
 
     _selectedHotel = null;
     _isLoadingDetail = true;
@@ -74,8 +80,19 @@ class HotelProvider with ChangeNotifier {
   }
 
   /// Lấy lịch giá của một tháng — giống Agoda/Booking.com
-  Future<void> fetchCalendar(int hotelId, {required int year, required int month}) async {
-    if (_calendarYear == year && _calendarMonth == month && _calendarDays.isNotEmpty && !_isLoadingCalendar) {
+  Future<void> fetchCalendar(
+    int hotelId, {
+    required int year,
+    required int month,
+    int? roomId,
+    bool forceRefresh = false,
+  }) async {
+    if (!forceRefresh &&
+        _calendarYear == year &&
+        _calendarMonth == month &&
+        _calendarRoomId == roomId &&
+        _calendarDays.isNotEmpty &&
+        !_isLoadingCalendar) {
       return;
     }
 
@@ -83,10 +100,16 @@ class HotelProvider with ChangeNotifier {
     _calendarError = null;
     _calendarYear = year;
     _calendarMonth = month;
+    _calendarRoomId = roomId;
     notifyListeners();
 
     try {
-      _calendarDays = await _service.getCalendar(hotelId, year: year, month: month);
+      _calendarDays = await _service.getCalendar(
+        hotelId,
+        year: year,
+        month: month,
+        roomId: roomId,
+      );
     } catch (e) {
       _calendarError = _extractError(e);
     } finally {
@@ -99,6 +122,7 @@ class HotelProvider with ChangeNotifier {
     _calendarDays = const [];
     _calendarYear = 0;
     _calendarMonth = 0;
+    _calendarRoomId = null;
   }
 
   String _extractError(Object e) {

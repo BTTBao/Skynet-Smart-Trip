@@ -41,6 +41,7 @@ class _MainShellState extends State<MainShell> implements MainShellController {
 
   late final Widget _homePage = HomeView(
     onNavigateToExplore: () => setState(() => _currentIndex = 3),
+    onNavigateToTrips: () => setState(() => _currentIndex = 4),
   );
   late final Widget _chatbotPage = ChatbotView();
   late final Widget _searchPage = const SearchScreen();
