@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:image_picker/image_picker.dart';
+
 import '../models/user_favorite.dart';
 import '../models/user_profile.dart';
 import '../models/user_settings.dart';
@@ -65,7 +67,7 @@ class ProfileService extends ApiService {
         final response = await multipartPostWithFallback(
           '/user/me/upload-avatar',
           fileField: 'file',
-          filePath: filePath,
+          file: XFile(filePath),
           requireAuth: true,
         );
 

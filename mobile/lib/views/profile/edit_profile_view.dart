@@ -319,7 +319,7 @@ class _EditProfileViewState extends State<EditProfileView> {
 
     return _nameController.text.trim() != user.name.trim() ||
         _phoneController.text.trim() != user.phone.trim() ||
-        _birthDateController.text.trim() != (user.birthDate ?? '').trim() ||
+        _birthDateController.text.trim() != user.birthDate.trim() ||
         _identityController.text.trim() != (user.identityNumber ?? '').trim();
   }
 
