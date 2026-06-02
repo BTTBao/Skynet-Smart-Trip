@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../models/resort_model.dart';
 import '../../models/create_trip_request.dart';
 import '../../models/create_trip_itinerary_request.dart';
+import '../../models/my_trip_summary.dart';
+import '../../providers/hotel_provider.dart';
 import '../../providers/trip_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../services/bus_service.dart';
@@ -21,6 +23,7 @@ class PaymentConfirmScreen extends StatefulWidget {
   final int adultCount;
   final int childCount;
   final int infantCount;
+  final int roomQuantity;
   final double totalPrice;
   final String fullName;
   final String email;
@@ -36,6 +39,7 @@ class PaymentConfirmScreen extends StatefulWidget {
     required this.adultCount,
     required this.childCount,
     required this.infantCount,
+    required this.roomQuantity,
     required this.totalPrice,
     required this.fullName,
     required this.email,
@@ -359,6 +363,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
 
       final double finalPayPrice = widget.totalPrice - _discountAmount;
 
+      await _refreshHotelAvailability();
       context.read<TripProvider>().fetchTrips(silent: true);
       Navigator.pushAndRemoveUntil(
         context,
@@ -409,6 +414,319 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         );
       },
     );
+  }
+
+  Future<void> _refreshHotelAvailability() async {
+    final hotelProvider = context.read<HotelProvider>();
+    await hotelProvider.fetchHotelDetail(widget.hotel.id, forceRefresh: true);
+    await hotelProvider.fetchCalendar(
+      widget.hotel.id,
+      year: widget.checkIn.year,
+      month: widget.checkIn.month,
+      roomId: widget.selectedRoom?.id,
+      forceRefresh: true,
+    );
+
+    if (widget.checkOut.year != widget.checkIn.year ||
+        widget.checkOut.month != widget.checkIn.month) {
+      await hotelProvider.fetchCalendar(
+        widget.hotel.id,
+        year: widget.checkOut.year,
+        month: widget.checkOut.month,
+        roomId: widget.selectedRoom?.id,
+        forceRefresh: true,
+      );
+    }
+  }
+
+  Future<_SelectedCheckoutTrip?> _selectOrCreateTripForBooking({
+    required int userId,
+    required String destinationName,
+  }) async {
+    final tripProvider = context.read<TripProvider>();
+    await tripProvider.fetchTrips(silent: true);
+
+    if (!mounted) {
+      return null;
+    }
+
+    final trips = tripProvider.upcomingTrips
+        .where((trip) => trip.status != 'CANCELLED')
+        .toList(growable: false)
+      ..sort((left, right) => left.startDate.compareTo(right.startDate));
+
+    return showModalBottomSheet<_SelectedCheckoutTrip>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        var isCreating = false;
+        var title = 'Chuyến đi $destinationName';
+        var query = '';
+
+        Future<void> createTrip(StateSetter setSheetState) async {
+          final normalizedTitle = title.trim();
+          if (normalizedTitle.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Vui lòng nhập tên chuyến đi.')),
+            );
+            return;
+          }
+
+          setSheetState(() => isCreating = true);
+          final createdTrip = await tripProvider.createTrip(
+            CreateTripRequest(
+              userId: userId,
+              destinationName: destinationName,
+              title: normalizedTitle,
+              startDate: widget.checkIn,
+              endDate: widget.checkOut,
+              status: 'PENDING',
+            ),
+          );
+
+          if (!sheetContext.mounted) {
+            return;
+          }
+
+          setSheetState(() => isCreating = false);
+          if (createdTrip == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  tripProvider.error ?? 'Không thể tạo chuyến đi.',
+                ),
+              ),
+            );
+            return;
+          }
+
+          Navigator.of(sheetContext).pop(
+            _SelectedCheckoutTrip(tripId: createdTrip.tripId, dayNumber: 1),
+          );
+        }
+
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final normalizedQuery = query.trim().toLowerCase();
+            final visibleTrips = normalizedQuery.isEmpty
+                ? trips
+                : trips
+                    .where(
+                      (trip) =>
+                          trip.title.toLowerCase().contains(normalizedQuery) ||
+                          trip.destination.toLowerCase().contains(normalizedQuery) ||
+                          trip.dateRange.toLowerCase().contains(normalizedQuery),
+                    )
+                    .toList(growable: false);
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                16,
+                20,
+                20 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: SafeArea(
+                top: false,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.88,
+                  ),
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 56,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE2E8F0),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Thêm vào chuyến đi',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Chọn chuyến đi có ngày bao trọn ngày nhận/trả phòng, hoặc tạo chuyến đi mới.',
+                        style: TextStyle(color: Colors.grey, height: 1.4),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        enabled: !isCreating,
+                        onChanged: (value) =>
+                            setSheetState(() => query = value),
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.search),
+                          labelText: 'Tìm chuyến đi',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ...visibleTrips.map((trip) {
+                        final blockedReason = _bookingTripBlockReason(trip);
+                        final canSelect = blockedReason == null;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: InkWell(
+                            onTap: isCreating || !canSelect
+                                ? null
+                                : () => Navigator.of(sheetContext).pop(
+                                      _SelectedCheckoutTrip(
+                                        tripId: trip.tripId,
+                                        dayNumber: _dayNumberForTrip(trip),
+                                      ),
+                                    ),
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: canSelect
+                                    ? Colors.white
+                                    : const Color(0xFFF8FAFC),
+                                border: Border.all(
+                                  color: const Color(0xFFE2E8F0),
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.map_rounded,
+                                    color: Color(0xFF0D6B42),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          trip.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${trip.destination} • ${trip.dateRange}',
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        if (blockedReason != null) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            blockedReason,
+                                            style: const TextStyle(
+                                              color: Color(0xFFB42318),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    canSelect
+                                        ? Icons.chevron_right_rounded
+                                        : Icons.lock_outline,
+                                    color: Colors.grey,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 8),
+                      TextField(
+                        enabled: !isCreating,
+                        controller: TextEditingController(text: title)
+                          ..selection = TextSelection.collapsed(
+                            offset: title.length,
+                          ),
+                        onChanged: (value) => title = value,
+                        decoration: InputDecoration(
+                          labelText: 'Tên chuyến đi mới',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed:
+                              isCreating ? null : () => createTrip(setSheetState),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF6DE899),
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: isCreating
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Tạo chuyến đi mới',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
+
+  int _dayNumberForTrip(MyTripSummary trip) {
+    return _dateOnly(widget.checkIn).difference(_dateOnly(trip.startDate)).inDays + 1;
+  }
+
+  String? _bookingTripBlockReason(MyTripSummary trip) {
+    final tripStart = _dateOnly(trip.startDate);
+    final tripEnd = _dateOnly(trip.endDate);
+    final bookingStart = _dateOnly(widget.checkIn);
+    final bookingEnd = _dateOnly(widget.checkOut);
+
+    if (tripStart.isAfter(bookingStart) || tripEnd.isBefore(bookingEnd)) {
+      return 'Ngày đi phải bao trọn ngày nhận/trả phòng.';
+    }
+
+    return null;
   }
 
   Future<void> _handlePayment() async {
@@ -473,31 +791,26 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       if (_pendingTripId != null) {
         currentTripId = _pendingTripId!;
       } else {
-        final tripRequest = CreateTripRequest(
+        final selectedTrip = await _selectOrCreateTripForBooking(
           userId: userId,
-          title: widget.selectedRoom != null
-              ? 'Đặt phòng: ${widget.hotel.name} (${widget.selectedRoom!.roomType})'
-              : 'Đặt phòng: ${widget.hotel.name}',
-          startDate: widget.checkIn,
-          endDate: widget.checkOut,
           destinationName: destName,
-          status: 'PENDING',
         );
-
-        final createdTrip = await tripProvider.createTrip(tripRequest);
-        if (createdTrip == null) {
-          throw Exception(
-            tripProvider.error ?? 'Không thể khởi tạo chuyến đi trên hệ thống.',
-          );
+        if (selectedTrip == null) {
+          if (mounted) {
+            setState(() => _isProcessing = false);
+          }
+          return;
         }
-        currentTripId = createdTrip.tripId;
-
+        currentTripId = selectedTrip.tripId;
         final itineraryRequest = CreateTripItineraryRequest(
-          dayNumber: 1,
+          dayNumber: selectedTrip.dayNumber,
           serviceType: 'HOTEL',
-          serviceId: widget.hotel.id,
-          quantity: 1,
-          bookedPrice: finalPayPrice < 0 ? 0 : finalPayPrice,
+          serviceId: widget.selectedRoom?.id ?? widget.hotel.id,
+          quantity: widget.roomQuantity,
+          bookedPrice: (widget.selectedRoom?.pricePerNight ??
+                  widget.hotel.minPricePerNight) *
+              widget.checkOut.difference(widget.checkIn).inDays.clamp(1, 365),
+          serviceDate: widget.checkIn,
         );
 
         final itinerarySuccess = await tripProvider.addItinerary(
@@ -510,6 +823,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                 'Không thể thêm thông tin phòng vào lịch trình.',
           );
         }
+        await _refreshHotelAvailability();
         _pendingTripId = currentTripId;
       }
 
@@ -529,7 +843,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         if (_appliedPromoCode != null) {
           context.read<ProfileProvider>().useVoucher(_appliedPromoCode!);
         }
-
+        await _refreshHotelAvailability();
         tripProvider.fetchTrips(silent: true);
 
         if (mounted) {
@@ -541,7 +855,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                 hotelName: widget.hotel.name,
                 dateRange: _formatDateRange(),
                 roomInfo:
-                    '${widget.adultCount} Người lớn, ${widget.selectedRoom?.roomType ?? "Phòng Standard"}',
+                    '${widget.adultCount} Người lớn, ${widget.roomQuantity} phòng, ${widget.selectedRoom?.roomType ?? "Phòng Standard"}',
                 imageUrl: widget.hotel.coverImageUrl,
                 totalPrice: 0,
                 paymentMethod: 'Khuyến mãi (0đ)',
@@ -565,6 +879,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
             'type': 'HOTEL',
             'hotelId': widget.hotel.id,
             if (widget.selectedRoom != null) 'roomId': widget.selectedRoom!.id,
+            'quantity': widget.roomQuantity,
           },
         );
 
@@ -600,7 +915,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       if (_appliedPromoCode != null) {
         context.read<ProfileProvider>().useVoucher(_appliedPromoCode!);
       }
-
+      await _refreshHotelAvailability();
       tripProvider.fetchTrips(silent: true);
 
       if (mounted) {
@@ -612,7 +927,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
               hotelName: widget.hotel.name,
               dateRange: _formatDateRange(),
               roomInfo:
-                  '${widget.adultCount} Người lớn, ${widget.selectedRoom?.roomType ?? "Phòng Standard"}',
+                  '${widget.adultCount} Người lớn, ${widget.roomQuantity} phòng, ${widget.selectedRoom?.roomType ?? "Phòng Standard"}',
               imageUrl: widget.hotel.coverImageUrl,
               totalPrice: finalPayPrice,
               paymentMethod: paymentMethodStr,
@@ -647,7 +962,8 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     final guestsText =
         '${widget.adultCount} Người lớn' +
         (widget.childCount > 0 ? ', ${widget.childCount} Trẻ em' : '') +
-        (widget.infantCount > 0 ? ', ${widget.infantCount} Em bé' : '');
+        (widget.infantCount > 0 ? ', ${widget.infantCount} Em bé' : '') +
+        ', ${widget.roomQuantity} phòng';
 
     final double finalPayPrice = widget.totalPrice - _discountAmount;
 
@@ -1117,4 +1433,11 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       ),
     );
   }
+}
+
+class _SelectedCheckoutTrip {
+  const _SelectedCheckoutTrip({required this.tripId, required this.dayNumber});
+
+  final int tripId;
+  final int dayNumber;
 }

@@ -20,9 +20,15 @@ class HotelService extends ApiService {
   }
 
   /// Lấy lịch giá động theo tháng — giống Booking.com / Agoda
-  Future<List<HotelCalendarDay>> getCalendar(int hotelId, {required int year, required int month}) async {
+  Future<List<HotelCalendarDay>> getCalendar(
+    int hotelId, {
+    required int year,
+    required int month,
+    int? roomId,
+  }) async {
+    final roomQuery = roomId == null ? '' : '&roomId=$roomId';
     final response = await getWithFallback(
-      '/hotel/$hotelId/calendar?year=$year&month=$month',
+      '/hotel/$hotelId/calendar?year=$year&month=$month$roomQuery',
       requireAuth: false,
     );
     final body = handleResponse(response) as Map<String, dynamic>;

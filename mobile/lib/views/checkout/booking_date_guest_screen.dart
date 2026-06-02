@@ -23,19 +23,22 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
   int adultCount = 2;
   int childCount = 0;
   int infantCount = 0;
+  int roomQuantity = 1;
 
   @override
   void initState() {
     super.initState();
     adultCount = widget.selectedRoom?.capacity ?? 2;
-    _fetchCalendar(_currentMonth);
+    _fetchCalendar(_currentMonth, forceRefresh: true);
   }
 
-  void _fetchCalendar(DateTime month) {
+  void _fetchCalendar(DateTime month, {bool forceRefresh = false}) {
     context.read<HotelProvider>().fetchCalendar(
       widget.hotel.id,
       year: month.year,
       month: month.month,
+      roomId: widget.selectedRoom?.id,
+      forceRefresh: forceRefresh,
     );
   }
 
@@ -79,26 +82,50 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
   }
 
   double get totalPrice {
-    if (nightsCount == 0) return widget.selectedRoom?.pricePerNight ?? widget.hotel.minPricePerNight;
+    if (nightsCount == 0) {
+      return (widget.selectedRoom?.pricePerNight ?? widget.hotel.minPricePerNight) *
+          roomQuantity;
+    }
+
     final provider = context.read<HotelProvider>();
     // Tính tổng giá thực tế dựa trên calendar days trong khoảng đã chọn
     final days = provider.calendarDays;
     double total = 0;
 
-    double multiplier = 1.0;
-    if (widget.selectedRoom != null && widget.hotel.minPricePerNight > 0) {
-      multiplier = widget.selectedRoom!.pricePerNight / widget.hotel.minPricePerNight;
-    }
-
     for (final d in days) {
       final dt = d.dateTime;
       if (_checkIn != null && _checkOut != null &&
           !dt.isBefore(_checkIn!) && dt.isBefore(_checkOut!)) {
-        total += d.price * multiplier;
+        total += d.price;
       }
     }
     // Nếu không có calendar data cho tất cả các ngày thì fallback về basePrice
-    return total > 0 ? total : (widget.selectedRoom?.pricePerNight ?? widget.hotel.minPricePerNight) * nightsCount;
+    final roomPrice = total > 0
+        ? total
+        : (widget.selectedRoom?.pricePerNight ?? widget.hotel.minPricePerNight) *
+            nightsCount;
+    return roomPrice * roomQuantity;
+  }
+
+  int get availableRoomsForSelection {
+    final selectedRoomQty = widget.selectedRoom?.availableQty ?? 1;
+    if (_checkIn == null || _checkOut == null) {
+      return selectedRoomQty;
+    }
+
+    final selectedDays = context.read<HotelProvider>().calendarDays.where((day) {
+      final dt = day.dateTime;
+      return !dt.isBefore(_checkIn!) && dt.isBefore(_checkOut!);
+    }).toList(growable: false);
+
+    if (selectedDays.isEmpty) {
+      return selectedRoomQty;
+    }
+
+    final minCalendarQty = selectedDays
+        .map((day) => day.available ? day.availableRooms : 0)
+        .fold<int>(selectedRoomQty, (minQty, qty) => qty < minQty ? qty : minQty);
+    return minCalendarQty < selectedRoomQty ? minCalendarQty : selectedRoomQty;
   }
 
   @override
@@ -200,6 +227,45 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
               ),
             ),
             const SizedBox(height: 24),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                'Số phòng cần đặt',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: _buildGuestCounter(
+                  'Số phòng',
+                  'Còn ${availableRoomsForSelection} phòng trong ngày đã chọn',
+                  roomQuantity,
+                  (val) {
+                    final maxQty = availableRoomsForSelection;
+                    if (val < 1 || val > maxQty) {
+                      return;
+                    }
+                    setState(() => roomQuantity = val);
+                  },
+                  minValue: 1,
+                  maxValue: availableRoomsForSelection,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Container(
@@ -262,6 +328,19 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
               children: [
                 Text(widget.hotel.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 2),
+                if (widget.selectedRoom != null) ...[
+                  Text(
+                    '${widget.selectedRoom!.roomType} · ${_formatPriceFull(widget.selectedRoom!.pricePerNight)}/đêm',
+                    style: const TextStyle(
+                      color: Color(0xFF119E50),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                ],
                 Row(
                   children: [
                     const Icon(Icons.star, color: Colors.amber, size: 12),
@@ -454,6 +533,15 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
             ),
             if (priceText.isNotEmpty)
               Text(priceText, style: TextStyle(fontSize: 9, color: priceColor, fontWeight: FontWeight.w500)),
+            if (day.available && !isPast)
+              Text(
+                '${day.availableRooms} phòng',
+                style: TextStyle(
+                  fontSize: 8,
+                  color: isCheckIn || isCheckOut ? Colors.white70 : Colors.grey[500],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
           ],
         ),
       ),
@@ -471,7 +559,17 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
     );
   }
 
-  Widget _buildGuestCounter(String title, String subtitle, int count, ValueChanged<int> onChanged) {
+  Widget _buildGuestCounter(
+    String title,
+    String subtitle,
+    int count,
+    ValueChanged<int> onChanged, {
+    int minValue = 0,
+    int? maxValue,
+  }) {
+    final canDecrease = count > minValue;
+    final canIncrease = maxValue == null || count < maxValue;
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
@@ -488,19 +586,28 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
           Row(
             children: [
               GestureDetector(
-                onTap: () { if (count > 0) onChanged(count - 1); },
+                onTap: canDecrease ? () => onChanged(count - 1) : null,
                 child: Container(
                   width: 32, height: 32,
                   decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.green[100]!), color: Colors.white),
-                  child: const Center(child: Icon(Icons.remove, color: Colors.green, size: 16)),
+                  child: Center(
+                    child: Icon(
+                      Icons.remove,
+                      color: canDecrease ? Colors.green : Colors.grey,
+                      size: 16,
+                    ),
+                  ),
                 ),
               ),
               SizedBox(width: 32, child: Center(child: Text('$count', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)))),
               GestureDetector(
-                onTap: () => onChanged(count + 1),
+                onTap: canIncrease ? () => onChanged(count + 1) : null,
                 child: Container(
                   width: 32, height: 32,
-                  decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF6DE899)),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: canIncrease ? const Color(0xFF6DE899) : Colors.grey[300],
+                  ),
                   child: const Center(child: Icon(Icons.add, color: Colors.white, size: 16)),
                 ),
               ),
@@ -513,9 +620,14 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
 
   Widget _buildBottomBar(BuildContext context) {
     final hasSelection = _checkIn != null && _checkOut != null;
-    final price = hasSelection ? totalPrice : widget.hotel.minPricePerNight;
+    final price = hasSelection
+        ? totalPrice
+        : (widget.selectedRoom?.pricePerNight ?? widget.hotel.minPricePerNight);
     final nights = nightsCount > 0 ? nightsCount : 1;
     final guests = adultCount + childCount;
+    final canContinue = hasSelection &&
+        availableRoomsForSelection > 0 &&
+        roomQuantity <= availableRoomsForSelection;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
@@ -566,7 +678,7 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
               ],
             ),
             ElevatedButton(
-              onPressed: hasSelection ? () {
+              onPressed: canContinue ? () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -578,13 +690,14 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
                       adultCount: adultCount,
                       childCount: childCount,
                       infantCount: infantCount,
+                      roomQuantity: roomQuantity,
                       totalPrice: price,
                     ),
                   ),
                 );
               } : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: hasSelection ? const Color(0xFF6DE899) : Colors.grey[300],
+                backgroundColor: canContinue ? const Color(0xFF6DE899) : Colors.grey[300],
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                 elevation: 0,

@@ -14,6 +14,7 @@ class CustomerInfoScreen extends StatefulWidget {
   final int adultCount;
   final int childCount;
   final int infantCount;
+  final int roomQuantity;
   final double totalPrice;
 
   const CustomerInfoScreen({
@@ -25,6 +26,7 @@ class CustomerInfoScreen extends StatefulWidget {
     required this.adultCount,
     required this.childCount,
     required this.infantCount,
+    required this.roomQuantity,
     required this.totalPrice,
   }) : super(key: key);
 
@@ -139,6 +141,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           adultCount: widget.adultCount,
           childCount: widget.childCount,
           infantCount: widget.infantCount,
+          roomQuantity: widget.roomQuantity,
           totalPrice: widget.totalPrice,
           fullName: _fullNameController.text,
           email: _emailController.text,

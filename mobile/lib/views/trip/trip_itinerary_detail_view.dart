@@ -69,8 +69,30 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
     }
 
     return detail.itineraries
-        .where((entry) => (entry.dayNumber ?? 1) == selectedDayNumber)
+        .where((entry) => _entryDayNumber(detail, entry) == selectedDayNumber)
         .toList();
+  }
+
+  int _entryDayNumber(TripDetail detail, TripTimelineEntry entry) {
+    final serviceDate = entry.serviceDate;
+    if (serviceDate != null) {
+      final tripStart = DateTime(
+        detail.startDate.year,
+        detail.startDate.month,
+        detail.startDate.day,
+      );
+      final entryDate = DateTime(
+        serviceDate.year,
+        serviceDate.month,
+        serviceDate.day,
+      );
+      final dayNumber = entryDate.difference(tripStart).inDays + 1;
+      if (dayNumber > 0) {
+        return dayNumber;
+      }
+    }
+
+    return entry.dayNumber ?? 1;
   }
 
   void _openEditItinerary(List<TripTimelineEntry> entries, String title) {

@@ -395,9 +395,14 @@ class _HotelDetailViewState extends State<HotelDetailView> {
               ),
               child: SafeArea(
                 top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.88,
+                  ),
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    primary: false,
+                    shrinkWrap: true,
                   children: [
                     Center(
                       child: Container(
@@ -599,7 +604,8 @@ class _HotelDetailViewState extends State<HotelDetailView> {
                               ),
                       ),
                     ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );
@@ -836,10 +842,15 @@ class _HotelDetailViewState extends State<HotelDetailView> {
               ),
               child: SafeArea(
                 top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.88,
+                  ),
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    primary: false,
+                    shrinkWrap: true,
+                    children: [
                     Center(
                       child: Container(
                         width: 72,
@@ -1070,7 +1081,8 @@ class _HotelDetailViewState extends State<HotelDetailView> {
                               ),
                       ),
                     ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );

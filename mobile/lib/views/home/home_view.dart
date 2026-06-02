@@ -11,9 +11,14 @@ import '../resort_search/resort_search_screen.dart';
 import '../destination/destination_article_screen.dart';
 
 class HomeView extends StatefulWidget {
-  const HomeView({super.key, this.onNavigateToExplore});
+  const HomeView({
+    super.key,
+    this.onNavigateToExplore,
+    this.onNavigateToTrips,
+  });
 
   final VoidCallback? onNavigateToExplore;
+  final VoidCallback? onNavigateToTrips;
 
   @override
   State<HomeView> createState() => _HomeViewState();
@@ -119,7 +124,7 @@ class _HomeViewState extends State<HomeView> {
                         label: 'Tour',
                         color: const Color(0xFF8B5CF6),
                         background: const Color(0xFFF5F3FF),
-                        onTap: _openSearch,
+                        onTap: _openTrips,
                       ),
                       _CategoryItem(
                         icon: Icons.explore_outlined,
@@ -273,6 +278,12 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+
+  void _openTrips() {
+    if (widget.onNavigateToTrips != null) {
+      widget.onNavigateToTrips!();
+    }
+  }
 
   void _openHotel(CatalogHotelCard hotel) {
     Navigator.of(context).push(

@@ -125,6 +125,38 @@ class TripTimeline extends StatelessWidget {
                               color: TripUiColors.textSecondary,
                             ),
                           ),
+                          if (entry.hotelBookingDateLabel != null) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEAF4FF),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.date_range_rounded,
+                                    size: 16,
+                                    color: Color(0xFF2A6FD6),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      entry.hotelBookingDateLabel!,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        height: 1.35,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF2A6FD6),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           if (entry.badge != null) ...[
                             const SizedBox(height: 12),
                             Container(
