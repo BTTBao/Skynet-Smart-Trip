@@ -28,6 +28,7 @@ public class CreateNotificationDto
     public string? ReferenceType { get; set; }
     public int? ReferenceId { get; set; }
     public string? ActionUrl { get; set; }
+    public bool SendPush { get; set; } = true;
 }
 
 public class FcmTokenRequestDto

@@ -234,6 +234,117 @@ export interface AdminReportSummary {
   revenueByPaymentStatus: AdminReportBreakdown[];
 }
 
+export interface AdminExplorePost {
+  id: number;
+  title: string;
+  excerpt: string;
+  content: string;
+  thumbnailUrl: string;
+  imageUrls: string[];
+  location: string;
+  city: string;
+  province: string;
+  region: 'north' | 'central' | 'south';
+  latitude?: number | null;
+  longitude?: number | null;
+  authorName: string;
+  createdAt: string;
+  isVisible: boolean;
+  costLevel: number;
+  likes: number;
+  saves: number;
+  views: number;
+  commentCount: number;
+  rating: number;
+  ratingCount: number;
+  tags: string[];
+}
+
+export interface AdminExplorePostRequest {
+  title: string;
+  content: string;
+  location: string;
+  city?: string;
+  province?: string;
+  region?: 'north' | 'central' | 'south';
+  latitude?: number | null;
+  longitude?: number | null;
+  costLevel: number;
+  isVisible: boolean;
+  imageUrls: string[];
+  tags: string[];
+}
+
+export interface AdminNotification {
+  id: number;
+  userId?: number | null;
+  userName: string;
+  userEmail: string;
+  title: string;
+  message: string;
+  type: string;
+  referenceType?: string | null;
+  referenceId?: number | null;
+  actionUrl?: string | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface AdminNotificationStats {
+  totalNotifications: number;
+  unreadNotifications: number;
+  readNotifications: number;
+  targetableUsers: number;
+  notifications: AdminNotification[];
+}
+
+export interface AdminSendNotificationRequest {
+  recipientMode: 'all' | 'active' | 'role' | 'users';
+  userIds: number[];
+  role?: AdminUser['role'];
+  channels: Array<'in_app' | 'email' | 'fcm'>;
+  title: string;
+  message: string;
+  type: string;
+  referenceType?: string;
+  referenceId?: number | null;
+  actionUrl?: string;
+}
+
+export interface AdminNotificationSendResult {
+  targetedUsers: number;
+  inAppCreated: number;
+  pushAttempted: number;
+  emailAttempted: number;
+  emailSent: number;
+  failed: number;
+  errors: string[];
+}
+
+const looksLikeMojibake = (value: string) =>
+  /[ÃÄÂÆº»\u0090\u0091]/.test(value);
+
+const normalizeLegacyText = (value?: string | null) => {
+  if (!value || !looksLikeMojibake(value)) {
+    return value ?? '';
+  }
+
+  try {
+    const bytes = Uint8Array.from(value, (char) => char.charCodeAt(0) & 0xff);
+    const decoded = new TextDecoder('utf-8').decode(bytes);
+    return looksLikeMojibake(decoded) ? value : decoded;
+  } catch {
+    return value;
+  }
+};
+
+const normalizeNotification = (notification: AdminNotification): AdminNotification => ({
+  ...notification,
+  userName: normalizeLegacyText(notification.userName),
+  title: normalizeLegacyText(notification.title),
+  message: normalizeLegacyText(notification.message),
+});
+
 export interface AdminTransportStats {
   totalSchedules: number;
   totalSchedulesThisMonth: number;
@@ -487,6 +598,52 @@ export const adminService = {
 
   getReportSummary: async (): Promise<AdminReportSummary> => {
     const response = await apiClient.get<AdminReportSummary>('/admin/reports/summary');
+    return response.data;
+  },
+
+  getExplorePosts: async (params?: { search?: string }): Promise<AdminExplorePost[]> => {
+    const response = await apiClient.get<AdminExplorePost[]>('/admin/explore/posts', { params });
+    return response.data;
+  },
+
+  createExplorePost: async (payload: AdminExplorePostRequest): Promise<AdminExplorePost> => {
+    const response = await apiClient.post<AdminExplorePost>('/admin/explore/posts', payload);
+    return response.data;
+  },
+
+  updateExplorePost: async (postId: number, payload: AdminExplorePostRequest): Promise<AdminExplorePost> => {
+    const response = await apiClient.put<AdminExplorePost>(`/admin/explore/posts/${postId}`, payload);
+    return response.data;
+  },
+
+  updateExplorePostVisibility: async (postId: number, isVisible: boolean): Promise<AdminExplorePost> => {
+    const response = await apiClient.patch<AdminExplorePost>(`/admin/explore/posts/${postId}/visibility`, { isVisible });
+    return response.data;
+  },
+
+  deleteExplorePost: async (postId: number) => {
+    await apiClient.delete(`/admin/explore/posts/${postId}`);
+  },
+
+  uploadExplorePostImage: async (file: File): Promise<{ imageUrl: string; relativeUrl: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post<{ imageUrl: string; relativeUrl: string }>('/explore/posts/images', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  getNotifications: async (params?: { search?: string }): Promise<AdminNotificationStats> => {
+    const response = await apiClient.get<AdminNotificationStats>('/admin/notifications', { params });
+    return {
+      ...response.data,
+      notifications: response.data.notifications.map(normalizeNotification),
+    };
+  },
+
+  sendNotification: async (payload: AdminSendNotificationRequest): Promise<AdminNotificationSendResult> => {
+    const response = await apiClient.post<AdminNotificationSendResult>('/admin/notifications/send', payload);
     return response.data;
   },
 };

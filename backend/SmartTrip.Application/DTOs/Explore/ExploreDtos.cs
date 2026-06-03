@@ -53,6 +53,8 @@ public class ExplorePostDto
 
     public int Views { get; set; }
 
+    public bool IsVisible { get; set; } = true;
+
     public double Rating { get; set; }
 
     public int RatingCount { get; set; }

@@ -34,6 +34,8 @@ public class ExplorePost
 
     public int ViewCount { get; set; }
 
+    public bool IsVisible { get; set; } = true;
+
     public string? Tags { get; set; }
 
     public DateTime CreatedAt { get; set; }
