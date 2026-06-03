@@ -302,14 +302,23 @@ public class UserController : ControllerBase
             return BadRequest("Ngay sinh khong hop le");
         }
 
-        if (!string.IsNullOrWhiteSpace(request.IdentityNumber) &&
-            request.IdentityNumber.Trim().Length != 9 &&
-            request.IdentityNumber.Trim().Length != 12)
+        var identityNumber = request.IdentityNumber?.Trim();
+        if (!string.IsNullOrWhiteSpace(identityNumber) &&
+            (identityNumber.Length != 9 && identityNumber.Length != 12 ||
+             !identityNumber.All(char.IsDigit)))
         {
             return BadRequest("So can cuoc cong dan khong hop le (phai co 9 hoac 12 so)");
         }
 
-        var updated = await _userService.UpdateUserProfileAsync(id, request);
+        bool updated;
+        try
+        {
+            updated = await _userService.UpdateUserProfileAsync(id, request);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
         if (!updated)
         {
             return BadRequest("Khong the cap nhat ho so");

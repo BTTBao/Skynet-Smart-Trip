@@ -186,6 +186,7 @@ export interface AdminRoom {
   commissionRate: number;
   availableQty: number;
   isSelling: boolean;
+  imageUrls: string[];
 }
 
 export interface AdminHotelDetail extends AdminHotel {
@@ -198,6 +199,12 @@ export interface AdminRoomRequest {
   pricePerNight: number;
   commissionRate: number;
   availableQty: number;
+  imageUrls: string[];
+}
+
+export interface AdminImageUploadResult {
+  imageUrl: string;
+  relativeUrl: string;
 }
 
 export interface AdminPromotion {
@@ -459,6 +466,13 @@ export const adminService = {
 
   updateRoom: async (roomId: number, payload: AdminRoomRequest): Promise<AdminRoom> => {
     const response = await apiClient.put<AdminRoom>(`/admin/rooms/${roomId}`, payload);
+    return response.data;
+  },
+
+  uploadRoomImage: async (file: File): Promise<AdminImageUploadResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post<AdminImageUploadResult>('/admin/uploads/room-images', formData);
     return response.data;
   },
 

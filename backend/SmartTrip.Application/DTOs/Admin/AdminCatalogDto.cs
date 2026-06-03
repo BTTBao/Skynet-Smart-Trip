@@ -62,6 +62,7 @@ public class AdminRoomDto
     public double CommissionRate { get; set; }
     public int AvailableQty { get; set; }
     public bool IsSelling { get; set; }
+    public List<string> ImageUrls { get; set; } = new();
 }
 
 public class AdminRoomRequest
@@ -71,6 +72,7 @@ public class AdminRoomRequest
     public decimal PricePerNight { get; set; }
     public double CommissionRate { get; set; }
     public int AvailableQty { get; set; }
+    public List<string> ImageUrls { get; set; } = new();
 }
 
 public class AdminPromotionDto

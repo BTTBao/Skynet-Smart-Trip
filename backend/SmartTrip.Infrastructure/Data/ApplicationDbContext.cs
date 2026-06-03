@@ -348,6 +348,7 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
         {
             entity.HasIndex(e => e.Email).IsUnique();
             entity.HasIndex(e => e.UserName).IsUnique().HasFilter("[UserName] IS NOT NULL");
+            entity.HasIndex(e => e.IdentityNumber).IsUnique().HasFilter("[IdentityNumber] IS NOT NULL");
             entity.Property(e => e.AuthProvider).HasMaxLength(20).HasConversion<string>().HasDefaultValue(SmartTrip.Domain.Enums.AuthProvider.Local);
             entity.Property(e => e.AvatarUrl).HasMaxLength(255).IsUnicode(false);
             entity.Property(e => e.BirthDate).HasColumnType("date");

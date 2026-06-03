@@ -6,7 +6,6 @@ import '../../models/catalog_models.dart';
 import '../../providers/catalog_provider.dart';
 import '../../utils/app_currency_formatter.dart';
 import 'package:intl/intl.dart';
-import '../catalog/hotel_detail_view.dart';
 import '../transport/transport_search_screen.dart';
 import '../catalog/search_view.dart';
 import '../resort_detail/resort_detail_screen.dart';
@@ -195,7 +194,7 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   const SizedBox(height: 28),
                   _SectionHeader(
-                    title: 'Xe khách nổi bật',
+                    title: 'Tuyến xe phổ biến',
                     actionLabel: 'Xem tuyến',
                     onTap: () => _openSearch(mode: SearchMode.bus),
                   ),

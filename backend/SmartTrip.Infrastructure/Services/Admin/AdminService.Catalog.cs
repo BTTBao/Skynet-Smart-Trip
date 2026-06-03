@@ -126,8 +126,10 @@ public partial class AdminService
             throw new BadHttpRequestException("Không tìm thấy khách sạn.");
         }
 
+        var roomIds = hotel.Rooms.Select(room => room.Id).ToList();
+        var roomGalleryLookup = await BuildGalleryLookupAsync(GalleryReferenceType.Room, roomIds);
         var revenueLookup = await BuildHotelRevenueLookupAsync([hotelId]);
-        return MapHotelDetail(hotel, revenueLookup.GetValueOrDefault(hotelId));
+        return MapHotelDetail(hotel, revenueLookup.GetValueOrDefault(hotelId), roomGalleryLookup);
     }
 
     public async Task<AdminHotelDto> CreateHotelAsync(AdminHotelRequest request)
@@ -217,7 +219,11 @@ public partial class AdminService
         _context.Rooms.Add(room);
         await _context.SaveChangesAsync();
 
-        return MapRoom(room);
+        var imageUrls = NormalizeGalleryUrls(request.ImageUrls);
+        AddGalleryImages(GalleryReferenceType.Room, room.Id, imageUrls);
+        await _context.SaveChangesAsync();
+
+        return MapRoom(room, imageUrls);
     }
 
     public async Task<AdminRoomDto> UpdateRoomAsync(int roomId, AdminRoomRequest request)
@@ -236,9 +242,11 @@ public partial class AdminService
         room.CommissionRate = request.CommissionRate;
         room.AvailableQty = request.AvailableQty;
 
+        var imageUrls = NormalizeGalleryUrls(request.ImageUrls);
+        await ReplaceGalleryImagesAsync(GalleryReferenceType.Room, room.Id, imageUrls);
         await _context.SaveChangesAsync();
 
-        return MapRoom(room);
+        return MapRoom(room, imageUrls);
     }
 
     public Task DeleteRoomAsync(int roomId)
@@ -436,7 +444,10 @@ public partial class AdminService
         };
     }
 
-    private static AdminHotelDetailDto MapHotelDetail(Hotel hotel, decimal totalRevenue)
+    private static AdminHotelDetailDto MapHotelDetail(
+        Hotel hotel,
+        decimal totalRevenue,
+        Dictionary<int, List<string>> roomGalleryLookup)
     {
         var summary = MapHotel(hotel, totalRevenue);
 
@@ -457,12 +468,14 @@ public partial class AdminService
             Rooms = hotel.Rooms
                 .OrderBy(room => room.PricePerNight ?? decimal.MaxValue)
                 .ThenBy(room => room.RoomType)
-                .Select(MapRoom)
+                .Select(room => MapRoom(
+                    room,
+                    roomGalleryLookup.TryGetValue(room.Id, out var images) ? images : []))
                 .ToList()
         };
     }
 
-    private static AdminRoomDto MapRoom(Room room)
+    private static AdminRoomDto MapRoom(Room room, List<string>? imageUrls = null)
     {
         var availableQty = Math.Max(room.AvailableQty ?? 0, 0);
 
@@ -475,8 +488,77 @@ public partial class AdminService
             PricePerNight = room.PricePerNight ?? 0,
             CommissionRate = room.CommissionRate ?? 0,
             AvailableQty = availableQty,
-            IsSelling = availableQty > 0
+            IsSelling = availableQty > 0,
+            ImageUrls = imageUrls ?? []
         };
+    }
+
+    private async Task<Dictionary<int, List<string>>> BuildGalleryLookupAsync(GalleryReferenceType referenceType, List<int> referenceIds)
+    {
+        if (referenceIds.Count == 0)
+        {
+            return new Dictionary<int, List<string>>();
+        }
+
+        return await _context.Galleries
+            .AsNoTracking()
+            .Where(gallery =>
+                gallery.ReferenceType == referenceType &&
+                gallery.ReferenceId.HasValue &&
+                referenceIds.Contains(gallery.ReferenceId.Value))
+            .OrderBy(gallery => gallery.Id)
+            .GroupBy(gallery => gallery.ReferenceId!.Value)
+            .ToDictionaryAsync(
+                group => group.Key,
+                group => group
+                    .Select(gallery => gallery.ImageUrl ?? string.Empty)
+                    .Where(url => !string.IsNullOrWhiteSpace(url))
+                    .ToList());
+    }
+
+    private async Task ReplaceGalleryImagesAsync(GalleryReferenceType referenceType, int referenceId, List<string> imageUrls)
+    {
+        var existing = await _context.Galleries
+            .Where(gallery => gallery.ReferenceType == referenceType && gallery.ReferenceId == referenceId)
+            .ToListAsync();
+
+        _context.Galleries.RemoveRange(existing);
+        AddGalleryImages(referenceType, referenceId, imageUrls);
+    }
+
+    private void AddGalleryImages(GalleryReferenceType referenceType, int referenceId, List<string> imageUrls)
+    {
+        foreach (var imageUrl in imageUrls)
+        {
+            _context.Galleries.Add(new Gallery
+            {
+                ReferenceType = referenceType,
+                ReferenceId = referenceId,
+                ImageUrl = imageUrl
+            });
+        }
+    }
+
+    private static List<string> NormalizeGalleryUrls(IEnumerable<string>? imageUrls)
+    {
+        if (imageUrls is null)
+        {
+            return [];
+        }
+
+        var normalized = imageUrls
+            .Select(url => url?.Trim() ?? string.Empty)
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(12)
+            .ToList();
+
+        if (normalized.Any(url => url.Length > 255))
+        {
+            throw new BadHttpRequestException("URL anh khong duoc vuot qua 255 ky tu.");
+        }
+
+        return normalized;
     }
 
     private static AdminPromotionDto MapPromotion(Promotion promotion)

@@ -96,6 +96,21 @@ public class HotelController : ControllerBase
             .Select(g => g.ImageUrl)
             .ToListAsync();
 
+        var roomIds = hotel.Rooms.Select(r => r.Id).ToList();
+        var roomImages = await _context.Galleries
+            .Where(g =>
+                g.ReferenceType == GalleryReferenceType.Room &&
+                g.ReferenceId.HasValue &&
+                roomIds.Contains(g.ReferenceId.Value))
+            .OrderBy(g => g.Id)
+            .GroupBy(g => g.ReferenceId!.Value)
+            .ToDictionaryAsync(
+                group => group.Key,
+                group => group
+                    .Select(g => g.ImageUrl ?? string.Empty)
+                    .Where(url => !string.IsNullOrWhiteSpace(url))
+                    .ToList());
+
         var reviews = await _context.Reviews
             .Include(r => r.User)
             .Where(r => r.TargetType == ReviewTargetType.Hotel && r.TargetId == id)
@@ -136,7 +151,8 @@ public class HotelController : ControllerBase
                 r.RoomType,
                 r.Capacity,
                 r.PricePerNight,
-                r.AvailableQty
+                r.AvailableQty,
+                ImageUrls = roomImages.TryGetValue(r.Id, out var urls) ? urls : []
             }),
             Reviews = reviews
         });
