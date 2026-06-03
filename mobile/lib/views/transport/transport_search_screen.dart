@@ -8,12 +8,14 @@ import 'transport_checkout_screen.dart';
 class TransportSearchScreen extends StatefulWidget {
   final int? toDestId;
   final String? toDestName;
+  final DateTime? initialDate;
   final int? initialScheduleId;
 
   const TransportSearchScreen({
     Key? key,
     this.toDestId,
     this.toDestName,
+    this.initialDate,
     this.initialScheduleId,
   }) : super(key: key);
 
@@ -37,6 +39,13 @@ class _TransportSearchScreenState extends State<TransportSearchScreen> {
       _toDestName = widget.toDestName!;
     } else {
       _toDestName = 'Hội An';
+    }
+    if (widget.initialDate != null) {
+      _selectedDate = DateTime(
+        widget.initialDate!.year,
+        widget.initialDate!.month,
+        widget.initialDate!.day,
+      );
     }
     
     WidgetsBinding.instance.addPostFrameCallback((_) async {
