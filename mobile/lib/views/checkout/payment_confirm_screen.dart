@@ -29,6 +29,10 @@ class PaymentConfirmScreen extends StatefulWidget {
   final String email;
   final String phone;
   final String specialRequest;
+  final int? existingTripId;
+  final int? existingTripDayNumber;
+  final DateTime? existingTripStartDate;
+  final DateTime? existingTripEndDate;
 
   const PaymentConfirmScreen({
     Key? key,
@@ -45,6 +49,10 @@ class PaymentConfirmScreen extends StatefulWidget {
     required this.email,
     required this.phone,
     required this.specialRequest,
+    this.existingTripId,
+    this.existingTripDayNumber,
+    this.existingTripStartDate,
+    this.existingTripEndDate,
   }) : super(key: key);
 
   @override
@@ -88,6 +96,52 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       }
     }
     return false;
+  }
+
+  DateTime _dateOnly(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
+  }
+
+  DateTime _lastUsedHotelDate(DateTime checkIn, DateTime checkOut) {
+    final start = _dateOnly(checkIn);
+    final end = _dateOnly(checkOut);
+    if (!end.isAfter(start)) {
+      return start;
+    }
+    return end.subtract(const Duration(days: 1));
+  }
+
+  int _resolveExistingTripDayNumber() {
+    final tripStart = widget.existingTripStartDate;
+    if (tripStart == null) {
+      final fallbackDay = widget.existingTripDayNumber ?? 1;
+      return fallbackDay < 1 ? 1 : fallbackDay;
+    }
+
+    final dayNumber = _dateOnly(widget.checkIn)
+            .difference(_dateOnly(tripStart))
+            .inDays +
+        1;
+    return dayNumber < 1 ? 1 : dayNumber;
+  }
+
+  String? _existingTripDateBlockReason() {
+    if (widget.existingTripId == null) {
+      return null;
+    }
+
+    final tripStart = widget.existingTripStartDate;
+    final tripEnd = widget.existingTripEndDate;
+    final checkIn = _dateOnly(widget.checkIn);
+    final lastUsedDate = _lastUsedHotelDate(widget.checkIn, widget.checkOut);
+
+    if (tripStart != null && checkIn.isBefore(_dateOnly(tripStart))) {
+      return 'Ngày nhận phòng phải nằm trong thời gian chuyến đi.';
+    }
+    if (tripEnd != null && lastUsedDate.isAfter(_dateOnly(tripEnd))) {
+      return 'Ngày trả phòng phải nằm trong thời gian chuyến đi.';
+    }
+    return null;
   }
 
   void _applyPromoCode() {
@@ -332,6 +386,9 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
 
       await _refreshHotelAvailability();
       context.read<TripProvider>().fetchTrips(silent: true);
+      if (widget.existingTripId != null) {
+        context.read<TripProvider>().fetchTripDetail(widget.existingTripId!);
+      }
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
@@ -408,6 +465,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
 
   Future<_SelectedCheckoutTrip?> _selectOrCreateTripForBooking({
     required int userId,
+    required int? destinationId,
     required String destinationName,
   }) async {
     final tripProvider = context.read<TripProvider>();
@@ -418,7 +476,14 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     }
 
     final trips = tripProvider.upcomingTrips
-        .where((trip) => trip.status != 'CANCELLED')
+        .where((trip) =>
+            trip.status != 'CANCELLED' &&
+            _bookingTripBlockReason(
+                  trip,
+                  destinationId: destinationId,
+                  destinationName: destinationName,
+                ) ==
+                null)
         .toList(growable: false)
       ..sort((left, right) => left.startDate.compareTo(right.startDate));
 
@@ -444,6 +509,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
           final createdTrip = await tripProvider.createTrip(
             CreateTripRequest(
               userId: userId,
+              destinationId: destinationId,
               destinationName: destinationName,
               title: normalizedTitle,
               startDate: widget.checkIn,
@@ -545,6 +611,22 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      if (visibleTrips.isEmpty) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: const Text(
+                            'Không có chuyến đi phù hợp với điểm đến khách sạn. Hãy tạo chuyến đi mới để tiếp tục đặt phòng.',
+                            style: TextStyle(color: Colors.grey, height: 1.45),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       ...visibleTrips.map((trip) {
                         final blockedReason = _bookingTripBlockReason(trip);
                         final canSelect = blockedReason == null;
@@ -677,17 +759,51 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     );
   }
 
-  DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
-
   int _dayNumberForTrip(MyTripSummary trip) {
     return _dateOnly(widget.checkIn).difference(_dateOnly(trip.startDate)).inDays + 1;
   }
 
-  String? _bookingTripBlockReason(MyTripSummary trip) {
+  String get _hotelDestinationName {
+    final destinationName = widget.hotel.destinationName.trim();
+    if (destinationName.isNotEmpty) {
+      return destinationName;
+    }
+
+    final addressParts = widget.hotel.address.split(',');
+    return addressParts.isNotEmpty ? addressParts.last.trim() : '';
+  }
+
+  bool _hotelDestinationMatchesTrip(
+    MyTripSummary trip, {
+    required int? destinationId,
+    required String destinationName,
+  }) {
+    if (destinationId != null && trip.destinationId != null) {
+      return trip.destinationId == destinationId;
+    }
+
+    return trip.destination.trim().toLowerCase() ==
+        destinationName.trim().toLowerCase();
+  }
+
+  String? _bookingTripBlockReason(
+    MyTripSummary trip, {
+    int? destinationId,
+    String? destinationName,
+  }) {
     final tripStart = _dateOnly(trip.startDate);
     final tripEnd = _dateOnly(trip.endDate);
     final bookingStart = _dateOnly(widget.checkIn);
-    final bookingEnd = _dateOnly(widget.checkOut);
+    final bookingEnd = _lastUsedHotelDate(widget.checkIn, widget.checkOut);
+    final hotelDestinationName = destinationName ?? _hotelDestinationName;
+
+    if (!_hotelDestinationMatchesTrip(
+      trip,
+      destinationId: destinationId ?? widget.hotel.destinationId,
+      destinationName: hotelDestinationName,
+    )) {
+      return 'Khác điểm đến với khách sạn.';
+    }
 
     if (tripStart.isAfter(bookingStart) || tripEnd.isBefore(bookingEnd)) {
       return 'Ngày đi phải bao trọn ngày nhận/trả phòng.';
@@ -750,18 +866,32 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
           ? addressParts.last.trim()
           : 'Đà Lạt';
 
+      final hotelDestName = _hotelDestinationName.isNotEmpty
+          ? _hotelDestinationName
+          : destName;
+
       final tripProvider = context.read<TripProvider>();
       int currentTripId;
 
       final double finalPayPrice = widget.totalPrice - _discountAmount;
+      final tripDateBlockReason = _existingTripDateBlockReason();
+      if (tripDateBlockReason != null) {
+        throw Exception(tripDateBlockReason);
+      }
 
       if (_pendingTripId != null) {
         currentTripId = _pendingTripId!;
       } else {
-        final selectedTrip = await _selectOrCreateTripForBooking(
-          userId: userId,
-          destinationName: destName,
-        );
+        final selectedTrip = widget.existingTripId != null
+            ? _SelectedCheckoutTrip(
+                tripId: widget.existingTripId!,
+                dayNumber: _resolveExistingTripDayNumber(),
+              )
+            : await _selectOrCreateTripForBooking(
+                userId: userId,
+                destinationId: widget.hotel.destinationId,
+                destinationName: hotelDestName,
+              );
         if (selectedTrip == null) {
           if (mounted) {
             setState(() => _isProcessing = false);
@@ -809,6 +939,9 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
 
         await _refreshHotelAvailability();
         tripProvider.fetchTrips(silent: true);
+        if (widget.existingTripId != null) {
+          tripProvider.fetchTripDetail(widget.existingTripId!);
+        }
 
         if (mounted) {
           Navigator.pushAndRemoveUntil(
@@ -878,6 +1011,9 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
 
       await _refreshHotelAvailability();
       tripProvider.fetchTrips(silent: true);
+      if (widget.existingTripId != null) {
+        tripProvider.fetchTripDetail(widget.existingTripId!);
+      }
 
       if (mounted) {
         Navigator.pushAndRemoveUntil(

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/create_trip_request.dart';
+import '../../models/destination.dart';
 import '../../models/update_trip_request.dart';
+import '../../providers/destination_provider.dart';
 import '../../providers/trip_provider.dart';
 import '../../widgets/trip/widgets.dart';
 import 'trip_itinerary_detail_view.dart';
@@ -34,6 +36,7 @@ class _CreateTripViewState extends State<CreateTripView> {
 
   DateTime? _startDate;
   DateTime? _endDate;
+  Destination? _selectedDestination;
   bool _tripNameTouched = false;
   bool _destinationTouched = false;
   bool _startDateTouched = false;
@@ -54,6 +57,7 @@ class _CreateTripViewState extends State<CreateTripView> {
       _startDateTouched = true;
       _endDateTouched = true;
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadDestinations());
   }
 
   @override
@@ -64,6 +68,29 @@ class _CreateTripViewState extends State<CreateTripView> {
   }
 
   bool get _isEditMode => widget.editTripId != null;
+
+  Future<void> _loadDestinations() async {
+    final provider = context.read<DestinationProvider>();
+    await provider.fetchDestinations();
+    if (!mounted || _selectedDestination != null) {
+      return;
+    }
+
+    final initialName = widget.initialDestination?.trim().toLowerCase();
+    if (initialName == null || initialName.isEmpty) {
+      return;
+    }
+
+    for (final destination in provider.destinations) {
+      if (destination.name.trim().toLowerCase() == initialName) {
+        setState(() {
+          _selectedDestination = destination;
+          _destinationController.text = destination.name;
+        });
+        break;
+      }
+    }
+  }
 
   DateTime get _today {
     final now = DateTime.now();
@@ -78,8 +105,8 @@ class _CreateTripViewState extends State<CreateTripView> {
   }
 
   String? get _destinationValidation {
-    if (_destinationController.text.trim().isEmpty) {
-      return 'Nhap diem den';
+    if (_selectedDestination == null) {
+      return 'Chon diem den';
     }
     return null;
   }
@@ -192,7 +219,8 @@ class _CreateTripViewState extends State<CreateTripView> {
         widget.editTripId!,
         UpdateTripRequest(
           title: _tripNameController.text.trim(),
-          destinationName: _destinationController.text.trim(),
+          destinationId: _selectedDestination!.id,
+          destinationName: _selectedDestination!.name,
           startDate: _startDate!,
           endDate: _endDate!,
         ),
@@ -217,7 +245,8 @@ class _CreateTripViewState extends State<CreateTripView> {
       CreateTripRequest(
         userId: 0,
         title: _tripNameController.text.trim(),
-        destinationName: _destinationController.text.trim(),
+        destinationId: _selectedDestination!.id,
+        destinationName: _selectedDestination!.name,
         startDate: _startDate!,
         endDate: _endDate!,
         status: 'DRAFT',
@@ -255,6 +284,7 @@ class _CreateTripViewState extends State<CreateTripView> {
   @override
   Widget build(BuildContext context) {
     final isSubmitting = context.watch<TripProvider>().isSubmitting;
+    final destinationProvider = context.watch<DestinationProvider>();
 
     return Scaffold(
       backgroundColor: TripUiColors.background,
@@ -312,16 +342,18 @@ class _CreateTripViewState extends State<CreateTripView> {
               const SizedBox(height: 16),
               const TripSectionLabel('Diem den'),
               const SizedBox(height: 8),
-              CreateTripEditableInput(
-                controller: _destinationController,
-                hintText: 'Nhap diem den...',
-                onChanged: (_) {
+              _DestinationDropdownField(
+                destinations: destinationProvider.destinations,
+                selectedDestination: _selectedDestination,
+                isLoading: destinationProvider.isLoading,
+                errorText: _destinationError ?? destinationProvider.error,
+                onChanged: (destination) {
                   setState(() {
                     _destinationTouched = true;
+                    _selectedDestination = destination;
+                    _destinationController.text = destination?.name ?? '';
                   });
                 },
-                errorText: _destinationError,
-                leadingIcon: Icons.place_outlined,
               ),
               const SizedBox(height: 18),
               const Row(
@@ -390,6 +422,72 @@ class _CreateTripViewState extends State<CreateTripView> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DestinationDropdownField extends StatelessWidget {
+  const _DestinationDropdownField({
+    required this.destinations,
+    required this.selectedDestination,
+    required this.isLoading,
+    required this.onChanged,
+    this.errorText,
+  });
+
+  final List<Destination> destinations;
+  final Destination? selectedDestination;
+  final bool isLoading;
+  final String? errorText;
+  final ValueChanged<Destination?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<Destination>(
+      value: selectedDestination,
+      isExpanded: true,
+      items: destinations.map((destination) {
+        return DropdownMenuItem<Destination>(
+          value: destination,
+          child: Text(
+            destination.name,
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }).toList(),
+      onChanged: isLoading ? null : onChanged,
+      decoration: InputDecoration(
+        hintText: isLoading ? 'Dang tai diem den...' : 'Chon diem den...',
+        errorText: errorText,
+        hintStyle: const TextStyle(
+          color: Color(0xFFA0A7AF),
+          fontSize: 13,
+        ),
+        prefixIcon: const Icon(
+          Icons.place_outlined,
+          color: TripUiColors.primaryGreen,
+        ),
+        suffixIcon: isLoading
+            ? const Padding(
+                padding: EdgeInsets.all(14),
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : null,
+        filled: true,
+        fillColor: TripUiColors.softGrey,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
         ),
       ),
     );

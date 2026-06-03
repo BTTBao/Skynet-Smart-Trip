@@ -8,8 +8,14 @@ import 'transport_checkout_screen.dart';
 class TransportSearchScreen extends StatefulWidget {
   final int? toDestId;
   final String? toDestName;
+  final int? initialScheduleId;
 
-  const TransportSearchScreen({Key? key, this.toDestId, this.toDestName}) : super(key: key);
+  const TransportSearchScreen({
+    Key? key,
+    this.toDestId,
+    this.toDestName,
+    this.initialScheduleId,
+  }) : super(key: key);
 
   @override
   State<TransportSearchScreen> createState() => _TransportSearchScreenState();
@@ -21,6 +27,7 @@ class _TransportSearchScreenState extends State<TransportSearchScreen> {
   int? _toDestId;
   String _toDestName = 'Hội An';
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 2));
+  bool _didOpenInitialSchedule = false;
 
   @override
   void initState() {
@@ -59,17 +66,66 @@ class _TransportSearchScreenState extends State<TransportSearchScreen> {
           _toDestName = toMatch.name;
         });
       }
-      _loadSchedules();
+      if (widget.initialScheduleId != null) {
+        await _openInitialSchedule();
+      } else {
+        _loadSchedules();
+      }
     });
   }
 
-  void _loadSchedules() {
+  Future<void> _loadSchedules() {
     final dateStr = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
-    context.read<BusProvider>().fetchSchedules(
+    return context.read<BusProvider>().fetchSchedules(
       fromDestId: _fromDestId,
       toDestId: _toDestId,
       date: dateStr,
     );
+  }
+
+  Future<void> _openInitialSchedule() async {
+    if (_didOpenInitialSchedule) {
+      return;
+    }
+    _didOpenInitialSchedule = true;
+
+    final busProvider = context.read<BusProvider>();
+    await busProvider.fetchSchedules();
+    if (!mounted) {
+      return;
+    }
+
+    BusScheduleModel? schedule;
+    for (final item in busProvider.schedules) {
+      if (item.id == widget.initialScheduleId) {
+        schedule = item;
+        break;
+      }
+    }
+
+    if (schedule == null) {
+      await _loadSchedules();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không tìm thấy tuyến xe này.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _fromDestId = schedule!.fromDestId;
+      _fromDestName = schedule.fromDestName;
+      _toDestId = schedule.toDestId;
+      _toDestName = schedule.toDestName;
+      _selectedDate = DateTime(
+        schedule.departureTime.year,
+        schedule.departureTime.month,
+        schedule.departureTime.day,
+      );
+    });
+    _showSeatSelection(context, schedule);
   }
 
   void _changeFromDest(int id, String name) {

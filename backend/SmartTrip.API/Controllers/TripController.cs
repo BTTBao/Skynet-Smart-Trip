@@ -384,13 +384,25 @@ public class TripController : ControllerBase
             // If it is a BUS booking, book the corresponding seats!
             if (request.SelectedSeats != null && request.SelectedSeats.Any())
             {
-                var busItinerary = trip.TripItineraries
-                    .FirstOrDefault(i => i.ServiceType == TripServiceType.Bus);
-                if (busItinerary != null && busItinerary.ServiceId.HasValue)
+                var scheduleId = request.ScheduleId;
+                if (!scheduleId.HasValue)
                 {
-                    var scheduleId = busItinerary.ServiceId.Value;
+                    var busItinerary = trip.TripItineraries
+                        .OrderByDescending(i => i.Id)
+                        .FirstOrDefault(i => i.ServiceType == TripServiceType.Bus);
+                    scheduleId = busItinerary?.ServiceId;
+                }
+                else if (!trip.TripItineraries.Any(i =>
+                             i.ServiceType == TripServiceType.Bus &&
+                             i.ServiceId == scheduleId.Value))
+                {
+                    return BadRequest(new { message = "Schedule does not belong to this trip." });
+                }
+
+                if (scheduleId.HasValue)
+                {
                     var seatsToBook = await _context.Seats
-                        .Where(s => s.ScheduleId == scheduleId && s.SeatNumber != null && request.SelectedSeats.Contains(s.SeatNumber))
+                        .Where(s => s.ScheduleId == scheduleId.Value && s.SeatNumber != null && request.SelectedSeats.Contains(s.SeatNumber))
                         .ToListAsync();
                     
                     foreach (var seat in seatsToBook)
@@ -536,6 +548,7 @@ public class ConfirmPaymentDto
     public string PaymentMethod { get; set; } = string.Empty;
     public string TransactionId { get; set; } = string.Empty;
     public decimal Amount { get; set; }
+    public int? ScheduleId { get; set; }
     public List<string>? SelectedSeats { get; set; }
 }
 

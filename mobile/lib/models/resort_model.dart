@@ -1,5 +1,7 @@
 class ResortModel {
   final int id;
+  final int? destinationId;
+  final String destinationName;
   final String name;
   final String address;
   final int starRating;
@@ -15,6 +17,8 @@ class ResortModel {
 
   const ResortModel({
     required this.id,
+    this.destinationId,
+    this.destinationName = '',
     required this.name,
     required this.address,
     required this.starRating,
@@ -39,6 +43,8 @@ class ResortModel {
   factory ResortModel.fromJson(Map<String, dynamic> json) {
     return ResortModel(
       id: json['id'] ?? 0,
+      destinationId: (json['destinationId'] as num?)?.toInt(),
+      destinationName: json['destinationName']?.toString() ?? '',
       name: json['name'] ?? '',
       address: json['address'] ?? '',
       starRating: json['starRating'] ?? 0,

@@ -5,7 +5,7 @@ import '../../core/app_theme.dart';
 import '../../models/catalog_models.dart';
 import '../../providers/catalog_provider.dart';
 import '../../utils/app_currency_formatter.dart';
-import '../catalog/bus_detail_view.dart';
+import 'package:intl/intl.dart';
 import '../catalog/hotel_detail_view.dart';
 import '../catalog/search_view.dart';
 import '../resort_detail/resort_detail_screen.dart';
@@ -200,7 +200,7 @@ class _HomeViewState extends State<HomeView> {
                     const _LoadingCard(height: 190)
                   else if (home != null)
                     SizedBox(
-                      height: 188,
+                      height: 200,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(),
@@ -303,7 +303,7 @@ class _HomeViewState extends State<HomeView> {
   void _openBus(CatalogBusCard bus) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => const TransportSearchScreen(),
+        builder: (_) => TransportSearchScreen(initialScheduleId: bus.id),
       ),
     );
   }
@@ -834,7 +834,8 @@ class _BusCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: 230,
-        padding: const EdgeInsets.all(16),
+        height: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(22),
@@ -847,6 +848,7 @@ class _BusCard extends StatelessWidget {
           ],
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -887,7 +889,7 @@ class _BusCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Text(
               '${bus.fromDestination} → ${bus.toDestination}',
               maxLines: 2,
@@ -898,7 +900,7 @@ class _BusCard extends StatelessWidget {
                 color: AppColors.textHeading,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Row(
               children: [
                 const Icon(
@@ -913,7 +915,21 @@ class _BusCard extends StatelessWidget {
                 ),
               ],
             ),
-            const Spacer(),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.access_time_rounded, size: 16, color: AppColors.textMuted),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '${bus.departureTime != null ? DateFormat('HH:mm').format(bus.departureTime!) : '--:--'}  →  ${bus.arrivalTime != null ? DateFormat('HH:mm').format(bus.arrivalTime!) : '--:--'}',
+                    style: const TextStyle(color: AppColors.textMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
             Text(
               AppCurrencyFormatter.format(bus.price),
               style: const TextStyle(

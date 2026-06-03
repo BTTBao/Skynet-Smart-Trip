@@ -316,7 +316,8 @@ public class ItineraryService : IItineraryService
             throw new ArgumentException("Check-out date must be after check-in date.");
         }
 
-        if (checkIn < tripStart || checkOut > tripEnd)
+        var lastUsedDate = checkOut.AddDays(-1);
+        if (checkIn < tripStart || lastUsedDate > tripEnd)
         {
             throw new ArgumentException("Hotel booking dates must be within the selected trip dates.");
         }
