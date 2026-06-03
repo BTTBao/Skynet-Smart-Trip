@@ -95,6 +95,10 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
     return entry.dayNumber ?? 1;
   }
 
+  bool _isNoteEntry(TripTimelineEntry entry) {
+    return (entry.serviceType ?? '').toUpperCase() == 'NOTE';
+  }
+
   void _openMapView(TripDetail? detail, String title) {
     final entries = detail?.itineraries ?? const <TripTimelineEntry>[];
     Navigator.of(context).push(
@@ -480,6 +484,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
                         else
                           TripTimeline(
                             entries: selectedEntries,
+                            canManageEntry: _isNoteEntry,
                             onEditEntry: detail == null
                                 ? null
                                 : (entry) => _openEditEntrySheet(

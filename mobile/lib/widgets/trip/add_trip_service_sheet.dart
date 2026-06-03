@@ -4,10 +4,13 @@ import 'package:provider/provider.dart';
 import '../../models/bus_schedule_model.dart';
 import '../../models/create_trip_itinerary_request.dart';
 import '../../models/destination.dart';
+import '../../models/resort_model.dart';
 import '../../models/trip_service_option.dart';
 import '../../providers/bus_provider.dart';
 import '../../providers/destination_provider.dart';
+import '../../providers/hotel_provider.dart';
 import '../../providers/trip_provider.dart';
+import '../../views/checkout/booking_date_guest_screen.dart';
 import '../../views/trip/trip_ui_constants.dart';
 
 class TripBusCheckoutRequest {
@@ -61,6 +64,7 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
 
   bool get _isNote => _selectedServiceType == 'NOTE';
   bool get _isBus => _selectedServiceType == 'BUS';
+  bool get _isHotel => _selectedServiceType == 'HOTEL';
 
   @override
   void initState() {
@@ -347,6 +351,18 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
       return;
     }
 
+    if (_isHotel) {
+      final option = _selectedOption;
+      if (option == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vui lòng chọn khách sạn.')),
+        );
+        return;
+      }
+      _openHotelBooking(option);
+      return;
+    }
+
     if (!_isNote && _selectedOption == null) {
       return;
     }
@@ -435,6 +451,111 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
         });
       }
     }
+  }
+
+  Future<void> _openHotelBooking(TripServiceOption option) async {
+    final navigator = Navigator.of(context);
+    final hotelProvider = context.read<HotelProvider>();
+    await hotelProvider.fetchHotelDetail(option.serviceId, forceRefresh: true);
+
+    if (!mounted) {
+      return;
+    }
+
+    final hotel = hotelProvider.selectedHotel;
+    if (hotel == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(hotelProvider.detailError ?? 'Không tải được khách sạn.')),
+      );
+      return;
+    }
+
+    final availableRooms = hotel.rooms
+        .where((room) => room.availableQty > 0)
+        .toList(growable: false);
+
+    if (availableRooms.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Khách sạn hiện không còn phòng trống.')),
+      );
+      return;
+    }
+
+    var selectedRoom = availableRooms.first;
+    if (availableRooms.length > 1) {
+      final pickedRoom = await showModalBottomSheet<RoomModel>(
+        context: context,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        builder: (sheetContext) {
+          return SafeArea(
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+              shrinkWrap: true,
+              itemCount: availableRooms.length + 1,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'Chọn hạng phòng',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: TripUiColors.textPrimary,
+                      ),
+                    ),
+                  );
+                }
+
+                final room = availableRooms[index - 1];
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    room.roomType,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  subtitle: Text(
+                    'Sức chứa ${room.capacity} người • Còn ${room.availableQty} phòng',
+                  ),
+                  trailing: Text(
+                    _moneyText(room.pricePerNight),
+                    style: const TextStyle(
+                      color: TripUiColors.timelineGreen,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  onTap: () => Navigator.of(sheetContext).pop(room),
+                );
+              },
+            ),
+          );
+        },
+      );
+
+      if (pickedRoom == null || !mounted) {
+        return;
+      }
+      selectedRoom = pickedRoom;
+    }
+
+    navigator.pop();
+    await navigator.push(
+      MaterialPageRoute(
+        builder: (_) => BookingDateGuestScreen(
+          hotel: hotel,
+          selectedRoom: selectedRoom,
+          existingTripId: widget.tripId,
+          existingTripDayNumber: widget.dayNumber,
+          existingTripStartDate: widget.tripStartDate,
+          existingTripEndDate: widget.tripEndDate,
+          initialCheckIn: _selectedServiceDate,
+        ),
+      ),
+    );
   }
 
   void _showBusSeatSelection(BusScheduleModel schedule) {
@@ -709,11 +830,24 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
                 icon: Icons.place_rounded,
                 title: 'Điểm đến',
                 label: to?.name ?? 'Chọn điểm đến',
-                onTap: () => _showBusDestinationPicker(isFrom: false),
+                onTap: widget.destinationId == null
+                    ? () => _showBusDestinationPicker(isFrom: false)
+                    : null,
               ),
             ),
           ],
         ),
+        if (widget.destinationId != null) ...[
+          const SizedBox(height: 8),
+          const Text(
+            'Điểm đến được khóa theo điểm đến của chuyến đi.',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: TripUiColors.textSecondary,
+            ),
+          ),
+        ],
         if (hasSameDestination) ...[
           const SizedBox(height: 8),
           const Text(
@@ -969,6 +1103,9 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
                           _priceController.text =
                               value?.defaultPrice?.toStringAsFixed(0) ?? '';
                         });
+                        if (value != null && _isHotel) {
+                          _openHotelBooking(value);
+                        }
                       },
                       validator: (value) => value == null ? 'Chọn một dịch vụ' : null,
                       decoration: InputDecoration(
@@ -999,7 +1136,7 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
                   text: _selectedOption!.subtitle ?? 'Không có mô tả thêm.',
                 ),
               ],
-              if (!_isBus) ...[
+              if (_isNote) ...[
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -1182,22 +1319,29 @@ class _BusSelectButton extends StatelessWidget {
   final IconData icon;
   final String title;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final enabled = onTap != null;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Ink(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF1F4F6),
+          color: enabled ? const Color(0xFFF1F4F6) : const Color(0xFFE8ECEF),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: TripUiColors.timelineGreen),
+            Icon(
+              icon,
+              size: 18,
+              color: enabled
+                  ? TripUiColors.timelineGreen
+                  : TripUiColors.textSecondary,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Column(

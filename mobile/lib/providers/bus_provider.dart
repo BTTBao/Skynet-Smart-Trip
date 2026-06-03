@@ -98,6 +98,7 @@ class BusProvider with ChangeNotifier {
 
   Future<bool> confirmCheckoutPayment({
     required int tripId,
+    required int scheduleId,
     required String paymentMethod,
     required String transactionId,
     required double amount,
@@ -109,6 +110,7 @@ class BusProvider with ChangeNotifier {
     try {
       final success = await _busService.confirmPayment(
         tripId: tripId,
+        scheduleId: scheduleId,
         paymentMethod: paymentMethod,
         transactionId: transactionId,
         amount: amount,
