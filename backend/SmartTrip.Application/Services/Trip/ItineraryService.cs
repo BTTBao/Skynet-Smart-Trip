@@ -60,6 +60,11 @@ public class ItineraryService : IItineraryService
             await ValidateHotelBookingAsync(trip, request, existingHotelItinerary?.Quantity ?? 0);
         }
 
+        if (normalizedServiceType == BusServiceType && !string.IsNullOrEmpty(request.SelectedSeats))
+        {
+            await LockSeatsAsync(tripId, request.ServiceId, request.SelectedSeats);
+        }
+
         if (existingHotelItinerary != null)
         {
             existingHotelItinerary.Quantity = (existingHotelItinerary.Quantity ?? 1) + request.Quantity;
@@ -86,7 +91,8 @@ public class ItineraryService : IItineraryService
             BookedCommissionRate = request.BookedCommissionRate ?? serviceOption.DefaultCommissionRate ?? 0,
             ServiceDate = request.ServiceDate,
             DepartureTime = request.DepartureTime,
-            ServiceAddress = request.ServiceAddress
+            ServiceAddress = request.ServiceAddress,
+            SelectedSeats = request.SelectedSeats
         };
 
         _context.TripItineraries.Add(itinerary);
@@ -205,7 +211,8 @@ public class ItineraryService : IItineraryService
             ServiceDate = itinerary.ServiceDate,
             HotelCheckOutDate = hotelCheckOutDate,
             DepartureTime = itinerary.DepartureTime,
-            ServiceAddress = itinerary.ServiceAddress
+            ServiceAddress = itinerary.ServiceAddress,
+            SelectedSeats = itinerary.SelectedSeats
         };
     }
 
@@ -478,6 +485,45 @@ public class ItineraryService : IItineraryService
         if (dayNumber > maxDay)
         {
             throw new ArgumentException($"DayNumber cannot be greater than {maxDay} for this trip.");
+        }
+    }
+
+    private async Task LockSeatsAsync(int tripId, int scheduleId, string selectedSeatsString)
+    {
+        var seatNumbers = selectedSeatsString.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .ToList();
+
+        if (!seatNumbers.Any()) return;
+
+        var seats = await _context.Seats
+            .Where(s => s.ScheduleId == scheduleId && s.SeatNumber != null && seatNumbers.Contains(s.SeatNumber))
+            .ToListAsync();
+
+        foreach (var seatNum in seatNumbers)
+        {
+            var seat = seats.FirstOrDefault(s => s.SeatNumber == seatNum);
+            if (seat == null)
+            {
+                throw new KeyNotFoundException($"Ghế {seatNum} không tồn tại trên tuyến xe này.");
+            }
+
+            if (seat.Status == SeatStatus.Booked)
+            {
+                throw new InvalidOperationException($"Ghế {seatNum} đã được đặt trước bởi hành khách khác.");
+            }
+
+            if (seat.Status == SeatStatus.Locked && seat.LockedUntil.HasValue && seat.LockedUntil.Value > DateTime.UtcNow && seat.LockedByTripId != tripId)
+            {
+                throw new InvalidOperationException($"Ghế {seatNum} đang được giữ bởi người khác. Vui lòng chọn ghế khác.");
+            }
+        }
+
+        foreach (var seat in seats)
+        {
+            seat.Status = SeatStatus.Locked;
+            seat.LockedUntil = DateTime.UtcNow.AddMinutes(10);
+            seat.LockedByTripId = tripId;
         }
     }
 }

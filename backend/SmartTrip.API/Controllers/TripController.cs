@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
@@ -382,87 +382,211 @@ public class TripController : ControllerBase
             trip.Status = TripStatus.Paid;
 
             // If it is a BUS booking, book the corresponding seats!
-            if (request.SelectedSeats != null && request.SelectedSeats.Any())
+            var busItinerary = trip.TripItineraries
+                .FirstOrDefault(i => i.ServiceType == TripServiceType.Bus);
+            if (busItinerary != null && busItinerary.ServiceId.HasValue)
             {
-                var scheduleId = request.ScheduleId;
-                if (!scheduleId.HasValue)
-                {
-                    var busItinerary = trip.TripItineraries
-                        .OrderByDescending(i => i.Id)
-                        .FirstOrDefault(i => i.ServiceType == TripServiceType.Bus);
-                    scheduleId = busItinerary?.ServiceId;
-                }
-                else if (!trip.TripItineraries.Any(i =>
+                var scheduleId = request.ScheduleId ?? busItinerary.ServiceId.Value;
+                if (request.ScheduleId.HasValue && !trip.TripItineraries.Any(i =>
                              i.ServiceType == TripServiceType.Bus &&
-                             i.ServiceId == scheduleId.Value))
+                             i.ServiceId == scheduleId))
                 {
                     return BadRequest(new { message = "Schedule does not belong to this trip." });
                 }
 
-                if (scheduleId.HasValue)
+                var lockedSeats = await _context.Seats
+                    .Where(s => s.ScheduleId == scheduleId && s.LockedByTripId == tripId)
+                    .ToListAsync();
+
+                if (!lockedSeats.Any())
                 {
-                    var seatsToBook = await _context.Seats
-                        .Where(s => s.ScheduleId == scheduleId.Value && s.SeatNumber != null && request.SelectedSeats.Contains(s.SeatNumber))
-                        .ToListAsync();
-                    
-                    foreach (var seat in seatsToBook)
+                    var seatNumbersStr = busItinerary.SelectedSeats ?? (request.SelectedSeats != null ? string.Join(",", request.SelectedSeats) : "");
+                    if (!string.IsNullOrEmpty(seatNumbersStr))
                     {
-                        seat.Status = SeatStatus.Booked;
+                        var seatNumbers = seatNumbersStr.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                            .Select(s => s.Trim())
+                            .ToList();
+
+                        lockedSeats = await _context.Seats
+                            .Where(s => s.ScheduleId == scheduleId && s.SeatNumber != null && seatNumbers.Contains(s.SeatNumber))
+                            .ToListAsync();
                     }
+                }
+
+                foreach (var seat in lockedSeats)
+                {
+                    seat.Status = SeatStatus.Booked;
+                    seat.LockedUntil = null;
+                    seat.LockedByTripId = null;
                 }
             }
 
             await _context.SaveChangesAsync();
 
-            // Send booking confirmation email asynchronously
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    // Create a new scope to safely access DbContext inside a background task
-                    using (var scope = HttpContext.RequestServices.CreateScope())
-                    {
-                        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                        var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
-
-                        var dbTrip = await dbContext.Trips.FirstOrDefaultAsync(t => t.Id == tripId);
-                        if (dbTrip == null) return;
-
-                        var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == dbTrip.UserId);
-                        if (user != null && !string.IsNullOrWhiteSpace(user.Email))
-                        {
-                            var bookingCode = $"ST{dbTrip.Id}";
-                            var hotelName = dbTrip.Title ?? "Khách sạn & Resort";
-                            var dateRange = dbTrip.StartDate.HasValue && dbTrip.EndDate.HasValue 
-                                ? $"{dbTrip.StartDate.Value:dd/MM/yyyy} - {dbTrip.EndDate.Value:dd/MM/yyyy}"
-                                : "Chi tiết hành trình";
-                            var roomInfo = "Chi tiết phòng và các dịch vụ xem tại ứng dụng di động SmartTrip";
-                            var totalPrice = $"{dbTrip.TotalAmount:N0}đ";
-                            var paymentMethodName = request.PaymentMethod == "Momo" ? "Ví điện tử MoMo" 
-                                                   : request.PaymentMethod == "Zalopay" ? "Ví điện tử ZaloPay" 
-                                                   : request.PaymentMethod == "Promotion" ? "Khuyến mãi (0đ)"
-                                                   : "Thẻ ngân hàng";
-
-                            await emailService.SendBookingConfirmationEmailAsync(
-                                user.Email,
-                                user.FullName ?? user.Email,
-                                bookingCode,
-                                hotelName,
-                                dateRange,
-                                roomInfo,
-                                totalPrice,
-                                paymentMethodName
-                            );
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Email Error] Failed to send booking confirmation email for trip {tripId}: {ex.Message}");
-                }
-            });
+             // Send booking confirmation email asynchronously
+             _ = Task.Run(async () =>
+             {
+                 try
+                 {
+                     // Create a new scope to safely access DbContext inside a background task
+                     using (var scope = HttpContext.RequestServices.CreateScope())
+                     {
+                         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                         var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+ 
+                         var dbTrip = await dbContext.Trips
+                             .Include(t => t.Destination)
+                             .Include(t => t.TripItineraries)
+                             .FirstOrDefaultAsync(t => t.Id == tripId);
+                         if (dbTrip == null) return;
+ 
+                         var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == dbTrip.UserId);
+                         if (user != null && !string.IsNullOrWhiteSpace(user.Email))
+                         {
+                             var bookingCode = $"ST{dbTrip.Id}";
+                             
+                             var busItinerary = dbTrip.TripItineraries
+                                 .FirstOrDefault(i => i.ServiceType == TripServiceType.Bus);
+                                 
+                             if (busItinerary != null && busItinerary.ServiceId.HasValue)
+                             {
+                                 var schedule = await dbContext.BusSchedules
+                                     .Include(s => s.Company)
+                                     .Include(s => s.FromDest)
+                                     .Include(s => s.ToDest)
+                                     .FirstOrDefaultAsync(s => s.Id == busItinerary.ServiceId.Value);
+                                     
+                                 var companyName = schedule?.Company?.Name ?? dbTrip.Title?.Replace("Vé xe: ", "") ?? "Nhà xe SmartTrip";
+                                 var fromDest = schedule?.FromDest?.Name ?? "N/A";
+                                 var toDest = schedule?.ToDest?.Name ?? dbTrip.Destination?.Name ?? "N/A";
+                                 var departure = schedule?.DepartureTime?.ToString("dd/MM/yyyy HH:mm") ?? "N/A";
+                                 var arrival = schedule?.ArrivalTime?.ToString("dd/MM/yyyy HH:mm") ?? "N/A";
+                                 var seats = busItinerary.SelectedSeats ?? "N/A";
+                                 var totalPrice = $"{dbTrip.TotalAmount:N0}đ";
+                                 
+                                 await emailService.SendBusBookingConfirmationEmailAsync(
+                                     user.Email,
+                                     user.FullName ?? user.Email,
+                                     bookingCode,
+                                     companyName,
+                                     fromDest,
+                                     toDest,
+                                     departure,
+                                     arrival,
+                                     seats,
+                                     totalPrice
+                                 );
+                             }
+                             else
+                             {
+                                 var hotelName = dbTrip.Title ?? "Khách sạn & Resort";
+                                 var dateRange = dbTrip.StartDate.HasValue && dbTrip.EndDate.HasValue 
+                                     ? $"{dbTrip.StartDate.Value:dd/MM/yyyy} - {dbTrip.EndDate.Value:dd/MM/yyyy}"
+                                     : "Chi tiết hành trình";
+                                 var roomInfo = "Chi tiết phòng và các dịch vụ xem tại ứng dụng di động SmartTrip";
+                                 var totalPrice = $"{dbTrip.TotalAmount:N0}đ";
+                                 var paymentMethodName = request.PaymentMethod == "Momo" ? "Ví điện tử MoMo" 
+                                                        : request.PaymentMethod == "Zalopay" ? "Ví điện tử ZaloPay" 
+                                                        : request.PaymentMethod == "Promotion" ? "Khuyến mãi (0đ)"
+                                                        : "Thẻ ngân hàng";
+ 
+                                 await emailService.SendBookingConfirmationEmailAsync(
+                                     user.Email,
+                                     user.FullName ?? user.Email,
+                                     bookingCode,
+                                     hotelName,
+                                     dateRange,
+                                     roomInfo,
+                                     totalPrice,
+                                     paymentMethodName
+                                 );
+                             }
+                         }
+                     }
+                 }
+                 catch (Exception ex)
+                 {
+                     Console.WriteLine($"[Email Error] Failed to send booking confirmation email for trip {tripId}: {ex.Message}");
+                 }
+             });
 
             return Ok(new { message = "Thanh toán thành công.", tripId = trip.Id, status = "PAID" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{tripId:int}/re-lock-seats")]
+    public async Task<IActionResult> ReLockSeats(int tripId)
+    {
+        try
+        {
+            if (!await UserOwnsTripAsync(tripId))
+            {
+                return Forbid();
+            }
+
+            var trip = await _context.Trips
+                .Include(t => t.TripItineraries)
+                .FirstOrDefaultAsync(t => t.Id == tripId);
+
+            if (trip == null)
+            {
+                return NotFound(new { message = $"Trip {tripId} was not found." });
+            }
+
+            var busItinerary = trip.TripItineraries
+                .FirstOrDefault(i => i.ServiceType == TripServiceType.Bus);
+            if (busItinerary == null || !busItinerary.ServiceId.HasValue || string.IsNullOrEmpty(busItinerary.SelectedSeats))
+            {
+                return BadRequest(new { message = "Chuyến đi không chứa thông tin đặt ghế xe khách." });
+            }
+
+            var scheduleId = busItinerary.ServiceId.Value;
+            var seatNumbers = busItinerary.SelectedSeats.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .ToList();
+
+            if (!seatNumbers.Any())
+            {
+                return BadRequest(new { message = "Không tìm thấy danh sách số ghế." });
+            }
+
+            var seats = await _context.Seats
+                .Where(s => s.ScheduleId == scheduleId && s.SeatNumber != null && seatNumbers.Contains(s.SeatNumber))
+                .ToListAsync();
+
+            foreach (var seatNum in seatNumbers)
+            {
+                var seat = seats.FirstOrDefault(s => s.SeatNumber == seatNum);
+                if (seat == null)
+                {
+                    return NotFound(new { message = $"Ghế {seatNum} không tồn tại trên tuyến xe này." });
+                }
+
+                if (seat.Status == SeatStatus.Booked)
+                {
+                    return BadRequest(new { message = $"Ghế {seatNum} đã được đặt trước bởi hành khách khác." });
+                }
+
+                if (seat.Status == SeatStatus.Locked && seat.LockedUntil.HasValue && seat.LockedUntil.Value > DateTime.UtcNow && seat.LockedByTripId != tripId)
+                {
+                    return BadRequest(new { message = $"Ghế {seatNum} đang được giữ bởi người khác. Vui lòng đặt vé mới." });
+                }
+            }
+
+            foreach (var seat in seats)
+            {
+                seat.Status = SeatStatus.Locked;
+                seat.LockedUntil = DateTime.UtcNow.AddMinutes(10);
+                seat.LockedByTripId = tripId;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Giữ ghế thành công.", lockedUntil = DateTime.UtcNow.AddMinutes(10) });
         }
         catch (Exception ex)
         {

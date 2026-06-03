@@ -28,6 +28,8 @@ public class TripItinerary
 
     public string? ServiceAddress { get; set; }
 
+    public string? SelectedSeats { get; set; }
+
     public virtual Trip? Trip { get; set; }
 }
 

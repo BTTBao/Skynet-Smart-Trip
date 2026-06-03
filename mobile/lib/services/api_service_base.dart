@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'secure_storage_service.dart';
 
@@ -151,7 +153,7 @@ abstract class ApiService {
   Future<http.Response> multipartPostWithFallback(
     String path, {
     required String fileField,
-    required String filePath,
+    required XFile file,
     bool requireAuth = false,
     Map<String, String>? extraHeaders,
   }) async {
@@ -163,7 +165,39 @@ abstract class ApiService {
     return _sendWithFallback((baseUrl) async {
       final request = http.MultipartRequest('POST', buildUri(baseUrl, path));
       request.headers.addAll(requestHeaders);
-      request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
+      request.headers.remove('content-type');
+      request.headers.remove('Content-Type');
+
+      if (kIsWeb) {
+        MediaType? contentType;
+        if (file.mimeType != null) {
+          try {
+            contentType = MediaType.parse(file.mimeType!);
+          } catch (_) {}
+        }
+        if (contentType == null) {
+          final nameLower = file.name.toLowerCase();
+          if (nameLower.endsWith('.png')) {
+            contentType = MediaType('image', 'png');
+          } else if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg')) {
+            contentType = MediaType('image', 'jpeg');
+          } else if (nameLower.endsWith('.webp')) {
+            contentType = MediaType('image', 'webp');
+          } else if (nameLower.endsWith('.gif')) {
+            contentType = MediaType('image', 'gif');
+          }
+        }
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            fileField,
+            await file.readAsBytes(),
+            filename: file.name,
+            contentType: contentType,
+          ),
+        );
+      } else {
+        request.files.add(await http.MultipartFile.fromPath(fileField, file.path));
+      }
 
       final streamedResponse = await request.send().timeout(
         const Duration(seconds: 40),

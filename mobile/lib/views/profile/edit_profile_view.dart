@@ -20,6 +20,7 @@ class _EditProfileViewState extends State<EditProfileView> {
   late final TextEditingController _emailController;
   late final TextEditingController _phoneController;
   late final TextEditingController _birthDateController;
+  late final TextEditingController _identityController;
   bool _handledSessionExpired = false;
 
   @override
@@ -30,6 +31,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     _emailController = TextEditingController(text: user?.email ?? '');
     _phoneController = TextEditingController(text: user?.phone ?? '');
     _birthDateController = TextEditingController(text: user?.birthDate ?? '');
+    _identityController = TextEditingController(text: user?.identityNumber ?? '');
   }
 
   @override
@@ -38,6 +40,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     _emailController.dispose();
     _phoneController.dispose();
     _birthDateController.dispose();
+    _identityController.dispose();
     super.dispose();
   }
 
@@ -182,6 +185,155 @@ class _EditProfileViewState extends State<EditProfileView> {
                       onTap: _pickBirthDate,
                       suffixIcon: const Icon(Icons.expand_more),
                     ),
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      label: context.tr(vi: 'So CCCD / CMND', en: 'ID Card Number'),
+                      icon: Icons.credit_card_outlined,
+                      controller: _identityController,
+                      hintText: context.tr(
+                        vi: 'Nhap so CCCD hoac CMND',
+                        en: 'Enter your ID card number',
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        final raw = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                        if (raw.isNotEmpty && raw.length != 9 && raw.length != 12) {
+                          return context.trRead(
+                            vi: 'So CCCD/CMND khong hop le (9 hoac 12 so).',
+                            en: 'ID number must be 9 or 12 digits.',
+                          );
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 6),
+                      child: Text(
+                        context.tr(
+                          vi: 'Anh mat truoc CCCD / CMND',
+                          en: 'Front Side of Identity Card',
+                        ),
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: provider.isUploadingIdentityPhoto ? null : _showIdentityCardPhotoPicker,
+                      child: Container(
+                        height: 180,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF0D6B42).withOpacity(0.3),
+                            width: 1.5,
+                            style: BorderStyle.solid,
+                          ),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: provider.isUploadingIdentityPhoto
+                            ? const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0D6B42)),
+                                    ),
+                                    SizedBox(height: 10),
+                                    Text('Dang tai anh len...'),
+                                  ],
+                                ),
+                              )
+                            : (provider.profileData?.identityCardPhotoUrl != null &&
+                                    provider.profileData!.identityCardPhotoUrl!.isNotEmpty)
+                                ? Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      Image.network(
+                                        provider.profileData!.identityCardPhotoUrl!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Center(
+                                            child: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                const Icon(
+                                                  Icons.broken_image_outlined,
+                                                  color: Colors.redAccent,
+                                                  size: 40,
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  context.tr(
+                                                    vi: 'Khong the tai anh. Cham de thu lai.',
+                                                    en: 'Failed to load image. Tap to retry.',
+                                                  ),
+                                                  style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      Positioned(
+                                        right: 10,
+                                        bottom: 10,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFF0D6B42),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.edit,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.add_a_photo_outlined,
+                                          color: const Color(0xFF0D6B42).withOpacity(0.8),
+                                          size: 40,
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          context.tr(
+                                            vi: 'Bam de chup hoac chon anh CCCD',
+                                            en: 'Tap to take or choose ID card photo',
+                                          ),
+                                          style: TextStyle(
+                                            color: const Color(0xFF0D6B42).withOpacity(0.8),
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          context.tr(
+                                            vi: 'Hinh anh can ro rang, khong bi mo',
+                                            en: 'Image must be clear and readable',
+                                          ),
+                                          style: TextStyle(
+                                            color: Colors.grey.shade500,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -226,7 +378,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     }
 
     final provider = context.read<ProfileProvider>();
-    final success = await provider.uploadAvatar(image.path);
+    final success = await provider.uploadAvatar(image);
     if (!mounted) {
       return;
     }
@@ -287,6 +439,75 @@ class _EditProfileViewState extends State<EditProfileView> {
     );
   }
 
+  Future<void> _pickAndUploadIdentityCardPhoto(ImageSource source) async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: source, imageQuality: 75);
+    if (image == null) {
+      return;
+    }
+
+    final provider = context.read<ProfileProvider>();
+    final success = await provider.uploadIdentityCardPhoto(image);
+    if (!mounted) {
+      return;
+    }
+
+    if (provider.hasSessionExpired) {
+      await _handleSessionExpired(provider);
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? context.trRead(
+                  vi: 'Da cap nhat anh CCCD / CMND.',
+                  en: 'Identity card photo updated.',
+                )
+              : (provider.error ??
+                  context.trRead(
+                    vi: 'Khong the tai anh len.',
+                    en: 'Unable to upload image.',
+                  )),
+        ),
+      ),
+    );
+  }
+
+  void _showIdentityCardPhotoPicker() {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: Text(context.trRead(vi: 'Chon tu thu vien', en: 'Choose from gallery')),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickAndUploadIdentityCardPhoto(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: Text(context.trRead(vi: 'Chup anh moi', en: 'Take a new photo')),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickAndUploadIdentityCardPhoto(ImageSource.camera);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   bool _hasUnsavedChanges(ProfileProvider provider) {
     final user = provider.profileData;
     if (user == null) {
@@ -295,7 +516,8 @@ class _EditProfileViewState extends State<EditProfileView> {
 
     return _nameController.text.trim() != user.name.trim() ||
         _phoneController.text.trim() != user.phone.trim() ||
-        _birthDateController.text.trim() != (user.birthDate ?? '').trim();
+        _birthDateController.text.trim() != user.birthDate.trim() ||
+        _identityController.text.trim() != (user.identityNumber ?? '').trim();
   }
 
   Future<void> _handleBackNavigation(ProfileProvider provider) async {
@@ -379,6 +601,9 @@ class _EditProfileViewState extends State<EditProfileView> {
       name: _nameController.text.trim(),
       phone: _phoneController.text.trim(),
       birthDate: _birthDateController.text.trim(),
+      identityNumber: _identityController.text.trim().isEmpty
+          ? null
+          : _identityController.text.trim(),
     );
 
     final success = await provider.updateProfile(updatedUser);

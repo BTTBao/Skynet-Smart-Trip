@@ -15,6 +15,8 @@ public class ExploreComment
     public int LikeCount { get; set; }
 
     public DateTime CreatedAt { get; set; }
+    
+    public string? ImageUrl { get; set; }
 
     public virtual ExplorePost ExplorePost { get; set; } = null!;
 

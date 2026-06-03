@@ -49,8 +49,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   const login = async (payload: LoginRequest) => {
-    const response = await authService.login(payload);
-    authStorage.setTokens(response.accessToken, response.refreshToken);
+    const response = await authService.login(payload) as any;
+    const accessToken = response?.accessToken ?? response?.AccessToken;
+    const refreshToken = response?.refreshToken ?? response?.RefreshToken;
+    authStorage.setTokens(accessToken, refreshToken);
     const profile = await authService.getProfile();
     setUser(profile);
   };

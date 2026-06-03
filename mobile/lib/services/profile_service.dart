@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:image_picker/image_picker.dart';
+
 import '../models/user_favorite.dart';
 import '../models/user_profile.dart';
 import '../models/user_settings.dart';
@@ -56,7 +58,7 @@ class ProfileService extends ApiService {
     }
   }
 
-  Future<String?> uploadAvatar(String filePath) async {
+  Future<String?> uploadAvatar(XFile file) async {
     if (_useMock) {
       await Future.delayed(const Duration(seconds: 1));
       return 'https://i.pravatar.cc/150?u=mock_upload';
@@ -65,12 +67,33 @@ class ProfileService extends ApiService {
         final response = await multipartPostWithFallback(
           '/user/me/upload-avatar',
           fileField: 'file',
-          filePath: filePath,
+          file: file,
           requireAuth: true,
         );
 
         final data = handleResponse(response);
         return data['avatarUrl'];
+      } catch (e) {
+        rethrow;
+      }
+    }
+  }
+
+  Future<String?> uploadIdentityCardPhoto(XFile file) async {
+    if (_useMock) {
+      await Future.delayed(const Duration(seconds: 1));
+      return 'https://i.pravatar.cc/150?u=mock_upload_identity';
+    } else {
+      try {
+        final response = await multipartPostWithFallback(
+          '/user/me/upload-identity-card',
+          fileField: 'file',
+          file: file,
+          requireAuth: true,
+        );
+
+        final data = handleResponse(response);
+        return data['identityCardPhotoUrl'];
       } catch (e) {
         rethrow;
       }

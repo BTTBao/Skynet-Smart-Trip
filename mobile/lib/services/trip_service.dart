@@ -164,4 +164,12 @@ class TripService extends ApiService {
     );
     handleResponse(response);
   }
+
+  Future<void> reLockSeats(int tripId) async {
+    final response = await postWithFallback(
+      '/trips/$tripId/re-lock-seats',
+      requireAuth: true,
+    );
+    handleResponse(response);
+  }
 }

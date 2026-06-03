@@ -44,9 +44,11 @@ apiClient.interceptors.response.use(
     refreshPromise ??= axios
       .post(`${BASE_URL}/auth/refresh-token`, { refreshToken })
       .then((response) => {
-        const payload = response.data as { accessToken: string; refreshToken: string };
-        authStorage.setTokens(payload.accessToken, payload.refreshToken);
-        return payload.accessToken;
+        const payload = response.data as any;
+        const accessToken = payload?.accessToken ?? payload?.AccessToken;
+        const refreshToken = payload?.refreshToken ?? payload?.RefreshToken;
+        authStorage.setTokens(accessToken, refreshToken);
+        return accessToken;
       })
       .catch(() => {
         authStorage.clear();

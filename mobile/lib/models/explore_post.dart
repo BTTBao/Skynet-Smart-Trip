@@ -129,6 +129,7 @@ class ExploreComment {
   final String authorName;
   final String authorAvatar;
   final String content;
+  final String? imageUrl;
   final DateTime createdAt;
   final int likes;
   final List<ExploreComment> replies;
@@ -139,6 +140,7 @@ class ExploreComment {
     required this.authorName,
     required this.authorAvatar,
     required this.content,
+    this.imageUrl,
     required this.createdAt,
     required this.likes,
     this.replies = const [],
@@ -151,6 +153,7 @@ class ExploreComment {
       authorName: json['authorName'] as String? ?? '',
       authorAvatar: json['authorAvatar'] as String? ?? '',
       content: json['content'] as String? ?? '',
+      imageUrl: json['imageUrl'] as String?,
       createdAt:
           DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
           DateTime.now(),
@@ -163,13 +166,14 @@ class ExploreComment {
     );
   }
 
-  ExploreComment copyWith({List<ExploreComment>? replies}) {
+  ExploreComment copyWith({List<ExploreComment>? replies, String? imageUrl}) {
     return ExploreComment(
       id: id,
       parentCommentId: parentCommentId,
       authorName: authorName,
       authorAvatar: authorAvatar,
       content: content,
+      imageUrl: imageUrl ?? this.imageUrl,
       createdAt: createdAt,
       likes: likes,
       replies: replies ?? this.replies,

@@ -123,13 +123,37 @@ public class BusController : ControllerBase
         }
 
 
+        // Clean up expired locked seats
+        var expiredLockedSeats = schedule.Seats
+            .Where(s => s.Status == SeatStatus.Locked && s.LockedUntil.HasValue && s.LockedUntil.Value <= DateTime.UtcNow)
+            .ToList();
+
+        if (expiredLockedSeats.Any())
+        {
+            foreach (var seat in expiredLockedSeats)
+            {
+                seat.Status = SeatStatus.Available;
+                seat.LockedUntil = null;
+                seat.LockedByTripId = null;
+            }
+            await _context.SaveChangesAsync();
+        }
+
         var result = schedule.Seats
             .OrderBy(s => s.SeatNumber)
-            .Select(s => new
-            {
-                s.Id,
-                SeatNumber = s.SeatNumber ?? $"S{s.Id}",
-                Status = (s.Status ?? SeatStatus.Available).ToString().ToLowerInvariant()
+            .Select(s => {
+                var currentStatus = s.Status ?? SeatStatus.Available;
+                if (currentStatus == SeatStatus.Locked && s.LockedUntil.HasValue && s.LockedUntil.Value <= DateTime.UtcNow)
+                {
+                    currentStatus = SeatStatus.Available;
+                }
+
+                return new
+                {
+                    s.Id,
+                    SeatNumber = s.SeatNumber ?? $"S{s.Id}",
+                    Status = currentStatus.ToString().ToLowerInvariant()
+                };
             }).ToList();
 
         return Ok(result);

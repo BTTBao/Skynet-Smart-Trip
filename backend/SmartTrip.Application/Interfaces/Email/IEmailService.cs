@@ -19,6 +19,17 @@ namespace SmartTrip.Application.Interfaces.Email
         Task SendPaymentSuccessEmailAsync(string toEmail, string fullName, string tripTitle, decimal amount, string? transactionId);
         Task SendPaymentFailedEmailAsync(string toEmail, string fullName, string tripTitle, string status);
         Task SendBookingStatusChangedEmailAsync(string toEmail, string fullName, string bookingTitle, string statusLabel, decimal? amount);
+        Task SendBusBookingConfirmationEmailAsync(
+            string toEmail,
+            string fullName,
+            string bookingCode,
+            string companyName,
+            string fromDest,
+            string toDest,
+            string departureTime,
+            string arrivalTime,
+            string seats,
+            string totalPrice);
         Task SendPasswordChangedEmailAsync(string toEmail, string fullName);
         Task SendAccountStatusChangedEmailAsync(string toEmail, string fullName, bool isActive);
     }
