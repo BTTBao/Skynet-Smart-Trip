@@ -89,8 +89,9 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       final end2 = widget.checkOut;
 
       // Overlap condition: start1 <= end2 && end1 >= start2
-      final bool overlaps = (start1.isBefore(end2) || start1.isAtSameMomentAs(end2)) &&
-                            (end1.isAfter(start2) || end1.isAtSameMomentAs(start2));
+      final bool overlaps =
+          (start1.isBefore(end2) || start1.isAtSameMomentAs(end2)) &&
+          (end1.isAfter(start2) || end1.isAtSameMomentAs(start2));
       if (overlaps) {
         return true;
       }
@@ -118,10 +119,8 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       return fallbackDay < 1 ? 1 : fallbackDay;
     }
 
-    final dayNumber = _dateOnly(widget.checkIn)
-            .difference(_dateOnly(tripStart))
-            .inDays +
-        1;
+    final dayNumber =
+        _dateOnly(widget.checkIn).difference(_dateOnly(tripStart)).inDays + 1;
     return dayNumber < 1 ? 1 : dayNumber;
   }
 
@@ -161,7 +160,8 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         _discountAmount = discount;
         _appliedPromoCode = code;
         _promoError = null;
-        _promoSuccessMessage = 'Áp dụng mã SUMMER15 thành công! Giảm 15% phòng khách sạn.';
+        _promoSuccessMessage =
+            'Áp dụng mã SUMMER15 thành công! Giảm 15% phòng khách sạn.';
       });
     } else if (code == 'LIMOSMART') {
       discount = widget.totalPrice > 30000 ? 30000.0 : widget.totalPrice;
@@ -170,14 +170,6 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         _appliedPromoCode = code;
         _promoError = null;
         _promoSuccessMessage = 'Áp dụng mã LIMOSMART thành công! Giảm 30.000đ.';
-      });
-    } else if (code == 'FREE100') {
-      discount = widget.totalPrice;
-      setState(() {
-        _discountAmount = discount;
-        _appliedPromoCode = code;
-        _promoError = null;
-        _promoSuccessMessage = 'Áp dụng mã FREE100 thành công! Miễn phí 100% hóa đơn.';
       });
     } else {
       setState(() {
@@ -196,63 +188,76 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (BuildContext context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
-          ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return SafeArea(
+          child: FractionallySizedBox(
+            heightFactor: 0.75,
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Chọn Voucher của bạn',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Chọn Voucher của bạn',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.grey),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.grey),
-                    onPressed: () => Navigator.pop(context),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: activeVouchers.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 24.0,
+                              ),
+                              child: Text(
+                                'Túi đồ trống. Bạn không có voucher khả dụng.',
+                                style: TextStyle(color: Colors.grey[500]),
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: activeVouchers.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final voucher = activeVouchers[index];
+                              return _buildVoucherCard(
+                                code: voucher.code,
+                                title: voucher.code == 'SUMMER15'
+                                    ? 'Khuyến mãi hè rực rỡ (15% OFF)'
+                                    : 'Trải nghiệm tiện nghi (-30k)',
+                                description: voucher.description,
+                                expiry: voucher.expiry,
+                                quantity: voucher.quantity,
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              if (activeVouchers.isEmpty)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24.0),
-                    child: Text(
-                      'Túi đồ trống. Bạn không có voucher khả dụng.',
-                      style: TextStyle(color: Colors.grey[500]),
-                    ),
-                  ),
-                )
-              else
-                ...activeVouchers.map((voucher) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12.0),
-                    child: _buildVoucherCard(
-                      code: voucher.code,
-                      title: voucher.code == 'FREE100'
-                          ? 'Miễn phí đặt phòng khách sạn (100% OFF)'
-                          : voucher.code == 'SUMMER15'
-                              ? 'Khuyến mãi hè rực rỡ (15% OFF)'
-                              : 'Trải nghiệm tiện nghi (-30k)',
-                      description: voucher.description,
-                      expiry: voucher.expiry,
-                      quantity: voucher.quantity,
-                    ),
-                  );
-                }).toList(),
-              const SizedBox(height: 16),
-            ],
+            ),
           ),
         );
       },
@@ -308,19 +313,30 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                     Expanded(
                       child: Text(
                         title,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Colors.black87,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.grey[100],
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         'x$quantity',
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
                       ),
                     ),
                   ],
@@ -350,12 +366,18 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0D6B42),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
               elevation: 0,
             ),
             child: const Text(
               'Dùng',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
             ),
           ),
         ],
@@ -508,17 +530,20 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       return null;
     }
 
-    final trips = tripProvider.upcomingTrips
-        .where((trip) =>
-            trip.status != 'CANCELLED' &&
-            _bookingTripBlockReason(
-                  trip,
-                  destinationId: destinationId,
-                  destinationName: destinationName,
-                ) ==
-                null)
-        .toList(growable: false)
-      ..sort((left, right) => left.startDate.compareTo(right.startDate));
+    final trips =
+        tripProvider.upcomingTrips
+            .where(
+              (trip) =>
+                  trip.status != 'CANCELLED' &&
+                  _bookingTripBlockReason(
+                        trip,
+                        destinationId: destinationId,
+                        destinationName: destinationName,
+                      ) ==
+                      null,
+            )
+            .toList(growable: false)
+          ..sort((left, right) => left.startDate.compareTo(right.startDate));
 
     return showModalBottomSheet<_SelectedCheckoutTrip>(
       context: context,
@@ -559,9 +584,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
           if (createdTrip == null) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                  tripProvider.error ?? 'Không thể tạo chuyến đi.',
-                ),
+                content: Text(tripProvider.error ?? 'Không thể tạo chuyến đi.'),
               ),
             );
             return;
@@ -578,13 +601,19 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
             final visibleTrips = normalizedQuery.isEmpty
                 ? trips
                 : trips
-                    .where(
-                      (trip) =>
-                          trip.title.toLowerCase().contains(normalizedQuery) ||
-                          trip.destination.toLowerCase().contains(normalizedQuery) ||
-                          trip.dateRange.toLowerCase().contains(normalizedQuery),
-                    )
-                    .toList(growable: false);
+                      .where(
+                        (trip) =>
+                            trip.title.toLowerCase().contains(
+                              normalizedQuery,
+                            ) ||
+                            trip.destination.toLowerCase().contains(
+                              normalizedQuery,
+                            ) ||
+                            trip.dateRange.toLowerCase().contains(
+                              normalizedQuery,
+                            ),
+                      )
+                      .toList(growable: false);
 
             return Container(
               decoration: const BoxDecoration(
@@ -670,11 +699,11 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                             onTap: isCreating || !canSelect
                                 ? null
                                 : () => Navigator.of(sheetContext).pop(
-                                      _SelectedCheckoutTrip(
-                                        tripId: trip.tripId,
-                                        dayNumber: _dayNumberForTrip(trip),
-                                      ),
+                                    _SelectedCheckoutTrip(
+                                      tripId: trip.tripId,
+                                      dayNumber: _dayNumberForTrip(trip),
                                     ),
+                                  ),
                             borderRadius: BorderRadius.circular(14),
                             child: Container(
                               padding: const EdgeInsets.all(14),
@@ -760,8 +789,9 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(
-                          onPressed:
-                              isCreating ? null : () => createTrip(setSheetState),
+                          onPressed: isCreating
+                              ? null
+                              : () => createTrip(setSheetState),
                           style: FilledButton.styleFrom(
                             backgroundColor: const Color(0xFF6DE899),
                             foregroundColor: Colors.black,
@@ -793,7 +823,10 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
   }
 
   int _dayNumberForTrip(MyTripSummary trip) {
-    return _dateOnly(widget.checkIn).difference(_dateOnly(trip.startDate)).inDays + 1;
+    return _dateOnly(
+          widget.checkIn,
+        ).difference(_dateOnly(trip.startDate)).inDays +
+        1;
   }
 
   String get _hotelDestinationName {
@@ -856,27 +889,39 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
           return AlertDialog(
             title: Row(
               children: const [
-                Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange,
+                  size: 28,
+                ),
                 SizedBox(width: 8),
                 Text('Cảnh báo đặt trùng'),
               ],
             ),
             content: const Text(
-              'Bạn đã có một đặt phòng/lịch trình khác trùng với khoảng thời gian này trên hệ thống. Bạn vẫn muốn tiếp tục chứ?'
+              'Bạn đã có một đặt phòng/lịch trình khác trùng với khoảng thời gian này trên hệ thống. Bạn vẫn muốn tiếp tục chứ?',
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Quay lại', style: TextStyle(color: Colors.grey)),
+                child: const Text(
+                  'Quay lại',
+                  style: TextStyle(color: Colors.grey),
+                ),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0D6B42),
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                child: const Text('Tiếp tục', style: TextStyle(color: Colors.white)),
+                child: const Text(
+                  'Tiếp tục',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           );
@@ -937,7 +982,8 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
           serviceType: 'HOTEL',
           serviceId: widget.selectedRoom?.id ?? widget.hotel.id,
           quantity: widget.roomQuantity,
-          bookedPrice: (widget.selectedRoom?.pricePerNight ??
+          bookedPrice:
+              (widget.selectedRoom?.pricePerNight ??
                   widget.hotel.minPricePerNight) *
               widget.checkOut.difference(widget.checkIn).inDays.clamp(1, 365),
           serviceDate: widget.checkIn,
@@ -962,7 +1008,8 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         final paymentSuccess = await payService.confirmPayment(
           tripId: currentTripId,
           paymentMethod: 'Promotion',
-          transactionId: 'TXN-FREE-$currentTripId-${DateTime.now().millisecondsSinceEpoch}',
+          transactionId:
+              'TXN-FREE-$currentTripId-${DateTime.now().millisecondsSinceEpoch}',
           amount: 0,
         );
 
@@ -1001,7 +1048,8 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         return;
       }
 
-      if (selectedPaymentMethod == 0) { // PayOS - Thẻ tín dụng/Ghi nợ
+      if (selectedPaymentMethod == 0) {
+        // PayOS - Thẻ tín dụng/Ghi nợ
         final orderCode = _generateOrderCode(currentTripId);
         final payment = await PaymentService().createPayOsPayment(
           tripId: currentTripId,
@@ -1220,7 +1268,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
             color: Colors.black.withOpacity(0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
       child: Row(
@@ -1231,7 +1279,11 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
               color: Colors.green[100],
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.card_giftcard, color: Colors.green, size: 24),
+            child: const Icon(
+              Icons.card_giftcard,
+              color: Colors.green,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -1240,7 +1292,11 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
               children: [
                 const Text(
                   'Thanh toán khuyến mãi (0đ)',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1B5E20)),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: Color(0xFF1B5E20),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -1331,7 +1387,8 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
 
   Widget _buildPriceDetails() {
     final double finalPayPrice = widget.totalPrice - _discountAmount;
-    final double serviceFee = widget.totalPrice * 0.1; // 10% tax and service fee included
+    final double serviceFee =
+        widget.totalPrice * 0.1; // 10% tax and service fee included
     final double basePrice = widget.totalPrice - serviceFee;
 
     return Container(
@@ -1356,7 +1413,11 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
             children: [
               const Text(
                 'Mã giảm giá',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
               GestureDetector(
                 onTap: _showVoucherSelectionSheet,
@@ -1379,11 +1440,14 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                   controller: _promoController,
                   enabled: _appliedPromoCode == null,
                   decoration: InputDecoration(
-                    hintText: 'Nhập SUMMER15, LIMOSMART, FREE100...',
+                    hintText: 'Nhập SUMMER15 hoặc LIMOSMART...',
                     hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
                     filled: true,
                     fillColor: Colors.grey[50],
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(color: Colors.grey[300]!),
@@ -1409,25 +1473,50 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                         });
                       },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _appliedPromoCode == null ? const Color(0xFF0D6B42) : Colors.red[400],
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  backgroundColor: _appliedPromoCode == null
+                      ? const Color(0xFF0D6B42)
+                      : Colors.red[400],
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   elevation: 0,
                 ),
                 child: Text(
                   _appliedPromoCode == null ? 'Áp dụng' : 'Hủy',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
           ),
           if (_promoError != null) ...[
             const SizedBox(height: 6),
-            Text(_promoError!, style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500)),
+            Text(
+              _promoError!,
+              style: const TextStyle(
+                color: Colors.red,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
           if (_promoSuccessMessage != null) ...[
             const SizedBox(height: 6),
-            Text(_promoSuccessMessage!, style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500)),
+            Text(
+              _promoSuccessMessage!,
+              style: const TextStyle(
+                color: Colors.green,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 14.0),
@@ -1478,7 +1567,11 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
               children: [
                 Text(
                   'Khuyến mãi ($_appliedPromoCode)',
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 Text(
                   '-${_formatPriceFull(_discountAmount)}',
@@ -1553,7 +1646,11 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(Icons.arrow_forward, color: Colors.black, size: 20),
+                    const Icon(
+                      Icons.arrow_forward,
+                      color: Colors.black,
+                      size: 20,
+                    ),
                   ],
                 ),
               ),

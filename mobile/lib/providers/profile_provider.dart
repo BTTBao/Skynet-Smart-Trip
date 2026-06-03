@@ -43,13 +43,6 @@ class ProfileProvider with ChangeNotifier {
 
   final List<PersonalVoucher> _myVouchers = [
     PersonalVoucher(
-      code: 'FREE100',
-      title: 'Miễn phí đặt chỗ (100% OFF)',
-      description: 'Áp dụng cho mọi dịch vụ. Giảm tối đa 100% tổng hóa đơn.',
-      expiry: 'Hạn dùng: 31/12/2026',
-      quantity: 1,
-    ),
-    PersonalVoucher(
       code: 'SUMMER15',
       title: 'Khuyến mãi hè rực rỡ (15% OFF)',
       description: 'Áp dụng cho mọi dịch vụ. Giảm giá 15% tổng hóa đơn.',
@@ -67,7 +60,8 @@ class ProfileProvider with ChangeNotifier {
 
   List<PersonalVoucher> get myVouchers => _myVouchers;
 
-  int get totalVoucherCount => _myVouchers.fold(0, (sum, v) => sum + v.quantity);
+  int get totalVoucherCount =>
+      _myVouchers.fold(0, (sum, v) => sum + v.quantity);
 
   void useVoucher(String code) {
     for (var v in _myVouchers) {

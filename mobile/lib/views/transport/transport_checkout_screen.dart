@@ -51,10 +51,14 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
   // Passenger Form Fields
   bool _isPassengerTheUser = true;
   final _passengerFormKey = GlobalKey<FormState>();
-  final TextEditingController _passengerNameController = TextEditingController();
-  final TextEditingController _passengerPhoneController = TextEditingController();
-  final TextEditingController _passengerEmailController = TextEditingController();
-  final TextEditingController _passengerNotesController = TextEditingController();
+  final TextEditingController _passengerNameController =
+      TextEditingController();
+  final TextEditingController _passengerPhoneController =
+      TextEditingController();
+  final TextEditingController _passengerEmailController =
+      TextEditingController();
+  final TextEditingController _passengerNotesController =
+      TextEditingController();
 
   @override
   void initState() {
@@ -91,8 +95,13 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
       barrierDismissible: false,
       builder: (dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Hết hạn giữ ghế', style: TextStyle(fontWeight: FontWeight.bold)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Hết hạn giữ ghế',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           content: const Text(
             'Thời gian giữ ghế của bạn đã hết hạn (10 phút). Ghế đã được giải phóng để hành khách khác lựa chọn. Vui lòng thực hiện đặt vé lại.',
           ),
@@ -125,7 +134,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   String _formatPrice(double price) {
-    final fmt = price.toStringAsFixed(0).replaceAllMapped(
+    final fmt = price
+        .toStringAsFixed(0)
+        .replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (m) => '${m[1]}.',
         );
@@ -143,8 +154,10 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
   // ─── Payment logic (unchanged) ────────────────────────────────────────────
 
   Future<void> _openPayOsCheckout(String checkoutUrl) async {
-    final opened =
-        await launchUrl(Uri.parse(checkoutUrl), mode: LaunchMode.externalApplication);
+    final opened = await launchUrl(
+      Uri.parse(checkoutUrl),
+      mode: LaunchMode.externalApplication,
+    );
     if (!opened) throw Exception('Khong the mo trang thanh toan PayOS.');
   }
 
@@ -202,9 +215,13 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
       barrierDismissible: false,
       builder: (dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Hoàn tất thanh toán',
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Hoàn tất thanh toán',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           content: const Text(
             'Trang PayOS đã được mở. Sau khi thanh toán xong, quay lại app và bấm kiểm tra.',
           ),
@@ -227,10 +244,12 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
     );
   }
 
-  DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
+  DateTime _dateOnly(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
 
   int _dayNumberForTrip(MyTripSummary trip, DateTime serviceDate) {
-    return _dateOnly(serviceDate).difference(_dateOnly(trip.startDate)).inDays + 1;
+    return _dateOnly(serviceDate).difference(_dateOnly(trip.startDate)).inDays +
+        1;
   }
 
   bool _tripDestinationMatchesSchedule(
@@ -245,7 +264,10 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
         schedule.toDestName.trim().toLowerCase();
   }
 
-  String? _transportTripBlockReason(MyTripSummary trip, BusScheduleModel schedule) {
+  String? _transportTripBlockReason(
+    MyTripSummary trip,
+    BusScheduleModel schedule,
+  ) {
     final departureDate = _dateOnly(schedule.departureTime);
     final tripStart = _dateOnly(trip.startDate);
     final tripEnd = _dateOnly(trip.endDate);
@@ -272,12 +294,15 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
       return null;
     }
 
-    final trips = tripProvider.upcomingTrips
-        .where((trip) =>
-            trip.status != 'CANCELLED' &&
-            _transportTripBlockReason(trip, schedule) == null)
-        .toList(growable: false)
-      ..sort((left, right) => left.startDate.compareTo(right.startDate));
+    final trips =
+        tripProvider.upcomingTrips
+            .where(
+              (trip) =>
+                  trip.status != 'CANCELLED' &&
+                  _transportTripBlockReason(trip, schedule) == null,
+            )
+            .toList(growable: false)
+          ..sort((left, right) => left.startDate.compareTo(right.startDate));
 
     return showModalBottomSheet<_SelectedTransportTrip>(
       context: context,
@@ -317,7 +342,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
           setSheetState(() => isCreating = false);
           if (createdTrip == null) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(tripProvider.error ?? 'Không thể tạo chuyến đi.')),
+              SnackBar(
+                content: Text(tripProvider.error ?? 'Không thể tạo chuyến đi.'),
+              ),
             );
             return;
           }
@@ -333,13 +360,19 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
             final visibleTrips = normalizedQuery.isEmpty
                 ? trips
                 : trips
-                    .where(
-                      (trip) =>
-                          trip.title.toLowerCase().contains(normalizedQuery) ||
-                          trip.destination.toLowerCase().contains(normalizedQuery) ||
-                          trip.dateRange.toLowerCase().contains(normalizedQuery),
-                    )
-                    .toList(growable: false);
+                      .where(
+                        (trip) =>
+                            trip.title.toLowerCase().contains(
+                              normalizedQuery,
+                            ) ||
+                            trip.destination.toLowerCase().contains(
+                              normalizedQuery,
+                            ) ||
+                            trip.dateRange.toLowerCase().contains(
+                              normalizedQuery,
+                            ),
+                      )
+                      .toList(growable: false);
 
             return Container(
               decoration: const BoxDecoration(
@@ -375,7 +408,10 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                       const SizedBox(height: 16),
                       const Text(
                         'Thêm vào chuyến đi',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -385,7 +421,8 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                       const SizedBox(height: 16),
                       TextField(
                         enabled: !isCreating,
-                        onChanged: (value) => setSheetState(() => query = value),
+                        onChanged: (value) =>
+                            setSheetState(() => query = value),
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.search),
                           labelText: 'Tìm chuyến đi',
@@ -397,7 +434,10 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                       const SizedBox(height: 12),
                       if (visibleTrips.isNotEmpty) ...[
                         ...visibleTrips.map((trip) {
-                          final blockedReason = _transportTripBlockReason(trip, schedule);
+                          final blockedReason = _transportTripBlockReason(
+                            trip,
+                            schedule,
+                          );
                           final canSelect = blockedReason == null;
 
                           return Padding(
@@ -406,40 +446,52 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                               onTap: isCreating || !canSelect
                                   ? null
                                   : () => Navigator.of(sheetContext).pop(
-                                        _SelectedTransportTrip(
-                                          tripId: trip.tripId,
-                                          dayNumber: _dayNumberForTrip(
-                                            trip,
-                                            schedule.departureTime,
-                                          ),
+                                      _SelectedTransportTrip(
+                                        tripId: trip.tripId,
+                                        dayNumber: _dayNumberForTrip(
+                                          trip,
+                                          schedule.departureTime,
                                         ),
                                       ),
+                                    ),
                               borderRadius: BorderRadius.circular(16),
                               child: Container(
                                 padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
-                                  color: canSelect ? Colors.white : const Color(0xFFF8FAFC),
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  color: canSelect
+                                      ? Colors.white
+                                      : const Color(0xFFF8FAFC),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2E8F0),
+                                  ),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.map_rounded, color: Color(0xFF0D6B42)),
+                                    const Icon(
+                                      Icons.map_rounded,
+                                      color: Color(0xFF0D6B42),
+                                    ),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             trip.title,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(fontWeight: FontWeight.bold),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
                                             '${trip.destination} • ${trip.dateRange}',
-                                            style: const TextStyle(color: Colors.grey),
+                                            style: const TextStyle(
+                                              color: Colors.grey,
+                                            ),
                                           ),
                                           if (blockedReason != null) ...[
                                             const SizedBox(height: 4),
@@ -459,7 +511,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                                       canSelect
                                           ? Icons.chevron_right_rounded
                                           : Icons.lock_outline_rounded,
-                                      color: canSelect ? Colors.black87 : Colors.grey,
+                                      color: canSelect
+                                          ? Colors.black87
+                                          : Colors.grey,
                                     ),
                                   ],
                                 ),
@@ -487,7 +541,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                       TextField(
                         enabled: !isCreating,
                         controller: TextEditingController(text: title)
-                          ..selection = TextSelection.collapsed(offset: title.length),
+                          ..selection = TextSelection.collapsed(
+                            offset: title.length,
+                          ),
                         onChanged: (value) => title = value,
                         decoration: InputDecoration(
                           labelText: 'Tên chuyến đi mới',
@@ -500,7 +556,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: isCreating ? null : () => createTrip(setSheetState),
+                          onPressed: isCreating
+                              ? null
+                              : () => createTrip(setSheetState),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF0D6B42),
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -547,13 +605,15 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
     if (schedule == null || seats.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Vui lòng chọn chuyến xe và vị trí ghế ngồi trước.')),
+          content: Text('Vui lòng chọn chuyến xe và vị trí ghế ngồi trước.'),
+        ),
       );
       return;
     }
 
     // Validate Passenger Info Form
-    if (_passengerFormKey.currentState == null || !_passengerFormKey.currentState!.validate()) {
+    if (_passengerFormKey.currentState == null ||
+        !_passengerFormKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Vui lòng nhập đầy đủ thông tin hành khách đi xe.'),
@@ -639,11 +699,15 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
           selectedSeats: seats.join(', '),
         );
 
-        final itinerarySuccess =
-            await tripProvider.addItinerary(currentTripId, itineraryRequest);
+        final itinerarySuccess = await tripProvider.addItinerary(
+          currentTripId,
+          itineraryRequest,
+        );
         if (!itinerarySuccess) {
           throw Exception(
-              tripProvider.error ?? 'Không thể thêm thông tin vé xe vào lịch trình.');
+            tripProvider.error ??
+                'Không thể thêm thông tin vé xe vào lịch trình.',
+          );
         }
         _pendingTripId = currentTripId;
       }
@@ -660,7 +724,8 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
 
         if (!paymentSuccess) {
           throw Exception(
-              busProvider.error ?? 'Không thể xác nhận thanh toán khuyến mãi 0đ.');
+            busProvider.error ?? 'Không thể xác nhận thanh toán khuyến mãi 0đ.',
+          );
         }
 
         if (_appliedPromoCode != null) {
@@ -728,7 +793,8 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
 
       if (!paymentSuccess) {
         throw Exception(
-            busProvider.error ?? 'Thanh toán thất bại từ cổng thanh toán.');
+          busProvider.error ?? 'Thanh toán thất bại từ cổng thanh toán.',
+        );
       }
 
       if (_appliedPromoCode != null) {
@@ -755,9 +821,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
@@ -905,7 +971,11 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
             ),
       bottomNavigationBar: _isProcessing
           ? null
-          : _buildBottomBar(context, busProvider, finalPayPrice < 0 ? 0 : finalPayPrice),
+          : _buildBottomBar(
+              context,
+              busProvider,
+              finalPayPrice < 0 ? 0 : finalPayPrice,
+            ),
     );
   }
 
@@ -969,7 +1039,11 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
             children: [
               const Text(
                 'Mã giảm giá',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
               GestureDetector(
                 onTap: _showVoucherSelectionSheet,
@@ -992,11 +1066,14 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                   controller: _promoController,
                   enabled: _appliedPromoCode == null,
                   decoration: InputDecoration(
-                    hintText: 'Nhập SUMMER15, LIMOSMART, FREE100...',
+                    hintText: 'Nhập SUMMER15 hoặc LIMOSMART...',
                     hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
                     filled: true,
                     fillColor: Colors.grey[50],
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(color: Colors.grey[300]!),
@@ -1022,25 +1099,50 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                         });
                       },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _appliedPromoCode == null ? _kPrimary : Colors.red[400],
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  backgroundColor: _appliedPromoCode == null
+                      ? _kPrimary
+                      : Colors.red[400],
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   elevation: 0,
                 ),
                 child: Text(
                   _appliedPromoCode == null ? 'Áp dụng' : 'Hủy',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
           ),
           if (_promoError != null) ...[
             const SizedBox(height: 6),
-            Text(_promoError!, style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500)),
+            Text(
+              _promoError!,
+              style: const TextStyle(
+                color: Colors.red,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
           if (_promoSuccessMessage != null) ...[
             const SizedBox(height: 6),
-            Text(_promoSuccessMessage!, style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500)),
+            Text(
+              _promoSuccessMessage!,
+              style: const TextStyle(
+                color: Colors.green,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
         ],
       ),
@@ -1071,7 +1173,8 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
         _discountAmount = discount;
         _appliedPromoCode = code;
         _promoError = null;
-        _promoSuccessMessage = 'Áp dụng mã SUMMER15 thành công! Giảm 15% tổng tiền vé.';
+        _promoSuccessMessage =
+            'Áp dụng mã SUMMER15 thành công! Giảm 15% tổng tiền vé.';
       });
     } else if (code == 'LIMOSMART') {
       discount = totalPrice > 30000 ? 30000.0 : totalPrice.toDouble();
@@ -1080,14 +1183,6 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
         _appliedPromoCode = code;
         _promoError = null;
         _promoSuccessMessage = 'Áp dụng mã LIMOSMART thành công! Giảm 30.000đ.';
-      });
-    } else if (code == 'FREE100') {
-      discount = totalPrice.toDouble();
-      setState(() {
-        _discountAmount = discount;
-        _appliedPromoCode = code;
-        _promoError = null;
-        _promoSuccessMessage = 'Áp dụng mã FREE100 thành công! Miễn phí 100% hóa đơn.';
       });
     } else {
       setState(() {
@@ -1125,7 +1220,11 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                 children: [
                   const Text(
                     'Chọn Voucher của bạn',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.grey),
@@ -1150,11 +1249,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                     padding: const EdgeInsets.only(bottom: 12.0),
                     child: _buildVoucherCard(
                       code: voucher.code,
-                      title: voucher.code == 'FREE100'
-                          ? 'Miễn phí vé xe Limousine (100% OFF)'
-                          : voucher.code == 'SUMMER15'
-                              ? 'Khuyến mãi hè rực rỡ (15% OFF)'
-                              : 'Trải nghiệm Limousine tiện nghi (-30k)',
+                      title: voucher.code == 'SUMMER15'
+                          ? 'Khuyến mãi hè rực rỡ (15% OFF)'
+                          : 'Trải nghiệm Limousine tiện nghi (-30k)',
                       description: voucher.description,
                       expiry: voucher.expiry,
                       quantity: voucher.quantity,
@@ -1218,19 +1315,30 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                     Expanded(
                       child: Text(
                         title,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Colors.black87,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.grey[100],
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         'x$quantity',
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
                       ),
                     ),
                   ],
@@ -1260,12 +1368,18 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: _kPrimary,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
               elevation: 0,
             ),
             child: const Text(
               'Dùng',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
             ),
           ),
         ],
@@ -1334,7 +1448,11 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
               children: [
                 Text(
                   'Khuyến mãi ($_appliedPromoCode)',
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 Text(
                   '-${_formatPrice(_discountAmount)}',
@@ -1376,7 +1494,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
   Widget _buildTimerBanner() {
     final minutes = (_secondsRemaining ~/ 60).toString().padLeft(2, '0');
     final seconds = (_secondsRemaining % 60).toString().padLeft(2, '0');
-    
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
@@ -1393,7 +1511,10 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
               children: [
                 TextSpan(
                   text: '$minutes:$seconds',
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF721C24)),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF721C24),
+                  ),
                 ),
               ],
             ),
@@ -1431,17 +1552,21 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                     color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.arrow_back_ios_new,
-                      color: Colors.white, size: 16),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                 ),
               ),
               const SizedBox(width: 14),
               const Text(
                 'Xác nhận đặt vé',
                 style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20),
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
               ),
             ],
           ),
@@ -1449,11 +1574,26 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
           // Step indicator
           Row(
             children: [
-              _StepDot(step: 1, label: 'Chọn ghế', isDone: true, isActive: false),
+              _StepDot(
+                step: 1,
+                label: 'Chọn ghế',
+                isDone: true,
+                isActive: false,
+              ),
               _StepLine(isActive: true),
-              _StepDot(step: 2, label: 'Thanh toán', isDone: false, isActive: true),
+              _StepDot(
+                step: 2,
+                label: 'Thanh toán',
+                isDone: false,
+                isActive: true,
+              ),
               _StepLine(isActive: false),
-              _StepDot(step: 3, label: 'Hoàn tất', isDone: false, isActive: false),
+              _StepDot(
+                step: 3,
+                label: 'Hoàn tất',
+                isDone: false,
+                isActive: false,
+              ),
             ],
           ),
         ],
@@ -1467,13 +1607,17 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(_kPrimary)),
+            valueColor: AlwaysStoppedAnimation<Color>(_kPrimary),
+          ),
           SizedBox(height: 20),
-          Text('Đang xử lý đặt vé xe...',
-              style: TextStyle(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15)),
+          Text(
+            'Đang xử lý đặt vé xe...',
+            style: TextStyle(
+              color: Colors.grey,
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
         ],
       ),
     );
@@ -1504,20 +1648,30 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Tổng thanh toán',
-                    style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
+                const Text(
+                  'Tổng thanh toán',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE8F5EE),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text('Đã bao gồm thuế/phí',
-                      style: TextStyle(
-                          color: _kPrimary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Đã bao gồm thuế/phí',
+                    style: TextStyle(
+                      color: _kPrimary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -1528,9 +1682,10 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                 Text(
                   _formatPrice(total),
                   style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 28,
-                      color: Colors.black87),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 28,
+                    color: Colors.black87,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -1555,11 +1710,12 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                       ),
                       child: const Center(
                         child: Text(
-                           'Xác nhận thanh toán',
+                          'Xác nhận thanh toán',
                           style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16),
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
                     ),
@@ -1603,7 +1759,11 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                     children: [
                       Text(
                         'Tôi là người đi',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: Colors.black87,
+                        ),
                       ),
                       SizedBox(height: 2),
                       Text(
@@ -1685,7 +1845,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                 if (value == null || value.trim().isEmpty) {
                   return 'Vui lòng nhập địa chỉ email';
                 }
-                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
+                if (!RegExp(
+                  r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                ).hasMatch(value.trim())) {
                   return 'Địa chỉ email không hợp lệ';
                 }
                 return null;
@@ -1755,7 +1917,10 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
             prefixIcon: Icon(icon, color: Colors.grey.shade400, size: 20),
             filled: true,
             fillColor: enabled ? Colors.grey.shade50 : Colors.grey.shade100,
-            contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 14,
+              horizontal: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide(color: Colors.grey.shade200),
@@ -1802,19 +1967,31 @@ class _StepDot extends StatelessWidget {
 
     if (isDone) {
       dotBg = const Color(0xFF80ED99);
-      dotChild = const Icon(Icons.check_rounded, color: Color(0xFF0A4F30), size: 14);
+      dotChild = const Icon(
+        Icons.check_rounded,
+        color: Color(0xFF0A4F30),
+        size: 14,
+      );
     } else if (isActive) {
       dotBg = Colors.white;
-      dotChild = Text('$step',
-          style: const TextStyle(
-              color: _kPrimary, fontWeight: FontWeight.bold, fontSize: 12));
+      dotChild = Text(
+        '$step',
+        style: const TextStyle(
+          color: _kPrimary,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      );
     } else {
       dotBg = Colors.white.withValues(alpha: 0.3);
-      dotChild = Text('$step',
-          style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontWeight: FontWeight.bold,
-              fontSize: 12));
+      dotChild = Text(
+        '$step',
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.7),
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      );
     }
 
     return Column(
@@ -1884,9 +2061,10 @@ class _SectionLabel extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-              color: Colors.black87),
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+            color: Colors.black87,
+          ),
         ),
       ],
     );
@@ -1944,37 +2122,53 @@ class _BoardingPassCard extends StatelessWidget {
                         color: const Color(0xFFE8F5EE),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.directions_bus_rounded,
-                          color: _kPrimary, size: 20),
+                      child: const Icon(
+                        Icons.directions_bus_rounded,
+                        color: _kPrimary,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(schedule.companyName,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 15)),
-                          Text('Giường nằm ${schedule.totalSeats} chỗ',
-                              style: TextStyle(
-                                  color: Colors.grey[500], fontSize: 12)),
+                          Text(
+                            schedule.companyName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                          Text(
+                            'Giường nằm ${schedule.totalSeats} chỗ',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 12,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [Color(0xFF0D6B42), Color(0xFF1A9058)],
                         ),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Text('GIƯỜNG NẰM',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10)),
+                      child: const Text(
+                        'GIƯỜNG NẰM',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -1988,17 +2182,23 @@ class _BoardingPassCard extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(schedule.fromDestName,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                                color: Colors.black87)),
+                        Text(
+                          schedule.fromDestName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Colors.black87,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text(_time(schedule.departureTime),
-                            style: const TextStyle(
-                                color: _kPrimary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 22)),
+                        Text(
+                          _time(schedule.departureTime),
+                          style: const TextStyle(
+                            color: _kPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 22,
+                          ),
+                        ),
                       ],
                     ),
 
@@ -2008,28 +2208,38 @@ class _BoardingPassCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Column(
                           children: [
-                            Text(schedule.duration,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                    color: Colors.grey[500], fontSize: 11)),
+                            Text(
+                              schedule.duration,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 11,
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             Row(
                               children: [
                                 Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: const BoxDecoration(
-                                        color: _kPrimary,
-                                        shape: BoxShape.circle)),
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: _kPrimary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
                                 Expanded(
                                   child: Stack(
                                     alignment: Alignment.center,
                                     children: [
                                       Container(
-                                          height: 1.5,
-                                          color: Colors.grey[200]),
-                                      const Icon(Icons.directions_bus_rounded,
-                                          color: _kPrimary, size: 20),
+                                        height: 1.5,
+                                        color: Colors.grey[200],
+                                      ),
+                                      const Icon(
+                                        Icons.directions_bus_rounded,
+                                        color: _kPrimary,
+                                        size: 20,
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -2038,7 +2248,9 @@ class _BoardingPassCard extends StatelessWidget {
                                   height: 8,
                                   decoration: BoxDecoration(
                                     border: Border.all(
-                                        color: Colors.grey[400]!, width: 1.5),
+                                      color: Colors.grey[400]!,
+                                      width: 1.5,
+                                    ),
                                     shape: BoxShape.circle,
                                   ),
                                 ),
@@ -2053,17 +2265,23 @@ class _BoardingPassCard extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(schedule.toDestName,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                                color: Colors.black87)),
+                        Text(
+                          schedule.toDestName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Colors.black87,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text(_time(schedule.arrivalTime),
-                            style: const TextStyle(
-                                color: _kPrimary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 22)),
+                        Text(
+                          _time(schedule.arrivalTime),
+                          style: const TextStyle(
+                            color: _kPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 22,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -2080,11 +2298,13 @@ class _BoardingPassCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     _InfoChip(
-                      icon: schedule.departureTime.hour >= 18 ||
+                      icon:
+                          schedule.departureTime.hour >= 18 ||
                               schedule.departureTime.hour <= 5
                           ? Icons.nights_stay_rounded
                           : Icons.wb_sunny_rounded,
-                      label: schedule.departureTime.hour >= 18 ||
+                      label:
+                          schedule.departureTime.hour >= 18 ||
                               schedule.departureTime.hour <= 5
                           ? 'Đêm'
                           : 'Ban ngày',
@@ -2107,36 +2327,48 @@ class _BoardingPassCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('VỊ TRÍ GHẾ',
-                          style: TextStyle(
-                              color: Colors.grey[500],
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5)),
+                      Text(
+                        'VỊ TRÍ GHẾ',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text(seats.join(', '),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: _kPrimary)),
+                      Text(
+                        seats.join(', '),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: _kPrimary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('TỔNG CỘNG',
-                        style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5)),
+                    Text(
+                      'TỔNG CỘNG',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text(formatPrice(totalPrice),
-                        style: const TextStyle(
-                            color: _kPrimary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20)),
+                    Text(
+                      formatPrice(totalPrice),
+                      style: const TextStyle(
+                        color: _kPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -2170,7 +2402,9 @@ class _TicketNotch extends StatelessWidget {
                 (i) => Expanded(
                   child: Container(
                     height: 1.5,
-                    color: i.isEven ? const Color(0xFFDDDDDD) : Colors.transparent,
+                    color: i.isEven
+                        ? const Color(0xFFDDDDDD)
+                        : Colors.transparent,
                   ),
                 ),
               ),
@@ -2227,11 +2461,14 @@ class _InfoChip extends StatelessWidget {
         children: [
           Icon(icon, size: 13, color: Colors.grey[600]),
           const SizedBox(width: 5),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[700])),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
         ],
       ),
     );
@@ -2285,14 +2522,14 @@ class _PaymentMethodCard extends StatelessWidget {
                     color: _kPrimary.withValues(alpha: 0.12),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
-                  )
+                  ),
                 ]
               : [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
-                  )
+                  ),
                 ],
         ),
         child: Row(
@@ -2313,31 +2550,41 @@ class _PaymentMethodCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(title,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 15)),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
                       if (badge != null) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.orange[50],
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Text(badge!,
-                              style: TextStyle(
-                                  color: Colors.orange[700],
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold)),
+                          child: Text(
+                            badge!,
+                            style: TextStyle(
+                              color: Colors.orange[700],
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ],
                     ],
                   ),
                   const SizedBox(height: 3),
-                  Text(subtitle,
-                      style:
-                          TextStyle(color: Colors.grey[500], fontSize: 12)),
+                  Text(
+                    subtitle,
+                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                  ),
                 ],
               ),
             ),
@@ -2365,10 +2612,7 @@ class _PaymentMethodCard extends StatelessWidget {
 }
 
 class _SelectedTransportTrip {
-  const _SelectedTransportTrip({
-    required this.tripId,
-    required this.dayNumber,
-  });
+  const _SelectedTransportTrip({required this.tripId, required this.dayNumber});
 
   final int tripId;
   final int dayNumber;

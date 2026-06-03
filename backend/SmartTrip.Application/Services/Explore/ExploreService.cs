@@ -276,14 +276,20 @@ public class ExploreService : IExploreService
     public async Task<ExploreCommentDto> AddCommentAsync(int postId, CreateExploreCommentDto request, int userId)
     {
         var content = request.Content?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(content))
+        var imageUrl = request.ImageUrl?.Trim();
+        if (string.IsNullOrWhiteSpace(content) && string.IsNullOrWhiteSpace(imageUrl))
         {
-            throw new ArgumentException("Comment content is required.");
+            throw new ArgumentException("Comment content or image is required.");
         }
 
         if (content.Length > 1000)
         {
             throw new ArgumentException("Comment content must be 1000 characters or fewer.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(imageUrl) && imageUrl.Length > 500)
+        {
+            throw new ArgumentException("Comment image URL is too long.");
         }
 
         await EnsurePostAndUserExistAsync(postId, userId);
@@ -318,7 +324,7 @@ public class ExploreService : IExploreService
             ParentCommentId = request.ParentCommentId,
             UserId = userId,
             Content = content,
-            ImageUrl = request.ImageUrl,
+            ImageUrl = imageUrl,
             LikeCount = 0,
             CreatedAt = DateTime.UtcNow
         };

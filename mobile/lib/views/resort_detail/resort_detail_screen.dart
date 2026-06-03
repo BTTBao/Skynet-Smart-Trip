@@ -88,6 +88,9 @@ class _ResortDetailScreenState extends State<ResortDetailScreen> {
       selectedRoomIndex = 0;
     }
     final selectedRoom = hotel.rooms.isNotEmpty ? hotel.rooms[selectedRoomIndex] : null;
+    final selectedImageUrls = selectedRoom?.imageUrls.isNotEmpty == true
+        ? selectedRoom!.imageUrls
+        : hotel.imageUrls;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -95,8 +98,9 @@ class _ResortDetailScreenState extends State<ResortDetailScreen> {
         child: Column(
           children: [
             ResortImageHeader(
-              imageUrls: hotel.imageUrls.isNotEmpty
-                  ? hotel.imageUrls
+              key: ValueKey(selectedRoom?.id ?? hotel.id),
+              imageUrls: selectedImageUrls.isNotEmpty
+                  ? selectedImageUrls
                   : ['https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80'],
             ),
             ResortInfoSection(

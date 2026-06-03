@@ -53,7 +53,9 @@ class ResortModel {
       reviewCount: json['reviewCount'] ?? 0,
       minPricePerNight: (json['minPricePerNight'] ?? 0.0).toDouble(),
       coverImageUrl: json['coverImageUrl'] ?? '',
-      imageUrls: (json['imageUrls'] as List? ?? []).map((e) => e.toString()).toList(),
+      imageUrls: (json['imageUrls'] as List? ?? [])
+          .map((e) => e.toString())
+          .toList(),
       amenities: (json['amenities'] as List? ?? [])
           .map((e) => AmenityModel.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -87,6 +89,7 @@ class RoomModel {
   final int capacity;
   final double pricePerNight;
   final int availableQty;
+  final List<String> imageUrls;
 
   const RoomModel({
     required this.id,
@@ -94,6 +97,7 @@ class RoomModel {
     required this.capacity,
     required this.pricePerNight,
     required this.availableQty,
+    this.imageUrls = const [],
   });
 
   factory RoomModel.fromJson(Map<String, dynamic> json) {
@@ -103,6 +107,10 @@ class RoomModel {
       capacity: json['capacity'] ?? 0,
       pricePerNight: (json['pricePerNight'] ?? 0.0).toDouble(),
       availableQty: json['availableQty'] ?? 0,
+      imageUrls: (json['imageUrls'] as List? ?? [])
+          .map((e) => e.toString())
+          .where((e) => e.isNotEmpty)
+          .toList(),
     );
   }
 }

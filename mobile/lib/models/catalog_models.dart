@@ -227,6 +227,7 @@ class CatalogRoomOption {
     required this.capacity,
     required this.pricePerNight,
     required this.availableQty,
+    required this.imageUrls,
   });
 
   final int id;
@@ -234,6 +235,7 @@ class CatalogRoomOption {
   final int capacity;
   final double pricePerNight;
   final int availableQty;
+  final List<String> imageUrls;
 
   factory CatalogRoomOption.fromJson(Map<String, dynamic> json) {
     return CatalogRoomOption(
@@ -242,6 +244,10 @@ class CatalogRoomOption {
       capacity: json['capacity'] as int? ?? 0,
       pricePerNight: (json['pricePerNight'] as num?)?.toDouble() ?? 0,
       availableQty: json['availableQty'] as int? ?? 0,
+      imageUrls: (json['imageUrls'] as List<dynamic>? ?? [])
+          .map((item) => item as String? ?? '')
+          .where((item) => item.isNotEmpty)
+          .toList(),
     );
   }
 }

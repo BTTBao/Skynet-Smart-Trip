@@ -527,7 +527,8 @@ class _CommentsSection extends StatefulWidget {
     required String content,
     String? imageUrl,
     int? parentCommentId,
-  }) onSubmit;
+  })
+  onSubmit;
 
   @override
   State<_CommentsSection> createState() => _CommentsSectionState();
@@ -569,9 +570,11 @@ class _CommentsSectionState extends State<_CommentsSection> {
 
     try {
       if (_selectedImage != null) {
-        imageUrl = await context.read<ExploreProvider>().uploadImage(_selectedImage!);
+        imageUrl = await context.read<ExploreProvider>().uploadImage(
+          _selectedImage!,
+        );
       }
-      
+
       final success = await widget.onSubmit(
         postId: widget.postId,
         content: content,
@@ -591,7 +594,9 @@ class _CommentsSectionState extends State<_CommentsSection> {
           SnackBar(
             content: Text(
               context.trRead(
-                vi: success ? 'Bình luận đã được gửi!' : 'Không gửi được bình luận',
+                vi: success
+                    ? 'Bình luận đã được gửi!'
+                    : 'Không gửi được bình luận',
                 en: success ? 'Comment posted!' : 'Could not post comment',
               ),
             ),
@@ -647,7 +652,11 @@ class _CommentsSectionState extends State<_CommentsSection> {
           ),
           const SizedBox(height: 16),
           ...widget.comments.map(
-            (c) => _CommentItem(postId: widget.postId, comment: c, onSubmit: widget.onSubmit),
+            (c) => _CommentItem(
+              postId: widget.postId,
+              comment: c,
+              onSubmit: widget.onSubmit,
+            ),
           ),
           const SizedBox(height: 12),
           // Thumbnail Preview
@@ -727,10 +736,15 @@ class _CommentsSectionState extends State<_CommentsSection> {
             children: [
               Builder(
                 builder: (context) {
-                  final profileUrl = context.watch<ProfileProvider>().profileData?.avatarUrl;
+                  final profileUrl = context
+                      .watch<ProfileProvider>()
+                      .profileData
+                      ?.avatarUrl;
                   return CircleAvatar(
                     radius: 18,
-                    backgroundImage: profileUrl != null && profileUrl.isNotEmpty ? NetworkImage(profileUrl) : null,
+                    backgroundImage: profileUrl != null && profileUrl.isNotEmpty
+                        ? NetworkImage(profileUrl)
+                        : null,
                     backgroundColor: const Color(0xFFE5E7EB),
                     child: profileUrl == null || profileUrl.isEmpty
                         ? const Icon(
@@ -740,7 +754,7 @@ class _CommentsSectionState extends State<_CommentsSection> {
                           )
                         : null,
                   );
-                }
+                },
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -823,6 +837,7 @@ class _CommentItem extends StatefulWidget {
   final Future<bool> Function({
     required int postId,
     required String content,
+    String? imageUrl,
     int? parentCommentId,
   })
   onSubmit;
@@ -833,6 +848,7 @@ class _CommentItem extends StatefulWidget {
 
 class _CommentItemState extends State<_CommentItem> {
   final _replyController = TextEditingController();
+  XFile? _replyImage;
   bool _isReplying = false;
   bool _isSending = false;
 
@@ -842,18 +858,57 @@ class _CommentItemState extends State<_CommentItem> {
     super.dispose();
   }
 
+  Future<void> _pickReplyImage() async {
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
+      if (image != null && mounted) {
+        setState(() => _replyImage = image);
+      }
+    } catch (e) {
+      debugPrint('Error picking reply image: $e');
+    }
+  }
+
+  void _clearReplyImage() {
+    setState(() => _replyImage = null);
+  }
+
   Future<void> _sendReply() async {
     final content = _replyController.text.trim();
-    if (content.isEmpty || _isSending) {
+    if ((content.isEmpty && _replyImage == null) || _isSending) {
       return;
     }
 
     setState(() => _isSending = true);
-    final success = await widget.onSubmit(
-      postId: widget.postId,
-      content: content,
-      parentCommentId: widget.comment.id,
-    );
+    var success = false;
+    try {
+      String? imageUrl;
+      if (_replyImage != null) {
+        imageUrl = await context.read<ExploreProvider>().uploadImage(
+          _replyImage!,
+        );
+      }
+
+      success = await widget.onSubmit(
+        postId: widget.postId,
+        content: content,
+        imageUrl: imageUrl,
+        parentCommentId: widget.comment.id,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lá»—i gá»­i pháº£n há»“i: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
     if (!mounted) {
       return;
     }
@@ -862,6 +917,7 @@ class _CommentItemState extends State<_CommentItem> {
       _isSending = false;
       if (success) {
         _isReplying = false;
+        _replyImage = null;
         _replyController.clear();
       }
     });
@@ -925,43 +981,100 @@ class _CommentItemState extends State<_CommentItem> {
           if (_isReplying)
             Padding(
               padding: const EdgeInsets.only(left: 44, top: 10),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _replyController,
-                      minLines: 1,
-                      maxLines: 3,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        hintText: context.tr(
-                          vi: 'Viết phản hồi...',
-                          en: 'Write a reply...',
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFFF9FAFB),
-                        isDense: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(
-                            color: ExploreColors.border,
+                  if (_replyImage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: kIsWeb
+                                ? Image.network(
+                                    _replyImage!.path,
+                                    width: 72,
+                                    height: 72,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Image.file(
+                                    File(_replyImage!.path),
+                                    width: 72,
+                                    height: 72,
+                                    fit: BoxFit.cover,
+                                  ),
+                          ),
+                          Positioned(
+                            top: 2,
+                            right: 2,
+                            child: GestureDetector(
+                              onTap: _isSending ? null : _clearReplyImage,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: Colors.black54,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _replyController,
+                          minLines: 1,
+                          maxLines: 3,
+                          autofocus: true,
+                          decoration: InputDecoration(
+                            hintText: context.tr(
+                              vi: 'Viết phản hồi...',
+                              en: 'Write a reply...',
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFFF9FAFB),
+                            isDense: true,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                color: ExploreColors.border,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _isSending ? null : _sendReply,
-                    icon: _isSending
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(
-                            Icons.send_rounded,
-                            color: ExploreColors.primary,
-                          ),
+                      IconButton(
+                        onPressed: _isSending ? null : _pickReplyImage,
+                        icon: const Icon(
+                          Icons.camera_alt_outlined,
+                          color: ExploreColors.textMuted,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _isSending ? null : _sendReply,
+                        icon: _isSending
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.send_rounded,
+                                color: ExploreColors.primary,
+                              ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1007,16 +1120,19 @@ class _CommentBubble extends StatelessWidget {
                     color: ExploreColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  comment.content,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: ExploreColors.textSecondary,
-                    height: 1.4,
+                if (comment.content.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    comment.content,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: ExploreColors.textSecondary,
+                      height: 1.4,
+                    ),
                   ),
-                ),
-                if (comment.imageUrl != null && comment.imageUrl!.isNotEmpty) ...[
+                ],
+                if (comment.imageUrl != null &&
+                    comment.imageUrl!.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
@@ -1077,23 +1193,27 @@ class _ReplyBubble extends StatelessWidget {
                           color: ExploreColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        reply.content,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: ExploreColors.textSecondary,
-                          height: 1.35,
+                      if (reply.content.trim().isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          reply.content,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: ExploreColors.textSecondary,
+                            height: 1.35,
+                          ),
                         ),
-                      ),
-                      if (reply.imageUrl != null && reply.imageUrl!.isNotEmpty) ...[
+                      ],
+                      if (reply.imageUrl != null &&
+                          reply.imageUrl!.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(10),
                           child: Image.network(
                             reply.imageUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                            errorBuilder: (_, __, ___) =>
+                                const SizedBox.shrink(),
                           ),
                         ),
                       ],
@@ -1197,7 +1317,10 @@ class _FloatingActionBar extends StatelessWidget {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    context.trRead(vi: 'Đã sao chép liên kết', en: 'Link copied'),
+                    context.trRead(
+                      vi: 'Đã sao chép liên kết',
+                      en: 'Link copied',
+                    ),
                   ),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(

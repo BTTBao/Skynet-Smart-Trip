@@ -25,6 +25,7 @@ const emptyRoomForm: AdminRoomRequest = {
   pricePerNight: 0,
   commissionRate: 10,
   availableQty: 1,
+  imageUrls: [],
 };
 
 function formatCurrency(value: number) {
@@ -37,10 +38,12 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
   const [hotel, setHotel] = useState<AdminHotelDetail | null>(null);
   const [hotelForm, setHotelForm] = useState<AdminHotelRequest>(emptyHotelForm);
   const [roomForm, setRoomForm] = useState<AdminRoomRequest>(emptyRoomForm);
+  const [roomImageUrls, setRoomImageUrls] = useState<string[]>([]);
   const [editingRoom, setEditingRoom] = useState<AdminRoom | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingHotel, setSavingHotel] = useState(false);
   const [savingRoom, setSavingRoom] = useState(false);
+  const [uploadingRoomImage, setUploadingRoomImage] = useState(false);
 
   const loadHotel = async () => {
     const data = await adminService.getHotelDetail(hotelId);
@@ -113,15 +116,20 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
     setSavingRoom(true);
 
     try {
+      const roomPayload = {
+        ...roomForm,
+        imageUrls: roomImageUrls,
+      };
+
       if (editingRoom) {
-        await adminService.updateRoom(editingRoom.id, roomForm);
+        await adminService.updateRoom(editingRoom.id, roomPayload);
         showToast({
           type: 'success',
           title: 'Đã cập nhật phòng',
           message: 'Loại phòng đã được điều chỉnh.',
         });
       } else {
-        await adminService.createRoom(hotelId, roomForm);
+        await adminService.createRoom(hotelId, roomPayload);
         showToast({
           type: 'success',
           title: 'Đã thêm phòng',
@@ -135,6 +143,7 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
       await loadHotel();
       setEditingRoom(null);
       setRoomForm(emptyRoomForm);
+      setRoomImageUrls([]);
     } catch (error) {
       showToast({
         type: 'error',
@@ -146,6 +155,52 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
     }
   };
 
+  const handleRoomImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files ?? []);
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
+    const availableSlots = Math.max(12 - roomImageUrls.length, 0);
+    const filesToUpload = selectedFiles.slice(0, availableSlots);
+    if (filesToUpload.length === 0) {
+      showToast({
+        type: 'error',
+        title: 'Album da du 12 anh',
+        message: 'Hay xoa bot anh cu truoc khi tai them anh moi.',
+      });
+      event.target.value = '';
+      return;
+    }
+
+    setUploadingRoomImage(true);
+    try {
+      const uploadedImages = await Promise.all(filesToUpload.map((file) => adminService.uploadRoomImage(file)));
+      setRoomImageUrls((current) => [...current, ...uploadedImages.map((image) => image.imageUrl)].slice(0, 12));
+      showToast({
+        type: 'success',
+        title: 'Da tai anh phong',
+        message:
+          filesToUpload.length < selectedFiles.length
+            ? `Da tai ${filesToUpload.length} anh. Album toi da 12 anh.`
+            : `Da tai ${filesToUpload.length} anh vao album phong.`,
+      });
+    } catch (error) {
+      showToast({
+        type: 'error',
+        title: 'Khong the tai anh phong',
+        message: getErrorMessage(error),
+      });
+    } finally {
+      setUploadingRoomImage(false);
+      event.target.value = '';
+    }
+  };
+
+  const removeRoomImage = (url: string) => {
+    setRoomImageUrls((current) => current.filter((imageUrl) => imageUrl !== url));
+  };
+
   const beginEditRoom = (room: AdminRoom) => {
     setEditingRoom(room);
     setRoomForm({
@@ -154,7 +209,9 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
       pricePerNight: room.pricePerNight,
       commissionRate: room.commissionRate,
       availableQty: room.availableQty,
+      imageUrls: room.imageUrls,
     });
+    setRoomImageUrls(room.imageUrls);
   };
 
   if (loading || !hotel) {
@@ -334,6 +391,7 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
                 onClick={() => {
                   setEditingRoom(null);
                   setRoomForm(emptyRoomForm);
+                  setRoomImageUrls([]);
                 }}
                 className="rounded-full bg-white px-4 py-2 text-xs font-bold text-slate-900"
               >
@@ -400,6 +458,53 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
               />
             </label>
 
+            <div className="rounded-[1.4rem] bg-white px-5 py-4 ring-1 ring-black/5 sm:col-span-2">
+  <div className="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Album anh phong</span>
+      <p className="mt-2 text-xs text-slate-500">Tai len JPG, PNG hoac WEBP. Toi da 12 anh moi phong.</p>
+    </div>
+    <label
+      className={`inline-flex cursor-pointer items-center rounded-full px-5 py-2.5 text-xs font-black ${
+        uploadingRoomImage || roomImageUrls.length >= 12
+          ? 'bg-slate-100 text-slate-400'
+          : 'bg-primary text-white shadow-[0px_12px_24px_rgba(15,118,110,0.18)]'
+      }`}
+    >
+      {uploadingRoomImage ? 'Dang tai...' : roomImageUrls.length >= 12 ? 'Da du anh' : 'Tai anh len'}
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        multiple
+        disabled={uploadingRoomImage || roomImageUrls.length >= 12}
+        onChange={handleRoomImageUpload}
+        className="hidden"
+      />
+    </label>
+  </div>
+
+  {roomImageUrls.length > 0 ? (
+    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {roomImageUrls.map((url, index) => (
+        <div key={`${url}-${index}`} className="group relative overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-black/10">
+          <img src={url} alt="" className="h-28 w-full object-cover" />
+          <button
+            type="button"
+            onClick={() => removeRoomImage(url)}
+            className="absolute right-2 top-2 rounded-full bg-white/95 px-2.5 py-1 text-xs font-black text-slate-900 shadow-sm"
+          >
+            Xoa
+          </button>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center text-sm font-bold text-slate-400">
+      Chua co anh phong
+    </div>
+  )}
+</div>
+
             <div className="sm:col-span-2">
               <button
                 type="submit"
@@ -452,6 +557,7 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
                   <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Giá / Đêm</th>
                   <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Commission</th>
                   <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Available Qty</th>
+                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Album</th>
                   <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Trạng thái</th>
                   <th className="px-8 py-5 text-right text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Hành động</th>
                 </tr>
@@ -467,6 +573,25 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
                     <td className="px-8 py-6 text-sm font-medium text-on-surface">{formatCurrency(room.pricePerNight)}</td>
                     <td className="px-8 py-6 text-sm text-on-surface-variant">{room.commissionRate}%</td>
                     <td className="px-8 py-6 text-sm font-bold text-on-surface">{room.availableQty}</td>
+                    <td className="px-8 py-6">
+                      {room.imageUrls.length > 0 ? (
+                        <div>
+                          <div className="flex -space-x-2">
+                            {room.imageUrls.slice(0, 3).map((url) => (
+                              <img
+                                key={url}
+                                src={url}
+                                alt=""
+                                className="h-10 w-10 rounded-xl border-2 border-white object-cover"
+                              />
+                            ))}
+                          </div>
+                          <p className="mt-2 text-xs font-bold text-on-surface-variant">{room.imageUrls.length} anh</p>
+                        </div>
+                      ) : (
+                        <span className="text-xs font-bold text-on-surface-variant">Chua co anh</span>
+                      )}
+                    </td>
                     <td className="px-8 py-6">
                       <span
                         className={`rounded-full px-4 py-1.5 text-xs font-bold ${

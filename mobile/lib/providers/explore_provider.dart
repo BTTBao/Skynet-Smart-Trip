@@ -219,8 +219,16 @@ class ExploreProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> addComment(int postId, String content, {String? imageUrl}) async {
-    return addCommentReply(postId: postId, content: content, imageUrl: imageUrl);
+  Future<bool> addComment(
+    int postId,
+    String content, {
+    String? imageUrl,
+  }) async {
+    return addCommentReply(
+      postId: postId,
+      content: content,
+      imageUrl: imageUrl,
+    );
   }
 
   Future<bool> addCommentReply({
@@ -230,13 +238,17 @@ class ExploreProvider with ChangeNotifier {
     int? parentCommentId,
   }) async {
     final trimmed = content.trim();
-    if (trimmed.isEmpty) return false;
+    final trimmedImageUrl = imageUrl?.trim();
+    if (trimmed.isEmpty &&
+        (trimmedImageUrl == null || trimmedImageUrl.isEmpty)) {
+      return false;
+    }
 
     try {
       final comment = await _service.addCommentReply(
         postId: postId,
         content: trimmed,
-        imageUrl: imageUrl,
+        imageUrl: trimmedImageUrl,
         parentCommentId: parentCommentId,
       );
       final index = _allPosts.indexWhere((post) => post.id == postId);
@@ -296,21 +308,27 @@ class ExploreProvider with ChangeNotifier {
 
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase().trim();
-      
+
       // Resolve city name matches from kPopularCities (e.g. searching "đà" matches "da-nang" and "da-lat")
       final matchedCities = kPopularCities.where((city) {
         final cityName = city.name.toLowerCase();
         final cityNameNoAccent = _normalize(city.name);
         final queryNoAccent = _normalize(query);
-        return query.length >= 2 && (cityName.contains(query) || cityNameNoAccent.contains(queryNoAccent));
+        return query.length >= 2 &&
+            (cityName.contains(query) ||
+                cityNameNoAccent.contains(queryNoAccent));
       }).toList();
 
       if (matchedCities.isNotEmpty) {
         final matchedSlugs = matchedCities.map((c) => c.slug).toSet();
-        result = result.where((post) => matchedSlugs.contains(post.city)).toList();
+        result = result
+            .where((post) => matchedSlugs.contains(post.city))
+            .toList();
       } else {
         // General search: strict accent-sensitive matching if query has accents, avoiding false positives like "đà" matching "đảo"
-        final accentRegex = RegExp(r'[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]');
+        final accentRegex = RegExp(
+          r'[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]',
+        );
         final hasAcc = accentRegex.hasMatch(query);
 
         result = result.where((post) {

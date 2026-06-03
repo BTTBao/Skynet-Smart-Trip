@@ -196,8 +196,14 @@ class _EditProfileViewState extends State<EditProfileView> {
                       ),
                       keyboardType: TextInputType.number,
                       validator: (value) {
-                        final raw = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-                        if (raw.isNotEmpty && raw.length != 9 && raw.length != 12) {
+                        final text = (value ?? '').trim();
+                        if (text.isNotEmpty && !RegExp(r'^\d+$').hasMatch(text)) {
+                          return context.trRead(
+                            vi: 'So CCCD/CMND chi duoc gom cac chu so.',
+                            en: 'ID number must contain digits only.',
+                          );
+                        }
+                        if (text.isNotEmpty && text.length != 9 && text.length != 12) {
                           return context.trRead(
                             vi: 'So CCCD/CMND khong hop le (9 hoac 12 so).',
                             en: 'ID number must be 9 or 12 digits.',

@@ -273,10 +273,24 @@ public class UserService : IUserService
         var user = await _context.Users.FindAsync(userId);
         if (user == null) return false;
 
+        var identityNumber = string.IsNullOrWhiteSpace(request.IdentityNumber)
+            ? null
+            : request.IdentityNumber.Trim();
+        if (!string.IsNullOrWhiteSpace(identityNumber))
+        {
+            var identityExists = await _context.Users
+                .AsNoTracking()
+                .AnyAsync(item => item.Id != userId && item.IdentityNumber == identityNumber);
+            if (identityExists)
+            {
+                throw new ArgumentException("So CCCD/CMND nay da duoc su dung boi tai khoan khac.");
+            }
+        }
+
         user.FullName = request.Name.Trim();
         user.Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
         user.BirthDate = ParseBirthDate(request.BirthDate);
-        user.IdentityNumber = string.IsNullOrWhiteSpace(request.IdentityNumber) ? null : request.IdentityNumber.Trim();
+        user.IdentityNumber = identityNumber;
 
         await _context.SaveChangesAsync();
         return true;

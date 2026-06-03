@@ -42,14 +42,25 @@ public class CatalogService : ICatalogService
             .ToListAsync();
         var hotelGalleries = await GetGalleryLookupAsync(GalleryReferenceType.Hotel, hotelIds);
 
-        var busSchedules = await _context.BusSchedules
+        var busSchedulesQuery = _context.BusSchedules
             .AsNoTracking()
             .Include(schedule => schedule.Company)
             .Include(schedule => schedule.FromDest)
-            .Include(schedule => schedule.ToDest)
+            .Include(schedule => schedule.ToDest);
+
+        var now = DateTime.UtcNow;
+        var busSchedules = await busSchedulesQuery
+            .Where(schedule => !schedule.DepartureTime.HasValue || schedule.DepartureTime >= now)
             .OrderBy(schedule => schedule.DepartureTime)
             .Take(8)
             .ToListAsync();
+        if (busSchedules.Count == 0)
+        {
+            busSchedules = await busSchedulesQuery
+                .OrderByDescending(schedule => schedule.DepartureTime)
+                .Take(8)
+                .ToListAsync();
+        }
 
         var busCompanyIds = busSchedules.Where(schedule => schedule.CompanyId.HasValue).Select(schedule => schedule.CompanyId!.Value).Distinct().ToList();
         var busReviews = await _context.Reviews
@@ -78,6 +89,9 @@ public class CatalogService : ICatalogService
             RecommendedHotels = mappedHotels.OrderBy(hotel => hotel.PricePerNight).Take(4).ToList(),
             FeaturedBuses = busSchedules
                 .Select(schedule => MapBusCard(schedule, busReviews.Where(review => review.TargetId == schedule.CompanyId).ToList()))
+                .OrderByDescending(bus => bus.Rating)
+                .ThenByDescending(bus => bus.ReviewCount)
+                .ThenBy(bus => bus.DepartureTime)
                 .Take(6)
                 .ToList()
         };
@@ -160,6 +174,8 @@ public class CatalogService : ICatalogService
             .OrderByDescending(review => review.CreatedAt)
             .ToListAsync();
         var galleries = await GetGalleryLookupAsync(GalleryReferenceType.Hotel, [hotelId]);
+        var roomIds = hotel.Rooms.Select(room => room.Id).ToList();
+        var roomGalleries = await GetGalleryLookupAsync(GalleryReferenceType.Room, roomIds);
         var card = MapHotelCard(hotel, reviews, galleries);
 
         return new CatalogHotelDetailDto
@@ -189,7 +205,8 @@ public class CatalogService : ICatalogService
                     RoomType = room.RoomType ?? "Standard",
                     Capacity = room.Capacity ?? 2,
                     PricePerNight = room.PricePerNight ?? 0,
-                    AvailableQty = room.AvailableQty ?? 0
+                    AvailableQty = room.AvailableQty ?? 0,
+                    ImageUrls = roomGalleries.TryGetValue(room.Id, out var roomImages) ? roomImages : []
                 })
                 .ToList(),
             Reviews = reviews.Select(MapReview).ToList()
