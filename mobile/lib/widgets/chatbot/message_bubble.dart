@@ -1,15 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/chat_message.dart';
+import '../../models/chat_response.dart';
 import 'destination_card_bubble.dart';
 import 'hotel_card_bubble.dart';
 import 'itinerary_bubble.dart';
+import 'transport_card_bubble.dart';
 import 'weather_bubble.dart';
 
 class MessageBubble extends StatelessWidget {
   final ChatMessage message;
+  final void Function(HotelCard card)? onBookRoom;
+  final void Function(TransportCard card)? onBookTransport;
+  final void Function(HotelPlanSuggestion hotel)? onBookPlannedHotel;
+  final void Function(TransportPlanSuggestion transport)? onBookPlannedTransport;
+  final Future<void> Function(SuggestedItinerary itinerary)? onSaveItinerary;
 
-  const MessageBubble({super.key, required this.message});
+  const MessageBubble({
+    super.key,
+    required this.message,
+    this.onBookRoom,
+    this.onBookTransport,
+    this.onBookPlannedHotel,
+    this.onBookPlannedTransport,
+    this.onSaveItinerary,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +96,8 @@ class MessageBubble extends StatelessWidget {
         (trimmed.contains('"responseType"') ||
             trimmed.contains('"suggestedItinerary"') ||
             trimmed.contains('"destinationCards"') ||
-            trimmed.contains('"hotelCards"'));
+            trimmed.contains('"hotelCards"') ||
+            trimmed.contains('"transportCards"'));
   }
 
   Widget _buildTextBubble(bool isUser, Color primaryColor) {
@@ -128,11 +144,25 @@ class MessageBubble extends StatelessWidget {
 
           // Hotel cards
           if (data.hotelCards != null && data.hotelCards!.isNotEmpty)
-            HotelCardBubble(cards: data.hotelCards!),
+            HotelCardBubble(
+              cards: data.hotelCards!,
+              onBookRoom: onBookRoom,
+            ),
+
+          if (data.transportCards != null && data.transportCards!.isNotEmpty)
+            TransportCardBubble(
+              cards: data.transportCards!,
+              onBookTransport: onBookTransport,
+            ),
 
           // Itinerary
           if (data.suggestedItinerary != null)
-            ItineraryBubble(itinerary: data.suggestedItinerary!),
+            ItineraryBubble(
+              itinerary: data.suggestedItinerary!,
+              onBookHotel: onBookPlannedHotel,
+              onBookTransport: onBookPlannedTransport,
+              onSaveTrip: onSaveItinerary,
+            ),
 
           // Weather
           if (data.weatherInfo != null)

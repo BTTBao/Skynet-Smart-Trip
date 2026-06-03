@@ -12,6 +12,7 @@ public class ItineraryService : IItineraryService
 {
     private const string HotelServiceType = "HOTEL";
     private const string BusServiceType = "BUS";
+    private const string NoteServiceType = "NOTE";
 
     private readonly IApplicationDbContext _context;
     private readonly ITripServiceOptionService _optionService;
@@ -168,6 +169,11 @@ public class ItineraryService : IItineraryService
                 }
             }
         }
+        else if (normalizedServiceType == NoteServiceType)
+        {
+            serviceName = "Ghi chú";
+            serviceSubtitle = itinerary.ServiceAddress;
+        }
         else if (normalizedServiceType == BusServiceType && itinerary.ServiceId.HasValue)
         {
             var busSchedule = await _context.BusSchedules
@@ -317,7 +323,8 @@ public class ItineraryService : IItineraryService
             throw new ArgumentException("Check-out date must be after check-in date.");
         }
 
-        if (checkIn < tripStart || checkOut > tripEnd)
+        var lastUsedDate = checkOut.AddDays(-1);
+        if (checkIn < tripStart || lastUsedDate > tripEnd)
         {
             throw new ArgumentException("Hotel booking dates must be within the selected trip dates.");
         }

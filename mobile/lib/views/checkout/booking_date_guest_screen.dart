@@ -8,8 +8,22 @@ import 'customer_info_screen.dart';
 class BookingDateGuestScreen extends StatefulWidget {
   final ResortModel hotel;
   final RoomModel? selectedRoom;
+  final int? existingTripId;
+  final int? existingTripDayNumber;
+  final DateTime? existingTripStartDate;
+  final DateTime? existingTripEndDate;
+  final DateTime? initialCheckIn;
 
-  const BookingDateGuestScreen({Key? key, required this.hotel, this.selectedRoom}) : super(key: key);
+  const BookingDateGuestScreen({
+    Key? key,
+    required this.hotel,
+    this.selectedRoom,
+    this.existingTripId,
+    this.existingTripDayNumber,
+    this.existingTripStartDate,
+    this.existingTripEndDate,
+    this.initialCheckIn,
+  }) : super(key: key);
 
   @override
   State<BookingDateGuestScreen> createState() => _BookingDateGuestScreenState();
@@ -29,6 +43,10 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
   void initState() {
     super.initState();
     adultCount = widget.selectedRoom?.capacity ?? 2;
+    if (widget.initialCheckIn != null) {
+      _checkIn = _dateOnly(widget.initialCheckIn!);
+      _currentMonth = DateTime(_checkIn!.year, _checkIn!.month);
+    }
     _fetchCalendar(_currentMonth, forceRefresh: true);
   }
 
@@ -68,7 +86,7 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
           _checkOut = _checkIn;
           _checkIn = date;
         } else if (date == _checkIn) {
-          _checkIn = null;
+          _checkOut = date;
         } else {
           _checkOut = date;
         }
@@ -78,15 +96,11 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
 
   int get nightsCount {
     if (_checkIn == null || _checkOut == null) return 0;
-    return _checkOut!.difference(_checkIn!).inDays;
+    final nights = _checkOut!.difference(_checkIn!).inDays;
+    return nights < 1 ? 1 : nights;
   }
 
   double get totalPrice {
-    if (nightsCount == 0) {
-      return (widget.selectedRoom?.pricePerNight ?? widget.hotel.minPricePerNight) *
-          roomQuantity;
-    }
-
     final provider = context.read<HotelProvider>();
     // Tính tổng giá thực tế dựa trên calendar days trong khoảng đã chọn
     final days = provider.calendarDays;
@@ -94,8 +108,7 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
 
     for (final d in days) {
       final dt = d.dateTime;
-      if (_checkIn != null && _checkOut != null &&
-          !dt.isBefore(_checkIn!) && dt.isBefore(_checkOut!)) {
+      if (_isSelectedStayDate(dt)) {
         total += d.price;
       }
     }
@@ -114,8 +127,7 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
     }
 
     final selectedDays = context.read<HotelProvider>().calendarDays.where((day) {
-      final dt = day.dateTime;
-      return !dt.isBefore(_checkIn!) && dt.isBefore(_checkOut!);
+      return _isSelectedStayDate(day.dateTime);
     }).toList(growable: false);
 
     if (selectedDays.isEmpty) {
@@ -126,6 +138,57 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
         .map((day) => day.available ? day.availableRooms : 0)
         .fold<int>(selectedRoomQty, (minQty, qty) => qty < minQty ? qty : minQty);
     return minCalendarQty < selectedRoomQty ? minCalendarQty : selectedRoomQty;
+  }
+
+  DateTime _dateOnly(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
+  }
+
+  bool _isSelectedStayDate(DateTime date) {
+    if (_checkIn == null || _checkOut == null) {
+      return false;
+    }
+
+    final day = _dateOnly(date);
+    final checkIn = _dateOnly(_checkIn!);
+    final checkOut = _dateOnly(_checkOut!);
+    if (!checkOut.isAfter(checkIn)) {
+      return day == checkIn;
+    }
+
+    return !day.isBefore(checkIn) && day.isBefore(checkOut);
+  }
+
+  DateTime _lastUsedStayDate(DateTime checkIn, DateTime checkOut) {
+    final start = _dateOnly(checkIn);
+    final end = _dateOnly(checkOut);
+    if (!end.isAfter(start)) {
+      return start;
+    }
+    return end.subtract(const Duration(days: 1));
+  }
+
+  String? get _tripDateWarning {
+    if (widget.existingTripId == null || _checkIn == null || _checkOut == null) {
+      return null;
+    }
+
+    final checkIn = _dateOnly(_checkIn!);
+    final lastUsedDate = _lastUsedStayDate(_checkIn!, _checkOut!);
+    final tripStart = widget.existingTripStartDate == null
+        ? null
+        : _dateOnly(widget.existingTripStartDate!);
+    final tripEnd = widget.existingTripEndDate == null
+        ? null
+        : _dateOnly(widget.existingTripEndDate!);
+
+    if (tripStart != null && checkIn.isBefore(tripStart)) {
+      return 'Ngày nhận phòng phải nằm trong thời gian chuyến đi.';
+    }
+    if (tripEnd != null && lastUsedDate.isAfter(tripEnd)) {
+      return 'Ngày trả phòng phải nằm trong thời gian chuyến đi.';
+    }
+    return null;
   }
 
   @override
@@ -625,7 +688,9 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
         : (widget.selectedRoom?.pricePerNight ?? widget.hotel.minPricePerNight);
     final nights = nightsCount > 0 ? nightsCount : 1;
     final guests = adultCount + childCount;
+    final tripDateWarning = _tripDateWarning;
     final canContinue = hasSelection &&
+        tripDateWarning == null &&
         availableRoomsForSelection > 0 &&
         roomQuantity <= availableRoomsForSelection;
 
@@ -675,6 +740,20 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
                     ),
                   ],
                 ),
+                if (tripDateWarning != null) ...[
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.52,
+                    child: Text(
+                      tripDateWarning,
+                      style: const TextStyle(
+                        color: Color(0xFFE53935),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
             ElevatedButton(
@@ -692,6 +771,10 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
                       infantCount: infantCount,
                       roomQuantity: roomQuantity,
                       totalPrice: price,
+                      existingTripId: widget.existingTripId,
+                      existingTripDayNumber: widget.existingTripDayNumber,
+                      existingTripStartDate: widget.existingTripStartDate,
+                      existingTripEndDate: widget.existingTripEndDate,
                     ),
                   ),
                 );

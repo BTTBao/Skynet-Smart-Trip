@@ -7,9 +7,15 @@ class TripTimeline extends StatelessWidget {
   const TripTimeline({
     super.key,
     required this.entries,
+    this.onEditEntry,
+    this.onDeleteEntry,
+    this.canManageEntry,
   });
 
   final List<TripTimelineEntry> entries;
+  final ValueChanged<TripTimelineEntry>? onEditEntry;
+  final ValueChanged<TripTimelineEntry>? onDeleteEntry;
+  final bool Function(TripTimelineEntry entry)? canManageEntry;
 
   @override
   Widget build(BuildContext context) {
@@ -18,6 +24,8 @@ class TripTimeline extends StatelessWidget {
         final entry = entries[index];
         final isLast = index == entries.length - 1;
         final connectorHeight = entry.imageColors == null ? 146.0 : 220.0;
+        final canManage = entry.itineraryId != null &&
+            (canManageEntry == null || canManageEntry!(entry));
         final headerLabel = entry.time.trim().isEmpty
             ? entry.sectionTitle.toUpperCase()
             : '${entry.time} • ${entry.sectionTitle.toUpperCase()}';
@@ -114,6 +122,26 @@ class TripTimeline extends StatelessWidget {
                                   ),
                                 ),
                               ),
+                              if (canManage) ...[
+                                IconButton(
+                                  onPressed: onEditEntry == null
+                                      ? null
+                                      : () => onEditEntry!(entry),
+                                  icon: const Icon(Icons.edit_outlined),
+                                  iconSize: 18,
+                                  color: TripUiColors.textSecondary,
+                                  tooltip: 'Sửa',
+                                ),
+                                IconButton(
+                                  onPressed: onDeleteEntry == null
+                                      ? null
+                                      : () => onDeleteEntry!(entry),
+                                  icon: const Icon(Icons.delete_outline_rounded),
+                                  iconSize: 18,
+                                  color: Colors.redAccent,
+                                  tooltip: 'Xóa',
+                                ),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 6),

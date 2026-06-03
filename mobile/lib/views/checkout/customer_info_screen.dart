@@ -16,6 +16,10 @@ class CustomerInfoScreen extends StatefulWidget {
   final int infantCount;
   final int roomQuantity;
   final double totalPrice;
+  final int? existingTripId;
+  final int? existingTripDayNumber;
+  final DateTime? existingTripStartDate;
+  final DateTime? existingTripEndDate;
 
   const CustomerInfoScreen({
     Key? key,
@@ -28,6 +32,10 @@ class CustomerInfoScreen extends StatefulWidget {
     required this.infantCount,
     required this.roomQuantity,
     required this.totalPrice,
+    this.existingTripId,
+    this.existingTripDayNumber,
+    this.existingTripStartDate,
+    this.existingTripEndDate,
   }) : super(key: key);
 
   @override
@@ -158,6 +166,10 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           email: _emailController.text,
           phone: _phoneController.text,
           specialRequest: _specialRequestController.text,
+          existingTripId: widget.existingTripId,
+          existingTripDayNumber: widget.existingTripDayNumber,
+          existingTripStartDate: widget.existingTripStartDate,
+          existingTripEndDate: widget.existingTripEndDate,
         ),
       ),
     );

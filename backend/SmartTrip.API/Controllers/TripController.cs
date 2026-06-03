@@ -386,7 +386,14 @@ public class TripController : ControllerBase
                 .FirstOrDefault(i => i.ServiceType == TripServiceType.Bus);
             if (busItinerary != null && busItinerary.ServiceId.HasValue)
             {
-                var scheduleId = busItinerary.ServiceId.Value;
+                var scheduleId = request.ScheduleId ?? busItinerary.ServiceId.Value;
+                if (request.ScheduleId.HasValue && !trip.TripItineraries.Any(i =>
+                             i.ServiceType == TripServiceType.Bus &&
+                             i.ServiceId == scheduleId))
+                {
+                    return BadRequest(new { message = "Schedule does not belong to this trip." });
+                }
+
                 var lockedSeats = await _context.Seats
                     .Where(s => s.ScheduleId == scheduleId && s.LockedByTripId == tripId)
                     .ToListAsync();
@@ -665,6 +672,7 @@ public class ConfirmPaymentDto
     public string PaymentMethod { get; set; } = string.Empty;
     public string TransactionId { get; set; } = string.Empty;
     public decimal Amount { get; set; }
+    public int? ScheduleId { get; set; }
     public List<string>? SelectedSeats { get; set; }
 }
 

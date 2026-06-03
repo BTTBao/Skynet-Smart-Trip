@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/chat_response.dart';
@@ -7,8 +7,13 @@ import '../../utils/app_text.dart';
 
 class HotelCardBubble extends StatelessWidget {
   final List<HotelCard> cards;
+  final void Function(HotelCard card)? onBookRoom;
 
-  const HotelCardBubble({super.key, required this.cards});
+  const HotelCardBubble({
+    super.key,
+    required this.cards,
+    this.onBookRoom,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -215,6 +220,32 @@ class HotelCardBubble extends StatelessWidget {
                             ),
                           ],
                         ),
+                        if (onBookRoom != null && card.isAvailable == true)
+                          ElevatedButton(
+                            onPressed: () => onBookRoom!(card),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1a237e),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              context.tr(
+                                vi: 'Dat ngay',
+                                en: 'Book now',
+                              ),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                 ],

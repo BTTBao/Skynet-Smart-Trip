@@ -14,8 +14,16 @@ const _kBg = Color(0xFFF4F7F5);
 class TransportSearchScreen extends StatefulWidget {
   final int? toDestId;
   final String? toDestName;
+  final DateTime? initialDate;
+  final int? initialScheduleId;
 
-  const TransportSearchScreen({super.key, this.toDestId, this.toDestName});
+  const TransportSearchScreen({
+    super.key,
+    this.toDestId,
+    this.toDestName,
+    this.initialDate,
+    this.initialScheduleId,
+  });
 
   @override
   State<TransportSearchScreen> createState() => _TransportSearchScreenState();
@@ -28,6 +36,7 @@ class _TransportSearchScreenState extends State<TransportSearchScreen> {
   String _toDestName = 'Hội An';
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 2));
   int _selectedFilterIndex = 0;
+  bool _didOpenInitialSchedule = false;
 
   static const _filters = ['Phổ biến', 'Giá thấp', 'Giờ sớm', 'Ưu tiên'];
 
@@ -35,8 +44,18 @@ class _TransportSearchScreenState extends State<TransportSearchScreen> {
   void initState() {
     super.initState();
     _toDestId = widget.toDestId;
-    if (widget.toDestName != null) _toDestName = widget.toDestName!;
-
+    if (widget.toDestName != null) {
+      _toDestName = widget.toDestName!;
+    } else {
+      _toDestName = 'Hội An';
+    }
+    if (widget.initialDate != null) {
+      _selectedDate = DateTime(
+        widget.initialDate!.year,
+        widget.initialDate!.month,
+        widget.initialDate!.day,
+      );
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final destProvider = context.read<DestinationProvider>();
       if (destProvider.destinations.isEmpty) {
@@ -64,18 +83,66 @@ class _TransportSearchScreenState extends State<TransportSearchScreen> {
           _toDestName = toMatch.name;
         });
       }
-      _loadSchedules();
+      if (widget.initialScheduleId != null) {
+        await _openInitialSchedule();
+      } else {
+        _loadSchedules();
+      }
     });
   }
 
-  void _loadSchedules() {
-    final dateStr =
-        '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
-    context.read<BusProvider>().fetchSchedules(
-          fromDestId: _fromDestId,
-          toDestId: _toDestId,
-          date: dateStr,
-        );
+  Future<void> _loadSchedules() {
+    final dateStr = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+    return context.read<BusProvider>().fetchSchedules(
+      fromDestId: _fromDestId,
+      toDestId: _toDestId,
+      date: dateStr,
+    );
+  }
+
+  Future<void> _openInitialSchedule() async {
+    if (_didOpenInitialSchedule) {
+      return;
+    }
+    _didOpenInitialSchedule = true;
+
+    final busProvider = context.read<BusProvider>();
+    await busProvider.fetchSchedules();
+    if (!mounted) {
+      return;
+    }
+
+    BusScheduleModel? schedule;
+    for (final item in busProvider.schedules) {
+      if (item.id == widget.initialScheduleId) {
+        schedule = item;
+        break;
+      }
+    }
+
+    if (schedule == null) {
+      await _loadSchedules();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không tìm thấy tuyến xe này.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _fromDestId = schedule!.fromDestId;
+      _fromDestName = schedule.fromDestName;
+      _toDestId = schedule.toDestId;
+      _toDestName = schedule.toDestName;
+      _selectedDate = DateTime(
+        schedule.departureTime.year,
+        schedule.departureTime.month,
+        schedule.departureTime.day,
+      );
+    });
+    _showSeatSelection(context, schedule);
   }
 
   void _changeFromDest(int id, String name) {
