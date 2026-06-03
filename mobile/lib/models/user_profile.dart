@@ -6,6 +6,7 @@ class UserProfile {
   final String phone;
   final String birthDate;
   final String? identityNumber;
+  final String? identityCardPhotoUrl;
   final String avatarUrl;
   final bool isEmailVerified;
   final String memberTier;
@@ -20,6 +21,7 @@ class UserProfile {
     required this.phone,
     required this.birthDate,
     this.identityNumber,
+    this.identityCardPhotoUrl,
     required this.avatarUrl,
     required this.isEmailVerified,
     required this.memberTier,
@@ -35,6 +37,7 @@ class UserProfile {
     String? phone,
     String? birthDate,
     Object? identityNumber = _sentinel,
+    Object? identityCardPhotoUrl = _sentinel,
     String? avatarUrl,
     bool? isEmailVerified,
     String? memberTier,
@@ -51,6 +54,9 @@ class UserProfile {
       identityNumber: identityNumber == _sentinel
           ? this.identityNumber
           : identityNumber as String?,
+      identityCardPhotoUrl: identityCardPhotoUrl == _sentinel
+          ? this.identityCardPhotoUrl
+          : identityCardPhotoUrl as String?,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       isEmailVerified: isEmailVerified ?? this.isEmailVerified,
       memberTier: memberTier ?? this.memberTier,
@@ -75,6 +81,7 @@ class UserProfile {
       vouchers: json['vouchers'] ?? 0,
       birthDate: json['birthDate'] ?? '',
       identityNumber: json['identityNumber'] as String?,
+      identityCardPhotoUrl: json['identityCardPhotoUrl'] as String?,
     );
   }
 
@@ -93,6 +100,7 @@ class UserProfile {
       'vouchers': vouchers,
       'birthDate': birthDate,
       'identityNumber': identityNumber,
+      'identityCardPhotoUrl': identityCardPhotoUrl,
     };
   }
 

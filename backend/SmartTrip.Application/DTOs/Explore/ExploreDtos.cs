@@ -80,6 +80,8 @@ public class ExploreCommentDto
 
     public string Content { get; set; } = string.Empty;
 
+    public string? ImageUrl { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public int Likes { get; set; }
@@ -146,6 +148,8 @@ public class CreateExploreCommentDto
     public string Content { get; set; } = string.Empty;
 
     public int? ParentCommentId { get; set; }
+
+    public string? ImageUrl { get; set; }
 }
 
 public class RateExplorePostDto

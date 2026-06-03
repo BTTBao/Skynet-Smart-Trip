@@ -77,8 +77,8 @@ class AuthProvider with ChangeNotifier {
 
   /// Lưu cặp access + refresh token vào SecureStorage.
   Future<void> _saveTokens(Map<String, dynamic> response) async {
-    final accessToken = response['accessToken'] as String?;
-    final refreshToken = response['refreshToken'] as String?;
+    final accessToken = (response['accessToken'] ?? response['AccessToken']) as String?;
+    final refreshToken = (response['refreshToken'] ?? response['RefreshToken']) as String?;
 
     if (accessToken == null) throw Exception('Phản hồi thiếu access token.');
 

@@ -8,6 +8,7 @@ public interface IUserService
     Task<ActivityHistoryDto?> GetActivityHistoryAsync(int userId);
     Task<bool> UpdateUserProfileAsync(int userId, UpdateUserProfileRequestDto request);
     Task<string?> UploadAvatarAsync(int userId, Microsoft.AspNetCore.Http.IFormFile file);
+    Task<string?> UploadIdentityCardPhotoAsync(int userId, Microsoft.AspNetCore.Http.IFormFile file);
     Task<List<UserFavoriteDto>> GetFavoritesAsync(int userId);
     Task<UserFavoriteDto?> AddFavoriteAsync(int userId, CreateFavoriteRequestDto request);
     Task<bool> RemoveFavoriteAsync(int userId, int wishId);

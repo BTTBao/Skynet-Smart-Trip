@@ -82,7 +82,8 @@ public class UserService : IUserService
             Coins = loyaltyPoints,
             Vouchers = vouchersCount,
             BirthDate = user.BirthDate?.ToString("yyyy-MM-dd"),
-            IdentityNumber = user.IdentityNumber
+            IdentityNumber = user.IdentityNumber,
+            IdentityCardPhotoUrl = user.IdentityCardPhotoUrl
         };
     }
 
@@ -316,6 +317,41 @@ public class UserService : IUserService
         return avatarUrl;
     }
 
+    public async Task<string?> UploadIdentityCardPhotoAsync(int userId, IFormFile file)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return null;
+
+        string wwwRootPath = _environment.WebRootPath;
+        if (string.IsNullOrEmpty(wwwRootPath))
+        {
+            wwwRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        }
+
+        string fileName = $"identity_{userId}_{DateTime.UtcNow.Ticks}{Path.GetExtension(file.FileName)}";
+        string filePath = Path.Combine(wwwRootPath, "uploads", "identity_cards", fileName);
+
+        // Đảm bảo thư mục tồn tại
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+        DeletePreviousIdentityCardPhotoIfOwnedByApp(user.IdentityCardPhotoUrl, wwwRootPath);
+
+        using (var fileStream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(fileStream);
+        }
+
+        // Tạo URL đầy đủ
+        var request = _httpContextAccessor.HttpContext?.Request;
+        string baseUrl = $"{request?.Scheme}://{request?.Host}{request?.PathBase}";
+        string identityCardPhotoUrl = $"{baseUrl}/uploads/identity_cards/{fileName}";
+
+        // Cập nhật DB
+        user.IdentityCardPhotoUrl = identityCardPhotoUrl;
+        await _context.SaveChangesAsync();
+
+        return identityCardPhotoUrl;
+    }
+
     public async Task<List<UserFavoriteDto>> GetFavoritesAsync(int userId)
     {
         var favorites = await _context.Wishlists
@@ -535,6 +571,34 @@ public class UserService : IUserService
             .TrimStart(Path.DirectorySeparatorChar);
 
         if (!relativePath.StartsWith($"uploads{Path.DirectorySeparatorChar}avatars", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var fullPath = Path.Combine(wwwRootPath, relativePath);
+        if (File.Exists(fullPath))
+        {
+            File.Delete(fullPath);
+        }
+    }
+
+    private void DeletePreviousIdentityCardPhotoIfOwnedByApp(string? photoUrl, string wwwRootPath)
+    {
+        if (string.IsNullOrWhiteSpace(photoUrl))
+        {
+            return;
+        }
+
+        if (!Uri.TryCreate(photoUrl, UriKind.Absolute, out var uri))
+        {
+            return;
+        }
+
+        var relativePath = uri.AbsolutePath
+            .Replace('/', Path.DirectorySeparatorChar)
+            .TrimStart(Path.DirectorySeparatorChar);
+
+        if (!relativePath.StartsWith($"uploads{Path.DirectorySeparatorChar}identity_cards", StringComparison.OrdinalIgnoreCase))
         {
             return;
         }

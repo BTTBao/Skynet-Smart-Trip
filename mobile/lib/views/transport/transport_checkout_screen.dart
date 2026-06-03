@@ -40,10 +40,27 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
   Timer? _countdownTimer;
   int _secondsRemaining = 600; // 10 minutes
 
+  // Passenger Form Fields
+  bool _isPassengerTheUser = true;
+  final _passengerFormKey = GlobalKey<FormState>();
+  final TextEditingController _passengerNameController = TextEditingController();
+  final TextEditingController _passengerPhoneController = TextEditingController();
+  final TextEditingController _passengerEmailController = TextEditingController();
+  final TextEditingController _passengerNotesController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _startTimer();
+    // Populate user profile info into passenger controllers
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = context.read<ProfileProvider>().profileData;
+      if (user != null) {
+        _passengerNameController.text = user.name;
+        _passengerPhoneController.text = user.phone;
+        _passengerEmailController.text = user.email;
+      }
+    });
   }
 
   void _startTimer() {
@@ -90,6 +107,10 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
   void dispose() {
     _countdownTimer?.cancel();
     _promoController.dispose();
+    _passengerNameController.dispose();
+    _passengerPhoneController.dispose();
+    _passengerEmailController.dispose();
+    _passengerNotesController.dispose();
     super.dispose();
   }
 
@@ -210,6 +231,16 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
       return;
     }
 
+    // Validate Passenger Info Form
+    if (_passengerFormKey.currentState == null || !_passengerFormKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập đầy đủ thông tin hành khách đi xe.'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isProcessing = true);
 
     try {
@@ -306,6 +337,10 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
             'type': 'BUS',
             'scheduleId': schedule.id,
             'selectedSeats': seats,
+            'passengerName': _passengerNameController.text.trim(),
+            'passengerPhone': _passengerPhoneController.text.trim(),
+            'passengerEmail': _passengerEmailController.text.trim(),
+            'passengerNotes': _passengerNotesController.text.trim(),
           },
         );
 
@@ -411,6 +446,15 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                           formatPrice: _formatPrice,
                           formatDate: _formatDateFull,
                         ),
+                        const SizedBox(height: 28),
+
+                        // ── Section: Passenger Info ────────────────────────
+                        _SectionLabel(
+                          icon: Icons.person_rounded,
+                          label: 'Thông tin hành khách',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildPassengerInfoCard(),
                         const SizedBox(height: 28),
 
                         // ── Section: Payment ───────────────────────────────
@@ -1164,6 +1208,211 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPassengerInfoCard() {
+    final user = context.watch<ProfileProvider>().profileData;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _passengerFormKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tôi là người đi',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Tự động điền thông tin cá nhân của bạn',
+                        style: TextStyle(color: Colors.grey, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: _isPassengerTheUser,
+                  onChanged: (val) {
+                    setState(() {
+                      _isPassengerTheUser = val;
+                      if (val && user != null) {
+                        _passengerNameController.text = user.name;
+                        _passengerPhoneController.text = user.phone;
+                        _passengerEmailController.text = user.email;
+                      } else if (!val) {
+                        _passengerNameController.clear();
+                        _passengerPhoneController.clear();
+                        _passengerEmailController.clear();
+                      }
+                    });
+                  },
+                  activeColor: Colors.white,
+                  activeTrackColor: _kPrimary,
+                ),
+              ],
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12.0),
+              child: Divider(color: Color(0xFFEEEEEE), thickness: 1),
+            ),
+            _buildPassengerTextField(
+              label: 'Họ và tên hành khách',
+              hint: 'Nhập họ và tên',
+              controller: _passengerNameController,
+              isRequired: true,
+              enabled: !_isPassengerTheUser,
+              icon: Icons.person_outline,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Vui lòng nhập họ và tên hành khách';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 14),
+            _buildPassengerTextField(
+              label: 'Số điện thoại',
+              hint: 'Nhập số điện thoại liên hệ',
+              controller: _passengerPhoneController,
+              isRequired: true,
+              enabled: !_isPassengerTheUser,
+              keyboardType: TextInputType.phone,
+              icon: Icons.phone_outlined,
+              validator: (value) {
+                final raw = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                if (raw.isEmpty) {
+                  return 'Vui lòng nhập số điện thoại';
+                }
+                if (raw.length < 10 || raw.length > 11) {
+                  return 'Số điện thoại không hợp lệ';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 14),
+            _buildPassengerTextField(
+              label: 'Email nhận vé',
+              hint: 'Nhập email nhận vé điện tử',
+              controller: _passengerEmailController,
+              isRequired: true,
+              enabled: !_isPassengerTheUser,
+              keyboardType: TextInputType.emailAddress,
+              icon: Icons.email_outlined,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Vui lòng nhập địa chỉ email';
+                }
+                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
+                  return 'Địa chỉ email không hợp lệ';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 14),
+            _buildPassengerTextField(
+              label: 'Ghi chú / Yêu cầu đặc biệt',
+              hint: 'Ví dụ: Ghế tầng dưới, không say xe...',
+              controller: _passengerNotesController,
+              maxLines: 2,
+              icon: Icons.chat_bubble_outline,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPassengerTextField({
+    required String label,
+    required String hint,
+    required TextEditingController controller,
+    bool isRequired = false,
+    bool enabled = true,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    required IconData icon,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RichText(
+          text: TextSpan(
+            text: label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+              fontSize: 13,
+            ),
+            children: isRequired
+                ? const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ]
+                : [],
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: controller,
+          enabled: enabled,
+          maxLines: maxLines,
+          keyboardType: keyboardType,
+          validator: validator,
+          style: TextStyle(
+            fontSize: 14,
+            color: enabled ? Colors.black87 : Colors.grey.shade600,
+            fontWeight: FontWeight.w500,
+          ),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+            prefixIcon: Icon(icon, color: Colors.grey.shade400, size: 20),
+            filled: true,
+            fillColor: enabled ? Colors.grey.shade50 : Colors.grey.shade100,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.grey.shade100),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: _kPrimary, width: 1.5),
+            ),
+            errorStyle: const TextStyle(height: 0.8, fontSize: 11),
+          ),
+        ),
+      ],
     );
   }
 }

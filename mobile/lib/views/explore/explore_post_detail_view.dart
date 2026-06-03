@@ -590,7 +590,7 @@ class _CommentsSectionState extends State<_CommentsSection> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              context.tr(
+              context.trRead(
                 vi: success ? 'Bình luận đã được gửi!' : 'Không gửi được bình luận',
                 en: success ? 'Comment posted!' : 'Could not post comment',
               ),
@@ -869,7 +869,7 @@ class _CommentItemState extends State<_CommentItem> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          context.tr(
+          context.trRead(
             vi: success ? 'Đã gửi phản hồi' : 'Không gửi được phản hồi',
             en: success ? 'Reply posted' : 'Could not post reply',
           ),
@@ -1197,7 +1197,7 @@ class _FloatingActionBar extends StatelessWidget {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    context.tr(vi: 'Đã sao chép liên kết', en: 'Link copied'),
+                    context.trRead(vi: 'Đã sao chép liên kết', en: 'Link copied'),
                   ),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(

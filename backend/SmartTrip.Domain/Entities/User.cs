@@ -24,6 +24,8 @@ public class User
 
     public string? IdentityNumber { get; set; }
 
+    public string? IdentityCardPhotoUrl { get; set; }
+
     public AuthProvider? AuthProvider { get; set; }
 
     public string? SocialId { get; set; }

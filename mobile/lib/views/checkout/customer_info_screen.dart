@@ -74,9 +74,15 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
   }
 
   bool _hasRequiredProfileInfo() {
+    final profile = context.read<ProfileProvider>().profileData;
+    final hasCCCD = profile?.identityNumber != null && profile!.identityNumber!.trim().isNotEmpty;
+    final hasCCCDPhoto = profile?.identityCardPhotoUrl != null && profile!.identityCardPhotoUrl!.trim().isNotEmpty;
+
     return _fullNameController.text.trim().isNotEmpty &&
         _emailController.text.trim().isNotEmpty &&
-        _phoneController.text.trim().isNotEmpty;
+        _phoneController.text.trim().isNotEmpty &&
+        hasCCCD &&
+        hasCCCDPhoto;
   }
 
   Future<void> _loadProfileInfo({bool forceRefresh = false}) async {
@@ -98,7 +104,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
       _redirectingToProfile = true;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Vui long cap nhat ho so truoc khi dat phong.'),
+          content: Text('Vui lòng cập nhật đầy đủ thông tin cá nhân và ảnh CCCD để đặt phòng.'),
         ),
       );
       await Navigator.push(
@@ -113,6 +119,11 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
 
   Future<void> _continueToPayment() async {
     if (!_hasRequiredProfileInfo()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng hoàn tất thông tin cá nhân và chụp ảnh CCCD trong hồ sơ.'),
+        ),
+      );
       await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const EditProfileView()),
@@ -123,7 +134,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
       if (!_hasRequiredProfileInfo()) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Ho so van thieu ho ten, email hoac so dien thoai.'),
+            content: Text('Hồ sơ vẫn thiếu thông tin liên hệ hoặc ảnh chụp CCCD.'),
           ),
         );
         return;
@@ -248,12 +259,174 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                     isRequired: true,
                   ),
                   _buildPhoneField(_phoneController),
+                  _buildIdentityCardSection(),
                   _buildTextAreaField(_specialRequestController),
                   const SizedBox(height: 32),
                 ],
               ),
             ),
       bottomNavigationBar: _buildBottomBar(context),
+    );
+  }
+
+  Widget _buildIdentityCardSection() {
+    final profile = context.watch<ProfileProvider>().profileData;
+    if (profile == null) return const SizedBox.shrink();
+
+    final hasCCCD = profile.identityNumber != null && profile.identityNumber!.trim().isNotEmpty;
+    final hasCCCDPhoto = profile.identityCardPhotoUrl != null && profile.identityCardPhotoUrl!.trim().isNotEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: hasCCCD && hasCCCDPhoto
+                ? const Color(0xFF0D6B42).withOpacity(0.2)
+                : Colors.orange.withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.badge_outlined,
+                  color: hasCCCD && hasCCCDPhoto ? const Color(0xFF0D6B42) : Colors.orange,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Căn cước công dân (CCCD)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Colors.black87,
+                  ),
+                ),
+                const Spacer(),
+                if (hasCCCD && hasCCCDPhoto)
+                  const Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Color(0xFF0D6B42), size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        'Hợp lệ',
+                        style: TextStyle(
+                          color: Color(0xFF0D6B42),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Row(
+                    children: [
+                      const Icon(Icons.warning, color: Colors.orange, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Chưa cập nhật',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+            const Divider(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Số CCCD / CMND:',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
+                Text(
+                  hasCCCD ? profile.identityNumber! : 'Trống',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: hasCCCD ? Colors.black87 : Colors.red,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Ảnh chụp mặt trước CCCD:',
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            if (hasCCCDPhoto)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  profile.identityCardPhotoUrl!,
+                  height: 120,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 120,
+                    color: Colors.grey[100],
+                    child: const Center(
+                      child: Icon(Icons.broken_image_outlined, color: Colors.grey),
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                height: 80,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[200]!, style: BorderStyle.solid),
+                ),
+                child: const Center(
+                  child: Text(
+                    'Chưa có ảnh chụp CCCD',
+                    style: TextStyle(color: Colors.orange, fontSize: 12),
+                  ),
+                ),
+              ),
+            if (!hasCCCD || !hasCCCDPhoto) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const EditProfileView()),
+                    );
+                    _loadProfileInfo(forceRefresh: true);
+                  },
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Cập nhật CCCD ngay'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF0D6B42),
+                    backgroundColor: const Color(0xFF0D6B42).withOpacity(0.08),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -481,19 +654,29 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'CHI TIẾT',
-                      style: TextStyle(
-                        color: Colors.green[400],
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                    InkWell(
+                      onTap: () => _showBookingDetails(context),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        child: Row(
+                          children: [
+                            Text(
+                              'CHI TIẾT',
+                              style: TextStyle(
+                                color: Colors.green[400],
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Icon(
+                              Icons.keyboard_arrow_down,
+                              color: Colors.green[400],
+                              size: 16,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Icon(
-                      Icons.keyboard_arrow_down,
-                      color: Colors.green[400],
-                      size: 16,
                     ),
                   ],
                 ),
@@ -529,6 +712,96 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showBookingDetails(BuildContext context) {
+    final nights = widget.checkOut.difference(widget.checkIn).inDays;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Chi tiết đặt phòng',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const Divider(),
+              const SizedBox(height: 10),
+              Text(
+                widget.hotel.name,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0D6B42),
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (widget.selectedRoom != null) ...[
+                Text(
+                  'Loại phòng: ${widget.selectedRoom!.roomType}',
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                ),
+                const SizedBox(height: 4),
+              ],
+              Text(
+                'Thời gian: ${widget.checkIn.day}/${widget.checkIn.month}/${widget.checkIn.year} - ${widget.checkOut.day}/${widget.checkOut.month}/${widget.checkOut.year} ($nights đêm)',
+                style: const TextStyle(fontSize: 14, color: Colors.black87),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Số lượng: ${widget.roomQuantity} phòng x ${widget.adultCount} Người lớn, ${widget.childCount} Trẻ em',
+                style: const TextStyle(fontSize: 14, color: Colors.black87),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Tổng tiền thanh toán:',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    _formatPriceFull(widget.totalPrice),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.redAccent,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
     );
   }
 }

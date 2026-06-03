@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/explore_post.dart';
@@ -158,13 +159,35 @@ class ExploreService extends ApiService {
       'POST',
       buildUri(configuredBaseUrl, '/explore/posts/images'),
     );
-    request.headers.addAll(await getHeaders(requireAuth: true));
+    final requestHeaders = await getHeaders(requireAuth: true);
+    request.headers.addAll(requestHeaders);
+    request.headers.remove('content-type');
+    request.headers.remove('Content-Type');
     if (kIsWeb) {
+      MediaType? contentType;
+      if (image.mimeType != null) {
+        try {
+          contentType = MediaType.parse(image.mimeType!);
+        } catch (_) {}
+      }
+      if (contentType == null) {
+        final nameLower = image.name.toLowerCase();
+        if (nameLower.endsWith('.png')) {
+          contentType = MediaType('image', 'png');
+        } else if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg')) {
+          contentType = MediaType('image', 'jpeg');
+        } else if (nameLower.endsWith('.webp')) {
+          contentType = MediaType('image', 'webp');
+        } else if (nameLower.endsWith('.gif')) {
+          contentType = MediaType('image', 'gif');
+        }
+      }
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
           await image.readAsBytes(),
           filename: image.name,
+          contentType: contentType,
         ),
       );
     } else {

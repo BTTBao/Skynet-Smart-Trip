@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/user_favorite.dart';
 import '../models/user_profile.dart';
@@ -32,6 +33,7 @@ class ProfileProvider with ChangeNotifier {
   bool _isLoading = false;
   bool _isUpdating = false;
   bool _isUploadingAvatar = false;
+  bool _isUploadingIdentityPhoto = false;
   bool _isLoadingFavorites = false;
   bool _isLoadingSettings = false;
   bool _isSavingSettings = false;
@@ -86,6 +88,7 @@ class ProfileProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isUpdating => _isUpdating;
   bool get isUploadingAvatar => _isUploadingAvatar;
+  bool get isUploadingIdentityPhoto => _isUploadingIdentityPhoto;
   bool get isLoadingFavorites => _isLoadingFavorites;
   bool get isLoadingSettings => _isLoadingSettings;
   bool get isSavingSettings => _isSavingSettings;
@@ -136,13 +139,13 @@ class ProfileProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> uploadAvatar(String filePath) async {
+  Future<bool> uploadAvatar(XFile file) async {
     _isUploadingAvatar = true;
     _clearError();
     notifyListeners();
 
     try {
-      final newUrl = await _apiService.uploadAvatar(filePath);
+      final newUrl = await _apiService.uploadAvatar(file);
       if (newUrl != null && _profileData != null) {
         _profileData = _profileData!.copyWith(avatarUrl: newUrl);
         return true;
@@ -153,6 +156,27 @@ class ProfileProvider with ChangeNotifier {
       return false;
     } finally {
       _isUploadingAvatar = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> uploadIdentityCardPhoto(XFile file) async {
+    _isUploadingIdentityPhoto = true;
+    _clearError();
+    notifyListeners();
+
+    try {
+      final newUrl = await _apiService.uploadIdentityCardPhoto(file);
+      if (newUrl != null && _profileData != null) {
+        _profileData = _profileData!.copyWith(identityCardPhotoUrl: newUrl);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      _setError(error);
+      return false;
+    } finally {
+      _isUploadingIdentityPhoto = false;
       notifyListeners();
     }
   }
