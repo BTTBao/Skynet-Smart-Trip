@@ -651,6 +651,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
       if (finalPayPrice <= 0) {
         final paymentSuccess = await busProvider.confirmCheckoutPayment(
           tripId: currentTripId,
+          scheduleId: schedule.id,
           paymentMethod: 'Promotion',
           transactionId:
               'TXN-FREE-$currentTripId-${DateTime.now().millisecondsSinceEpoch}',
