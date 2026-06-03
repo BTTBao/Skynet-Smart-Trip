@@ -267,6 +267,9 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<int>("ExplorePostId")
                         .HasColumnType("int");
 
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("LikeCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -329,6 +332,9 @@ namespace SmartTrip.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("float");
 
                     b.Property<string>("Location")
                         .IsRequired()
@@ -891,6 +897,12 @@ namespace SmartTrip.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("LockedByTripId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("LockedUntil")
+                        .HasColumnType("datetime2");
+
                     b.Property<int?>("ScheduleId")
                         .HasColumnType("int");
 
@@ -991,6 +1003,9 @@ namespace SmartTrip.Infrastructure.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(1);
 
+                    b.Property<string>("SelectedSeats")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ServiceAddress")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -1057,6 +1072,16 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<string>("FullName")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("IdentityCardPhotoUrl")
+                        .HasMaxLength(500)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("IdentityNumber")
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<bool?>("IsActive")
                         .ValueGeneratedOnAdd()
@@ -1588,6 +1613,11 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Navigation("Trips");
                 });
 
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExploreComment", b =>
+                {
+                    b.Navigation("Replies");
+                });
+
             modelBuilder.Entity("SmartTrip.Domain.Entities.ExplorePost", b =>
                 {
                     b.Navigation("Comments");
@@ -1599,11 +1629,6 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Navigation("Ratings");
 
                     b.Navigation("Saves");
-                });
-
-            modelBuilder.Entity("SmartTrip.Domain.Entities.ExploreComment", b =>
-                {
-                    b.Navigation("Replies");
                 });
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Hotel", b =>

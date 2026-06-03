@@ -49,7 +49,6 @@ namespace SmartTrip.Application.Services.Auth
             var token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
         }
-
         public string GenerateRefreshToken()
         {
             var randomBytes = new byte[64];

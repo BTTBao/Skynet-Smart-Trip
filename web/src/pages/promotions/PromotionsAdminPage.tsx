@@ -163,7 +163,19 @@ export default function PromotionsAdminPage() {
                   <td className="px-8 py-6 text-sm text-on-surface-variant">{promotion.validUntil}</td>
                   <td className="px-8 py-6 text-sm text-on-surface">{promotion.usedCount}/{promotion.usageLimit}</td>
                   <td className="px-8 py-6">
-                    <span className={`rounded-full px-4 py-1.5 text-xs font-bold ${promotion.isActive ? 'bg-primary-container/10 text-primary-container' : 'bg-error-container text-error'}`}>{promotion.isActive ? 'Active' : 'Expired'}</span>
+                    <span className={`rounded-full px-4 py-1.5 text-xs font-bold ${
+                      promotion.isActive 
+                        ? 'bg-primary-container/10 text-primary-container' 
+                        : promotion.usedCount >= promotion.usageLimit 
+                          ? 'bg-slate-100 text-slate-500' 
+                          : 'bg-error-container text-error'
+                    }`}>
+                      {promotion.isActive 
+                        ? 'Active' 
+                        : promotion.usedCount >= promotion.usageLimit 
+                          ? 'Used Up' 
+                          : 'Expired'}
+                    </span>
                   </td>
                   <td className="px-8 py-6 text-right">
                     <div className="flex justify-end gap-2">

@@ -13,4 +13,6 @@ public class UserDto
     public int Coins { get; set; }
     public int Vouchers { get; set; }
     public string? BirthDate { get; set; }
+    public string? IdentityNumber { get; set; }
+    public string? IdentityCardPhotoUrl { get; set; }
 }

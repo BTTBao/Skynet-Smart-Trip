@@ -1,4 +1,4 @@
-﻿using SmartTrip.Application.DTOs.User;
+using SmartTrip.Application.DTOs.User;
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
@@ -81,7 +81,9 @@ public class UserService : IUserService
             TripsCount = tripsCount,
             Coins = loyaltyPoints,
             Vouchers = vouchersCount,
-            BirthDate = user.BirthDate?.ToString("yyyy-MM-dd")
+            BirthDate = user.BirthDate?.ToString("yyyy-MM-dd"),
+            IdentityNumber = user.IdentityNumber,
+            IdentityCardPhotoUrl = user.IdentityCardPhotoUrl
         };
     }
 
@@ -221,7 +223,8 @@ public class UserService : IUserService
                     Quantity = i.Quantity ?? 0,
                     BookedPrice = i.BookedPrice ?? 0,
                     Status = trip?.Status?.ToString() ?? TripStatus.Draft.ToString(),
-                    IsReviewed = isReviewed
+                    IsReviewed = isReviewed,
+                    SelectedSeats = i.SelectedSeats
                 };
             })
             .ToList();
@@ -273,6 +276,7 @@ public class UserService : IUserService
         user.FullName = request.Name.Trim();
         user.Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
         user.BirthDate = ParseBirthDate(request.BirthDate);
+        user.IdentityNumber = string.IsNullOrWhiteSpace(request.IdentityNumber) ? null : request.IdentityNumber.Trim();
 
         await _context.SaveChangesAsync();
         return true;
@@ -311,6 +315,41 @@ public class UserService : IUserService
         await _context.SaveChangesAsync();
 
         return avatarUrl;
+    }
+
+    public async Task<string?> UploadIdentityCardPhotoAsync(int userId, IFormFile file)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return null;
+
+        string wwwRootPath = _environment.WebRootPath;
+        if (string.IsNullOrEmpty(wwwRootPath))
+        {
+            wwwRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        }
+
+        string fileName = $"identity_{userId}_{DateTime.UtcNow.Ticks}{Path.GetExtension(file.FileName)}";
+        string filePath = Path.Combine(wwwRootPath, "uploads", "identity_cards", fileName);
+
+        // Đảm bảo thư mục tồn tại
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+        DeletePreviousIdentityCardPhotoIfOwnedByApp(user.IdentityCardPhotoUrl, wwwRootPath);
+
+        using (var fileStream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(fileStream);
+        }
+
+        // Tạo URL đầy đủ
+        var request = _httpContextAccessor.HttpContext?.Request;
+        string baseUrl = $"{request?.Scheme}://{request?.Host}{request?.PathBase}";
+        string identityCardPhotoUrl = $"{baseUrl}/uploads/identity_cards/{fileName}";
+
+        // Cập nhật DB
+        user.IdentityCardPhotoUrl = identityCardPhotoUrl;
+        await _context.SaveChangesAsync();
+
+        return identityCardPhotoUrl;
     }
 
     public async Task<List<UserFavoriteDto>> GetFavoritesAsync(int userId)
@@ -532,6 +571,34 @@ public class UserService : IUserService
             .TrimStart(Path.DirectorySeparatorChar);
 
         if (!relativePath.StartsWith($"uploads{Path.DirectorySeparatorChar}avatars", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var fullPath = Path.Combine(wwwRootPath, relativePath);
+        if (File.Exists(fullPath))
+        {
+            File.Delete(fullPath);
+        }
+    }
+
+    private void DeletePreviousIdentityCardPhotoIfOwnedByApp(string? photoUrl, string wwwRootPath)
+    {
+        if (string.IsNullOrWhiteSpace(photoUrl))
+        {
+            return;
+        }
+
+        if (!Uri.TryCreate(photoUrl, UriKind.Absolute, out var uri))
+        {
+            return;
+        }
+
+        var relativePath = uri.AbsolutePath
+            .Replace('/', Path.DirectorySeparatorChar)
+            .TrimStart(Path.DirectorySeparatorChar);
+
+        if (!relativePath.StartsWith($"uploads{Path.DirectorySeparatorChar}identity_cards", StringComparison.OrdinalIgnoreCase))
         {
             return;
         }

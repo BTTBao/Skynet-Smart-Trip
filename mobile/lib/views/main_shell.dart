@@ -10,7 +10,7 @@ import 'chatbot/chatbot_view.dart';
 import 'explore/explore_view.dart';
 import 'home/home_view.dart';
 import 'profile/profile_view.dart';
-import 'search/search_screen.dart';
+
 import 'trip/my_trips_view.dart';
 
 abstract class MainShellController {
@@ -40,11 +40,10 @@ class _MainShellState extends State<MainShell> implements MainShellController {
   int _exploreViewVersion = 0;
 
   late final Widget _homePage = HomeView(
-    onNavigateToExplore: () => setState(() => _currentIndex = 3),
-    onNavigateToTrips: () => setState(() => _currentIndex = 4),
+    onNavigateToExplore: () => setState(() => _currentIndex = 2),
   );
   late final Widget _chatbotPage = ChatbotView();
-  late final Widget _searchPage = const SearchScreen();
+
   late final Widget _tripsPage = const MyTripsView();
   late final Widget _profilePage = const ProfileView();
 
@@ -88,7 +87,7 @@ class _MainShellState extends State<MainShell> implements MainShellController {
       _exploreCitySlug = citySlug;
       _exploreCityName = cityName;
       _exploreViewVersion += 1;
-      _currentIndex = 3;
+      _currentIndex = 2;
     });
   }
 
@@ -96,7 +95,6 @@ class _MainShellState extends State<MainShell> implements MainShellController {
     return [
       _homePage,
       _chatbotPage,
-      _searchPage,
       ExploreView(
         key: ValueKey(
           'explore-$_exploreViewVersion-${_exploreCitySlug ?? ''}-${_exploreCityName ?? ''}',
@@ -144,18 +142,12 @@ class _MainShellState extends State<MainShell> implements MainShellController {
                 ),
                 _buildNavItem(
                   index: 2,
-                  icon: Icons.search_outlined,
-                  activeIcon: Icons.search,
-                  label: context.tr(vi: 'Tim kiem', en: 'Search'),
-                ),
-                _buildNavItem(
-                  index: 3,
                   icon: Icons.explore_outlined,
                   activeIcon: Icons.explore,
                   label: context.tr(vi: 'Kham pha', en: 'Explore'),
                 ),
                 _buildNavItem(
-                  index: 4,
+                  index: 3,
                   icon: Icons.bookmark_outline,
                   activeIcon: Icons.bookmark,
                   label: context.tr(vi: 'Chuyen di', en: 'Trips'),
@@ -163,7 +155,7 @@ class _MainShellState extends State<MainShell> implements MainShellController {
                 Consumer<NotificationProvider>(
                   builder: (context, notificationProvider, _) {
                     return _buildNavItem(
-                      index: 5,
+                      index: 4,
                       icon: Icons.person_outline,
                       activeIcon: Icons.person,
                       label: context.tr(vi: 'Ho so', en: 'Profile'),

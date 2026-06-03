@@ -9,6 +9,7 @@ class CreateTripItineraryRequest {
     this.serviceDate,
     this.departureTime,
     this.serviceAddress,
+    this.selectedSeats,
   });
 
   final int dayNumber;
@@ -20,6 +21,7 @@ class CreateTripItineraryRequest {
   final DateTime? serviceDate;
   final String? departureTime;
   final String? serviceAddress;
+  final String? selectedSeats;
 
   Map<String, dynamic> toJson() {
     final date = serviceDate;
@@ -37,6 +39,7 @@ class CreateTripItineraryRequest {
       if (dateText != null) 'serviceDate': dateText,
       if ((departureTime ?? '').trim().isNotEmpty) 'departureTime': departureTime,
       if ((serviceAddress ?? '').trim().isNotEmpty) 'serviceAddress': serviceAddress,
+      if ((selectedSeats ?? '').trim().isNotEmpty) 'selectedSeats': selectedSeats,
     };
   }
 }

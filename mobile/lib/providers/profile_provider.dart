@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/user_favorite.dart';
 import '../models/user_profile.dart';
@@ -6,6 +7,22 @@ import '../models/user_settings.dart';
 import '../services/api_service_base.dart';
 import '../services/fcm_service.dart';
 import '../services/profile_service.dart';
+
+class PersonalVoucher {
+  final String code;
+  final String title;
+  final String description;
+  final String expiry;
+  int quantity;
+
+  PersonalVoucher({
+    required this.code,
+    required this.title,
+    required this.description,
+    required this.expiry,
+    required this.quantity,
+  });
+}
 
 class ProfileProvider with ChangeNotifier {
   final ProfileService _apiService = ProfileService();
@@ -16,6 +33,7 @@ class ProfileProvider with ChangeNotifier {
   bool _isLoading = false;
   bool _isUpdating = false;
   bool _isUploadingAvatar = false;
+  bool _isUploadingIdentityPhoto = false;
   bool _isLoadingFavorites = false;
   bool _isLoadingSettings = false;
   bool _isSavingSettings = false;
@@ -23,12 +41,54 @@ class ProfileProvider with ChangeNotifier {
   String? _error;
   int? _lastStatusCode;
 
+  final List<PersonalVoucher> _myVouchers = [
+    PersonalVoucher(
+      code: 'FREE100',
+      title: 'Miễn phí đặt chỗ (100% OFF)',
+      description: 'Áp dụng cho mọi dịch vụ. Giảm tối đa 100% tổng hóa đơn.',
+      expiry: 'Hạn dùng: 31/12/2026',
+      quantity: 1,
+    ),
+    PersonalVoucher(
+      code: 'SUMMER15',
+      title: 'Khuyến mãi hè rực rỡ (15% OFF)',
+      description: 'Áp dụng cho mọi dịch vụ. Giảm giá 15% tổng hóa đơn.',
+      expiry: 'Hạn dùng: 30/09/2026',
+      quantity: 2,
+    ),
+    PersonalVoucher(
+      code: 'LIMOSMART',
+      title: 'Trải nghiệm tiện nghi (-30k)',
+      description: 'Giảm 30.000đ trực tiếp vào hóa đơn dịch vụ.',
+      expiry: 'Hạn dùng: 31/08/2026',
+      quantity: 5,
+    ),
+  ];
+
+  List<PersonalVoucher> get myVouchers => _myVouchers;
+
+  int get totalVoucherCount => _myVouchers.fold(0, (sum, v) => sum + v.quantity);
+
+  void useVoucher(String code) {
+    for (var v in _myVouchers) {
+      if (v.code == code && v.quantity > 0) {
+        v.quantity--;
+        if (_profileData != null) {
+          _profileData = _profileData!.copyWith(vouchers: totalVoucherCount);
+        }
+        notifyListeners();
+        break;
+      }
+    }
+  }
+
   UserProfile? get profileData => _profileData;
   UserSettings? get settings => _settings;
   List<UserFavorite> get favorites => List.unmodifiable(_favorites);
   bool get isLoading => _isLoading;
   bool get isUpdating => _isUpdating;
   bool get isUploadingAvatar => _isUploadingAvatar;
+  bool get isUploadingIdentityPhoto => _isUploadingIdentityPhoto;
   bool get isLoadingFavorites => _isLoadingFavorites;
   bool get isLoadingSettings => _isLoadingSettings;
   bool get isSavingSettings => _isSavingSettings;
@@ -48,6 +108,9 @@ class ProfileProvider with ChangeNotifier {
 
     try {
       _profileData = await _apiService.getProfile();
+      if (_profileData != null) {
+        _profileData = _profileData!.copyWith(vouchers: totalVoucherCount);
+      }
     } catch (error) {
       _setError(error);
     } finally {
@@ -76,13 +139,13 @@ class ProfileProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> uploadAvatar(String filePath) async {
+  Future<bool> uploadAvatar(XFile file) async {
     _isUploadingAvatar = true;
     _clearError();
     notifyListeners();
 
     try {
-      final newUrl = await _apiService.uploadAvatar(filePath);
+      final newUrl = await _apiService.uploadAvatar(file);
       if (newUrl != null && _profileData != null) {
         _profileData = _profileData!.copyWith(avatarUrl: newUrl);
         return true;
@@ -93,6 +156,27 @@ class ProfileProvider with ChangeNotifier {
       return false;
     } finally {
       _isUploadingAvatar = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> uploadIdentityCardPhoto(XFile file) async {
+    _isUploadingIdentityPhoto = true;
+    _clearError();
+    notifyListeners();
+
+    try {
+      final newUrl = await _apiService.uploadIdentityCardPhoto(file);
+      if (newUrl != null && _profileData != null) {
+        _profileData = _profileData!.copyWith(identityCardPhotoUrl: newUrl);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      _setError(error);
+      return false;
+    } finally {
+      _isUploadingIdentityPhoto = false;
       notifyListeners();
     }
   }

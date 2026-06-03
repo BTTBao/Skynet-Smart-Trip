@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SmartTrip.Application.DTOs.Notifications;
 using SmartTrip.Application.DTOs.Explore;
@@ -256,6 +256,7 @@ public class ExploreService : IExploreService
                 AuthorName = comment.User.FullName ?? comment.User.UserName ?? comment.User.Email,
                 AuthorAvatar = comment.User.AvatarUrl ?? DefaultAvatar,
                 Content = comment.Content,
+                ImageUrl = comment.ImageUrl,
                 CreatedAt = comment.CreatedAt,
                 Likes = comment.LikeCount
             })
@@ -317,6 +318,7 @@ public class ExploreService : IExploreService
             ParentCommentId = request.ParentCommentId,
             UserId = userId,
             Content = content,
+            ImageUrl = request.ImageUrl,
             LikeCount = 0,
             CreatedAt = DateTime.UtcNow
         };
@@ -342,6 +344,7 @@ public class ExploreService : IExploreService
                 AuthorName = item.User.FullName ?? item.User.UserName ?? item.User.Email,
                 AuthorAvatar = item.User.AvatarUrl ?? DefaultAvatar,
                 Content = item.Content,
+                ImageUrl = item.ImageUrl,
                 CreatedAt = item.CreatedAt,
                 Likes = item.LikeCount,
                 Replies = new List<ExploreCommentDto>()
@@ -582,6 +585,7 @@ public class ExploreService : IExploreService
                 AuthorName = comment.User.FullName ?? comment.User.UserName ?? comment.User.Email,
                 AuthorAvatar = comment.User.AvatarUrl ?? DefaultAvatar,
                 Content = comment.Content,
+                ImageUrl = comment.ImageUrl,
                 CreatedAt = comment.CreatedAt,
                 Likes = comment.LikeCount
             })
@@ -610,6 +614,7 @@ public class ExploreService : IExploreService
                 AuthorName = comment.User.FullName ?? comment.User.UserName ?? comment.User.Email,
                 AuthorAvatar = comment.User.AvatarUrl ?? DefaultAvatar,
                 Content = comment.Content,
+                ImageUrl = comment.ImageUrl,
                 CreatedAt = comment.CreatedAt,
                 Likes = comment.LikeCount,
                 Replies = new List<ExploreCommentDto>()

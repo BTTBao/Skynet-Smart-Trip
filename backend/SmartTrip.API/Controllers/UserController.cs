@@ -85,6 +85,20 @@ public class UserController : ControllerBase
     }
 
     [Authorize]
+    [Consumes("multipart/form-data")]
+    [HttpPost("me/upload-identity-card")]
+    public async Task<IActionResult> UploadCurrentIdentityCardPhoto([FromForm] UploadIdentityCardPhotoRequestDto request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+        {
+            return Unauthorized();
+        }
+
+        return await UploadIdentityCardPhoto(userId.Value, request);
+    }
+
+    [Authorize]
     [HttpGet("me/favorites")]
     public async Task<IActionResult> GetCurrentFavorites()
     {
@@ -288,6 +302,13 @@ public class UserController : ControllerBase
             return BadRequest("Ngay sinh khong hop le");
         }
 
+        if (!string.IsNullOrWhiteSpace(request.IdentityNumber) &&
+            request.IdentityNumber.Trim().Length != 9 &&
+            request.IdentityNumber.Trim().Length != 12)
+        {
+            return BadRequest("So can cuoc cong dan khong hop le (phai co 9 hoac 12 so)");
+        }
+
         var updated = await _userService.UpdateUserProfileAsync(id, request);
         if (!updated)
         {
@@ -347,6 +368,51 @@ public class UserController : ControllerBase
         }
 
         return Ok(new { avatarUrl });
+    }
+
+    [Authorize]
+    [Consumes("multipart/form-data")]
+    [HttpPost("{id:int}/upload-identity-card")]
+    public async Task<IActionResult> UploadIdentityCardPhoto(int id, [FromForm] UploadIdentityCardPhotoRequestDto request)
+    {
+        var accessResult = EnsureCurrentUserAccess(id);
+        if (accessResult != null)
+        {
+            return accessResult;
+        }
+
+        var file = request.File;
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest("Vui long chon anh");
+        }
+
+        if (file.Length > 5 * 1024 * 1024)
+        {
+            return BadRequest("Anh mat truoc CCCD khong duoc vuot qua 5MB");
+        }
+
+        var extension = Path.GetExtension(file.FileName);
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+        if (string.IsNullOrWhiteSpace(extension) ||
+            !allowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+        {
+            return BadRequest("Chi ho tro anh JPG, PNG hoac WEBP");
+        }
+
+        if (string.IsNullOrWhiteSpace(file.ContentType) ||
+            !file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest("File tai len khong phai la anh hop le");
+        }
+
+        var identityCardPhotoUrl = await _userService.UploadIdentityCardPhotoAsync(id, file);
+        if (identityCardPhotoUrl == null)
+        {
+            return NotFound("Nguoi dung khong ton tai");
+        }
+
+        return Ok(new { identityCardPhotoUrl });
     }
 
     private IActionResult? EnsureCurrentUserAccess(int userId)

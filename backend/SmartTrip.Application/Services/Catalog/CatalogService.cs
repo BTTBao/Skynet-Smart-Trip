@@ -209,7 +209,7 @@ public class CatalogService : ICatalogService
 
         if (checkOutDate <= checkInDate)
         {
-            throw new ArgumentException("Ngay tra phong phai sau ngay nhan phong.");
+            checkOutDate = checkInDate.AddDays(1);
         }
 
         if (quantity <= 0)

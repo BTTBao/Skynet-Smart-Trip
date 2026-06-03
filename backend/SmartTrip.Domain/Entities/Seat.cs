@@ -14,6 +14,10 @@ public class Seat
 
     public SeatStatus? Status { get; set; }
 
+    public DateTime? LockedUntil { get; set; }
+
+    public int? LockedByTripId { get; set; }
+
     public virtual BusSchedule? Schedule { get; set; }
 }
 

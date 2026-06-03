@@ -7,7 +7,7 @@ import '../destination/destination_article_screen.dart';
 import '../explore/explore_view.dart';
 import '../main_shell.dart';
 import '../resort_search/resort_search_screen.dart';
-import '../transport/transport_search_screen.dart';
+
 
 class CategoryItem {
   final String name;
@@ -687,18 +687,21 @@ class _SearchScreenState extends State<SearchScreen> {
         'image': 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
         'readTime': '5 phút đọc',
         'category': 'Cẩm nang',
+        'citySlug': 'da-nang',
       },
       {
         'title': 'Top 5 resort sang chảnh bậc nhất tại Đà Lạt',
         'image': 'https://images.unsplash.com/photo-1589308078059-be1415eab4c3?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
         'readTime': '4 phút đọc',
         'category': 'Nghỉ dưỡng',
+        'citySlug': 'da-lat',
       },
       {
         'title': 'Hạ Long có gì chơi? Gợi ý lịch trình 2 ngày 1 đêm',
         'image': 'https://images.unsplash.com/photo-1524230507669-e29f7363618d?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
         'readTime': '6 phút đọc',
         'category': 'Lịch trình',
+        'citySlug': 'ha-long',
       }
     ];
 
@@ -711,7 +714,18 @@ class _SearchScreenState extends State<SearchScreen> {
             _buildSectionTitle('Cẩm nang & Bài viết'),
             TextButton(
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const DestinationArticleScreen()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const DestinationArticleScreen(
+                      title: 'Top 5 resort sang chảnh bậc nhất tại Đà Lạt',
+                      imageUrl: 'https://images.unsplash.com/photo-1589308078059-be1415eab4c3?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+                      category: 'Nghỉ dưỡng',
+                      readTime: '4 phút đọc',
+                      citySlug: 'da-lat',
+                    ),
+                  ),
+                );
               },
               child: const Text(
                 'Xem tất cả',
@@ -735,7 +749,18 @@ class _SearchScreenState extends State<SearchScreen> {
               final article = articles[index];
               return GestureDetector(
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const DestinationArticleScreen()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DestinationArticleScreen(
+                        title: article['title'] ?? '',
+                        imageUrl: article['image'] ?? '',
+                        category: article['category'] ?? '',
+                        readTime: article['readTime'] ?? '',
+                        citySlug: article['citySlug'] ?? 'da-lat',
+                      ),
+                    ),
+                  );
                 },
                 child: Container(
                   width: 220,
@@ -892,9 +917,10 @@ class _SearchScreenState extends State<SearchScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => TransportSearchScreen(
-                          toDestId: destinationId,
-                          toDestName: destination,
+                        builder: (_) => SearchView(
+                          initialMode: SearchMode.bus,
+                          initialDestinationId: destinationId,
+                          initialQuery: destination,
                         ),
                       ),
                     );

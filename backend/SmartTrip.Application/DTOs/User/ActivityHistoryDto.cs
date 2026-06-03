@@ -54,6 +54,7 @@ public class BusHistoryItemDto
     public decimal BookedPrice { get; set; }
     public string Status { get; set; } = string.Empty;
     public bool IsReviewed { get; set; }
+    public string? SelectedSeats { get; set; }
 }
 
 public class PaymentHistoryItemDto

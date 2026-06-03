@@ -219,13 +219,14 @@ class ExploreProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> addComment(int postId, String content) async {
-    return addCommentReply(postId: postId, content: content);
+  Future<bool> addComment(int postId, String content, {String? imageUrl}) async {
+    return addCommentReply(postId: postId, content: content, imageUrl: imageUrl);
   }
 
   Future<bool> addCommentReply({
     required int postId,
     required String content,
+    String? imageUrl,
     int? parentCommentId,
   }) async {
     final trimmed = content.trim();
@@ -235,6 +236,7 @@ class ExploreProvider with ChangeNotifier {
       final comment = await _service.addCommentReply(
         postId: postId,
         content: trimmed,
+        imageUrl: imageUrl,
         parentCommentId: parentCommentId,
       );
       final index = _allPosts.indexWhere((post) => post.id == postId);
@@ -293,14 +295,41 @@ class ExploreProvider with ChangeNotifier {
     var result = List<ExplorePost>.from(_allPosts);
 
     if (_searchQuery.isNotEmpty) {
-      final query = _searchQuery.toLowerCase();
-      result = result.where((post) {
-        return post.title.toLowerCase().contains(query) ||
-            post.location.toLowerCase().contains(query) ||
-            post.city.toLowerCase().contains(query) ||
-            post.excerpt.toLowerCase().contains(query) ||
-            post.tags.any((tag) => tag.toLowerCase().contains(query));
+      final query = _searchQuery.toLowerCase().trim();
+      
+      // Resolve city name matches from kPopularCities (e.g. searching "đà" matches "da-nang" and "da-lat")
+      final matchedCities = kPopularCities.where((city) {
+        final cityName = city.name.toLowerCase();
+        final cityNameNoAccent = _normalize(city.name);
+        final queryNoAccent = _normalize(query);
+        return query.length >= 2 && (cityName.contains(query) || cityNameNoAccent.contains(queryNoAccent));
       }).toList();
+
+      if (matchedCities.isNotEmpty) {
+        final matchedSlugs = matchedCities.map((c) => c.slug).toSet();
+        result = result.where((post) => matchedSlugs.contains(post.city)).toList();
+      } else {
+        // General search: strict accent-sensitive matching if query has accents, avoiding false positives like "đà" matching "đảo"
+        final accentRegex = RegExp(r'[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]');
+        final hasAcc = accentRegex.hasMatch(query);
+
+        result = result.where((post) {
+          if (hasAcc) {
+            return post.title.toLowerCase().contains(query) ||
+                post.location.toLowerCase().contains(query) ||
+                post.city.toLowerCase().contains(query) ||
+                post.excerpt.toLowerCase().contains(query) ||
+                post.tags.any((tag) => tag.toLowerCase().contains(query));
+          } else {
+            final queryNorm = _normalize(query);
+            return _normalize(post.title).contains(queryNorm) ||
+                _normalize(post.location).contains(queryNorm) ||
+                _normalize(post.city).contains(queryNorm) ||
+                _normalize(post.excerpt).contains(queryNorm) ||
+                post.tags.any((tag) => _normalize(tag).contains(queryNorm));
+          }
+        }).toList();
+      }
     }
 
     if (_filterState.selectedCities.isNotEmpty) {

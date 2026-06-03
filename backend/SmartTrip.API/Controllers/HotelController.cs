@@ -22,6 +22,7 @@ public class HotelController : ControllerBase
         var query = _context.Hotels
             .Include(h => h.Rooms)
             .Include(h => h.Amenities)
+            .Include(h => h.Destination)
             .Where(h => h.IsAvailable == true);
 
         if (destinationId.HasValue)
@@ -60,6 +61,8 @@ public class HotelController : ControllerBase
             return new
             {
                 h.Id,
+                h.DestinationId,
+                DestinationName = h.Destination != null ? h.Destination.Name : "",
                 h.Name,
                 h.Address,
                 h.StarRating,
@@ -82,6 +85,7 @@ public class HotelController : ControllerBase
         var hotel = await _context.Hotels
             .Include(h => h.Rooms)
             .Include(h => h.Amenities)
+            .Include(h => h.Destination)
             .FirstOrDefaultAsync(h => h.Id == id);
 
         if (hotel is null) return NotFound(new { message = "Không tìm thấy khách sạn." });
@@ -115,6 +119,8 @@ public class HotelController : ControllerBase
         return Ok(new
         {
             hotel.Id,
+            hotel.DestinationId,
+            DestinationName = hotel.Destination != null ? hotel.Destination.Name : "",
             hotel.Name,
             hotel.Address,
             hotel.StarRating,

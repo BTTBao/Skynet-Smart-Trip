@@ -27,4 +27,6 @@ public class TripItineraryDto
     public TimeOnly? DepartureTime { get; set; }
 
     public string? ServiceAddress { get; set; }
+
+    public string? SelectedSeats { get; set; }
 }
