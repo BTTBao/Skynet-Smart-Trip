@@ -306,4 +306,22 @@ class AuthProvider with ChangeNotifier {
       return true;
     }
   }
+
+  Future<int?> getUserId() async {
+    try {
+      final token = await SecureStorageService.read('access_token');
+      if (token == null || token.isEmpty) return null;
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      final payload = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
+      final claims = jsonDecode(payload) as Map<String, dynamic>;
+      final sub = claims['sub'] ?? claims['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'];
+      if (sub != null) {
+        return int.tryParse(sub.toString());
+      }
+    } catch (_) {
+      // Ignore
+    }
+    return null;
+  }
 }
