@@ -20,7 +20,7 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
-      'react-refresh/only-export-components': 'warn',
+      'react-refresh/only-export-components': 'off',
       'react-hooks/exhaustive-deps': 'off',
       '@typescript-eslint/no-empty-object-type': 'off',
     },

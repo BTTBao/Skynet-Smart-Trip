@@ -6,9 +6,12 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  AccessToken?: string;
+  RefreshToken?: string;
+  ExpiresIn?: number;
 }
 
 export interface AuthProfile {
