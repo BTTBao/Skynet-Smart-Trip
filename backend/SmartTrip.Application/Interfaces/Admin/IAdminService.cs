@@ -42,4 +42,11 @@ public interface IAdminService
     Task<AdminPromotionDto> UpdatePromotionAsync(int promotionId, AdminPromotionRequest request);
     Task DeletePromotionAsync(int promotionId);
     Task<AdminReportSummaryDto> GetReportSummaryAsync();
+    Task<List<AdminExplorePostDto>> GetExplorePostsAsync(string? search = null);
+    Task<AdminExplorePostDto> CreateExplorePostAsync(AdminExplorePostRequest request, int adminUserId);
+    Task<AdminExplorePostDto> UpdateExplorePostAsync(int postId, AdminExplorePostRequest request);
+    Task<AdminExplorePostDto> UpdateExplorePostVisibilityAsync(int postId, bool isVisible);
+    Task DeleteExplorePostAsync(int postId);
+    Task<AdminNotificationStatsDto> GetNotificationsAsync(string? search = null);
+    Task<AdminNotificationSendResultDto> SendNotificationAsync(AdminSendNotificationRequest request);
 }

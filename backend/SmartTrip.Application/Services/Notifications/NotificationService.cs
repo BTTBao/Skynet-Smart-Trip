@@ -135,7 +135,7 @@ public class NotificationService : INotificationService
 
         var notificationDto = MapNotification(notification);
 
-        if (!await ArePushNotificationsEnabledAsync(request.UserId, cancellationToken))
+        if (!request.SendPush || !await ArePushNotificationsEnabledAsync(request.UserId, cancellationToken))
         {
             return notificationDto;
         }

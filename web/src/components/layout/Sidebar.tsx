@@ -13,6 +13,8 @@ const mainNavItems: NavItem[] = [
   { icon: 'explore', label: 'Điểm đến', path: '/destinations' },
   { icon: 'hotel', label: 'Khách sạn & Phòng', path: '/hotels' },
   { icon: 'directions_bus', label: 'Chuyển xe', path: '/transport' },
+  { icon: 'travel_explore', label: 'Bài viết', path: '/explore' },
+  { icon: 'notifications_active', label: 'Thông báo', path: '/notifications' },
   { icon: 'sell', label: 'Khuyến mãi', path: '/promotions' },
   { icon: 'confirmation_number', label: 'Đặt chỗ (Chuyến đi)', path: '/bookings' },
   { icon: 'bar_chart', label: 'Báo cáo doanh thu', path: '/reports' },
