@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartTrip.Application.DTOs.Admin;
 using SmartTrip.Application.Interfaces.Admin;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace SmartTrip.API.Controllers;
@@ -268,5 +269,69 @@ public class AdminController : ControllerBase
     {
         var report = await _adminService.GetReportSummaryAsync();
         return Ok(report);
+    }
+
+    [HttpGet("explore/posts")]
+    public async Task<IActionResult> GetExplorePosts([FromQuery] string? search)
+    {
+        var posts = await _adminService.GetExplorePostsAsync(search);
+        return Ok(posts);
+    }
+
+    [HttpPost("explore/posts")]
+    public async Task<IActionResult> CreateExplorePost([FromBody] AdminExplorePostRequest request)
+    {
+        var post = await _adminService.CreateExplorePostAsync(request, GetCurrentUserId());
+        return Ok(post);
+    }
+
+    [HttpPut("explore/posts/{postId:int}")]
+    public async Task<IActionResult> UpdateExplorePost(int postId, [FromBody] AdminExplorePostRequest request)
+    {
+        var post = await _adminService.UpdateExplorePostAsync(postId, request);
+        return Ok(post);
+    }
+
+    [HttpPatch("explore/posts/{postId:int}/visibility")]
+    public async Task<IActionResult> UpdateExplorePostVisibility(int postId, [FromBody] AdminExploreVisibilityRequest request)
+    {
+        var post = await _adminService.UpdateExplorePostVisibilityAsync(postId, request.IsVisible);
+        return Ok(post);
+    }
+
+    [HttpDelete("explore/posts/{postId:int}")]
+    public async Task<IActionResult> DeleteExplorePost(int postId)
+    {
+        await _adminService.DeleteExplorePostAsync(postId);
+        return NoContent();
+    }
+
+    [HttpGet("notifications")]
+    public async Task<IActionResult> GetNotifications([FromQuery] string? search)
+    {
+        var notifications = await _adminService.GetNotificationsAsync(search);
+        return Ok(notifications);
+    }
+
+    [HttpPost("notifications/send")]
+    public async Task<IActionResult> SendNotification([FromBody] AdminSendNotificationRequest request)
+    {
+        var result = await _adminService.SendNotificationAsync(request);
+        return Ok(result);
+    }
+
+    private int GetCurrentUserId()
+    {
+        var rawUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue(ClaimTypes.Name)
+            ?? User.FindFirstValue(ClaimTypes.Sid)
+            ?? User.FindFirstValue("sub");
+
+        if (!int.TryParse(rawUserId, out var userId) || userId <= 0)
+        {
+            throw new UnauthorizedAccessException("Invalid admin token.");
+        }
+
+        return userId;
     }
 }

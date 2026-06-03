@@ -22,6 +22,7 @@ public partial class AdminService : IAdminService
     private readonly IApplicationDbContext _context;
     private readonly IEmailService _emailService;
     private readonly INotificationService _notificationService;
+    private readonly IFcmPushService _fcmPushService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AdminService> _logger;
 
@@ -29,12 +30,14 @@ public partial class AdminService : IAdminService
         IApplicationDbContext context,
         IEmailService emailService,
         INotificationService notificationService,
+        IFcmPushService fcmPushService,
         IConfiguration configuration,
         ILogger<AdminService> logger)
     {
         _context = context;
         _emailService = emailService;
         _notificationService = notificationService;
+        _fcmPushService = fcmPushService;
         _configuration = configuration;
         _logger = logger;
     }

@@ -36,7 +36,7 @@ public class ExploreService : IExploreService
         var page = Math.Max(1, query.Page);
         var pageSize = Math.Clamp(query.PageSize <= 0 ? 10 : query.PageSize, 1, MaxPageSize);
 
-        var postsQuery = ApplyFilters(_context.ExplorePosts.AsNoTracking(), query);
+        var postsQuery = ApplyFilters(_context.ExplorePosts.AsNoTracking().Where(post => post.IsVisible), query);
         postsQuery = ApplySort(postsQuery, query.SortBy);
 
         var totalItems = await postsQuery.CountAsync();
@@ -69,6 +69,7 @@ public class ExploreService : IExploreService
                 Likes = post.Likes.Count,
                 Saves = post.Saves.Count,
                 Views = post.ViewCount,
+                IsVisible = post.IsVisible,
                 Rating = (double)post.AverageRating,
                 RatingCount = post.RatingCount,
                 PriceLevel = post.CostLevel,
@@ -95,7 +96,7 @@ public class ExploreService : IExploreService
             throw new ArgumentException("Explore post id is invalid.");
         }
 
-        var post = await _context.ExplorePosts.FirstOrDefaultAsync(item => item.Id == postId);
+        var post = await _context.ExplorePosts.FirstOrDefaultAsync(item => item.Id == postId && item.IsVisible);
         if (post == null)
         {
             return null;
@@ -144,6 +145,7 @@ public class ExploreService : IExploreService
             AverageRating = 0m,
             RatingCount = 0,
             ViewCount = 0,
+            IsVisible = true,
             CreatedAt = DateTime.UtcNow,
         };
 
@@ -229,7 +231,7 @@ public class ExploreService : IExploreService
 
     public async Task<PagedResultDto<ExploreCommentDto>> GetCommentsAsync(int postId, int page, int pageSize)
     {
-        if (!await _context.ExplorePosts.AnyAsync(post => post.Id == postId))
+        if (!await _context.ExplorePosts.AnyAsync(post => post.Id == postId && post.IsVisible))
         {
             throw new KeyNotFoundException($"Explore post {postId} was not found.");
         }
@@ -299,7 +301,7 @@ public class ExploreService : IExploreService
 
         var post = await _context.ExplorePosts
             .AsNoTracking()
-            .Where(item => item.Id == postId)
+            .Where(item => item.Id == postId && item.IsVisible)
             .Select(item => new { item.AuthorId, item.Title })
             .FirstAsync();
         var parentCommentAuthorId = request.ParentCommentId.HasValue
@@ -528,7 +530,7 @@ public class ExploreService : IExploreService
     {
         var post = await _context.ExplorePosts
             .AsNoTracking()
-            .Where(item => item.Id == postId)
+            .Where(item => item.Id == postId && item.IsVisible)
             .Select(item => new ExplorePostDto
             {
                 Id = item.Id,
@@ -555,6 +557,7 @@ public class ExploreService : IExploreService
                 Likes = item.Likes.Count,
                 Saves = item.Saves.Count,
                 Views = item.ViewCount,
+                IsVisible = item.IsVisible,
                 Rating = (double)item.AverageRating,
                 RatingCount = item.RatingCount,
                 PriceLevel = item.CostLevel,
@@ -700,7 +703,7 @@ public class ExploreService : IExploreService
 
     private async Task EnsurePostAndUserExistAsync(int postId, int userId)
     {
-        if (!await _context.ExplorePosts.AnyAsync(post => post.Id == postId))
+        if (!await _context.ExplorePosts.AnyAsync(post => post.Id == postId && post.IsVisible))
         {
             throw new KeyNotFoundException($"Explore post {postId} was not found.");
         }

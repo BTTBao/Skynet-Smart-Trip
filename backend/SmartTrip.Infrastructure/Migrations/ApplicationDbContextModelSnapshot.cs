@@ -341,6 +341,14 @@ namespace SmartTrip.Infrastructure.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
 
+                    b.Property<bool>("IsVisible")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("float");
+
                     b.Property<double?>("Longitude")
                         .HasColumnType("float");
 
@@ -393,6 +401,8 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.HasIndex("CostLevel");
 
                     b.HasIndex("CreatedAt");
+
+                    b.HasIndex("IsVisible");
 
                     b.HasIndex("Province");
 

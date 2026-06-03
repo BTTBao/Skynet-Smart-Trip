@@ -97,6 +97,7 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.AverageRating).HasDefaultValue(0m).HasColumnType("decimal(3, 2)");
             entity.Property(e => e.RatingCount).HasDefaultValue(0);
             entity.Property(e => e.ViewCount).HasDefaultValue(0);
+            entity.Property(e => e.IsVisible).HasDefaultValue(true);
             entity.Property(e => e.Tags).HasMaxLength(500);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
@@ -108,6 +109,7 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.HasIndex(e => e.CostLevel);
             entity.HasIndex(e => e.AverageRating);
             entity.HasIndex(e => e.ViewCount);
+            entity.HasIndex(e => e.IsVisible);
 
             entity.HasOne(e => e.Author)
                 .WithMany(u => u.ExplorePosts)
