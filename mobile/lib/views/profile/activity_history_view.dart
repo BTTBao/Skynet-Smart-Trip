@@ -9,6 +9,7 @@ import '../../services/api_service_base.dart';
 import '../../utils/app_text.dart';
 import '../../widgets/widgets.dart';
 import '../trip/trip_itinerary_detail_view.dart';
+import 'invoice_detail_view.dart';
 import 'profile_session_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/payment_service.dart';
@@ -19,7 +20,12 @@ import '../../services/trip_service.dart';
 enum _HistorySection { bookings, hotels, buses, payments }
 
 class ActivityHistoryView extends StatefulWidget {
-  const ActivityHistoryView({super.key});
+  const ActivityHistoryView({
+    super.key,
+    this.initialSectionIndex = 0,
+  });
+
+  final int initialSectionIndex;
 
   @override
   State<ActivityHistoryView> createState() => _ActivityHistoryViewState();
@@ -36,9 +42,14 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
   bool _handledSessionExpired = false;
   _HistorySection _selectedSection = _HistorySection.bookings;
 
+  static const _sections = _HistorySection.values;
+
   @override
   void initState() {
     super.initState();
+    final safeIndex =
+        widget.initialSectionIndex.clamp(0, _sections.length - 1) as int;
+    _selectedSection = _sections[safeIndex];
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchHistory();
     });
@@ -313,7 +324,11 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       amount: _currency(item.totalAmount),
       status: item.status,
       dateText: _joinDateRange(item.startDate, item.endDate),
-      onTap: item.tripId > 0 ? () => _openTrip(item.tripId, item.title) : null,
+      onTap: item.tripId > 0 && !item.isBookingOnly
+          ? () => _openTrip(item.tripId, item.title)
+          : null,
+      detailLabel: 'Chi tiết hóa đơn',
+      onDetailTap: () => _openBookingInvoice(item),
       actionLabel: item.status.toUpperCase() == 'PENDING' ? 'Thanh toán' : null,
       onActionTap: item.status.toUpperCase() == 'PENDING'
           ? () => _showPaymentModal(item.tripId, item.totalAmount, 'Thanh toán ${item.tripId}', 'HOTEL')
@@ -328,7 +343,11 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
   }
 
   Widget _buildHotelCard(HotelHistoryItem item) {
-    final canReview = !item.isReviewed && (item.status.toUpperCase() == 'PAID' || item.status.toUpperCase() == 'SUCCESS' || item.status.toUpperCase() == 'COMPLETED');
+    final canReview = _canReviewService(
+      isReviewed: item.isReviewed,
+      status: item.status,
+      completedAt: item.checkOutDate,
+    );
     final isReviewed = item.isReviewed;
 
     return _HistoryCard(
@@ -337,22 +356,36 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       amount: _currency(item.bookedPrice),
       status: item.status,
       dateText: _joinDateRange(item.checkInDate, item.checkOutDate),
-      onTap: item.tripId > 0 ? () => _openTrip(item.tripId, item.tripTitle) : null,
-      actionLabel: isReviewed 
+      onTap: item.tripId > 0 && !item.isBookingOnly
+          ? () => _openTrip(item.tripId, item.tripTitle)
+          : null,
+      detailLabel: 'Chi tiết hóa đơn',
+      onDetailTap: () => _openHotelInvoice(item),
+      actionLabel: isReviewed
           ? 'Đã đánh giá'
-          : canReview 
-              ? 'Viết đánh giá' 
+          : canReview
+              ? 'Đánh giá'
               : (item.status.toUpperCase() == 'PENDING' ? 'Thanh toán' : null),
       onActionTap: isReviewed
           ? null
           : canReview
-              ? () => _showReviewDialog(item.tripId, 'Hotel', item.serviceId, item.hotelName)
+              ? () => _showReviewSheet(
+                    tripId: item.tripId,
+                    targetType: 'Hotel',
+                    targetId: item.serviceId,
+                    serviceName: item.hotelName,
+                    serviceLabel: 'khách sạn',
+                  )
               : (item.status.toUpperCase() == 'PENDING'
                   ? () => _showPaymentModal(item.tripId, item.bookedPrice, 'Thanh toán ${item.tripId}', 'HOTEL')
                   : null),
       extraLines: [
         '${context.tr(vi: 'Chuyen di', en: 'Trip')}: ${item.tripTitle}',
         '${context.tr(vi: 'So luong', en: 'Quantity')}: ${item.quantity}',
+        if ((item.invoiceNumber ?? '').isNotEmpty)
+          '${context.tr(vi: 'Hoa don', en: 'Invoice')}: ${item.invoiceNumber}',
+        if (!isReviewed && !canReview && item.status.toUpperCase() != 'PENDING')
+          'Bạn có thể đánh giá sau khi sử dụng dịch vụ.',
       ],
     );
   }
@@ -395,7 +428,11 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
   }
 
   Widget _buildBusCard(BusHistoryItem item) {
-    final canReview = !item.isReviewed && (item.status.toUpperCase() == 'PAID' || item.status.toUpperCase() == 'SUCCESS' || item.status.toUpperCase() == 'COMPLETED');
+    final canReview = _canReviewService(
+      isReviewed: item.isReviewed,
+      status: item.status,
+      completedAt: item.arrivalTime,
+    );
     final isReviewed = item.isReviewed;
     final isPending = item.status.toUpperCase() == 'PENDING';
 
@@ -405,18 +442,28 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       amount: _currency(item.bookedPrice),
       status: item.status,
       dateText: _joinDateRange(item.departureTime, item.arrivalTime),
-      onTap: item.tripId > 0 ? () => _openTrip(item.tripId, item.tripTitle) : null,
+      onTap: item.tripId > 0 && !item.isBookingOnly
+          ? () => _openTrip(item.tripId, item.tripTitle)
+          : null,
+      detailLabel: 'Chi tiết hóa đơn',
+      onDetailTap: () => _openBusInvoice(item),
       actionLabel: isReviewed 
           ? 'Đã đánh giá'
           : canReview 
-              ? 'Viết đánh giá' 
+              ? 'Đánh giá'
               : isPending
                   ? 'Thanh toán'
                   : null,
       onActionTap: isReviewed
           ? null
           : canReview
-              ? () => _showReviewDialog(item.tripId, 'BusCompany', item.companyId, item.companyName)
+              ? () => _showReviewSheet(
+                    tripId: item.tripId,
+                    targetType: 'BusCompany',
+                    targetId: item.companyId,
+                    serviceName: item.companyName,
+                    serviceLabel: 'nhà xe',
+                  )
               : isPending
                   ? () => _repayBusTicket(item)
                   : null,
@@ -425,6 +472,10 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
         '${context.tr(vi: 'So luong', en: 'Quantity')}: ${item.quantity}',
         if (item.selectedSeats != null && item.selectedSeats!.isNotEmpty)
           'Số ghế: ${item.selectedSeats}',
+        if ((item.invoiceNumber ?? '').isNotEmpty)
+          '${context.tr(vi: 'Hoa don', en: 'Invoice')}: ${item.invoiceNumber}',
+        if (!isReviewed && !canReview && !isPending)
+          'Bạn có thể đánh giá sau khi kết thúc chuyến xe.',
       ],
     );
   }
@@ -437,13 +488,93 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       amount: _currency(item.amount),
       status: item.status,
       dateText: _formatDateTime(item.paidAt),
-      onTap: item.tripId > 0 ? () => _openTrip(item.tripId, item.tripTitle) : null,
+      onTap: item.tripId > 0 && !item.isBookingOnly
+          ? () => _openTrip(item.tripId, item.tripTitle)
+          : null,
+      detailLabel: 'Chi tiết hóa đơn',
+      onDetailTap: () => _openPaymentInvoice(item),
       extraLines: [
         if ((item.invoiceNumber ?? '').isNotEmpty)
           '${context.tr(vi: 'Hoa don', en: 'Invoice')}: ${item.invoiceNumber}',
         if ((item.transactionId ?? '').isNotEmpty)
           '${context.tr(vi: 'Ma giao dich', en: 'Transaction ID')}: ${item.transactionId}',
       ],
+    );
+  }
+
+  void _openBookingInvoice(BookingHistoryItem item) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InvoiceDetailView(
+          title: item.title,
+          serviceType: 'Booking',
+          providerName: item.destinationName,
+          routeOrAddress: item.destinationName,
+          dateText: _joinDateRange(item.startDate, item.endDate),
+          quantityText: '1 booking',
+          amount: item.totalAmount,
+          status: item.status,
+          invoiceNumber: item.invoiceNumber,
+        ),
+      ),
+    );
+  }
+
+  void _openHotelInvoice(HotelHistoryItem item) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InvoiceDetailView(
+          title: item.tripTitle,
+          serviceType: 'Khách sạn',
+          providerName: item.hotelName,
+          routeOrAddress: '${item.destinationName} - ${item.address}',
+          dateText: _joinDateRange(item.checkInDate, item.checkOutDate),
+          quantityText: '${item.quantity} phòng',
+          amount: item.bookedPrice,
+          status: item.status,
+          invoiceNumber: item.invoiceNumber,
+        ),
+      ),
+    );
+  }
+
+  void _openBusInvoice(BusHistoryItem item) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InvoiceDetailView(
+          title: item.tripTitle,
+          serviceType: 'Vé xe',
+          providerName: item.companyName,
+          routeOrAddress: '${item.fromDestination} -> ${item.toDestination}',
+          dateText: _joinDateRange(item.departureTime, item.arrivalTime),
+          quantityText: item.selectedSeats?.isNotEmpty == true
+              ? 'Ghế ${item.selectedSeats}'
+              : '${item.quantity} vé',
+          amount: item.bookedPrice,
+          status: item.status,
+          invoiceNumber: item.invoiceNumber,
+        ),
+      ),
+    );
+  }
+
+  void _openPaymentInvoice(PaymentHistoryItem item) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InvoiceDetailView(
+          title: item.tripTitle,
+          serviceType: 'Thanh toán',
+          providerName: item.paymentMethod,
+          routeOrAddress: 'Mã chuyến/bill #${item.tripId}',
+          dateText: _formatDateTime(item.paidAt),
+          quantityText: '1 giao dịch',
+          amount: item.amount,
+          status: item.status,
+          invoiceNumber: item.invoiceNumber,
+          transactionId: item.transactionId,
+          paymentMethod: item.paymentMethod,
+        ),
+      ),
     );
   }
 
@@ -456,6 +587,293 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
         ),
       ),
     );
+  }
+
+  bool _canReviewService({
+    required bool isReviewed,
+    required String status,
+    required String? completedAt,
+  }) {
+    if (isReviewed || status.toUpperCase() != 'PAID') {
+      return false;
+    }
+
+    final parsed = DateTime.tryParse(completedAt ?? '');
+    if (parsed == null) {
+      return false;
+    }
+
+    return parsed.toLocal().isBefore(DateTime.now());
+  }
+
+  void _showReviewSheet({
+    required int tripId,
+    required String targetType,
+    required int targetId,
+    required String serviceName,
+    required String serviceLabel,
+  }) {
+    int selectedRating = 5;
+    final commentController = TextEditingController();
+    bool isSubmitting = false;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+            return AnimatedPadding(
+              duration: const Duration(milliseconds: 180),
+              padding: EdgeInsets.only(bottom: bottomInset),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 42,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD7DEE5),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF7E6),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(
+                                Icons.star_rate_rounded,
+                                color: Color(0xFFF59E0B),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Đánh giá $serviceLabel',
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    serviceName,
+                                    style: TextStyle(
+                                      color: Colors.grey.shade700,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 22),
+                        Center(
+                          child: Text(
+                            _ratingLabel(selectedRating),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0D6B42),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(5, (index) {
+                            final starRating = index + 1;
+                            return IconButton(
+                              tooltip: '$starRating sao',
+                              icon: Icon(
+                                starRating <= selectedRating
+                                    ? Icons.star_rounded
+                                    : Icons.star_border_rounded,
+                                color: const Color(0xFFF59E0B),
+                                size: 42,
+                              ),
+                              onPressed: isSubmitting
+                                  ? null
+                                  : () => setSheetState(() {
+                                        selectedRating = starRating;
+                                      }),
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 18),
+                        TextField(
+                          controller: commentController,
+                          maxLines: 4,
+                          minLines: 4,
+                          maxLength: 500,
+                          enabled: !isSubmitting,
+                          decoration: InputDecoration(
+                            hintText:
+                                'Chia sẻ điều bạn thích hoặc điều cần cải thiện...',
+                            filled: true,
+                            fillColor: const Color(0xFFF7F9FA),
+                            counterStyle: TextStyle(color: Colors.grey.shade500),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade200),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade200),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFF0D6B42)),
+                            ),
+                            contentPadding: const EdgeInsets.all(14),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: isSubmitting
+                                    ? null
+                                    : () => Navigator.of(sheetContext).pop(),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                child: const Text('Để sau'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: isSubmitting
+                                    ? null
+                                    : () async {
+                                        setSheetState(() {
+                                          isSubmitting = true;
+                                        });
+
+                                        try {
+                                          await _tripService.submitReview(
+                                            tripId: tripId,
+                                            targetType: targetType,
+                                            targetId: targetId,
+                                            rating: selectedRating,
+                                            comment:
+                                                commentController.text.trim(),
+                                          );
+
+                                          if (!mounted) {
+                                            return;
+                                          }
+
+                                          Navigator.of(sheetContext).pop();
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Cảm ơn bạn đã gửi đánh giá.',
+                                              ),
+                                              backgroundColor: Color(0xFF0D6B42),
+                                            ),
+                                          );
+                                          await _fetchHistory();
+                                        } catch (e) {
+                                          if (!mounted) {
+                                            return;
+                                          }
+
+                                          setSheetState(() {
+                                            isSubmitting = false;
+                                          });
+                                          final message = e is ApiException
+                                              ? e.message
+                                              : e.toString().replaceFirst('Exception: ', '');
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(message),
+                                              backgroundColor: Colors.redAccent,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0D6B42),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                child: isSubmitting
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Gửi đánh giá',
+                                        style: TextStyle(fontWeight: FontWeight.w800),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _ratingLabel(int rating) {
+    return switch (rating) {
+      1 => 'Không hài lòng',
+      2 => 'Cần cải thiện',
+      3 => 'Ổn',
+      4 => 'Rất tốt',
+      _ => 'Tuyệt vời',
+    };
   }
 
   void _showReviewDialog(int tripId, String targetType, int targetId, String name) {
@@ -835,6 +1253,8 @@ class _HistoryCard extends StatelessWidget {
     required this.dateText,
     required this.extraLines,
     this.onTap,
+    this.detailLabel,
+    this.onDetailTap,
     this.actionLabel,
     this.onActionTap,
   });
@@ -846,6 +1266,8 @@ class _HistoryCard extends StatelessWidget {
   final String dateText;
   final List<String> extraLines;
   final VoidCallback? onTap;
+  final String? detailLabel;
+  final VoidCallback? onDetailTap;
   final String? actionLabel;
   final VoidCallback? onActionTap;
 
@@ -922,35 +1344,44 @@ class _HistoryCard extends StatelessWidget {
                   ),
                 ),
               ],
-              if (onTap != null || actionLabel != null) ...[
+              if (onTap != null || detailLabel != null || actionLabel != null) ...[
                 const SizedBox(height: 12),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     if (onTap != null)
-                      Expanded(
-                        child: InkWell(
-                          onTap: onTap,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Row(
-                              children: [
-                                Text(
-                                  'Xem chi tiet chuyen di',
-                                  style: TextStyle(
-                                    color: Colors.green.shade700,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  Icons.chevron_right,
+                      InkWell(
+                        onTap: onTap,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Xem chi tiet chuyen di',
+                                style: TextStyle(
                                   color: Colors.green.shade700,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.chevron_right,
+                                color: Colors.green.shade700,
+                              ),
+                            ],
                           ),
                         ),
                       ),
+                    if (detailLabel != null) ...[
+                      TextButton.icon(
+                        onPressed: onDetailTap,
+                        icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                        label: Text(detailLabel!),
+                      ),
+                    ],
                     if (actionLabel != null)
                       ElevatedButton(
                         onPressed: onActionTap,

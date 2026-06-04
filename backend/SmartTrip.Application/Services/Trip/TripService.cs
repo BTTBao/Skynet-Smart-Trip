@@ -19,6 +19,7 @@ public class TripService : ITripService
     private const string PendingStatus = "PENDING";
     private const string PaidStatus = "PAID";
     private const string CancelledStatus = "CANCELLED";
+    private const string BookingOnlyStatus = "BOOKING_ONLY";
 
     private readonly IApplicationDbContext _context;
     private readonly IItineraryService _itineraryService;
@@ -49,7 +50,7 @@ public class TripService : ITripService
 
         var trips = await _context.Trips
             .AsNoTracking()
-            .Where(trip => trip.UserId == userId)
+            .Where(trip => trip.UserId == userId && trip.Status != TripStatus.BookingOnly)
             .OrderByDescending(trip => trip.StartDate)
             .ThenByDescending(trip => trip.CreatedAt)
             .Select(trip => new
@@ -182,7 +183,7 @@ public class TripService : ITripService
         var createdTrip = await GetTripSummaryAsync(trip.Id)
             ?? throw new InvalidOperationException("Trip was created but could not be loaded.");
 
-        if (sendCreatedNotification)
+        if (sendCreatedNotification && createdTrip.Status != BookingOnlyStatus)
         {
             await NotifyTripCreatedAsync(createdTrip);
         }
@@ -292,7 +293,10 @@ public class TripService : ITripService
         payment.Amount = amount;
         payment.Status = PaymentStatus.Paid;
         payment.PaidAt = DateTime.UtcNow;
-        trip.Status = TripStatus.Pending;
+        if (trip.Status != TripStatus.BookingOnly)
+        {
+            trip.Status = TripStatus.Pending;
+        }
 
         await _context.SaveChangesAsync();
 
@@ -490,6 +494,7 @@ public class TripService : ITripService
                 TripStatus.Pending => PendingStatus,
                 TripStatus.Paid => PaidStatus,
                 TripStatus.Cancelled => CancelledStatus,
+                TripStatus.BookingOnly => BookingOnlyStatus,
                 _ => DraftStatus
             };
         }
@@ -500,6 +505,7 @@ public class TripService : ITripService
             PendingStatus => PendingStatus,
             PaidStatus => PaidStatus,
             CancelledStatus => CancelledStatus,
+            BookingOnlyStatus => BookingOnlyStatus,
             _ => DraftStatus
         };
     }
@@ -517,6 +523,7 @@ public class TripService : ITripService
             PendingStatus => TripStatus.Pending,
             PaidStatus => TripStatus.Paid,
             CancelledStatus => TripStatus.Cancelled,
+            BookingOnlyStatus => TripStatus.BookingOnly,
             _ => TripStatus.Draft
         };
     }

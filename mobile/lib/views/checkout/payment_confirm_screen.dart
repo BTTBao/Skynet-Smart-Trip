@@ -878,6 +878,61 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     return null;
   }
 
+  Future<bool?> _askTripCreationPreference() {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Bạn có muốn tạo chuyến đi không?'),
+        content: const Text(
+          'Nếu tạo chuyến đi, booking này sẽ được thêm vào lịch trình để bạn quản lý cùng chuyến đi. Nếu không tạo, hệ thống vẫn lưu hóa đơn trong lịch sử hoạt động.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(null),
+            child: const Text('Quay lại'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Không tạo'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF6DE899),
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Tạo/chọn chuyến đi'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<_SelectedCheckoutTrip?> _createBookingOnlyTrip({
+    required int userId,
+    required int? destinationId,
+    required String destinationName,
+  }) async {
+    final tripProvider = context.read<TripProvider>();
+    final createdTrip = await tripProvider.createTrip(
+      CreateTripRequest(
+        userId: userId,
+        destinationId: destinationId,
+        destinationName: destinationName,
+        title: 'Hóa đơn đặt phòng - ${widget.hotel.name}',
+        startDate: widget.checkIn,
+        endDate: widget.checkOut,
+        status: 'BOOKING_ONLY',
+      ),
+    );
+
+    if (createdTrip == null) {
+      throw Exception(tripProvider.error ?? 'Không thể tạo hóa đơn đặt phòng.');
+    }
+
+    return _SelectedCheckoutTrip(tripId: createdTrip.tripId, dayNumber: 1);
+  }
+
   Future<void> _handlePayment() async {
     setState(() => _isProcessing = true);
 
@@ -960,16 +1015,36 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       if (_pendingTripId != null) {
         currentTripId = _pendingTripId!;
       } else {
-        final selectedTrip = widget.existingTripId != null
-            ? _SelectedCheckoutTrip(
-                tripId: widget.existingTripId!,
-                dayNumber: _resolveExistingTripDayNumber(),
-              )
-            : await _selectOrCreateTripForBooking(
-                userId: userId,
-                destinationId: widget.hotel.destinationId,
-                destinationName: hotelDestName,
-              );
+        _SelectedCheckoutTrip? selectedTrip;
+        if (widget.existingTripId != null) {
+          selectedTrip = _SelectedCheckoutTrip(
+            tripId: widget.existingTripId!,
+            dayNumber: _resolveExistingTripDayNumber(),
+          );
+        } else {
+          if (mounted) {
+            setState(() => _isProcessing = false);
+          }
+          final wantsTrip = await _askTripCreationPreference();
+          if (wantsTrip == null) {
+            return;
+          }
+          if (mounted) {
+            setState(() => _isProcessing = true);
+          }
+
+          selectedTrip = wantsTrip
+              ? await _selectOrCreateTripForBooking(
+                  userId: userId,
+                  destinationId: widget.hotel.destinationId,
+                  destinationName: hotelDestName,
+                )
+              : await _createBookingOnlyTrip(
+                  userId: userId,
+                  destinationId: widget.hotel.destinationId,
+                  destinationName: hotelDestName,
+                );
+        }
         if (selectedTrip == null) {
           if (mounted) {
             setState(() => _isProcessing = false);

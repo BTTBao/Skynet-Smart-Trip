@@ -61,7 +61,7 @@ public class UserService : IUserService
 
         var tripsCount = await _context.Trips
             .AsNoTracking()
-            .CountAsync(t => t.UserId == userId);
+            .CountAsync(t => t.UserId == userId && t.Status != TripStatus.BookingOnly);
 
         var vouchersCount = await _context.Promotions
             .AsNoTracking()
@@ -107,9 +107,18 @@ public class UserService : IUserService
             .AsNoTracking()
             .Include(t => t.Destination)
             .Include(t => t.Invoices)
+            .Include(t => t.Payments)
             .Where(t => t.UserId == userId)
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
+
+        static string ResolveHistoryTripStatus(Trip t)
+        {
+            var hasPaidPayment = t.Payments.Any(p => p.Status == PaymentStatus.Paid);
+            return t.Status == TripStatus.BookingOnly && hasPaidPayment
+                ? TripStatus.Paid.ToString()
+                : t.Status?.ToString() ?? TripStatus.Draft.ToString();
+        }
 
         var bookings = trips.Select(t => new BookingHistoryItemDto
         {
@@ -119,12 +128,13 @@ public class UserService : IUserService
             StartDate = t.StartDate?.ToString("yyyy-MM-dd"),
             EndDate = t.EndDate?.ToString("yyyy-MM-dd"),
             TotalAmount = t.TotalAmount ?? 0,
-            Status = t.Status?.ToString() ?? TripStatus.Draft.ToString(),
+            Status = ResolveHistoryTripStatus(t),
             CreatedAt = t.CreatedAt?.ToString("O"),
             InvoiceNumber = t.Invoices
                 .OrderByDescending(i => i.IssuedAt)
                 .Select(i => i.InvoiceNumber)
-                .FirstOrDefault()
+                .FirstOrDefault(),
+            IsBookingOnly = t.Status == TripStatus.BookingOnly
         }).ToList();
 
         var hotelItineraries = await _context.TripItineraries
@@ -171,8 +181,13 @@ public class UserService : IUserService
                     CheckOutDate = trip?.EndDate?.ToString("yyyy-MM-dd"),
                     Quantity = i.Quantity ?? 0,
                     BookedPrice = i.BookedPrice ?? 0,
-                    Status = trip?.Status?.ToString() ?? TripStatus.Draft.ToString(),
-                    IsReviewed = isReviewed
+                    Status = trip != null ? ResolveHistoryTripStatus(trip) : TripStatus.Draft.ToString(),
+                    IsReviewed = isReviewed,
+                    IsBookingOnly = trip?.Status == TripStatus.BookingOnly,
+                    InvoiceNumber = trip?.Invoices
+                        .OrderByDescending(invoice => invoice.IssuedAt)
+                        .Select(invoice => invoice.InvoiceNumber)
+                        .FirstOrDefault()
                 };
             })
             .ToList();
@@ -222,9 +237,14 @@ public class UserService : IUserService
                     ArrivalTime = schedule?.ArrivalTime?.ToString("O"),
                     Quantity = i.Quantity ?? 0,
                     BookedPrice = i.BookedPrice ?? 0,
-                    Status = trip?.Status?.ToString() ?? TripStatus.Draft.ToString(),
+                    Status = trip != null ? ResolveHistoryTripStatus(trip) : TripStatus.Draft.ToString(),
                     IsReviewed = isReviewed,
-                    SelectedSeats = i.SelectedSeats
+                    SelectedSeats = i.SelectedSeats,
+                    IsBookingOnly = trip?.Status == TripStatus.BookingOnly,
+                    InvoiceNumber = trip?.Invoices
+                        .OrderByDescending(invoice => invoice.IssuedAt)
+                        .Select(invoice => invoice.InvoiceNumber)
+                        .FirstOrDefault()
                 };
             })
             .ToList();
@@ -254,7 +274,8 @@ public class UserService : IUserService
                     PaidAt = p.PaidAt?.ToString("O"),
                     TransactionId = p.TransactionId,
                     InvoiceNumber = latestInvoice?.InvoiceNumber,
-                    InvoicePdfUrl = latestInvoice?.PdfUrl
+                    InvoicePdfUrl = latestInvoice?.PdfUrl,
+                    IsBookingOnly = p.Trip?.Status == TripStatus.BookingOnly
                 };
             })
             .ToList();

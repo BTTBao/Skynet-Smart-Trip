@@ -379,7 +379,19 @@ public class TripController : ControllerBase
             };
 
             _context.Payments.Add(payment);
-            trip.Status = TripStatus.Paid;
+            if (trip.Status != TripStatus.BookingOnly)
+            {
+                trip.Status = TripStatus.Paid;
+            }
+
+            var invoice = new Invoice
+            {
+                TripId = tripId,
+                InvoiceNumber = $"INV-{tripId:D6}-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                TaxAmount = 0,
+                IssuedAt = DateTime.UtcNow
+            };
+            _context.Invoices.Add(invoice);
 
             // If it is a BUS booking, book the corresponding seats!
             var busItinerary = trip.TripItineraries
@@ -422,6 +434,27 @@ public class TripController : ControllerBase
             }
 
             await _context.SaveChangesAsync();
+
+            try
+            {
+                var isBusBooking = busItinerary != null;
+                await _notificationService.CreateAsync(new CreateNotificationDto
+                {
+                    UserId = trip.UserId ?? 0,
+                    Title = isBusBooking ? "Đặt vé xe thành công" : "Đặt phòng thành công",
+                    Message = isBusBooking
+                        ? $"Vé xe \"{trip.Title ?? "booking"}\" đã được thanh toán và lưu vào lịch sử hoạt động."
+                        : $"Đặt phòng \"{trip.Title ?? "booking"}\" đã được thanh toán và lưu vào lịch sử hoạt động.",
+                    Type = isBusBooking ? "booking.bus_paid" : "booking.hotel_paid",
+                    ReferenceType = "booking",
+                    ReferenceId = trip.Id,
+                    ActionUrl = $"/activity/invoices/{trip.Id}"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to create booking notification for trip {TripId}", trip.Id);
+            }
 
              // Send booking confirmation email asynchronously
              _ = Task.Run(async () =>
