@@ -635,7 +635,8 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
         userId: userId,
         destinationId: schedule.toDestId,
         destinationName: schedule.toDestName,
-        title: 'Hóa đơn vé xe - ${schedule.fromDestName} đến ${schedule.toDestName}',
+        title:
+            'Hóa đơn vé xe - ${schedule.fromDestName} đến ${schedule.toDestName}',
         startDate: schedule.departureTime,
         endDate: schedule.arrivalTime,
         status: 'BOOKING_ONLY',
@@ -736,10 +737,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                 userId: userId,
                 schedule: schedule,
               )
-            : await _createBookingOnlyTrip(
-                userId: userId,
-                schedule: schedule,
-              );
+            : await _createBookingOnlyTrip(userId: userId, schedule: schedule);
         if (selectedTrip == null) {
           return;
         }
@@ -1285,7 +1283,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Chọn Voucher của bạn',
+                    'Chọn mã khuyến mãi khả dụng',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -1304,7 +1302,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24.0),
                     child: Text(
-                      'Túi đồ trống. Bạn không có voucher khả dụng.',
+                      'Hiện không có mã khuyến mãi khả dụng.',
                       style: TextStyle(color: Colors.grey[500]),
                     ),
                   ),
@@ -1918,14 +1916,6 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                 }
                 return null;
               },
-            ),
-            const SizedBox(height: 14),
-            _buildPassengerTextField(
-              label: 'Ghi chú / Yêu cầu đặc biệt',
-              hint: 'Ví dụ: Ghế tầng dưới, không say xe...',
-              controller: _passengerNotesController,
-              maxLines: 2,
-              icon: Icons.chat_bubble_outline,
             ),
           ],
         ),

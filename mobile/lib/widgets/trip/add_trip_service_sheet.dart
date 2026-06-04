@@ -390,6 +390,9 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
         serviceType: _isNote ? 'NOTE' : _selectedOption!.serviceType,
         serviceId: _isNote ? 1 : _selectedOption!.serviceId,
         quantity: _isNote ? 1 : quantity,
+        adultCount: !_isNote && _selectedOption!.serviceType.toUpperCase() == 'HOTEL'
+            ? quantity
+            : 1,
         bookedPrice: _isNote ? 0 : price,
         bookedCommissionRate: _isNote ? 0 : _selectedOption!.defaultCommissionRate,
         serviceDate: _selectedServiceDate,

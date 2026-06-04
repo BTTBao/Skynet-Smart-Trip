@@ -36,7 +36,9 @@ String _getDefaultOriginForCity(String cityName) {
     return 'Tháp Trầm Hương, Nha Trang';
   } else if (name.contains('đà nẵng') || name.contains('da nang')) {
     return 'Cầu Rồng, Đà Nẵng';
-  } else if (name.contains('hồ chí minh') || name.contains('saigon') || name.contains('hcm')) {
+  } else if (name.contains('hồ chí minh') ||
+      name.contains('saigon') ||
+      name.contains('hcm')) {
     return 'Chợ Bến Thành, Quận 1, Hồ Chí Minh';
   } else if (name.contains('hà nội') || name.contains('ha noi')) {
     return 'Hồ Hoàn Kiếm, Hà Nội';
@@ -75,14 +77,19 @@ class _TransportTicketScreenState extends State<TransportTicketScreen> {
               SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               ),
               SizedBox(width: 12),
               Text('Đang tải vé điện tử về máy...'),
             ],
           ),
           backgroundColor: _kPrimary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 1),
         ),
@@ -90,7 +97,9 @@ class _TransportTicketScreenState extends State<TransportTicketScreen> {
 
       await Future.delayed(const Duration(milliseconds: 100));
 
-      final boundary = _boundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      final boundary =
+          _boundaryKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) {
         throw Exception("Không thể tìm thấy khung hình vé.");
       }
@@ -102,7 +111,8 @@ class _TransportTicketScreenState extends State<TransportTicketScreen> {
       }
 
       final bytes = byteData.buffer.asUint8List();
-      final filename = 'SmartTrip_Ticket_SKN_${widget.bookingId.toString().padLeft(4, '0')}.png';
+      final filename =
+          'SmartTrip_Ticket_SKN_${widget.bookingId.toString().padLeft(6, '0')}.png';
 
       final success = await FileSaver.saveImage(bytes, filename);
 
@@ -113,15 +123,23 @@ class _TransportTicketScreenState extends State<TransportTicketScreen> {
             content: Row(
               children: [
                 Icon(
-                  success ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
+                  success
+                      ? Icons.check_circle_outline_rounded
+                      : Icons.error_outline_rounded,
                   color: Colors.white,
                 ),
                 const SizedBox(width: 10),
-                Text(success ? 'Đã tải vé thành công!' : 'Tải vé thất bại. Vui lòng thử lại.'),
+                Text(
+                  success
+                      ? 'Đã tải vé thành công!'
+                      : 'Tải vé thất bại. Vui lòng thử lại.',
+                ),
               ],
             ),
             backgroundColor: success ? _kPrimary : Colors.redAccent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -139,7 +157,9 @@ class _TransportTicketScreenState extends State<TransportTicketScreen> {
               ],
             ),
             backgroundColor: Colors.redAccent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -153,7 +173,7 @@ class _TransportTicketScreenState extends State<TransportTicketScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final code = 'SKN-${widget.bookingId.toString().padLeft(4, '0')}';
+    final code = 'SKN-${widget.bookingId.toString().padLeft(6, '0')}';
 
     return Scaffold(
       backgroundColor: _kBg,
@@ -200,7 +220,11 @@ class _TransportTicketScreenState extends State<TransportTicketScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.headset_mic_rounded, color: Colors.grey[400], size: 16),
+                  Icon(
+                    Icons.headset_mic_rounded,
+                    color: Colors.grey[400],
+                    size: 16,
+                  ),
                   const SizedBox(width: 8),
                   RichText(
                     text: TextSpan(
@@ -210,7 +234,9 @@ class _TransportTicketScreenState extends State<TransportTicketScreen> {
                         TextSpan(
                           text: widget.schedule.companyHotline,
                           style: const TextStyle(
-                              fontWeight: FontWeight.bold, color: _kPrimary),
+                            fontWeight: FontWeight.bold,
+                            color: _kPrimary,
+                          ),
                         ),
                       ],
                     ),
@@ -262,12 +288,19 @@ class _SuccessHeader extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.home_rounded, color: Colors.white, size: 18),
+                  child: const Icon(
+                    Icons.home_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                 ),
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(20),
@@ -275,13 +308,20 @@ class _SuccessHeader extends StatelessWidget {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.receipt_long_rounded, color: Colors.white, size: 14),
+                    Icon(
+                      Icons.receipt_long_rounded,
+                      color: Colors.white,
+                      size: 14,
+                    ),
                     SizedBox(width: 6),
-                    Text('Vé của tôi',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12)),
+                    Text(
+                      'Vé của tôi',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -303,28 +343,37 @@ class _SuccessHeader extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Icon(Icons.check_circle_rounded,
-                color: _kPrimary, size: 44),
+            child: const Icon(
+              Icons.check_circle_rounded,
+              color: _kPrimary,
+              size: 44,
+            ),
           ),
           const SizedBox(height: 16),
           const Text(
             'Đặt vé thành công!',
             style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24),
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 24,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'Mã đặt chỗ: $code',
             style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.85),
-                fontSize: 14,
-                letterSpacing: 0.5),
+              color: Colors.white.withValues(alpha: 0.85),
+              fontSize: 14,
+              letterSpacing: 0.5,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'Xuất trình mã QR bên dưới khi lên xe',
             style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 12,
+            ),
           ),
         ],
       ),
@@ -351,7 +400,7 @@ class _BoardingPassTicket extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final code = 'BOOKING-#SKN-${bookingId.toString().padLeft(4, '0')}';
+    final code = 'SKN-${bookingId.toString().padLeft(6, '0')}';
 
     return Container(
       decoration: BoxDecoration(
@@ -375,29 +424,38 @@ class _BoardingPassTicket extends StatelessWidget {
                 // Label row
                 Row(
                   children: [
-                    const Icon(Icons.directions_bus_rounded,
-                        color: _kPrimary, size: 18),
+                    const Icon(
+                      Icons.directions_bus_rounded,
+                      color: _kPrimary,
+                      size: 18,
+                    ),
                     const SizedBox(width: 8),
-                    const Text('LIMOUSINE TICKET',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: _kPrimary,
-                            letterSpacing: 1)),
+                    const Text(
+                      'LIMOUSINE TICKET',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: _kPrimary,
+                        letterSpacing: 1,
+                      ),
+                    ),
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE8F5EE),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        'SKN-${bookingId.toString().padLeft(4, '0')}',
+                        'SKN-${bookingId.toString().padLeft(6, '0')}',
                         style: const TextStyle(
-                            color: _kPrimary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12),
+                          color: _kPrimary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ],
@@ -436,19 +494,24 @@ class _BoardingPassTicket extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text(code,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                letterSpacing: 0.8,
-                                color: Colors.black87)),
+                        Text(
+                          code,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            letterSpacing: 0.8,
+                            color: Colors.black87,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text('Quét mã QR khi lên xe',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                Text(
+                  'Quét mã QR khi lên xe',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                ),
               ],
             ),
           ),
@@ -469,15 +532,20 @@ class _BoardingPassTicket extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(schedule.fromDestName,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  color: Colors.black87)),
+                          Text(
+                            schedule.fromDestName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Colors.black87,
+                            ),
+                          ),
                           Text(
                             '${formatTime(schedule.departureTime)} • ${formatDate(schedule.departureTime)}',
                             style: TextStyle(
-                                color: Colors.grey[500], fontSize: 12),
+                              color: Colors.grey[500],
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
@@ -490,36 +558,49 @@ class _BoardingPassTicket extends StatelessWidget {
                           Row(
                             children: [
                               Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: const BoxDecoration(
-                                      color: _kPrimary,
-                                      shape: BoxShape.circle)),
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: _kPrimary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
                               Container(
-                                  width: 40,
-                                  height: 1.5,
-                                  color: Colors.grey[200]),
-                              const Icon(Icons.directions_bus_rounded,
-                                  color: _kPrimary, size: 18),
+                                width: 40,
+                                height: 1.5,
+                                color: Colors.grey[200],
+                              ),
+                              const Icon(
+                                Icons.directions_bus_rounded,
+                                color: _kPrimary,
+                                size: 18,
+                              ),
                               Container(
-                                  width: 40,
-                                  height: 1.5,
-                                  color: Colors.grey[200]),
+                                width: 40,
+                                height: 1.5,
+                                color: Colors.grey[200],
+                              ),
                               Container(
                                 width: 6,
                                 height: 6,
                                 decoration: BoxDecoration(
                                   border: Border.all(
-                                      color: Colors.grey[400]!, width: 1.5),
+                                    color: Colors.grey[400]!,
+                                    width: 1.5,
+                                  ),
                                   shape: BoxShape.circle,
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 2),
-                          Text(schedule.duration,
-                              style: TextStyle(
-                                  color: Colors.grey[400], fontSize: 10)),
+                          Text(
+                            schedule.duration,
+                            style: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 10,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -528,15 +609,20 @@ class _BoardingPassTicket extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(schedule.toDestName,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  color: Colors.black87)),
+                          Text(
+                            schedule.toDestName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Colors.black87,
+                            ),
+                          ),
                           Text(
                             '${formatTime(schedule.arrivalTime)} • ${formatDate(schedule.arrivalTime)}',
                             style: TextStyle(
-                                color: Colors.grey[500], fontSize: 12),
+                              color: Colors.grey[500],
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
@@ -574,23 +660,31 @@ class _BoardingPassTicket extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.location_on_rounded,
-                          color: _kPrimary, size: 18),
+                      const Icon(
+                        Icons.location_on_rounded,
+                        color: _kPrimary,
+                        size: 18,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Điểm đón',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 13)),
+                            const Text(
+                              'Điểm đón',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             Text(
                               'Bến xe trung tâm ${schedule.fromDestName}. Có mặt trước giờ chạy 15 phút tại quầy ${schedule.companyName}.',
                               style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                  height: 1.5),
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                                height: 1.5,
+                              ),
                             ),
                           ],
                         ),
@@ -606,7 +700,6 @@ class _BoardingPassTicket extends StatelessWidget {
     );
   }
 }
-
 
 // ─── Ticket Notch ─────────────────────────────────────────────────────────────
 
@@ -687,18 +780,24 @@ class _TicketInfoField extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: TextStyle(
-                  color: Colors.grey[500],
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5)),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.grey[500],
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(value,
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: valueColor ?? Colors.black87)),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: valueColor ?? Colors.black87,
+            ),
+          ),
         ],
       ),
     );
@@ -748,11 +847,14 @@ class _ActionButtons extends StatelessWidget {
               children: [
                 Icon(Icons.download_rounded, color: Colors.white, size: 20),
                 SizedBox(width: 10),
-                Text('Tải vé về máy',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15)),
+                Text(
+                  'Tải vé về máy',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
               ],
             ),
           ),
@@ -764,8 +866,12 @@ class _ActionButtons extends StatelessWidget {
           onTap: () async {
             final startPoint = _getDefaultOriginForCity(schedule.fromDestName);
             final origin = Uri.encodeComponent(startPoint);
-            final destination = Uri.encodeComponent('Bến xe trung tâm ${schedule.fromDestName}');
-            final url = Uri.parse('https://www.google.com/maps/dir/?api=1&origin=$origin&destination=$destination');
+            final destination = Uri.encodeComponent(
+              'Bến xe trung tâm ${schedule.fromDestName}',
+            );
+            final url = Uri.parse(
+              'https://www.google.com/maps/dir/?api=1&origin=$origin&destination=$destination',
+            );
             try {
               await launchUrl(url, mode: LaunchMode.externalApplication);
             } catch (_) {
@@ -774,7 +880,9 @@ class _ActionButtons extends StatelessWidget {
                   SnackBar(
                     content: const Text('Không thể mở bản đồ.'),
                     backgroundColor: Colors.redAccent,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
@@ -794,11 +902,14 @@ class _ActionButtons extends StatelessWidget {
               children: [
                 Icon(Icons.map_rounded, color: _kPrimary, size: 20),
                 SizedBox(width: 10),
-                Text('Xem bản đồ điểm đón',
-                    style: TextStyle(
-                        color: _kPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15)),
+                Text(
+                  'Xem bản đồ điểm đón',
+                  style: TextStyle(
+                    color: _kPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
               ],
             ),
           ),
@@ -807,8 +918,7 @@ class _ActionButtons extends StatelessWidget {
 
         // Back to home
         GestureDetector(
-          onTap: () =>
-              Navigator.of(context).popUntil((route) => route.isFirst),
+          onTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 15),
@@ -821,11 +931,14 @@ class _ActionButtons extends StatelessWidget {
               children: [
                 Icon(Icons.home_rounded, color: Colors.grey[600], size: 20),
                 const SizedBox(width: 10),
-                Text('Về trang chủ',
-                    style: TextStyle(
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15)),
+                Text(
+                  'Về trang chủ',
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
               ],
             ),
           ),

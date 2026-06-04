@@ -589,6 +589,7 @@ class _ChatbotViewState extends State<ChatbotView> {
                   checkInDate: checkIn,
                   checkOutDate: checkOut,
                   quantity: roomQuantity,
+                  adultCount: roomQuantity,
                 ),
               );
 

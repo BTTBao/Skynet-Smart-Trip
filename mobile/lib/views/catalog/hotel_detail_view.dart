@@ -357,6 +357,7 @@ class _HotelDetailViewState extends State<HotelDetailView> {
                   checkInDate: checkIn,
                   checkOutDate: checkOut,
                   quantity: roomQuantity,
+                  adultCount: roomQuantity,
                 ),
               );
 
@@ -799,6 +800,7 @@ class _HotelDetailViewState extends State<HotelDetailView> {
                   serviceType: 'HOTEL',
                   serviceId: selectedRoom.id,
                   quantity: roomQuantity,
+                  adultCount: roomQuantity,
                   bookedPrice: selectedRoom.pricePerNight * nights,
                   serviceDate: checkIn,
                 ),

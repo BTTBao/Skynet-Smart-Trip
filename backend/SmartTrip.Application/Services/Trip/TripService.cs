@@ -222,7 +222,10 @@ public class TripService : ITripService
                     DayNumber = 1,
                     ServiceType = "HOTEL",
                     ServiceId = request.RoomId,
-                    Quantity = request.Quantity
+                    Quantity = request.Quantity,
+                    AdultCount = request.AdultCount,
+                    ChildCount = request.ChildCount,
+                    InfantCount = request.InfantCount
                 });
 
                 await transaction.CommitAsync();

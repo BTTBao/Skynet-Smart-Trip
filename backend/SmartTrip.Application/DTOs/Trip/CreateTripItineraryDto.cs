@@ -21,4 +21,10 @@ public class CreateTripItineraryDto
     public string? ServiceAddress { get; set; }
 
     public string? SelectedSeats { get; set; }
+
+    public int AdultCount { get; set; } = 1;
+
+    public int ChildCount { get; set; }
+
+    public int InfantCount { get; set; }
 }

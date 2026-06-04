@@ -115,6 +115,25 @@ public class TripController : ControllerBase
     {
         try
         {
+            var currentUser = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(user => user.Id == GetCurrentUserId());
+            if (currentUser == null)
+            {
+                return Unauthorized();
+            }
+
+            var missingProfileFields = GetMissingHotelBookingProfileFields(currentUser);
+            if (missingProfileFields.Count > 0)
+            {
+                return Conflict(new
+                {
+                    code = "PROFILE_INCOMPLETE",
+                    message = "Vui long hoan tat ho so truoc khi dat phong.",
+                    missingFields = missingProfileFields
+                });
+            }
+
             var strategy = _context.Database.CreateExecutionStrategy();
 
             return await strategy.ExecuteAsync<IActionResult>(async () =>
@@ -141,7 +160,26 @@ public class TripController : ControllerBase
                     return NotFound(new { message = "Room was not found for this hotel or is not available." });
                 }
 
+                var guestCapacityError = ValidateHotelGuestCapacity(
+                    room.Capacity.GetValueOrDefault(1),
+                    request.Quantity,
+                    request.AdultCount,
+                    request.ChildCount,
+                    request.InfantCount);
+                if (guestCapacityError != null)
+                {
+                    return BadRequest(new { message = guestCapacityError });
+                }
+
                 var nights = Math.Max(1, request.CheckOutDate.DayNumber - request.CheckInDate.DayNumber);
+                var extraGuestCount = Math.Max(
+                    0,
+                    request.AdultCount + request.ChildCount -
+                    room.Capacity.GetValueOrDefault(1) * request.Quantity);
+                var roomPrice = room.PricePerNight.GetValueOrDefault();
+                var totalRoomPrice =
+                    roomPrice * nights * request.Quantity +
+                    roomPrice * 0.2m * nights * extraGuestCount;
                 var trip = await _tripService.CreateTripAsync(new CreateTripDto
                 {
                     UserId = GetCurrentUserId(),
@@ -161,7 +199,10 @@ public class TripController : ControllerBase
                     ServiceType = "HOTEL",
                     ServiceId = request.RoomId,
                     Quantity = request.Quantity,
-                    BookedPrice = (room.PricePerNight ?? 0) * nights,
+                    AdultCount = request.AdultCount,
+                    ChildCount = request.ChildCount,
+                    InfantCount = request.InfantCount,
+                    BookedPrice = totalRoomPrice / request.Quantity,
                     BookedCommissionRate = room.CommissionRate,
                     ServiceDate = request.CheckInDate
                 });
@@ -237,6 +278,28 @@ public class TripController : ControllerBase
             if (!await UserOwnsTripAsync(tripId))
             {
                 return Forbid();
+            }
+
+            if (string.Equals(request.ServiceType, "HOTEL", StringComparison.OrdinalIgnoreCase))
+            {
+                var currentUser = await _context.Users
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(user => user.Id == GetCurrentUserId());
+                if (currentUser == null)
+                {
+                    return Unauthorized();
+                }
+
+                var missingProfileFields = GetMissingHotelBookingProfileFields(currentUser);
+                if (missingProfileFields.Count > 0)
+                {
+                    return Conflict(new
+                    {
+                        code = "PROFILE_INCOMPLETE",
+                        message = "Vui long hoan tat ho so truoc khi dat phong.",
+                        missingFields = missingProfileFields
+                    });
+                }
             }
 
             var itinerary = await _itineraryService.AddItineraryAsync(tripId, request);
@@ -353,6 +416,8 @@ public class TripController : ControllerBase
             var trip = await _context.Trips
                 .Include(t => t.User)
                 .Include(t => t.TripItineraries)
+                .Include(t => t.Payments)
+                .Include(t => t.Invoices)
                 .FirstOrDefaultAsync(t => t.Id == tripId);
 
             if (trip == null)
@@ -360,10 +425,25 @@ public class TripController : ControllerBase
                 return NotFound(new { message = $"Trip {tripId} was not found." });
             }
 
+            if (trip.Payments.Any(item => item.Status == PaymentStatus.Paid) ||
+                trip.Invoices.Any())
+            {
+                return Conflict(new { message = "Booking da duoc thanh toan va phat hanh hoa don." });
+            }
+
+            if (request.Amount < 0)
+            {
+                return BadRequest(new { message = "So tien thanh toan khong hop le." });
+            }
+
             // Parse payment method
             if (!Enum.TryParse<PaymentMethod>(request.PaymentMethod, true, out var method))
             {
                 method = PaymentMethod.Card;
+            }
+            if (request.Amount == 0 && method != PaymentMethod.Promotion)
+            {
+                return BadRequest(new { message = "Thanh toan 0 dong chi hop le khi dung khuyen mai." });
             }
 
             var payment = new Payment
@@ -373,7 +453,7 @@ public class TripController : ControllerBase
                 TransactionId = string.IsNullOrWhiteSpace(request.TransactionId) 
                     ? $"PAY-{tripId}-{DateTime.UtcNow:yyyyMMddHHmmss}" 
                     : request.TransactionId,
-                Amount = request.Amount > 0 ? request.Amount : trip.TotalAmount,
+                Amount = request.Amount,
                 Status = PaymentStatus.Paid,
                 PaidAt = DateTime.UtcNow
             };
@@ -387,7 +467,7 @@ public class TripController : ControllerBase
             var invoice = new Invoice
             {
                 TripId = tripId,
-                InvoiceNumber = $"INV-{tripId:D6}-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                InvoiceNumber = $"INV-{DateTime.UtcNow:yyyyMMdd}-{tripId:D6}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
                 TaxAmount = 0,
                 IssuedAt = DateTime.UtcNow
             };
@@ -476,7 +556,7 @@ public class TripController : ControllerBase
                          var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == dbTrip.UserId);
                          if (user != null && !string.IsNullOrWhiteSpace(user.Email))
                          {
-                             var bookingCode = $"ST{dbTrip.Id}";
+                             var bookingCode = $"SKN-{dbTrip.Id:D6}";
                              
                              var busItinerary = dbTrip.TripItineraries
                                  .FirstOrDefault(i => i.ServiceType == TripServiceType.Bus);
@@ -635,6 +715,75 @@ public class TripController : ControllerBase
             return userId;
         }
         throw new ArgumentException("User is not authenticated or invalid user ID.");
+    }
+
+    private static List<string> GetMissingHotelBookingProfileFields(User user)
+    {
+        var missingFields = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(user.FullName))
+        {
+            missingFields.Add("name");
+        }
+
+        var phone = user.Phone?.Trim();
+        if (string.IsNullOrWhiteSpace(phone) ||
+            phone.Length < 10 ||
+            phone.Length > 11 ||
+            !phone.All(char.IsDigit))
+        {
+            missingFields.Add("phone");
+        }
+
+        if (!user.BirthDate.HasValue || user.BirthDate.Value.Date >= DateTime.UtcNow.Date)
+        {
+            missingFields.Add("birthDate");
+        }
+
+        var identityNumber = user.IdentityNumber?.Trim();
+        if (string.IsNullOrWhiteSpace(identityNumber) ||
+            (identityNumber.Length != 9 && identityNumber.Length != 12) ||
+            !identityNumber.All(char.IsDigit))
+        {
+            missingFields.Add("identityNumber");
+        }
+
+        if (string.IsNullOrWhiteSpace(user.IdentityCardPhotoUrl))
+        {
+            missingFields.Add("identityCardPhoto");
+        }
+
+        return missingFields;
+    }
+
+    private static string? ValidateHotelGuestCapacity(
+        int roomCapacity,
+        int roomQuantity,
+        int adultCount,
+        int childCount,
+        int infantCount)
+    {
+        if (roomQuantity <= 0 || childCount < 0 || infantCount < 0)
+        {
+            return "So luong phong hoac khach khong hop le.";
+        }
+        if (adultCount < roomQuantity)
+        {
+            return "Moi phong phai co it nhat mot nguoi lon.";
+        }
+
+        var capacity = Math.Max(roomCapacity, 1);
+        var maximumCapacity = (capacity + 1) * roomQuantity;
+        if (adultCount + childCount > maximumCapacity)
+        {
+            return $"Toi da {maximumCapacity} khach cho {roomQuantity} phong, bao gom toi da 1 khach phu thu moi phong.";
+        }
+        if (infantCount > roomQuantity)
+        {
+            return "Moi phong chi duoc khai bao toi da mot em be duoi 2 tuoi.";
+        }
+
+        return null;
     }
 
     private async Task<bool> UserOwnsTripAsync(int tripId)

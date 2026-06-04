@@ -141,7 +141,9 @@ class _ExploreViewState extends State<ExploreView> {
                       selectedCategory: _selectedCategory,
                       onCategoryTap: (cat) {
                         setState(() {
-                          _selectedCategory = _selectedCategory == cat ? null : cat;
+                          _selectedCategory = _selectedCategory == cat
+                              ? null
+                              : cat;
                           _postsLimit = 5;
                         });
                       },
@@ -187,9 +189,7 @@ class _ExploreViewState extends State<ExploreView> {
 
                   // ── Feed bài viết cộng đồng ──────────────────────────────
                   if (exploreProvider.isLoading)
-                    const SliverToBoxAdapter(
-                      child: _LoadingState(),
-                    )
+                    const SliverToBoxAdapter(child: _LoadingState())
                   else if (exploreProvider.error != null &&
                       exploreProvider.posts.isEmpty)
                     SliverToBoxAdapter(
@@ -223,7 +223,9 @@ class _ExploreViewState extends State<ExploreView> {
                               ),
                             );
                           },
-                          childCount: exploreProvider.posts.length > _postsLimit ? _postsLimit : exploreProvider.posts.length,
+                          childCount: exploreProvider.posts.length > _postsLimit
+                              ? _postsLimit
+                              : exploreProvider.posts.length,
                         ),
                       ),
                     ),
@@ -240,25 +242,34 @@ class _ExploreViewState extends State<ExploreView> {
                               },
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: ExploreColors.primary,
-                                side: const BorderSide(color: ExploreColors.primary, width: 1.5),
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                side: const BorderSide(
+                                  color: ExploreColors.primary,
+                                  width: 1.5,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 12,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                               ),
-                              icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                              icon: const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                              ),
                               label: const Text(
                                 'Hiển thị thêm bài viết',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                           ),
                         ),
                       )
                     else
-                      const SliverToBoxAdapter(
-                        child: SizedBox(height: 100),
-                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 100)),
                   ],
                 ],
               ),
@@ -283,8 +294,12 @@ class _ExploreViewState extends State<ExploreView> {
       isScrollControlled: true,
       builder: (sheetContext) {
         return Container(
-          padding:
-              const EdgeInsets.only(left: 24, right: 24, top: 16, bottom: 24),
+          padding: const EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 16,
+            bottom: 24,
+          ),
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -366,7 +381,8 @@ class _ExploreViewState extends State<ExploreView> {
                       final citySlug = _resolveExploreCitySlug(destination);
                       Navigator.pop(sheetContext);
 
-                      final shell = MainShell.maybeOf(context) ??
+                      final shell =
+                          MainShell.maybeOf(context) ??
                           MainShell.maybeOf(sheetContext);
                       if (shell != null) {
                         shell.openExplore(
@@ -389,8 +405,11 @@ class _ExploreViewState extends State<ExploreView> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.menu_book_rounded,
-                            color: Colors.green[800], size: 16),
+                        Icon(
+                          Icons.menu_book_rounded,
+                          color: Colors.green[800],
+                          size: 16,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           'Đọc cẩm nang chi tiết về $destination',
@@ -475,8 +494,11 @@ class _ExploreViewState extends State<ExploreView> {
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios_rounded,
-                    color: Colors.white70, size: 16),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.white70,
+                  size: 16,
+                ),
               ],
             ),
           ),
@@ -497,19 +519,74 @@ class _ExploreViewState extends State<ExploreView> {
 
   String _normalize(String value) {
     const replacements = {
-      'đ': 'd', 'Đ': 'd',
-      'à': 'a', 'á': 'a', 'ạ': 'a', 'ả': 'a', 'ã': 'a',
-      'ă': 'a', 'ằ': 'a', 'ắ': 'a', 'ặ': 'a', 'ẳ': 'a', 'ẵ': 'a',
-      'â': 'a', 'ầ': 'a', 'ấ': 'a', 'ậ': 'a', 'ẩ': 'a', 'ẫ': 'a',
-      'è': 'e', 'é': 'e', 'ẹ': 'e', 'ẻ': 'e', 'ẽ': 'e',
-      'ê': 'e', 'ề': 'e', 'ế': 'e', 'ệ': 'e', 'ể': 'e', 'ễ': 'e',
-      'ì': 'i', 'í': 'i', 'ị': 'i', 'ỉ': 'i', 'ĩ': 'i',
-      'ò': 'o', 'ó': 'o', 'ọ': 'o', 'ỏ': 'o', 'õ': 'o',
-      'ô': 'o', 'ồ': 'o', 'ố': 'o', 'ộ': 'o', 'ổ': 'o', 'ỗ': 'o',
-      'ơ': 'o', 'ờ': 'o', 'ớ': 'o', 'ợ': 'o', 'ở': 'o', 'ỡ': 'o',
-      'ù': 'u', 'ú': 'u', 'ụ': 'u', 'ủ': 'u', 'ũ': 'u',
-      'ư': 'u', 'ừ': 'u', 'ứ': 'u', 'ự': 'u', 'ử': 'u', 'ữ': 'u',
-      'ỳ': 'y', 'ý': 'y', 'ỵ': 'y', 'ỷ': 'y', 'ỹ': 'y',
+      'đ': 'd',
+      'Đ': 'd',
+      'à': 'a',
+      'á': 'a',
+      'ạ': 'a',
+      'ả': 'a',
+      'ã': 'a',
+      'ă': 'a',
+      'ằ': 'a',
+      'ắ': 'a',
+      'ặ': 'a',
+      'ẳ': 'a',
+      'ẵ': 'a',
+      'â': 'a',
+      'ầ': 'a',
+      'ấ': 'a',
+      'ậ': 'a',
+      'ẩ': 'a',
+      'ẫ': 'a',
+      'è': 'e',
+      'é': 'e',
+      'ẹ': 'e',
+      'ẻ': 'e',
+      'ẽ': 'e',
+      'ê': 'e',
+      'ề': 'e',
+      'ế': 'e',
+      'ệ': 'e',
+      'ể': 'e',
+      'ễ': 'e',
+      'ì': 'i',
+      'í': 'i',
+      'ị': 'i',
+      'ỉ': 'i',
+      'ĩ': 'i',
+      'ò': 'o',
+      'ó': 'o',
+      'ọ': 'o',
+      'ỏ': 'o',
+      'õ': 'o',
+      'ô': 'o',
+      'ồ': 'o',
+      'ố': 'o',
+      'ộ': 'o',
+      'ổ': 'o',
+      'ỗ': 'o',
+      'ơ': 'o',
+      'ờ': 'o',
+      'ớ': 'o',
+      'ợ': 'o',
+      'ở': 'o',
+      'ỡ': 'o',
+      'ù': 'u',
+      'ú': 'u',
+      'ụ': 'u',
+      'ủ': 'u',
+      'ũ': 'u',
+      'ư': 'u',
+      'ừ': 'u',
+      'ứ': 'u',
+      'ự': 'u',
+      'ử': 'u',
+      'ữ': 'u',
+      'ỳ': 'y',
+      'ý': 'y',
+      'ỵ': 'y',
+      'ỷ': 'y',
+      'ỹ': 'y',
     };
 
     var result = value.trim().toLowerCase().replaceAll(' ', '-');
@@ -716,8 +793,9 @@ class _CategorySection extends StatelessWidget {
                             boxShadow: [
                               BoxShadow(
                                 color: isSelected
-                                    ? ExploreColors.primary
-                                        .withValues(alpha: 0.3)
+                                    ? ExploreColors.primary.withValues(
+                                        alpha: 0.3,
+                                      )
                                     : Colors.black.withValues(alpha: 0.03),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
@@ -837,7 +915,10 @@ class _PromotionSection extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         promo['subtitle'] as String,
-                        style: const TextStyle(color: Colors.white70, fontSize: 11),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                        ),
                       ),
                       const SizedBox(height: 10),
                       Container(
@@ -910,7 +991,7 @@ class _DestinationsSectionState extends State<_DestinationsSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Điểm đến phổ biến',
+            'Điểm đến nổi bật',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 18,
@@ -974,10 +1055,12 @@ class _DestinationsSectionState extends State<_DestinationsSection> {
     final filtered = widget.destProvider.destinations.where((dest) {
       if (widget.searchQuery.isNotEmpty) {
         final match =
-            dest.name.toLowerCase().contains(widget.searchQuery.toLowerCase()) ||
-                dest.description
-                    .toLowerCase()
-                    .contains(widget.searchQuery.toLowerCase());
+            dest.name.toLowerCase().contains(
+              widget.searchQuery.toLowerCase(),
+            ) ||
+            dest.description.toLowerCase().contains(
+              widget.searchQuery.toLowerCase(),
+            );
         if (!match) return false;
       }
 
@@ -1048,7 +1131,9 @@ class _DestinationsSectionState extends State<_DestinationsSection> {
     });
 
     final totalCount = filtered.length;
-    final displayedDestinations = _showAll ? filtered : filtered.take(4).toList();
+    final displayedDestinations = _showAll
+        ? filtered
+        : filtered.take(4).toList();
 
     return Column(
       children: [
@@ -1070,14 +1155,16 @@ class _DestinationsSectionState extends State<_DestinationsSection> {
                 !imageUrl.startsWith('http') ||
                 imageUrl.contains('example.com')) {
               final lowerName = destination.name.toLowerCase();
-              if (lowerName.contains('da nang') || lowerName.contains('đà nẵng')) {
+              if (lowerName.contains('da nang') ||
+                  lowerName.contains('đà nẵng')) {
                 imageUrl =
                     'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
               } else if (lowerName.contains('hoi an') ||
                   lowerName.contains('hội an')) {
                 imageUrl =
                     'https://images.unsplash.com/photo-1588001400947-6385aef4ab0e?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
-              } else if (lowerName.contains('hue') || lowerName.contains('huế')) {
+              } else if (lowerName.contains('hue') ||
+                  lowerName.contains('huế')) {
                 imageUrl =
                     'https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
               } else if (lowerName.contains('da lat') ||
@@ -1101,7 +1188,8 @@ class _DestinationsSectionState extends State<_DestinationsSection> {
               title: destination.name,
               imageUrl: imageUrl,
               isHot: destination.isHot,
-              onTap: () => widget.onDestinationTap(destination.name, destination.id),
+              onTap: () =>
+                  widget.onDestinationTap(destination.name, destination.id),
             );
           },
         ),
@@ -1116,9 +1204,16 @@ class _DestinationsSectionState extends State<_DestinationsSection> {
               },
               style: TextButton.styleFrom(
                 foregroundColor: ExploreColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
               ),
-              icon: Icon(_showAll ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded),
+              icon: Icon(
+                _showAll
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.keyboard_arrow_down_rounded,
+              ),
               label: Text(
                 _showAll ? 'Thu gọn' : 'Hiển thị thêm điểm đến',
                 style: const TextStyle(fontWeight: FontWeight.bold),
@@ -1207,7 +1302,10 @@ class _DestinationCard extends StatelessWidget {
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.35),
                         borderRadius: const BorderRadius.only(
@@ -1277,7 +1375,10 @@ class _DestinationCard extends StatelessWidget {
                   top: 10,
                   right: 10,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFFFF416C), Color(0xFFFF4B2B)],
@@ -1287,7 +1388,9 @@ class _DestinationCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFF416C).withValues(alpha: 0.35),
+                          color: const Color(
+                            0xFFFF416C,
+                          ).withValues(alpha: 0.35),
                           blurRadius: 6,
                           offset: const Offset(0, 3),
                         ),
@@ -1337,8 +1440,7 @@ class _CommunityDivider extends StatelessWidget {
           const Expanded(child: Divider(color: Color(0xFFE0E0E0))),
           const SizedBox(width: 12),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
               color: ExploreColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
@@ -1489,8 +1591,7 @@ class _ActiveCityChip extends StatelessWidget {
 }
 
 class _FilterIconButton extends StatelessWidget {
-  const _FilterIconButton(
-      {required this.onTap, required this.hasActiveExtra});
+  const _FilterIconButton({required this.onTap, required this.hasActiveExtra});
 
   final VoidCallback onTap;
   final bool hasActiveExtra;
@@ -1506,11 +1607,8 @@ class _FilterIconButton extends StatelessWidget {
             height: 36,
             padding: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
-              color: hasActiveExtra
-                  ? ExploreColors.chipActiveBg
-                  : Colors.white,
-              borderRadius:
-                  BorderRadius.circular(ExploreSpacing.chipRadius),
+              color: hasActiveExtra ? ExploreColors.chipActiveBg : Colors.white,
+              borderRadius: BorderRadius.circular(ExploreSpacing.chipRadius),
               border: Border.all(
                 color: hasActiveExtra
                     ? ExploreColors.chipActive

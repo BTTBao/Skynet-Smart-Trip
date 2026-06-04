@@ -111,7 +111,9 @@ class _SearchViewState extends State<SearchView> {
     }
 
     if (destProvider.destinations.isNotEmpty) {
-      if (_toDestId == null && (widget.initialDestinationId != null || widget.initialQuery != null)) {
+      if (_toDestId == null &&
+          (widget.initialDestinationId != null ||
+              widget.initialQuery != null)) {
         final toMatch = destProvider.destinations.firstWhere(
           (d) =>
               widget.initialDestinationId != null &&
@@ -164,8 +166,7 @@ class _SearchViewState extends State<SearchView> {
     _loadBusSchedules();
   }
 
-  String _formatDate(DateTime dt) =>
-      '${dt.day} Tháng ${dt.month}, ${dt.year}';
+  String _formatDate(DateTime dt) => '${dt.day} Tháng ${dt.month}, ${dt.year}';
 
   void _changeFromDestination(int id, String name) {
     setState(() {
@@ -212,17 +213,18 @@ class _SearchViewState extends State<SearchView> {
   }
 
   String _formatTransportPrice(double price) {
-    final formatted = price.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (match) => '${match[1]}.',
-    );
+    final formatted = price
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (match) => '${match[1]}.',
+        );
     return '$formattedđ';
   }
 
-  bool get _isRecentSelected =>
-      _mode == SearchMode.hotel
-          ? _hotelSort == 'popular'
-          : _busSort == 'earliest';
+  bool get _isRecentSelected => _mode == SearchMode.hotel
+      ? _hotelSort == 'popular'
+      : _busSort == 'earliest';
 
   void _toggleRecent() {
     setState(() {
@@ -587,7 +589,9 @@ class _SearchViewState extends State<SearchView> {
                           if (widget.showBackButton) ...[
                             IconButton(
                               onPressed: () => Navigator.of(context).maybePop(),
-                              icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                              icon: const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                              ),
                               style: IconButton.styleFrom(
                                 backgroundColor: Colors.white,
                                 foregroundColor: AppColors.textHeading,
@@ -610,11 +614,20 @@ class _SearchViewState extends State<SearchView> {
                                 readOnly: !isHotel,
                                 onTap: isHotel ? null : _prepareBusSearch,
                                 onSubmitted: (_) => _searchHotels(),
-                                decoration: const InputDecoration(
-                                  prefixIcon: Icon(Icons.search_rounded),
+                                decoration: InputDecoration(
+                                  prefixIcon: const Icon(Icons.search_rounded),
+                                  suffixIcon: isHotel
+                                      ? IconButton(
+                                          tooltip: 'Tim khach san',
+                                          onPressed: _searchHotels,
+                                          icon: const Icon(
+                                            Icons.arrow_forward_rounded,
+                                          ),
+                                        )
+                                      : null,
                                   hintText: 'Bạn muốn đi đâu?',
                                   border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(
+                                  contentPadding: const EdgeInsets.symmetric(
                                     vertical: 16,
                                   ),
                                 ),
@@ -681,7 +694,8 @@ class _SearchViewState extends State<SearchView> {
                               ),
                               _QuickChip(
                                 label: '4 sao+',
-                                selected: _selectedStars.contains(4) &&
+                                selected:
+                                    _selectedStars.contains(4) &&
                                     _selectedStars.contains(5),
                                 onTap: _toggleQuickStarFilter,
                               ),
@@ -698,8 +712,9 @@ class _SearchViewState extends State<SearchView> {
                 ),
                 Expanded(
                   child: RefreshIndicator(
-                    onRefresh: () =>
-                        isHotel ? _searchHotels() : Future.sync(_loadBusSchedules),
+                    onRefresh: () => isHotel
+                        ? _searchHotels()
+                        : Future.sync(_loadBusSchedules),
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
                       children: [
@@ -736,8 +751,7 @@ class _SearchViewState extends State<SearchView> {
                                 ),
                               ),
                             )
-                          else
-                          if (hotelResult.items.isEmpty)
+                          else if (hotelResult.items.isEmpty)
                             _EmptyState(
                               message:
                                   provider.error ??
@@ -760,7 +774,7 @@ class _SearchViewState extends State<SearchView> {
                                   },
                                 ),
                               ),
-                            )
+                            ),
                         ] else
                           ..._buildIntegratedBusSearch(
                             busProvider,
@@ -794,7 +808,11 @@ class _SearchViewState extends State<SearchView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.directions_bus_filled_outlined, color: Colors.grey, size: 54),
+                Icon(
+                  Icons.directions_bus_filled_outlined,
+                  color: Colors.grey,
+                  size: 54,
+                ),
                 SizedBox(height: 12),
                 Text(
                   'Vui lòng chọn điểm đi và điểm đến',
@@ -820,7 +838,11 @@ class _SearchViewState extends State<SearchView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 54),
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange,
+                  size: 54,
+                ),
                 SizedBox(height: 12),
                 Text(
                   'Tuyến đường không hợp lệ',
@@ -844,9 +866,7 @@ class _SearchViewState extends State<SearchView> {
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 48),
           child: Center(
-            child: CircularProgressIndicator(
-              color: Color(0xFF0D6B42),
-            ),
+            child: CircularProgressIndicator(color: Color(0xFF0D6B42)),
           ),
         )
       else if (busProvider.error != null)
@@ -911,7 +931,11 @@ class _SearchViewState extends State<SearchView> {
                       color: const Color(0xFF0D6B42).withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.radio_button_checked, color: Color(0xFF0D6B42), size: 18),
+                    child: const Icon(
+                      Icons.radio_button_checked,
+                      color: Color(0xFF0D6B42),
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -932,13 +956,18 @@ class _SearchViewState extends State<SearchView> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: _fromDestId == null ? Colors.grey[400] : Colors.black87,
+                            color: _fromDestId == null
+                                ? Colors.grey[400]
+                                : Colors.black87,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[400]),
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: Colors.grey[400],
+                  ),
                 ],
               ),
             ),
@@ -967,13 +996,19 @@ class _SearchViewState extends State<SearchView> {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF0D6B42).withValues(alpha: 0.4),
+                              color: const Color(
+                                0xFF0D6B42,
+                              ).withValues(alpha: 0.4),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.swap_vert_rounded, color: Colors.white, size: 18),
+                        child: const Icon(
+                          Icons.swap_vert_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
                       ),
                     ),
                   ),
@@ -997,7 +1032,11 @@ class _SearchViewState extends State<SearchView> {
                       color: Colors.orange.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.location_on_rounded, color: Colors.orange[600], size: 18),
+                    child: Icon(
+                      Icons.location_on_rounded,
+                      color: Colors.orange[600],
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -1018,13 +1057,18 @@ class _SearchViewState extends State<SearchView> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: _toDestId == null ? Colors.grey[400] : Colors.black87,
+                            color: _toDestId == null
+                                ? Colors.grey[400]
+                                : Colors.black87,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[400]),
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: Colors.grey[400],
+                  ),
                 ],
               ),
             ),
@@ -1047,7 +1091,11 @@ class _SearchViewState extends State<SearchView> {
                       color: Colors.blue.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.calendar_today_rounded, color: Colors.blue[600], size: 18),
+                    child: Icon(
+                      Icons.calendar_today_rounded,
+                      color: Colors.blue[600],
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -1075,7 +1123,10 @@ class _SearchViewState extends State<SearchView> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0D6B42).withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(20),
@@ -1144,17 +1195,26 @@ class _SearchViewState extends State<SearchView> {
                       children: [
                         Text(
                           isFrom ? 'Chọn điểm khởi hành' : 'Chọn điểm đến',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: Colors.grey,
+                          ),
                           onPressed: () => Navigator.pop(context),
                         ),
                       ],
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
                     child: Container(
                       decoration: BoxDecoration(
                         color: const Color(0xFFF4F7F5),
@@ -1162,13 +1222,23 @@ class _SearchViewState extends State<SearchView> {
                         border: Border.all(color: Colors.grey[200]!),
                       ),
                       child: TextField(
-                        onChanged: (val) => setSheetState(() => searchQuery = val),
+                        onChanged: (val) =>
+                            setSheetState(() => searchQuery = val),
                         decoration: const InputDecoration(
                           hintText: 'Tìm kiếm địa điểm...',
-                          hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
-                          prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF0D6B42)),
+                          hintStyle: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.search_rounded,
+                            color: Color(0xFF0D6B42),
+                          ),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                         ),
                       ),
                     ),
@@ -1182,7 +1252,10 @@ class _SearchViewState extends State<SearchView> {
                               padding: EdgeInsets.all(24),
                               child: Text(
                                 'Không tìm thấy địa điểm nào phù hợp.',
-                                style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500),
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
                           )
@@ -1192,20 +1265,31 @@ class _SearchViewState extends State<SearchView> {
                             itemBuilder: (ctx, idx) {
                               final dest = filtered[idx];
                               return ListTile(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 2,
+                                ),
                                 leading: Container(
                                   width: 36,
                                   height: 36,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF0D6B42).withValues(alpha: 0.1),
+                                    color: const Color(
+                                      0xFF0D6B42,
+                                    ).withValues(alpha: 0.1),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.location_on_rounded,
-                                      color: Color(0xFF0D6B42), size: 18),
+                                  child: const Icon(
+                                    Icons.location_on_rounded,
+                                    color: Color(0xFF0D6B42),
+                                    size: 18,
+                                  ),
                                 ),
                                 title: Text(
                                   dest.name,
-                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
+                                  ),
                                 ),
                                 onTap: () {
                                   Navigator.pop(context);
@@ -1229,12 +1313,7 @@ class _SearchViewState extends State<SearchView> {
   }
 
   Widget _buildBusFilters() {
-    const filters = [
-      'Phổ biến',
-      'Giá thấp',
-      'Giờ sớm',
-      'Ưu tiên',
-    ];
+    const filters = ['Phổ biến', 'Giá thấp', 'Giờ sớm', 'Ưu tiên'];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -1248,7 +1327,9 @@ class _SearchViewState extends State<SearchView> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 8),
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: active ? const Color(0xFF0D6B42) : Colors.white,
                   borderRadius: BorderRadius.circular(20),
@@ -1258,10 +1339,12 @@ class _SearchViewState extends State<SearchView> {
                   boxShadow: active
                       ? [
                           BoxShadow(
-                            color: const Color(0xFF0D6B42).withValues(alpha: 0.25),
+                            color: const Color(
+                              0xFF0D6B42,
+                            ).withValues(alpha: 0.25),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
-                          )
+                          ),
                         ]
                       : [],
                 ),
@@ -1269,8 +1352,7 @@ class _SearchViewState extends State<SearchView> {
                   filters[index],
                   style: TextStyle(
                     color: active ? Colors.white : Colors.grey[700],
-                    fontWeight:
-                        active ? FontWeight.bold : FontWeight.w500,
+                    fontWeight: active ? FontWeight.bold : FontWeight.w500,
                     fontSize: 13,
                   ),
                 ),
@@ -1345,14 +1427,19 @@ class _SearchViewState extends State<SearchView> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(schedule.companyName,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15)),
+                                Text(
+                                  schedule.companyName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
                                 const SizedBox(height: 5),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 3),
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFE8F5EE),
                                     borderRadius: BorderRadius.circular(6),
@@ -1372,21 +1459,23 @@ class _SearchViewState extends State<SearchView> {
                           // Rating badge
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFF0D6B42),
-                                  Color(0xFF1A9058)
-                                ],
+                                colors: [Color(0xFF0D6B42), Color(0xFF1A9058)],
                               ),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.star_rounded,
-                                    color: Colors.white, size: 12),
+                                const Icon(
+                                  Icons.star_rounded,
+                                  color: Colors.white,
+                                  size: 12,
+                                ),
                                 const SizedBox(width: 3),
                                 Text(
                                   schedule.rating.toStringAsFixed(1),
@@ -1411,27 +1500,38 @@ class _SearchViewState extends State<SearchView> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(dep,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 24,
-                                      color: Colors.black87)),
-                              Text(schedule.fromDestName,
-                                  style:
-                                      TextStyle(color: Colors.grey[500], fontSize: 12)),
+                              Text(
+                                dep,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 24,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              Text(
+                                schedule.fromDestName,
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 12,
+                                ),
+                              ),
                             ],
                           ),
                           // Line
                           Expanded(
                             child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
                               child: Column(
                                 children: [
-                                  Text(schedule.duration,
-                                      style: TextStyle(
-                                          color: Colors.grey[500],
-                                          fontSize: 11)),
+                                  Text(
+                                    schedule.duration,
+                                    style: TextStyle(
+                                      color: Colors.grey[500],
+                                      fontSize: 11,
+                                    ),
+                                  ),
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
@@ -1448,12 +1548,14 @@ class _SearchViewState extends State<SearchView> {
                                           alignment: Alignment.center,
                                           children: [
                                             Container(
-                                                height: 1.5,
-                                                color: Colors.grey[200]),
+                                              height: 1.5,
+                                              color: Colors.grey[200],
+                                            ),
                                             const Icon(
-                                                Icons.directions_bus_rounded,
-                                                color: Color(0xFF0D6B42),
-                                                size: 18),
+                                              Icons.directions_bus_rounded,
+                                              color: Color(0xFF0D6B42),
+                                              size: 18,
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -1462,8 +1564,9 @@ class _SearchViewState extends State<SearchView> {
                                         height: 8,
                                         decoration: BoxDecoration(
                                           border: Border.all(
-                                              color: Colors.grey[400]!,
-                                              width: 1.5),
+                                            color: Colors.grey[400]!,
+                                            width: 1.5,
+                                          ),
                                           shape: BoxShape.circle,
                                         ),
                                       ),
@@ -1477,14 +1580,21 @@ class _SearchViewState extends State<SearchView> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text(arr,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 24,
-                                      color: Colors.black87)),
-                              Text(schedule.toDestName,
-                                  style: TextStyle(
-                                      color: Colors.grey[500], fontSize: 12)),
+                              Text(
+                                arr,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 24,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              Text(
+                                schedule.toDestName,
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 12,
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -1512,15 +1622,19 @@ class _SearchViewState extends State<SearchView> {
                                 const SizedBox(height: 4),
                                 Row(
                                   children: [
-                                    Icon(Icons.event_seat_rounded,
-                                        color: Colors.red[400], size: 13),
+                                    Icon(
+                                      Icons.event_seat_rounded,
+                                      color: Colors.red[400],
+                                      size: 13,
+                                    ),
                                     const SizedBox(width: 4),
                                     Text(
                                       'Còn ${schedule.spotsLeft} ghế',
                                       style: TextStyle(
-                                          color: Colors.red[400],
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600),
+                                        color: Colors.red[400],
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -1531,12 +1645,14 @@ class _SearchViewState extends State<SearchView> {
                             onTap: () => _showSeatSelection(schedule),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 22, vertical: 12),
+                                horizontal: 22,
+                                vertical: 12,
+                              ),
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: [
                                     Color(0xFF0D6B42),
-                                    Color(0xFF1A9058)
+                                    Color(0xFF1A9058),
                                   ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
@@ -1544,17 +1660,22 @@ class _SearchViewState extends State<SearchView> {
                                 borderRadius: BorderRadius.circular(14),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF0D6B42).withValues(alpha: 0.35),
+                                    color: const Color(
+                                      0xFF0D6B42,
+                                    ).withValues(alpha: 0.35),
                                     blurRadius: 10,
                                     offset: const Offset(0, 4),
                                   ),
                                 ],
                               ),
-                              child: const Text('Chọn ghế',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14)),
+                              child: const Text(
+                                'Chọn ghế',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -1578,8 +1699,11 @@ class _SearchViewState extends State<SearchView> {
         color: const Color(0xFF0D6B42).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: const Icon(Icons.directions_bus_rounded,
-          color: Color(0xFF0D6B42), size: 24),
+      child: const Icon(
+        Icons.directions_bus_rounded,
+        color: Color(0xFF0D6B42),
+        size: 24,
+      ),
     );
   }
 
@@ -1661,11 +1785,11 @@ class _SearchViewState extends State<SearchView> {
                         : GridView.builder(
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 5,
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 10,
-                              childAspectRatio: 1,
-                            ),
+                                  crossAxisCount: 5,
+                                  crossAxisSpacing: 10,
+                                  mainAxisSpacing: 10,
+                                  childAspectRatio: 1,
+                                ),
                             itemCount: ((seats.length / 4).ceil() * 5),
                             itemBuilder: (context, index) {
                               final seatRow = index ~/ 5;
@@ -1684,7 +1808,9 @@ class _SearchViewState extends State<SearchView> {
                                 );
                               }
 
-                              final realCol = seatCol > 2 ? seatCol - 1 : seatCol;
+                              final realCol = seatCol > 2
+                                  ? seatCol - 1
+                                  : seatCol;
                               final seatIndex = seatRow * 4 + realCol;
 
                               if (seatIndex >= seats.length) {
@@ -1709,8 +1835,8 @@ class _SearchViewState extends State<SearchView> {
                                 onTap: seat.isBooked
                                     ? null
                                     : () => provider.toggleSeatSelection(
-                                          seat.seatNumber,
-                                        ),
+                                        seat.seatNumber,
+                                      ),
                                 child: Container(
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
@@ -2061,8 +2187,6 @@ class _HotelCard extends StatelessWidget {
     );
   }
 }
-
-
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.message, required this.onRetry});
