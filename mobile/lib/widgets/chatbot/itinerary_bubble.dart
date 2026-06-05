@@ -99,7 +99,11 @@ class _ItineraryBubbleState extends State<ItineraryBubble> {
                       color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.map_outlined, color: Colors.white, size: 24),
+                    child: const Icon(
+                      Icons.map_outlined,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -116,7 +120,7 @@ class _ItineraryBubbleState extends State<ItineraryBubble> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${itinerary.totalDays} ngay - ${itinerary.estimatedBudget ?? ""}',
+                          '${itinerary.totalDays} ngày - ${itinerary.estimatedBudget ?? ""}',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.9),
                             fontSize: 12,
@@ -145,7 +149,7 @@ class _ItineraryBubbleState extends State<ItineraryBubble> {
                           child: FilledButton.icon(
                             onPressed: () => widget.onSaveTrip!(itinerary),
                             icon: const Icon(Icons.save_outlined, size: 18),
-                            label: const Text('Luu thanh chuyen di'),
+                            label: const Text('Lưu thành chuyến đi'),
                           ),
                         ),
                       ),
@@ -181,7 +185,9 @@ class _ItineraryBubbleState extends State<ItineraryBubble> {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: isExpanded ? const Color(0xFF11998e) : Colors.grey.shade300,
+                    color: isExpanded
+                        ? const Color(0xFF11998e)
+                        : Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Center(
@@ -201,7 +207,7 @@ class _ItineraryBubbleState extends State<ItineraryBubble> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Ngay ${day.dayNumber}',
+                        'Ngày ${day.dayNumber}',
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
@@ -240,8 +246,11 @@ class _ItineraryBubbleState extends State<ItineraryBubble> {
 
   Widget _buildActivity(ItineraryActivity activity) {
     final color = _getActivityColor(activity.icon);
-    final bookHotel = activity.icon == 'hotel' ? widget.itinerary.hotelSuggestion : null;
-    final bookTransport = activity.icon == 'transport' ? widget.itinerary.transportSuggestion : null;
+    final bookHotel =
+        activity.icon == 'hotel' ? widget.itinerary.hotelSuggestion : null;
+    final bookTransport = activity.icon == 'transport'
+        ? widget.itinerary.transportSuggestion
+        : null;
     final canShowBookAction =
         (bookHotel != null && widget.onBookHotel != null) ||
         (bookTransport != null && widget.onBookTransport != null);
@@ -291,7 +300,8 @@ class _ItineraryBubbleState extends State<ItineraryBubble> {
                         fontSize: 13,
                       ),
                     ),
-                    if (activity.description != null && activity.description!.trim().isNotEmpty)
+                    if (activity.description != null &&
+                        activity.description!.trim().isNotEmpty)
                       Text(
                         activity.description!,
                         style: TextStyle(
@@ -300,7 +310,8 @@ class _ItineraryBubbleState extends State<ItineraryBubble> {
                           height: 1.3,
                         ),
                       ),
-                    if (activity.estimatedCost != null && activity.estimatedCost!.trim().isNotEmpty)
+                    if (activity.estimatedCost != null &&
+                        activity.estimatedCost!.trim().isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
@@ -329,15 +340,19 @@ class _ItineraryBubbleState extends State<ItineraryBubble> {
                       return;
                     }
 
-                    if (bookTransport != null && widget.onBookTransport != null) {
+                    if (bookTransport != null &&
+                        widget.onBookTransport != null) {
                       widget.onBookTransport!(bookTransport);
                     }
                   },
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     visualDensity: VisualDensity.compact,
                   ),
-                  child: const Text('Dat ngay'),
+                  child: const Text('Đặt ngay'),
                 ),
               ),
             ),
@@ -358,19 +373,19 @@ class _ItineraryBubbleState extends State<ItineraryBubble> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Tong chi phi du kien',
+            'Tổng chi phí dự kiến',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 10),
-          _buildCostRow('Di chuyen', cost.transportCost),
-          _buildCostRow('Khach san', cost.hotelCost),
-          _buildCostRow('An uong', cost.foodCost),
-          _buildCostRow('Vui choi', cost.activityCost),
+          _buildCostRow('Di chuyển', cost.transportCost),
+          _buildCostRow('Khách sạn', cost.hotelCost),
+          _buildCostRow('Ăn uống', cost.foodCost),
+          _buildCostRow('Vui chơi', cost.activityCost),
           const Divider(height: 18),
-          _buildCostRow('Tong du kien', cost.totalCost, isTotal: true),
+          _buildCostRow('Tổng dự kiến', cost.totalCost, isTotal: true),
         ],
       ),
     );
@@ -405,7 +420,7 @@ class _ItineraryBubbleState extends State<ItineraryBubble> {
 
   String _formatMoney(double? value) {
     if (value == null) {
-      return 'Lien he';
+      return 'Liên hệ';
     }
 
     final normalized = value.round();
@@ -418,6 +433,6 @@ class _ItineraryBubbleState extends State<ItineraryBubble> {
         buffer.write('.');
       }
     }
-    return '$buffer d';
+    return '$buffer đ';
   }
 }

@@ -35,7 +35,7 @@ class PaymentConfirmScreen extends StatefulWidget {
   final DateTime? existingTripEndDate;
 
   const PaymentConfirmScreen({
-    Key? key,
+    super.key,
     required this.hotel,
     this.selectedRoom,
     required this.checkIn,
@@ -53,7 +53,7 @@ class PaymentConfirmScreen extends StatefulWidget {
     this.existingTripDayNumber,
     this.existingTripStartDate,
     this.existingTripEndDate,
-  }) : super(key: key);
+  });
 
   @override
   State<PaymentConfirmScreen> createState() => _PaymentConfirmScreenState();
@@ -239,7 +239,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                           )
                         : ListView.separated(
                             itemCount: activeVouchers.length,
-                            separatorBuilder: (_, __) =>
+                            separatorBuilder: (_, _) =>
                                 const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final voucher = activeVouchers[index];
@@ -404,6 +404,17 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
   int _generateOrderCode(int tripId) {
     final timePart = DateTime.now().millisecondsSinceEpoch % 10000000000;
     return (timePart * 1000) + (tripId % 1000);
+  }
+
+  String _selectedPaymentLabel() {
+    switch (selectedPaymentMethod) {
+      case 1:
+        return 'MoMo';
+      case 2:
+        return 'Chuyen khoan ngan hang';
+      default:
+        return 'PayOS';
+    }
   }
 
   Future<void> _openPayOsCheckout(String checkoutUrl) async {
@@ -1326,12 +1337,12 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         tripId: currentTripId,
         paymentMethod: paymentMethodStr,
         transactionId:
-            'TXN-$currentTripId-${DateTime.now().millisecondsSinceEpoch}',
+            'TXN-HOTEL-$currentTripId-${DateTime.now().millisecondsSinceEpoch}',
         amount: finalPayPrice,
       );
 
       if (!paymentSuccess) {
-        throw Exception('Thanh toán thất bại từ cổng thanh toán.');
+        throw Exception('Khong the xac nhan thanh toan dat phong.');
       }
 
       if (_appliedPromoCode != null) {
@@ -1390,10 +1401,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
   @override
   Widget build(BuildContext context) {
     final guestsText =
-        '${widget.adultCount} Người lớn' +
-        (widget.childCount > 0 ? ', ${widget.childCount} Trẻ em' : '') +
-        (widget.infantCount > 0 ? ', ${widget.infantCount} Em bé' : '') +
-        ', ${widget.roomQuantity} phòng';
+        '${widget.adultCount} Người lớn${widget.childCount > 0 ? ', ${widget.childCount} Trẻ em' : ''}${widget.infantCount > 0 ? ', ${widget.infantCount} Em bé' : ''}, ${widget.roomQuantity} phòng';
 
     final double finalPayPrice = widget.totalPrice - _discountAmount;
 

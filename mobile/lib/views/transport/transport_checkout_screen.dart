@@ -983,7 +983,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
 
       if (!paymentSuccess) {
         throw Exception(
-          busProvider.error ?? 'Thanh toán thất bại từ cổng thanh toán.',
+          busProvider.error ?? 'Khong the xac nhan thanh toan chuyen xe.',
         );
       }
 
@@ -1459,7 +1459,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                       quantity: voucher.quantity,
                     ),
                   );
-                }).toList(),
+                }),
               const SizedBox(height: 16),
             ],
           ),
@@ -1991,7 +1991,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                       }
                     });
                   },
-                  activeColor: Colors.white,
+                  activeThumbColor: Colors.white,
                   activeTrackColor: _kPrimary,
                 ),
               ],

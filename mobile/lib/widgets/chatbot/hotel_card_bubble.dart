@@ -114,7 +114,7 @@ class HotelCardBubble extends StatelessWidget {
                       ),
                       child: Text(
                         context.tr(
-                          vi: 'Con phong',
+                          vi: 'Còn phòng',
                           en: 'Available',
                         ),
                         style: const TextStyle(
@@ -202,7 +202,7 @@ class HotelCardBubble extends StatelessWidget {
                           children: [
                             Text(
                               context.tr(
-                                vi: 'Gia tu',
+                                vi: 'Giá từ',
                                 en: 'Starting from',
                               ),
                               style: const TextStyle(
@@ -211,7 +211,7 @@ class HotelCardBubble extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '${settings.formatCurrency(card.pricePerNight!)} ${context.tr(vi: '/ dem', en: '/ night')}',
+                              '${settings.formatCurrency(card.pricePerNight!)} ${context.tr(vi: '/ đêm', en: '/ night')}',
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -237,7 +237,7 @@ class HotelCardBubble extends StatelessWidget {
                             ),
                             child: Text(
                               context.tr(
-                                vi: 'Dat ngay',
+                                vi: 'Đặt ngay',
                                 en: 'Book now',
                               ),
                               style: const TextStyle(

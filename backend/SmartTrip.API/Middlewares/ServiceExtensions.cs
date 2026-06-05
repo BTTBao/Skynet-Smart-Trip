@@ -136,6 +136,7 @@ public static class ServiceExtensions
         services.AddScoped<IImageStorageService, FirebaseImageStorageService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddHttpClient<IGrokAiService, GrokAiService>();
+        services.AddHttpClient<IWeatherLookupService, OpenMeteoWeatherService>();
         services.AddHttpClient<IPaymentService, PayOsPaymentService>((provider, client) =>
         {
             var settings = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<PayOsSettings>>().Value;

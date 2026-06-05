@@ -60,7 +60,7 @@ Future<void> showSessionExpiredDialog(
                   (route) => false,
                 );
               },
-              child: Text(context.tr(vi: 'Dang nhap lai', en: 'Sign in again')),
+              child: Text(context.tr(vi: 'Đăng nhập lại', en: 'Sign in again')),
             ),
           ],
         );

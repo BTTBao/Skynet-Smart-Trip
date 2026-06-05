@@ -12,11 +12,16 @@ public class ChatService : IChatService
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly IGrokAiService _aiService;
     private readonly IChatRepository _chatRepo;
+    private readonly IWeatherLookupService _weatherLookupService;
 
-    public ChatService(IGrokAiService aiService, IChatRepository chatRepo)
+    public ChatService(
+        IGrokAiService aiService,
+        IChatRepository chatRepo,
+        IWeatherLookupService weatherLookupService)
     {
         _aiService = aiService;
         _chatRepo = chatRepo;
+        _weatherLookupService = weatherLookupService;
     }
 
     public async Task<ChatResponseDto> GetAiResponseAsync(ChatRequestDto request)
@@ -286,25 +291,20 @@ public class ChatService : IChatService
         ChatUserProfileDto? userProfile)
     {
         var destinations = await _chatRepo.GetDestinationsAsync(20);
-        var matchedDestinations = ResolveRelevantDestinations(userMessage, destinations, userProfile);
+        var matchedDestinations = ResolveRelevantDestinations(
+            userMessage,
+            destinations,
+            userProfile,
+            allowPreferenceFallback: ShouldAllowPreferenceFallback(intent));
 
         if (intent == "destination_query"
             && (response.DestinationCards == null || response.DestinationCards.Count == 0))
         {
-            var destinationMatches = matchedDestinations.Any()
-                ? matchedDestinations.Take(3).ToList()
-                : destinations.Take(3).ToList();
+            var destinationCards = BuildDestinationSuggestionCards(userMessage, matchedDestinations, destinations, 5);
 
-            if (destinationMatches.Any())
+            if (destinationCards.Any())
             {
-                response.DestinationCards = destinationMatches.Select(d => new DestinationCardDto
-                {
-                    Id = d.Id,
-                    Name = d.Name,
-                    Description = d.Description,
-                    ImageUrl = d.CoverImageUrl,
-                    IsHot = d.IsHot
-                }).ToList();
+                response.DestinationCards = destinationCards;
 
                 if (response.ResponseType == "text")
                 {
@@ -552,7 +552,11 @@ public class ChatService : IChatService
         ChatUserProfileDto? userProfile)
     {
         var destinations = await _chatRepo.GetDestinationsAsync(20);
-        var matchedDestinations = ResolveRelevantDestinations(userMessage, destinations, userProfile);
+        var matchedDestinations = ResolveRelevantDestinations(
+            userMessage,
+            destinations,
+            userProfile,
+            allowPreferenceFallback: ShouldAllowPreferenceFallback(intent));
 
         return intent switch
         {
@@ -597,16 +601,9 @@ public class ChatService : IChatService
             },
             "destination_query" => new ChatResponseDto
             {
-                Text = matchedDestinations.Any()
-                    ? Localize(
-                        userProfile,
-                        $"Minh da tong hop mot vai diem den lien quan den {matchedDestinations[0].Name} cho ban.",
-                        $"I gathered a few destination ideas related to {matchedDestinations[0].Name} for you.")
-                    : Localize(
-                        userProfile,
-                        "Minh da tong hop mot vai diem den noi bat de ban tham khao.",
-                        "I gathered a few destination ideas for your trip."),
-                ResponseType = "destination_card"
+                Text = BuildDestinationSuggestionText(userMessage, matchedDestinations),
+                ResponseType = "destination_card",
+                DestinationCards = BuildDestinationSuggestionCards(userMessage, matchedDestinations, destinations, 5)
             },
             "weather_query" => new ChatResponseDto
             {
@@ -649,7 +646,11 @@ public class ChatService : IChatService
         List<ChatHistoryItemDto> history)
     {
         var destinations = await _chatRepo.GetDestinationsAsync(20);
-        var matchedDestinations = ResolveRelevantDestinations(userMessage, destinations, userProfile);
+        var matchedDestinations = ResolveRelevantDestinations(
+            userMessage,
+            destinations,
+            userProfile,
+            allowPreferenceFallback: ShouldAllowPreferenceFallback(intent));
 
         switch (intent)
         {
@@ -683,6 +684,9 @@ public class ChatService : IChatService
             case "weather_query":
                 response.ResponseType = "weather";
                 response.HotelCards = null;
+                response.TransportCards = null;
+                response.SuggestedItinerary = null;
+                response = await EnsureWeatherInfoAsync(response, matchedDestinations, userMessage, userProfile);
                 break;
 
             case "itinerary_request":
@@ -767,7 +771,8 @@ public class ChatService : IChatService
     private static List<Destination> ResolveRelevantDestinations(
         string message,
         IEnumerable<Destination> destinations,
-        ChatUserProfileDto? userProfile)
+        ChatUserProfileDto? userProfile,
+        bool allowPreferenceFallback = true)
     {
         var destinationList = destinations.ToList();
         var matchedDestinations = FindMatchedDestinations(message, destinationList);
@@ -776,7 +781,9 @@ public class ChatService : IChatService
             return matchedDestinations;
         }
 
-        if (userProfile == null || userProfile.PreferredDestinationNames.Count == 0)
+        if (!allowPreferenceFallback
+            || userProfile == null
+            || userProfile.PreferredDestinationNames.Count == 0)
         {
             return [];
         }
@@ -805,6 +812,208 @@ public class ChatService : IChatService
         {
             Name = destinationName
         };
+    }
+
+    private static string BuildDestinationSuggestionText(string userMessage, List<Destination> matchedDestinations)
+    {
+        if (matchedDestinations.Count > 0)
+        {
+            return $"Minh chon nhanh mot vai diem den phu hop voi {matchedDestinations[0].Name} de ban de tham khao.";
+        }
+
+        var normalized = NormalizeText(userMessage);
+        if (normalized.Contains("mien tay", StringComparison.Ordinal))
+        {
+            return "Neu ban thich khong khi song nuoc mien Tay, minh goi y truoc mot vai diem de di de chon.";
+        }
+
+        return "Minh goi y truoc mot vai diem den de ban de chon, neu thich minh se loc tiep theo gu cua ban.";
+    }
+
+    private static List<DestinationCardDto> BuildDestinationSuggestionCards(
+        string userMessage,
+        List<Destination> matchedDestinations,
+        List<Destination> allDestinations,
+        int defaultCount = 5)
+    {
+        var requestedCount = ExtractRequestedDestinationCount(userMessage) ?? defaultCount;
+        requestedCount = Math.Clamp(requestedCount, 3, 6);
+
+        var cards = new List<DestinationCardDto>();
+        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void AddCard(DestinationCardDto card)
+        {
+            if (string.IsNullOrWhiteSpace(card.Name) || !usedNames.Add(card.Name))
+            {
+                return;
+            }
+
+            cards.Add(card);
+        }
+
+        foreach (var destination in matchedDestinations)
+        {
+            AddCard(new DestinationCardDto
+            {
+                Id = destination.Id,
+                Name = destination.Name,
+                Description = destination.Description,
+                ImageUrl = destination.CoverImageUrl,
+                IsHot = destination.IsHot,
+                Rating = 4.6,
+                BestSeason = "Quanh nam",
+                EstimatedBudget = "Tu 2-4 trieu"
+            });
+        }
+
+        foreach (var card in BuildCuratedDestinationCards(userMessage))
+        {
+            AddCard(card);
+        }
+
+        foreach (var destination in allDestinations)
+        {
+            AddCard(new DestinationCardDto
+            {
+                Id = destination.Id,
+                Name = destination.Name,
+                Description = destination.Description,
+                ImageUrl = destination.CoverImageUrl,
+                IsHot = destination.IsHot,
+                Rating = destination.IsHot == true ? 4.7 : 4.4,
+                BestSeason = "Quanh nam",
+                EstimatedBudget = "Tu 2-5 trieu"
+            });
+        }
+
+        return cards.Take(requestedCount).ToList();
+    }
+
+    private static int? ExtractRequestedDestinationCount(string userMessage)
+    {
+        var normalized = NormalizeText(userMessage);
+        var match = System.Text.RegularExpressions.Regex.Match(normalized, @"(\d+)\s*(cai|noi|diem|diem den)");
+        if (match.Success && int.TryParse(match.Groups[1].Value, out var count))
+        {
+            return count;
+        }
+
+        return null;
+    }
+
+    private static List<DestinationCardDto> BuildCuratedDestinationCards(string userMessage)
+    {
+        var normalized = NormalizeText(userMessage);
+
+        if (normalized.Contains("mien tay", StringComparison.Ordinal)
+            || normalized.Contains("ca mau", StringComparison.Ordinal)
+            || normalized.Contains("can tho", StringComparison.Ordinal)
+            || normalized.Contains("an giang", StringComparison.Ordinal))
+        {
+            return
+            [
+                new DestinationCardDto
+                {
+                    Name = "Cần Thơ",
+                    Description = "Hop cho chuyen di song nuoc nhe nhang, co cho noi Cai Rang, ben Ninh Kieu va nhieu quan an de thu.",
+                    IsHot = true,
+                    Rating = 4.6,
+                    BestSeason = "Thang 12 - thang 4",
+                    EstimatedBudget = "Tu 2-3.5 trieu"
+                },
+                new DestinationCardDto
+                {
+                    Name = "An Giang",
+                    Description = "Noi bat voi rung tram Tra Su, nui Sam, Chau Doc va khong khi hanh huong - kham pha rat rieng.",
+                    IsHot = true,
+                    Rating = 4.5,
+                    BestSeason = "Mua nuoc noi hoac dip dau nam",
+                    EstimatedBudget = "Tu 2-4 trieu"
+                },
+                new DestinationCardDto
+                {
+                    Name = "Cà Mau",
+                    Description = "Phu hop neu ban muon xuong cuc Nam, di Dat Mui, ngam rung ngap man va thu hai san dia phuong.",
+                    IsHot = false,
+                    Rating = 4.4,
+                    BestSeason = "Thang 12 - thang 4",
+                    EstimatedBudget = "Tu 2.5-4.5 trieu"
+                },
+                new DestinationCardDto
+                {
+                    Name = "Sóc Trăng",
+                    Description = "Noi bat voi chua dep, am thuc da dang va de ghep cung Can Tho hoac Bac Lieu.",
+                    IsHot = false,
+                    Rating = 4.3,
+                    BestSeason = "Cuoi nam - dau nam",
+                    EstimatedBudget = "Tu 2-3 trieu"
+                },
+                new DestinationCardDto
+                {
+                    Name = "Bến Tre",
+                    Description = "De di tu Sai Gon, hop cho nghi cuoi tuan voi xu dua, homestay va trai nghiem kenh rach.",
+                    IsHot = true,
+                    Rating = 4.5,
+                    BestSeason = "Quanh nam",
+                    EstimatedBudget = "Tu 1.5-3 trieu"
+                }
+            ];
+        }
+
+        return
+        [
+            new DestinationCardDto
+            {
+                Name = "Đà Lạt",
+                Description = "Hop cho nghi duong, san may, cafe va chuyen di 3 ngay 2 dem de di de chiu.",
+                IsHot = true,
+                Rating = 4.7,
+                BestSeason = "Thang 11 - thang 3",
+                EstimatedBudget = "Tu 2.5-4.5 trieu"
+            },
+            new DestinationCardDto
+            {
+                Name = "Đà Nẵng",
+                Description = "Can bang giua bien, do an, thanh pho de di va co the ghep Hoi An rat gon.",
+                IsHot = true,
+                Rating = 4.7,
+                BestSeason = "Thang 3 - thang 8",
+                EstimatedBudget = "Tu 3-5 trieu"
+            },
+            new DestinationCardDto
+            {
+                Name = "Phú Quốc",
+                Description = "Hop neu ban muon bien dep, resort va chuyen di nghi duong co nhieu lua chon cao cap.",
+                IsHot = true,
+                Rating = 4.6,
+                BestSeason = "Thang 11 - thang 4",
+                EstimatedBudget = "Tu 4-7 trieu"
+            },
+            new DestinationCardDto
+            {
+                Name = "Hà Giang",
+                Description = "Rat hop neu ban thich cung duong dep, nui non va trai nghiem di chuyen dang nho.",
+                IsHot = true,
+                Rating = 4.8,
+                BestSeason = "Thang 9 - thang 11",
+                EstimatedBudget = "Tu 3-5 trieu"
+            },
+            new DestinationCardDto
+            {
+                Name = "Quy Nhơn",
+                Description = "Bien dep, do an on, chi phi vua phai va nhip di chuyen de chiu hon nhieu diem qua dong.",
+                IsHot = false,
+                Rating = 4.5,
+                BestSeason = "Thang 3 - thang 8",
+                EstimatedBudget = "Tu 2.5-4 trieu"
+            }
+        ];
+    }
+
+    private static bool ShouldAllowPreferenceFallback(string intent)
+    {
+        return intent is not "itinerary_request" and not "weather_query" and not "destination_query";
     }
 
     private async Task<string> BuildPromotionSummaryAsync(ChatUserProfileDto? userProfile)
@@ -897,15 +1106,90 @@ public class ChatService : IChatService
         return $"Minh tong hop nhanh chi phi tham khao cho chuyen di {requestedDays} ngay:\n- " + string.Join("\n- ", parts);
     }
 
-    private static string BuildWeatherFallbackMessage(List<Destination> matchedDestinations)
+    private async Task<ChatResponseDto> EnsureWeatherInfoAsync(
+        ChatResponseDto response,
+        List<Destination> matchedDestinations,
+        string userMessage,
+        ChatUserProfileDto? userProfile)
     {
-        var destinationName = matchedDestinations.FirstOrDefault()?.Name;
-        if (!string.IsNullOrWhiteSpace(destinationName))
+        var explicitLocation = ExtractWeatherLocation(userMessage);
+        var locationQuery = explicitLocation ?? matchedDestinations.FirstOrDefault()?.Name;
+        if (string.IsNullOrWhiteSpace(locationQuery))
         {
-            return $"Minh chua co du lieu thoi tiet thoi gian thuc cho {destinationName}. Neu ban muon, minh van co the goi y lich trinh, khach san va ngan sach tham khao cho diem den nay.";
+            response.WeatherInfo = null;
+            response.Text = BuildWeatherFallbackMessage(matchedDestinations, explicitLocation);
+            return response;
         }
 
-        return "Minh chua co du lieu thoi tiet thoi gian thuc luc nay. Neu ban muon, minh van co the goi y diem den, khach san va lich trinh tham khao.";
+        var weather = await _weatherLookupService.GetWeatherAsync(
+            locationQuery,
+            userProfile?.PreferredLanguage);
+
+        response.WeatherInfo = weather;
+        response.Text = weather == null
+            ? BuildWeatherFallbackMessage(matchedDestinations, locationQuery)
+            : BuildWeatherSummaryText(weather);
+
+        return response;
+    }
+
+    private static string BuildWeatherFallbackMessage(
+        List<Destination> matchedDestinations,
+        string? requestedLocation = null)
+    {
+        var destinationName = !string.IsNullOrWhiteSpace(requestedLocation)
+            ? requestedLocation
+            : matchedDestinations.FirstOrDefault()?.Name;
+        if (!string.IsNullOrWhiteSpace(destinationName))
+        {
+            return $"Minh chua lay duoc thoi tiet moi nhat cho {destinationName} ngay luc nay. Neu ban muon, minh van co the goi y lich trinh, khach san va chi phi tham khao cho diem den nay.";
+        }
+
+        return "Luc nay minh chua lay duoc du lieu thoi tiet moi nhat. Neu ban muon, minh van co the goi y diem den, khach san va lich trinh tham khao cho ban.";
+    }
+
+    private static string BuildWeatherSummaryText(WeatherInfoDto weather)
+    {
+        var temp = weather.Temperature.HasValue
+            ? $"{weather.Temperature.Value:0}°C"
+            : "chua ro nhiet do";
+        var condition = string.IsNullOrWhiteSpace(weather.Condition)
+            ? "thoi tiet hien tai"
+            : weather.Condition!;
+
+        return $"Thoi tiet hien tai tai {weather.Location}: {condition}, {temp}. Minh da them du bao ngan ngay de ban de len lich trinh.";
+    }
+
+    private static string? ExtractWeatherLocation(string userMessage)
+    {
+        var normalized = NormalizeText(userMessage);
+        var match = System.Text.RegularExpressions.Regex.Match(
+            normalized,
+            @"(?:thoi tiet|weather|du bao|nhiet do)(?:\s+o|\s+tai|\s+cho)?\s+([a-z0-9\s]+)$");
+
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var candidate = match.Groups[1].Value.Trim();
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return null;
+        }
+
+        candidate = System.Text.RegularExpressions.Regex.Replace(
+            candidate,
+            @"\b(hom nay|ngay mai|ngay kia|toi nay|sang mai|chieu nay|cuoi tuan nay|tuan nay)\b",
+            string.Empty)
+            .Trim();
+
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return null;
+        }
+
+        return ToDisplayText(candidate);
     }
 
     private static string Localize(ChatUserProfileDto? userProfile, string vi, string en)
@@ -962,13 +1246,36 @@ public class ChatService : IChatService
         var mergedUserContext = BuildMergedUserContext(userMessage, history);
         var requestedDays = ExtractRequestedDays(mergedUserContext);
         var destinations = matchedDestinations;
+        var availableDestinations = await _chatRepo.GetDestinationsAsync(20);
+        var explicitDestination = ExtractExplicitTripDestination(mergedUserContext);
 
         if (destinations.Count == 0)
         {
             destinations = ResolveRelevantDestinations(
                 mergedUserContext,
-                await _chatRepo.GetDestinationsAsync(20),
-                userProfile);
+                availableDestinations,
+                userProfile,
+                allowPreferenceFallback: false);
+        }
+
+        if (destinations.Count == 0 && !string.IsNullOrWhiteSpace(explicitDestination))
+        {
+            response.ResponseType = "itinerary";
+            response.HotelCards = null;
+            response.TransportCards = null;
+            response.SuggestedItinerary = BuildGenericSuggestedItinerary(
+                explicitDestination!,
+                requestedDays,
+                userProfile,
+                ExtractDeparturePoint(mergedUserContext, []),
+                ExtractTravelerCount(mergedUserContext) ?? 2,
+                ExtractBudgetAmount(mergedUserContext));
+            response.Text = response.SuggestedItinerary != null
+                ? BuildItinerarySummaryText(response.SuggestedItinerary)
+                : BuildUnsupportedDestinationMessage(
+                    explicitDestination!,
+                    availableDestinations);
+            return response;
         }
 
         var origin = ExtractDeparturePoint(mergedUserContext, destinations);
@@ -987,43 +1294,14 @@ public class ChatService : IChatService
             return response;
         }
 
-        var itinerary = response.SuggestedItinerary;
-
-        if (itinerary == null || itinerary.TotalDays <= 0 || itinerary.Days.Count == 0)
-        {
-            response.SuggestedItinerary = await BuildSuggestedItineraryAsync(
-                destinations,
-                requestedDays,
-                userProfile,
-                origin,
-                travelerCount ?? 2,
-                budget,
-                preferredHotelName);
-        }
-        else if (!string.IsNullOrWhiteSpace(preferredHotelName)
-            && !NormalizeText(itinerary.HotelSuggestion?.Name ?? string.Empty)
-                .Contains(NormalizeText(preferredHotelName), StringComparison.Ordinal))
-        {
-            response.SuggestedItinerary = await BuildSuggestedItineraryAsync(
-                destinations,
-                requestedDays,
-                userProfile,
-                origin,
-                travelerCount ?? 2,
-                budget,
-                preferredHotelName);
-        }
-        else if (requestedDays > 0 && itinerary.TotalDays != requestedDays)
-        {
-            response.SuggestedItinerary = await BuildSuggestedItineraryAsync(
-                destinations,
-                requestedDays,
-                userProfile,
-                origin,
-                travelerCount ?? 2,
-                budget,
-                preferredHotelName);
-        }
+        response.SuggestedItinerary = await BuildSuggestedItineraryAsync(
+            destinations,
+            requestedDays,
+            userProfile,
+            origin,
+            travelerCount ?? 2,
+            budget,
+            preferredHotelName);
 
         if (response.SuggestedItinerary != null)
         {
@@ -1117,6 +1395,318 @@ public class ChatService : IChatService
             "Khi co du thong tin, minh se len lich trinh cu the gom di chuyen, khach san, an uong, diem vui choi va tong chi phi du kien.";
     }
 
+    private static string BuildUnsupportedDestinationMessage(
+        string destinationName,
+        IEnumerable<Destination> availableDestinations)
+    {
+        var availableNames = availableDestinations
+            .Select(item => item.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Take(5)
+            .ToList();
+
+        var availableLabel = availableNames.Count > 0
+            ? $"Hien tai he thong moi co du lieu lap plan cho: {string.Join(", ", availableNames)}."
+            : "Hien tai he thong chua co du lieu diem den phu hop de lap plan.";
+
+        return $"Minh nhan ra ban dang muon len ke hoach cho {destinationName}. Hien tai he thong chua co du lieu dat dich vu chi tiet cho diem den nay, nhung minh van co the len lich trinh tham khao de ban de canh. {availableLabel}";
+    }
+
+    private static ItineraryDto BuildGenericSuggestedItinerary(
+        string destinationName,
+        int requestedDays,
+        ChatUserProfileDto? userProfile,
+        string? origin,
+        int travelerCount,
+        decimal? budget)
+    {
+        var destination = new Destination
+        {
+            Name = destinationName
+        };
+
+        return new ItineraryDto
+        {
+            Title = $"Lich trinh goi y tai {destinationName}",
+            Destination = destinationName,
+            DestinationId = null,
+            TotalDays = Math.Max(1, requestedDays),
+            EstimatedBudget = BuildGenericBudgetSummaryLabel(
+                requestedDays,
+                travelerCount,
+                userProfile?.PreferredCurrency,
+                budget),
+            TravelStyle = "Linh hoat",
+            HotelSuggestion = null,
+            TransportSuggestion = null,
+            CostBreakdown = BuildGenericCostBreakdown(
+                requestedDays,
+                travelerCount,
+                userProfile?.PreferredCurrency),
+            Days = BuildGenericItineraryDays(
+                destination,
+                requestedDays,
+                travelerCount,
+                userProfile?.PreferredCurrency,
+                origin)
+        };
+    }
+
+    private static ItineraryCostBreakdownDto BuildGenericCostBreakdown(
+        int requestedDays,
+        int travelerCount,
+        string? currency)
+    {
+        var headCount = Math.Max(1, travelerCount);
+        var totalDays = Math.Max(1, requestedDays);
+        var nights = Math.Max(1, totalDays - 1);
+        var hotelCost = 450000m * nights * Math.Max(1, (int)Math.Ceiling(headCount / 2m));
+        var transportCost = 350000m * headCount;
+        var foodCost = 180000m * headCount * totalDays;
+        var activityCost = 160000m * headCount * totalDays;
+
+        return new ItineraryCostBreakdownDto
+        {
+            HotelCost = hotelCost,
+            TransportCost = transportCost,
+            FoodCost = foodCost,
+            ActivityCost = activityCost,
+            TotalCost = hotelCost + transportCost + foodCost + activityCost,
+            Currency = string.IsNullOrWhiteSpace(currency) ? "VND" : currency!
+        };
+    }
+
+    private static string BuildGenericBudgetSummaryLabel(
+        int requestedDays,
+        int travelerCount,
+        string? currency,
+        decimal? budget)
+    {
+        var cost = BuildGenericCostBreakdown(requestedDays, travelerCount, currency);
+        var totalText = FormatCurrency(cost.TotalCost, currency);
+
+        if (budget.HasValue)
+        {
+            var status = cost.TotalCost.HasValue && cost.TotalCost.Value <= budget.Value
+                ? "sat ngan sach"
+                : "can nhac them ngan sach";
+            return $"Tong du kien {totalText} cho {travelerCount} nguoi, {status}";
+        }
+
+        return $"Tong du kien {totalText} cho {travelerCount} nguoi";
+    }
+
+    private static List<ItineraryDayDto> BuildGenericItineraryDays(
+        Destination destination,
+        int requestedDays,
+        int travelerCount,
+        string? currency,
+        string? origin)
+    {
+        var totalDays = Math.Max(1, requestedDays);
+        var headCount = Math.Max(1, travelerCount);
+        var breakfastCost = 50000m * headCount;
+        var lunchCost = 90000m * headCount;
+        var dinnerCost = 120000m * headCount;
+        var cafeCost = 60000m * headCount;
+        var exploreCost = 140000m * headCount;
+        var days = new List<ItineraryDayDto>();
+
+        for (var dayNumber = 1; dayNumber <= totalDays; dayNumber++)
+        {
+            if (dayNumber == 1)
+            {
+                days.Add(new ItineraryDayDto
+                {
+                    DayNumber = dayNumber,
+                    Theme = $"Lam quen va kham pha trung tam {destination.Name}",
+                    Activities = new List<ItineraryActivityDto>
+                    {
+                        new()
+                        {
+                            Time = "07:30",
+                            Title = $"Di chuyen den {destination.Name}",
+                            Description = $"Khoi hanh tu {origin ?? "diem xuat phat"}, uu tien chon phuong an di chuyen phu hop voi ngan sach va gio den du kien.",
+                            Icon = "transport",
+                            EstimatedCost = FormatCurrency(350000m * headCount, currency)
+                        },
+                        new()
+                        {
+                            Time = "10:30",
+                            Title = "Nhan phong va gui hanh ly",
+                            Description = $"Chon khach san/homestay gan trung tam {destination.Name} de thuan tien di lai va an uong.",
+                            Icon = "hotel",
+                            EstimatedCost = FormatCurrency(450000m, currency)
+                        },
+                        new()
+                        {
+                            Time = "12:00",
+                            Title = "An trua dac san dia phuong",
+                            Description = "Uu tien mon dac san pho bien, quan binh dan sach se va de di chuyen.",
+                            Icon = "restaurant",
+                            EstimatedCost = FormatCurrency(lunchCost, currency)
+                        },
+                        new()
+                        {
+                            Time = "14:30",
+                            Title = $"Tham quan cac diem noi bat o {destination.Name}",
+                            Description = $"Danh buoi chieu de di cac diem check-in, khu trung tam va dia danh de len hinh dep.",
+                            Icon = "attraction",
+                            EstimatedCost = FormatCurrency(exploreCost, currency)
+                        },
+                        new()
+                        {
+                            Time = "19:00",
+                            Title = "An toi va dao choi buoi toi",
+                            Description = $"Thu mon dac san buoi toi, ghe cho dem hoac khu di bo de cam nhan khong khi o {destination.Name}.",
+                            Icon = "restaurant",
+                            EstimatedCost = FormatCurrency(dinnerCost, currency)
+                        }
+                    }
+                });
+                continue;
+            }
+
+            if (dayNumber == totalDays)
+            {
+                days.Add(new ItineraryDayDto
+                {
+                    DayNumber = dayNumber,
+                    Theme = "Mua sam nhe va ket thuc chuyen di",
+                    Activities = new List<ItineraryActivityDto>
+                    {
+                        new()
+                        {
+                            Time = "08:00",
+                            Title = "An sang va tham quan nhe",
+                            Description = $"Chon mot quan an sang ngon, sau do tham quan them mot diem nhe o {destination.Name}.",
+                            Icon = "restaurant",
+                            EstimatedCost = FormatCurrency(breakfastCost, currency)
+                        },
+                        new()
+                        {
+                            Time = "10:30",
+                            Title = "Mua dac san va chup anh",
+                            Description = "Danh thoi gian mua qua mang ve, dac san dia phuong va chup anh o cac diem con lai.",
+                            Icon = "shopping",
+                            EstimatedCost = FormatCurrency(exploreCost, currency)
+                        },
+                        new()
+                        {
+                            Time = "13:00",
+                            Title = "Tra phong va an trua",
+                            Description = "Thu xep hanh ly, tra phong dung gio va an trua gon nhe truoc khi quay ve.",
+                            Icon = "hotel",
+                            EstimatedCost = FormatCurrency(lunchCost, currency)
+                        },
+                        new()
+                        {
+                            Time = "15:30",
+                            Title = $"Di chuyen ve lai {origin ?? "diem xuat phat"}",
+                            Description = "Ket thuc hanh trinh, uu tien dat ve/chuyen di som neu can tranh tre gio.",
+                            Icon = "transport",
+                            EstimatedCost = FormatCurrency(350000m * headCount, currency)
+                        }
+                    }
+                });
+                continue;
+            }
+
+            days.Add(new ItineraryDayDto
+            {
+                DayNumber = dayNumber,
+                Theme = $"Kham pha them {destination.Name}",
+                Activities = new List<ItineraryActivityDto>
+                {
+                    new()
+                    {
+                        Time = "05:30",
+                        Title = "Don binh minh hoac san may neu phu hop",
+                        Description = "Neu dia diem phu hop, co the day som de ngam canh dep, san may hoac chay bo nhe.",
+                        Icon = "attraction",
+                        EstimatedCost = FormatCurrency(cafeCost, currency)
+                    },
+                    new()
+                    {
+                        Time = "08:00",
+                        Title = "An sang va di chuyen den diem tham quan",
+                        Description = "Chon quan an sang gan khu vuc sap tham quan de tiet kiem thoi gian di lai.",
+                        Icon = "restaurant",
+                        EstimatedCost = FormatCurrency(breakfastCost, currency)
+                    },
+                    new()
+                    {
+                        Time = "10:00",
+                        Title = $"Kham pha thien nhien va diem noi bat o {destination.Name}",
+                        Description = "Uu tien mot cum diem gan nhau de di duoc nhieu noi hon ma van de nghi.",
+                        Icon = "attraction",
+                        EstimatedCost = FormatCurrency(exploreCost, currency)
+                    },
+                    new()
+                    {
+                        Time = "12:30",
+                        Title = "An trua va nghi ngoi",
+                        Description = "Chon bua trua vua tam, sau do nghi ngoi de giu suc cho buoi chieu.",
+                        Icon = "restaurant",
+                        EstimatedCost = FormatCurrency(lunchCost, currency)
+                    },
+                    new()
+                    {
+                        Time = "15:30",
+                        Title = "Ca phe, check-in va tham quan tiep",
+                        Description = "Danh khoang nhe cho viec nghi chan, ngam view va chup anh o dia diem dep.",
+                        Icon = "entertainment",
+                        EstimatedCost = FormatCurrency(cafeCost, currency)
+                    },
+                    new()
+                    {
+                        Time = "18:30",
+                        Title = "An toi va vui choi buoi toi",
+                        Description = "Co the thu BBQ, lau, mon nuong hoac khu an uong pho bien tuy vao khau vi.",
+                        Icon = "restaurant",
+                        EstimatedCost = FormatCurrency(dinnerCost, currency)
+                    }
+                }
+            });
+        }
+
+        return days;
+    }
+
+    private static string? ExtractExplicitTripDestination(string text)
+    {
+        var normalized = NormalizeText(text);
+        var patterns = new[]
+        {
+            @"(?:lap ke hoach|lap lich trinh|tao plan|plan|du lich)(?:\s+cho|\s+di|\s+den|\s+toi|\s+tai)?\s+([a-z0-9\s]+?)(?=(?:\s+(?:tu|voi|gom|co|ngan sach|budget|trong|vao|tu ngay|ngay|dem)\b)|[,\.\n]|$)",
+            @"(?:muon di|di du lich|di)\s+([a-z0-9\s]+?)(?=(?:\s+(?:tu|voi|gom|co|ngan sach|budget|trong|vao|tu ngay|ngay|dem)\b)|[,\.\n]|$)"
+        };
+
+        foreach (var pattern in patterns)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(normalized, pattern);
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            var candidate = match.Groups[1].Value.Trim();
+            if (string.IsNullOrWhiteSpace(candidate))
+            {
+                continue;
+            }
+
+            if (candidate.Length <= 2)
+            {
+                continue;
+            }
+
+            return ToDisplayText(candidate);
+        }
+
+        return null;
+    }
+
     private static string? ExtractDeparturePoint(string text, List<Destination> matchedDestinations)
     {
         var normalized = NormalizeText(text);
@@ -1156,13 +1746,20 @@ public class ChatService : IChatService
     private static int? ExtractTravelerCount(string text)
     {
         var normalized = NormalizeText(text);
-        var match = System.Text.RegularExpressions.Regex.Match(
-            normalized,
-            @"(\d+)\s*(nguoi|khach|thanh vien|nguoi lon)");
-
-        if (match.Success && int.TryParse(match.Groups[1].Value, out var count) && count > 0)
+        var patterns = new[]
         {
-            return count;
+            @"(\d+)\s*(nguoi|khach|thanh vien|nguoi lon|ban)",
+            @"nhom\s*(\d+)",
+            @"gia dinh\s*(\d+)"
+        };
+
+        foreach (var pattern in patterns)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(normalized, pattern);
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var count) && count > 0)
+            {
+                return count;
+            }
         }
 
         return null;
@@ -1201,7 +1798,45 @@ public class ChatService : IChatService
 
     private static string ToDisplayText(string normalizedText)
     {
+        var canonical = TryCanonicalizeLocationName(normalizedText);
+        if (!string.IsNullOrWhiteSpace(canonical))
+        {
+            return canonical;
+        }
+
         return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(normalizedText.Trim());
+    }
+
+    private static string? TryCanonicalizeLocationName(string? rawText)
+    {
+        var normalized = NormalizeText(rawText ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
+        }
+
+        return normalized switch
+        {
+            "sai gon" or "sai gon city" or "sai gin" or "sai ginh" or "sai gion" or "sai gonn"
+                => "Sài Gòn",
+            "tphcm" or "tp hcm" or "tp ho chi minh" or "ho chi minh" or "ho chi minh city"
+                => "TP. Hồ Chí Minh",
+            "ha noi" or "ha loi" or "ha noii"
+                => "Hà Nội",
+            "da nang" or "đa nang" or "dnang"
+                => "Đà Nẵng",
+            "da lat" or "đa lat" or "dalat"
+                => "Đà Lạt",
+            "phu quoc" or "phu quoc island"
+                => "Phú Quốc",
+            "phu quy"
+                => "Phú Quý",
+            "ca mau" or "ca mauu"
+                => "Cà Mau",
+            "can tho" or "can thoo"
+                => "Cần Thơ",
+            _ => null
+        };
     }
 
     private static string? TryExtractSelectedHotelName(string message, List<ChatHistoryItemDto> history)
@@ -1286,6 +1921,7 @@ public class ChatService : IChatService
         var hotels = await _chatRepo.SearchDestinationsHotelsAsync([destination.Id], 6);
         var buses = await _chatRepo.GetBusSchedulesAsync(2, [destination.Id]);
         var selectedHotel = SelectPreferredHotel(hotels, preferredHotelName);
+        var selectedBus = SelectPreferredBusSchedule(buses, origin, destination);
 
         return new ItineraryDto
         {
@@ -1295,24 +1931,24 @@ public class ChatService : IChatService
             TotalDays = requestedDays,
             EstimatedBudget = BuildBudgetSummaryLabel(
                 selectedHotel,
-                buses.FirstOrDefault(),
+                selectedBus,
                 requestedDays,
                 travelerCount,
                 userProfile?.PreferredCurrency,
                 budget),
             TravelStyle = "Linh hoat",
             HotelSuggestion = BuildHotelSuggestion(selectedHotel),
-            TransportSuggestion = BuildTransportSuggestion(buses.FirstOrDefault()),
+            TransportSuggestion = BuildTransportSuggestion(selectedBus),
             CostBreakdown = BuildCostBreakdown(
                 selectedHotel,
-                buses.FirstOrDefault(),
+                selectedBus,
                 requestedDays,
                 travelerCount,
                 userProfile?.PreferredCurrency),
             Days = BuildItineraryDays(
                 destination,
                 selectedHotel,
-                buses.FirstOrDefault(),
+                selectedBus,
                 requestedDays,
                 travelerCount,
                 userProfile?.PreferredCurrency,
@@ -1344,6 +1980,44 @@ public class ChatService : IChatService
             Capacity = room?.Capacity,
             AvailableQty = room?.AvailableQty
         };
+    }
+
+    private static BusSchedule? SelectPreferredBusSchedule(
+        List<BusSchedule> buses,
+        string? origin,
+        Destination destination)
+    {
+        if (buses.Count == 0)
+        {
+            return null;
+        }
+
+        var normalizedDestination = NormalizeText(destination.Name);
+        var normalizedOrigin = string.IsNullOrWhiteSpace(origin)
+            ? null
+            : NormalizeText(origin);
+
+        if (!string.IsNullOrWhiteSpace(normalizedOrigin))
+        {
+            var exactRoute = buses.FirstOrDefault(bus =>
+                !string.IsNullOrWhiteSpace(bus.FromDest?.Name) &&
+                !string.IsNullOrWhiteSpace(bus.ToDest?.Name) &&
+                IsLocationMatch(bus.FromDest!.Name!, normalizedOrigin!) &&
+                IsLocationMatch(bus.ToDest!.Name!, normalizedDestination));
+
+            return exactRoute;
+        }
+
+        return buses.FirstOrDefault(bus =>
+            !string.IsNullOrWhiteSpace(bus.ToDest?.Name) &&
+            IsLocationMatch(bus.ToDest!.Name!, normalizedDestination));
+    }
+
+    private static bool IsLocationMatch(string locationName, string normalizedCandidate)
+    {
+        var normalizedLocation = NormalizeText(locationName);
+        return normalizedLocation.Contains(normalizedCandidate, StringComparison.Ordinal)
+            || normalizedCandidate.Contains(normalizedLocation, StringComparison.Ordinal);
     }
 
     private static TransportPlanSuggestionDto? BuildTransportSuggestion(BusSchedule? bus)

@@ -33,7 +33,7 @@ class _NotificationsViewState extends State<NotificationsView> {
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
             title: Text(
-              context.tr(vi: 'Thong bao', en: 'Notifications'),
+              context.tr(vi: 'Thông báo', en: 'Notifications'),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             actions: [
