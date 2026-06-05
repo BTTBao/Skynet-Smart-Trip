@@ -116,6 +116,8 @@ export default function TransportAdminPage() {
   const [editingCompanyId, setEditingCompanyId] = useState<number | null>(null);
   const [seatDraft, setSeatDraft] = useState<AdminTransportSeat[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingCompanyLogo, setUploadingCompanyLogo] = useState(false);
+  const hasCompanyLogoPreview = companyForm.logoUrl.trim().length > 0;
 
   const loadTransport = async () => {
     const [transportStats, transportCompanies, allDestinations] = await Promise.all([
@@ -319,6 +321,23 @@ export default function TransportAdminPage() {
     }
   };
 
+  const handleCompanyLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingCompanyLogo(true);
+    try {
+      const result = await adminService.uploadTransportCompanyLogo(file);
+      setCompanyForm((current) => ({ ...current, logoUrl: result.imageUrl }));
+      showToast({ type: 'success', title: 'Đã tải logo nhà xe' });
+    } catch (error) {
+      showToast({ type: 'error', title: 'Không thể tải logo nhà xe', message: getErrorMessage(error) });
+    } finally {
+      setUploadingCompanyLogo(false);
+      event.target.value = '';
+    }
+  };
+
   const handleDeleteCompany = async (company: AdminTransportCompany) => {
     try {
       await adminService.deleteTransportCompany(company.id);
@@ -457,7 +476,7 @@ export default function TransportAdminPage() {
             <input value={scheduleForm.departureAt} onChange={(event) => setScheduleForm((current) => ({ ...current, departureAt: event.target.value }))} type="datetime-local" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
             <input value={scheduleForm.arrivalAt} onChange={(event) => setScheduleForm((current) => ({ ...current, arrivalAt: event.target.value }))} type="datetime-local" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
             <input value={scheduleForm.price} onChange={(event) => setScheduleForm((current) => ({ ...current, price: Number(event.target.value) }))} type="number" min={0} placeholder="Giá vé" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
-            <input value={scheduleForm.commissionRate} onChange={(event) => setScheduleForm((current) => ({ ...current, commissionRate: Number(event.target.value) }))} type="number" min={0} max={100} placeholder="% affiliate" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
+            <input value={scheduleForm.commissionRate} onChange={(event) => setScheduleForm((current) => ({ ...current, commissionRate: Number(event.target.value) }))} type="number" min={0} max={100} placeholder="Loi nhuan chot %" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
             <input value={scheduleForm.totalSeats} onChange={(event) => setScheduleForm((current) => ({ ...current, totalSeats: Number(event.target.value) }))} type="number" min={1} placeholder="Tổng ghế" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
           </div>
 
@@ -480,7 +499,34 @@ export default function TransportAdminPage() {
           <div className="space-y-3">
             <input value={companyForm.name} onChange={(event) => setCompanyForm((current) => ({ ...current, name: event.target.value }))} placeholder="Tên nhà xe" className="w-full rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
             <input value={companyForm.hotline} onChange={(event) => setCompanyForm((current) => ({ ...current, hotline: event.target.value }))} placeholder="Hotline" className="w-full rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
-            <input value={companyForm.logoUrl} onChange={(event) => setCompanyForm((current) => ({ ...current, logoUrl: event.target.value }))} placeholder="Logo URL" className="w-full rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
+            <div className="flex gap-2">
+              <input value={companyForm.logoUrl} onChange={(event) => setCompanyForm((current) => ({ ...current, logoUrl: event.target.value }))} placeholder="Logo URL" className="min-w-0 flex-1 rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
+              <label className="cursor-pointer rounded-2xl bg-surface-container-low px-4 py-3 text-sm font-bold text-on-surface">
+                {uploadingCompanyLogo ? 'Đang tải' : 'Upload'}
+                <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingCompanyLogo} onChange={handleCompanyLogoUpload} className="hidden" />
+              </label>
+            </div>
+            {hasCompanyLogoPreview ? (
+              <div className="overflow-hidden rounded-[1.5rem] border border-outline-variant/10 bg-surface-container-low">
+                <div className="flex items-center justify-between px-4 py-3">
+                  <p className="text-xs font-bold text-on-surface-variant">Preview logo nhà xe</p>
+                  <button
+                    type="button"
+                    onClick={() => setCompanyForm((current) => ({ ...current, logoUrl: '' }))}
+                    className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-on-surface"
+                  >
+                    Xóa ảnh
+                  </button>
+                </div>
+                <div className="flex items-center justify-center bg-white px-6 py-6">
+                  <img src={companyForm.logoUrl} alt="Company logo preview" className="h-24 w-24 rounded-3xl object-cover ring-1 ring-outline-variant/10" />
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-[1.5rem] border border-dashed border-outline-variant/20 bg-surface-container-low px-5 py-6 text-center text-sm font-bold text-on-surface-variant">
+                Upload logo để xem preview tại đây
+              </div>
+            )}
           </div>
 
           <div className="mt-5">
@@ -493,9 +539,14 @@ export default function TransportAdminPage() {
             {companies.map((company) => (
               <div key={company.id} className="rounded-[1.5rem] bg-surface-container-low p-4">
                 <div className="flex items-start justify-between gap-4">
-                  <div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white ring-1 ring-outline-variant/10">
+                      {company.logoUrl ? <img src={company.logoUrl} alt="" className="h-full w-full object-cover" /> : <span className="material-symbols-outlined text-on-surface-variant">image</span>}
+                    </div>
+                    <div>
                     <p className="text-sm font-bold text-on-surface">{company.name}</p>
                     <p className="mt-1 text-xs text-on-surface-variant">{company.hotline} • {company.scheduleCount} lịch • Avg {company.averageCommissionRate}%</p>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <button type="button" onClick={() => { setEditingCompanyId(company.id); setCompanyForm({ name: company.name, hotline: company.hotline === '--' ? '' : company.hotline, logoUrl: company.logoUrl }); }} className="rounded-full bg-white px-4 py-2 text-xs font-bold text-on-surface">Sửa</button>

@@ -32,6 +32,9 @@ public class AdminHotelDto
     public string Description { get; set; } = string.Empty;
     public bool IsAvailable { get; set; }
     public int RoomCount { get; set; }
+    public int AvailableRoomQty { get; set; }
+    public decimal LowestPrice { get; set; }
+    public decimal TotalRevenue { get; set; }
 }
 
 public class AdminHotelRequest
@@ -42,6 +45,34 @@ public class AdminHotelRequest
     public int StarRating { get; set; }
     public string Description { get; set; } = string.Empty;
     public bool IsAvailable { get; set; }
+}
+
+public class AdminHotelDetailDto : AdminHotelDto
+{
+    public List<AdminRoomDto> Rooms { get; set; } = new();
+}
+
+public class AdminRoomDto
+{
+    public int Id { get; set; }
+    public int HotelId { get; set; }
+    public string RoomType { get; set; } = string.Empty;
+    public int Capacity { get; set; }
+    public decimal PricePerNight { get; set; }
+    public double CommissionRate { get; set; }
+    public int AvailableQty { get; set; }
+    public bool IsSelling { get; set; }
+    public List<string> ImageUrls { get; set; } = new();
+}
+
+public class AdminRoomRequest
+{
+    public string RoomType { get; set; } = string.Empty;
+    public int Capacity { get; set; }
+    public decimal PricePerNight { get; set; }
+    public double CommissionRate { get; set; }
+    public int AvailableQty { get; set; }
+    public List<string> ImageUrls { get; set; } = new();
 }
 
 public class AdminPromotionDto

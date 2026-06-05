@@ -7,9 +7,17 @@ class TripTimeline extends StatelessWidget {
   const TripTimeline({
     super.key,
     required this.entries,
+    this.onEditEntry,
+    this.onDeleteEntry,
+    this.onInvoiceEntry,
+    this.canManageEntry,
   });
 
   final List<TripTimelineEntry> entries;
+  final ValueChanged<TripTimelineEntry>? onEditEntry;
+  final ValueChanged<TripTimelineEntry>? onDeleteEntry;
+  final ValueChanged<TripTimelineEntry>? onInvoiceEntry;
+  final bool Function(TripTimelineEntry entry)? canManageEntry;
 
   @override
   Widget build(BuildContext context) {
@@ -18,6 +26,12 @@ class TripTimeline extends StatelessWidget {
         final entry = entries[index];
         final isLast = index == entries.length - 1;
         final connectorHeight = entry.imageColors == null ? 146.0 : 220.0;
+        final canManage = entry.itineraryId != null &&
+            (canManageEntry == null || canManageEntry!(entry));
+        final serviceType = (entry.serviceType ?? '').toUpperCase();
+        final canViewInvoice =
+            onInvoiceEntry != null &&
+            (serviceType == 'HOTEL' || serviceType == 'BUS');
         final headerLabel = entry.time.trim().isEmpty
             ? entry.sectionTitle.toUpperCase()
             : '${entry.time} • ${entry.sectionTitle.toUpperCase()}';
@@ -114,6 +128,26 @@ class TripTimeline extends StatelessWidget {
                                   ),
                                 ),
                               ),
+                              if (canManage) ...[
+                                IconButton(
+                                  onPressed: onEditEntry == null
+                                      ? null
+                                      : () => onEditEntry!(entry),
+                                  icon: const Icon(Icons.edit_outlined),
+                                  iconSize: 18,
+                                  color: TripUiColors.textSecondary,
+                                  tooltip: 'Sửa',
+                                ),
+                                IconButton(
+                                  onPressed: onDeleteEntry == null
+                                      ? null
+                                      : () => onDeleteEntry!(entry),
+                                  icon: const Icon(Icons.delete_outline_rounded),
+                                  iconSize: 18,
+                                  color: Colors.redAccent,
+                                  tooltip: 'Xóa',
+                                ),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 6),
@@ -125,6 +159,62 @@ class TripTimeline extends StatelessWidget {
                               color: TripUiColors.textSecondary,
                             ),
                           ),
+                          if (entry.hotelBookingDateLabel != null) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEAF4FF),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.date_range_rounded,
+                                    size: 16,
+                                    color: Color(0xFF2A6FD6),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      entry.hotelBookingDateLabel!,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        height: 1.35,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF2A6FD6),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          if (canViewInvoice) ...[
+                            const SizedBox(height: 10),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton.icon(
+                                onPressed: () => onInvoiceEntry!(entry),
+                                icon: const Icon(
+                                  Icons.receipt_long_outlined,
+                                  size: 18,
+                                ),
+                                label: const Text('Chi tiết hóa đơn'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: const Color(0xFF0D6B42),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  textStyle: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                           if (entry.badge != null) ...[
                             const SizedBox(height: 12),
                             Container(

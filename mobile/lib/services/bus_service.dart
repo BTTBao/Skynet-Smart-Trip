@@ -39,14 +39,17 @@ class BusService extends ApiService {
     required String paymentMethod,
     required String transactionId,
     required double amount,
+    int? scheduleId,
     List<String>? selectedSeats,
   }) async {
     final response = await postWithFallback(
       '/trips/$tripId/pay',
+      requireAuth: true,
       body: jsonEncode({
         'paymentMethod': paymentMethod,
         'transactionId': transactionId,
         'amount': amount,
+        if (scheduleId != null) 'scheduleId': scheduleId,
         if (selectedSeats != null) 'selectedSeats': selectedSeats,
       }),
     );

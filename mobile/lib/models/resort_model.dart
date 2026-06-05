@@ -1,5 +1,7 @@
 class ResortModel {
   final int id;
+  final int? destinationId;
+  final String destinationName;
   final String name;
   final String address;
   final int starRating;
@@ -15,6 +17,8 @@ class ResortModel {
 
   const ResortModel({
     required this.id,
+    this.destinationId,
+    this.destinationName = '',
     required this.name,
     required this.address,
     required this.starRating,
@@ -39,6 +43,8 @@ class ResortModel {
   factory ResortModel.fromJson(Map<String, dynamic> json) {
     return ResortModel(
       id: json['id'] ?? 0,
+      destinationId: (json['destinationId'] as num?)?.toInt(),
+      destinationName: json['destinationName']?.toString() ?? '',
       name: json['name'] ?? '',
       address: json['address'] ?? '',
       starRating: json['starRating'] ?? 0,
@@ -47,7 +53,9 @@ class ResortModel {
       reviewCount: json['reviewCount'] ?? 0,
       minPricePerNight: (json['minPricePerNight'] ?? 0.0).toDouble(),
       coverImageUrl: json['coverImageUrl'] ?? '',
-      imageUrls: (json['imageUrls'] as List? ?? []).map((e) => e.toString()).toList(),
+      imageUrls: (json['imageUrls'] as List? ?? [])
+          .map((e) => e.toString())
+          .toList(),
       amenities: (json['amenities'] as List? ?? [])
           .map((e) => AmenityModel.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -81,6 +89,7 @@ class RoomModel {
   final int capacity;
   final double pricePerNight;
   final int availableQty;
+  final List<String> imageUrls;
 
   const RoomModel({
     required this.id,
@@ -88,6 +97,7 @@ class RoomModel {
     required this.capacity,
     required this.pricePerNight,
     required this.availableQty,
+    this.imageUrls = const [],
   });
 
   factory RoomModel.fromJson(Map<String, dynamic> json) {
@@ -97,6 +107,10 @@ class RoomModel {
       capacity: json['capacity'] ?? 0,
       pricePerNight: (json['pricePerNight'] ?? 0.0).toDouble(),
       availableQty: json['availableQty'] ?? 0,
+      imageUrls: (json['imageUrls'] as List? ?? [])
+          .map((e) => e.toString())
+          .where((e) => e.isNotEmpty)
+          .toList(),
     );
   }
 }

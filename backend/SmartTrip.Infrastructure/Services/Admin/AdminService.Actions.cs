@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SmartTrip.Application.DTOs.Admin;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
@@ -284,6 +285,7 @@ public partial class AdminService
             UserCode = booking.UserCode,
             Destination = booking.Destination,
             TotalAmount = booking.TotalAmount,
+            TotalProfit = booking.TotalProfit,
             Summary = booking.Summary,
             PaymentStatus = booking.PaymentStatus,
             TripStatus = booking.TripStatus,
@@ -311,12 +313,14 @@ public partial class AdminService
 
         var nextTripStatus = ParseTripStatus(request.TripStatus);
         var nextPaymentStatus = ParsePaymentStatus(request.PaymentStatus);
+        var previousTripStatus = trip.Status;
 
         trip.Status = nextTripStatus;
 
         var payment = trip.Payments
             .OrderByDescending(item => item.PaidAt ?? DateTime.MinValue)
             .FirstOrDefault();
+        var previousPaymentStatus = payment?.Status;
 
         if (payment is null)
         {
@@ -343,9 +347,15 @@ public partial class AdminService
         if (nextPaymentStatus == PaymentStatus.Paid)
         {
             trip.Status = TripStatus.Paid;
+            trip.TotalProfit = CalculateTripProfitFromPaidAmount(trip, payment.Amount ?? trip.TotalAmount ?? 0m);
         }
 
         await _context.SaveChangesAsync();
+
+        if (previousTripStatus != trip.Status || previousPaymentStatus != payment.Status)
+        {
+            await NotifyBookingStatusChangedAsync(trip, payment.Status);
+        }
 
         return MapBooking(trip);
     }
@@ -422,19 +432,60 @@ public partial class AdminService
 
     private static AdminBookingDto MapBooking(Trip trip)
     {
+        var paidAmount = ResolvePaidBookingAmount(trip);
+
         return new AdminBookingDto
         {
             Id = trip.Id,
-            DisplayId = $"#SKN-{trip.Id:D4}",
+            DisplayId = $"SKN-{trip.Id:D6}",
             UserName = trip.User?.FullName ?? "Khách vãng lai",
             UserCode = trip.UserId.HasValue ? $"ID: SKY-{trip.UserId.Value:D4}" : "Khách chưa đăng nhập",
             Destination = trip.Destination?.Name ?? "Chưa xác định",
-            TotalAmount = $"{trip.TotalAmount.GetValueOrDefault():N0}đ",
+            TotalAmount = $"{paidAmount:N0}đ",
+            TotalProfit = $"{trip.TotalProfit.GetValueOrDefault():N0}đ",
             Summary = BuildTripSummary(trip),
             PaymentStatus = GetBookingPaymentStatus(trip),
             TripStatus = MapTripStatus(trip.Status),
             CreatedAt = trip.CreatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "--"
         };
+    }
+
+    private static decimal ResolvePaidBookingAmount(Trip trip)
+    {
+        var paidAmount = trip.Payments
+            .Where(payment => payment.Status == PaymentStatus.Paid)
+            .Sum(payment => payment.Amount.GetValueOrDefault());
+
+        return paidAmount > 0 ? paidAmount : trip.TotalAmount.GetValueOrDefault();
+    }
+
+    private static decimal CalculateTripProfitFromPaidAmount(Trip trip, decimal paidAmount)
+    {
+        if (paidAmount <= 0 || trip.TripItineraries.Count == 0)
+        {
+            return 0m;
+        }
+
+        var grossAmount = trip.TripItineraries.Sum(item =>
+            item.BookedPrice.GetValueOrDefault() * item.Quantity.GetValueOrDefault(1));
+
+        if (grossAmount <= 0)
+        {
+            return 0m;
+        }
+
+        return trip.TripItineraries.Sum(item =>
+        {
+            var lineGross = item.BookedPrice.GetValueOrDefault() * item.Quantity.GetValueOrDefault(1);
+            var paidLineAmount = paidAmount * lineGross / grossAmount;
+            return paidLineAmount * NormalizeCommissionRate(item.BookedCommissionRate);
+        });
+    }
+
+    private static decimal NormalizeCommissionRate(double? rate)
+    {
+        var value = (decimal)(rate ?? 0d);
+        return value > 1m ? value / 100m : value;
     }
 
     private static AdminTransportScheduleDto MapTransportSchedule(BusSchedule schedule, DateTime now)
@@ -461,7 +512,7 @@ public partial class AdminService
             TicketPrice = $"{ticketPrice:N0}đ",
             AffiliateProfit = $"{affiliateProfit:N0}đ",
             PriceValue = ticketPrice,
-            CommissionRate = schedule.CommissionRate ?? 0d,
+            CommissionRate = (double)(NormalizeCommissionRate(schedule.CommissionRate) * 100m),
             OccupiedSeats = occupiedSeats,
             TotalSeats = totalSeats,
             Seats = schedule.Seats
@@ -572,4 +623,53 @@ public partial class AdminService
 
         return $"{trip.StartDate.Value:dd/MM/yyyy} - {trip.EndDate.Value:dd/MM/yyyy}";
     }
+
+    private async Task NotifyBookingStatusChangedAsync(Trip trip, PaymentStatus? paymentStatus)
+    {
+        if (!trip.UserId.HasValue)
+        {
+            return;
+        }
+
+        var statusLabel = MapPaymentStatus(paymentStatus);
+
+        try
+        {
+            await _notificationService.CreateAsync(new SmartTrip.Application.DTOs.Notifications.CreateNotificationDto
+            {
+                UserId = trip.UserId.Value,
+                Title = "Booking đã được cập nhật",
+                Message = $"Booking \"{trip.Title ?? $"#{trip.Id}"}\" hiện ở trạng thái {statusLabel}.",
+                Type = "booking.status_changed",
+                ReferenceType = "booking",
+                ReferenceId = trip.Id,
+                ActionUrl = $"/trips/{trip.Id}"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create booking status notification for booking {BookingId}", trip.Id);
+        }
+
+        try
+        {
+            var user = trip.User;
+            if (user == null || !await _notificationService.AreEmailNotificationsEnabledAsync(user.Id))
+            {
+                return;
+            }
+
+            await _emailService.SendBookingStatusChangedEmailAsync(
+                user.Email,
+                user.FullName ?? user.Email,
+                trip.Title ?? $"Booking #{trip.Id}",
+                statusLabel,
+                trip.TotalAmount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send booking status email for booking {BookingId}", trip.Id);
+        }
+    }
 }
+

@@ -30,12 +30,23 @@ public interface IAdminService
     Task<AdminDestinationDto> UpdateDestinationAsync(int destinationId, AdminDestinationRequest request);
     Task DeleteDestinationAsync(int destinationId);
     Task<List<AdminHotelDto>> GetHotelsAsync();
+    Task<AdminHotelDetailDto> GetHotelDetailAsync(int hotelId);
     Task<AdminHotelDto> CreateHotelAsync(AdminHotelRequest request);
     Task<AdminHotelDto> UpdateHotelAsync(int hotelId, AdminHotelRequest request);
+    Task<AdminRoomDto> CreateRoomAsync(int hotelId, AdminRoomRequest request);
+    Task<AdminRoomDto> UpdateRoomAsync(int roomId, AdminRoomRequest request);
+    Task DeleteRoomAsync(int roomId);
     Task DeleteHotelAsync(int hotelId);
     Task<List<AdminPromotionDto>> GetPromotionsAsync();
     Task<AdminPromotionDto> CreatePromotionAsync(AdminPromotionRequest request);
     Task<AdminPromotionDto> UpdatePromotionAsync(int promotionId, AdminPromotionRequest request);
     Task DeletePromotionAsync(int promotionId);
     Task<AdminReportSummaryDto> GetReportSummaryAsync();
+    Task<List<AdminExplorePostDto>> GetExplorePostsAsync(string? search = null);
+    Task<AdminExplorePostDto> CreateExplorePostAsync(AdminExplorePostRequest request, int adminUserId);
+    Task<AdminExplorePostDto> UpdateExplorePostAsync(int postId, AdminExplorePostRequest request);
+    Task<AdminExplorePostDto> UpdateExplorePostVisibilityAsync(int postId, bool isVisible);
+    Task DeleteExplorePostAsync(int postId);
+    Task<AdminNotificationStatsDto> GetNotificationsAsync(string? search = null);
+    Task<AdminNotificationSendResultDto> SendNotificationAsync(AdminSendNotificationRequest request);
 }

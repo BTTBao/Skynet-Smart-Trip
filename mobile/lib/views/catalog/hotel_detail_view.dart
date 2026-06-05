@@ -5,20 +5,36 @@ import '../../core/app_theme.dart';
 import '../../models/catalog_models.dart';
 import '../../models/create_fake_payment_request.dart';
 import '../../models/create_hotel_booking_request.dart';
+import '../../models/create_trip_itinerary_request.dart';
+import '../../models/create_trip_request.dart';
+import '../../models/my_trip_summary.dart';
 import '../../providers/catalog_provider.dart';
+import '../../providers/profile_provider.dart';
 import '../../providers/trip_provider.dart';
+import '../../services/catalog_service.dart';
 import '../../utils/app_currency_formatter.dart';
 
 class HotelDetailView extends StatefulWidget {
-  const HotelDetailView({super.key, required this.hotelId});
+  const HotelDetailView({
+    super.key,
+    required this.hotelId,
+    this.initialCheckIn,
+    this.initialCheckOut,
+    this.autoOpenBookingSheet = false,
+  });
 
   final int hotelId;
+  final DateTime? initialCheckIn;
+  final DateTime? initialCheckOut;
+  final bool autoOpenBookingSheet;
 
   @override
   State<HotelDetailView> createState() => _HotelDetailViewState();
 }
 
 class _HotelDetailViewState extends State<HotelDetailView> {
+  bool _didAutoOpenBookingSheet = false;
+
   @override
   void initState() {
     super.initState();
@@ -49,6 +65,7 @@ class _HotelDetailViewState extends State<HotelDetailView> {
             );
           }
 
+          _maybeAutoOpenBookingSheet(detail);
           return Column(
             children: [
               Expanded(
@@ -238,7 +255,7 @@ class _HotelDetailViewState extends State<HotelDetailView> {
                       const SizedBox(width: 14),
                       Expanded(
                         child: FilledButton(
-                          onPressed: () => _openBookingSheet(detail),
+                          onPressed: () => _openBookingSheetSmart(detail),
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.black87,
@@ -265,6 +282,50 @@ class _HotelDetailViewState extends State<HotelDetailView> {
         },
       ),
     );
+  }
+
+  void _maybeAutoOpenBookingSheet(CatalogHotelDetail detail) {
+    if (!widget.autoOpenBookingSheet || _didAutoOpenBookingSheet) {
+      return;
+    }
+
+    _didAutoOpenBookingSheet = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      _openBookingSheetSmart(
+        detail,
+        initialCheckIn: widget.initialCheckIn,
+        initialCheckOut: widget.initialCheckOut,
+      );
+    });
+  }
+
+  DateTime _normalizeDate(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
+  }
+
+  DateTime _resolveInitialCheckIn(DateTime? date) {
+    final today = _normalizeDate(DateTime.now());
+    final fallback = today.add(const Duration(days: 1));
+    if (date == null) {
+      return fallback;
+    }
+
+    final normalized = _normalizeDate(date);
+    return normalized.isBefore(today) ? today : normalized;
+  }
+
+  DateTime _resolveInitialCheckOut(DateTime checkIn, DateTime? date) {
+    final fallback = checkIn.add(const Duration(days: 1));
+    if (date == null) {
+      return fallback;
+    }
+
+    final normalized = _normalizeDate(date);
+    return normalized.isAfter(checkIn) ? normalized : fallback;
   }
 
   Future<void> _openBookingSheet(CatalogHotelDetail detail) async {
@@ -352,6 +413,7 @@ class _HotelDetailViewState extends State<HotelDetailView> {
                   checkInDate: checkIn,
                   checkOutDate: checkOut,
                   quantity: roomQuantity,
+                  adultCount: roomQuantity,
                 ),
               );
 
@@ -390,9 +452,14 @@ class _HotelDetailViewState extends State<HotelDetailView> {
               ),
               child: SafeArea(
                 top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.88,
+                  ),
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    primary: false,
+                    shrinkWrap: true,
                   children: [
                     Center(
                       child: Container(
@@ -594,7 +661,488 @@ class _HotelDetailViewState extends State<HotelDetailView> {
                               ),
                       ),
                     ),
-                  ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _openBookingSheetSmart(
+    CatalogHotelDetail detail, {
+    DateTime? initialCheckIn,
+    DateTime? initialCheckOut,
+  }) async {
+    final availableRooms = detail.rooms
+        .where((room) => room.availableQty > 0)
+        .toList(growable: false);
+    final catalogService = CatalogService();
+
+    if (availableRooms.isEmpty) {
+      _showMessage('Khách sạn hiện không còn phòng trống.');
+      return;
+    }
+
+    final now = DateTime.now();
+    var checkIn = _resolveInitialCheckIn(initialCheckIn);
+    var checkOut = _resolveInitialCheckOut(checkIn, initialCheckOut);
+    var selectedRoom = availableRooms.first;
+    var roomQuantity = 1;
+    var isSubmitting = false;
+    var isCheckingAvailability = false;
+    var availabilityRequestVersion = 0;
+
+    CatalogRoomAvailability availability = await catalogService
+        .getRoomAvailability(
+          roomId: selectedRoom.id,
+          checkInDate: checkIn,
+          checkOutDate: checkOut,
+          quantity: roomQuantity,
+        )
+        .catchError(
+          (_) => CatalogRoomAvailability(
+            roomId: selectedRoom.id,
+            totalQty: selectedRoom.availableQty,
+            remainingQty: selectedRoom.availableQty,
+            isAvailable: selectedRoom.availableQty > 0,
+            message: selectedRoom.availableQty > 0
+                ? 'Còn ${selectedRoom.availableQty} phòng có thể đặt.'
+                : 'Đã có người đặt hết.',
+          ),
+        );
+
+    if (!mounted) {
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final nights = _nightsBetween(checkIn, checkOut);
+            final totalPrice =
+                selectedRoom.pricePerNight * nights * roomQuantity;
+
+            Future<CatalogRoomAvailability?> refreshAvailability() async {
+              final requestVersion = ++availabilityRequestVersion;
+              setSheetState(() => isCheckingAvailability = true);
+
+              try {
+                final result = await catalogService.getRoomAvailability(
+                  roomId: selectedRoom.id,
+                  checkInDate: checkIn,
+                  checkOutDate: checkOut,
+                  quantity: roomQuantity,
+                );
+
+                if (!sheetContext.mounted) {
+                  return null;
+                }
+
+                if (requestVersion != availabilityRequestVersion) {
+                  return null;
+                }
+
+                setSheetState(() {
+                  availability = result;
+                  if (availability.remainingQty > 0 &&
+                      roomQuantity > availability.remainingQty) {
+                    roomQuantity = availability.remainingQty;
+                  }
+                });
+                return result;
+              } catch (_) {
+                if (!sheetContext.mounted) {
+                  return null;
+                }
+
+                if (requestVersion != availabilityRequestVersion) {
+                  return null;
+                }
+
+                setSheetState(() {
+                  availability = CatalogRoomAvailability(
+                    roomId: selectedRoom.id,
+                    totalQty: selectedRoom.availableQty,
+                    remainingQty: 0,
+                    isAvailable: false,
+                    message: 'Không thể kiểm tra tình trạng phòng lúc này.',
+                  );
+                });
+              } finally {
+                if (sheetContext.mounted &&
+                    requestVersion == availabilityRequestVersion) {
+                  setSheetState(() => isCheckingAvailability = false);
+                }
+              }
+
+              return null;
+            }
+
+            Future<void> pickDate({required bool isCheckIn}) async {
+              final today = DateTime(now.year, now.month, now.day);
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: isCheckIn ? checkIn : checkOut,
+                firstDate: today,
+                lastDate: today.add(const Duration(days: 365)),
+              );
+
+              if (picked == null) {
+                return;
+              }
+
+              setSheetState(() {
+                if (isCheckIn) {
+                  checkIn = DateTime(picked.year, picked.month, picked.day);
+                  if (!checkOut.isAfter(checkIn)) {
+                    checkOut = checkIn.add(const Duration(days: 1));
+                  }
+                } else {
+                  final normalized = DateTime(
+                    picked.year,
+                    picked.month,
+                    picked.day,
+                  );
+                  if (normalized.isAfter(checkIn)) {
+                    checkOut = normalized;
+                  }
+                }
+              });
+
+              await refreshAvailability();
+            }
+
+            Future<void> submitBooking() async {
+              if (!checkOut.isAfter(checkIn)) {
+                _showMessage('Ngày trả phòng phải sau ngày nhận phòng.');
+                return;
+              }
+
+              final latestAvailability = await refreshAvailability();
+              final checkedAvailability = latestAvailability ?? availability;
+
+              if (checkedAvailability.remainingQty <= 0 ||
+                  roomQuantity > checkedAvailability.remainingQty) {
+                _showMessage(checkedAvailability.message);
+                return;
+              }
+
+              final tripProvider = context.read<TripProvider>();
+              final selectedTrip = await _selectOrCreateTripForBooking(
+                detail: detail,
+                checkIn: checkIn,
+                checkOut: checkOut,
+              );
+
+              if (selectedTrip == null) {
+                return;
+              }
+
+              if (!sheetContext.mounted) {
+                return;
+              }
+
+              setSheetState(() => isSubmitting = true);
+              final itineraryId = await tripProvider.addItinerary(
+                selectedTrip.tripId,
+                CreateTripItineraryRequest(
+                  dayNumber: selectedTrip.dayNumber,
+                  serviceType: 'HOTEL',
+                  serviceId: selectedRoom.id,
+                  quantity: roomQuantity,
+                  adultCount: roomQuantity,
+                  bookedPrice: selectedRoom.pricePerNight * nights,
+                  serviceDate: checkIn,
+                ),
+              );
+
+              if (itineraryId == null) {
+                if (sheetContext.mounted) {
+                  setSheetState(() => isSubmitting = false);
+                }
+                _showMessage(
+                  tripProvider.error ?? 'Không thể thêm phòng vào chuyến đi.',
+                );
+                return;
+              }
+
+              if (!mounted || !sheetContext.mounted) {
+                return;
+              }
+
+              setSheetState(() => isSubmitting = false);
+              Navigator.of(sheetContext).pop();
+
+              await _openFakePaymentSheet(
+                tripId: selectedTrip.tripId,
+                hotelName: detail.name,
+                roomType: selectedRoom.roomType,
+                amount: totalPrice,
+              );
+            }
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                16,
+                20,
+                20 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: SafeArea(
+                top: false,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.88,
+                  ),
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    primary: false,
+                    shrinkWrap: true,
+                    children: [
+                    Center(
+                      child: Container(
+                        width: 72,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      detail.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textHeading,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _BookingDateTile(
+                            label: 'Nhận phòng',
+                            value: _formatDate(checkIn),
+                            onTap: () => pickDate(isCheckIn: true),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _BookingDateTile(
+                            label: 'Trả phòng',
+                            value: _formatDate(checkOut),
+                            onTap: () => pickDate(isCheckIn: false),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.borderDefault),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<int>(
+                          value: selectedRoom.id,
+                          isExpanded: true,
+                          borderRadius: BorderRadius.circular(18),
+                          items: availableRooms.map((room) {
+                            return DropdownMenuItem<int>(
+                              value: room.id,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    room.roomType,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textHeading,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${room.capacity} người • Tối đa ${room.availableQty} phòng • ${AppCurrencyFormatter.format(room.pricePerNight)}/đêm',
+                                    style: const TextStyle(
+                                      color: AppColors.textMuted,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: isSubmitting
+                              ? null
+                              : (roomId) async {
+                                  if (roomId == null) {
+                                    return;
+                                  }
+
+                                  final room = availableRooms.firstWhere(
+                                    (item) => item.id == roomId,
+                                  );
+                                  setSheetState(() {
+                                    selectedRoom = room;
+                                    if (roomQuantity > room.availableQty) {
+                                      roomQuantity = room.availableQty;
+                                    }
+                                  });
+                                  await refreshAvailability();
+                                },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.borderDefault),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Số phòng',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textHeading,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: roomQuantity <= 1
+                                ? null
+                                : () async {
+                                    setSheetState(() => roomQuantity--);
+                                    await refreshAvailability();
+                                  },
+                            icon: const Icon(Icons.remove_rounded),
+                          ),
+                          Text(
+                            '$roomQuantity',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: roomQuantity >= availability.remainingQty
+                                ? null
+                                : () async {
+                                    setSheetState(() => roomQuantity++);
+                                    await refreshAvailability();
+                                  },
+                            icon: const Icon(Icons.add_rounded),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      isCheckingAvailability
+                          ? '$nights đêm • ${selectedRoom.capacity} người/phòng • Đang tính số phòng còn lại...'
+                          : '$nights đêm • ${selectedRoom.capacity} người/phòng • Còn ${availability.remainingQty}/${availability.totalQty} phòng cho ngày đã chọn',
+                      style: const TextStyle(color: AppColors.textMuted),
+                    ),
+                    if (!isCheckingAvailability) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        availability.message,
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Tổng tiền',
+                            style: TextStyle(color: AppColors.textMuted),
+                          ),
+                        ),
+                        Text(
+                          AppCurrencyFormatter.format(totalPrice),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: isSubmitting ||
+                                isCheckingAvailability ||
+                                availability.remainingQty <= 0 ||
+                                roomQuantity > availability.remainingQty
+                            ? null
+                            : submitBooking,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.black87,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        child: isSubmitting
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.black87,
+                                ),
+                              )
+                            : Text(
+                                isCheckingAvailability
+                                    ? 'Đang kiểm tra phòng'
+                                    : availability.remainingQty <= 0
+                                        ? 'Đã có người đặt'
+                                        : roomQuantity <= availability.remainingQty
+                                            ? 'Xác nhận đặt phòng'
+                                            : 'Chỉ còn ${availability.remainingQty} phòng',
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                      ),
+                    ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -623,10 +1171,24 @@ class _HotelDetailViewState extends State<HotelDetailView> {
             Future<void> submitPayment() async {
               setSheetState(() => isSubmitting = true);
 
+              if (tripId == 0) {
+                await Future.delayed(const Duration(milliseconds: 800));
+                if (!mounted || !sheetContext.mounted) {
+                  return;
+                }
+                setSheetState(() => isSubmitting = false);
+                Navigator.of(sheetContext).pop();
+                _showMessage('Thanh toán thành công. Đơn đặt phòng đã được ghi nhận.');
+                return;
+              }
+
               final tripProvider = context.read<TripProvider>();
               final paidTrip = await tripProvider.completeFakePayment(
                 tripId,
-                CreateFakePaymentRequest(paymentMethod: paymentMethod),
+                CreateFakePaymentRequest(
+                  paymentMethod: paymentMethod,
+                  amount: amount,
+                ),
               );
 
               if (!mounted || !sheetContext.mounted) {
@@ -643,6 +1205,7 @@ class _HotelDetailViewState extends State<HotelDetailView> {
               }
 
               Navigator.of(sheetContext).pop();
+              await context.read<CatalogProvider>().loadHotelDetail(widget.hotelId);
               _showMessage('Thanh toán thành công. Đơn đặt phòng đã được ghi nhận.');
             }
 
@@ -789,8 +1352,349 @@ class _HotelDetailViewState extends State<HotelDetailView> {
     );
   }
 
+  Future<_SelectedBookingTrip?> _selectOrCreateTripForBooking({
+    required CatalogHotelDetail detail,
+    required DateTime checkIn,
+    required DateTime checkOut,
+  }) async {
+    final tripProvider = context.read<TripProvider>();
+    await tripProvider.fetchTrips(silent: true);
+
+    if (!mounted) {
+      return null;
+    }
+
+    final upcomingBookingTrips = tripProvider.upcomingTrips
+        .where((trip) => trip.status != 'CANCELLED')
+        .toList(growable: false)
+      ..sort((left, right) => left.startDate.compareTo(right.startDate));
+
+    return showModalBottomSheet<_SelectedBookingTrip>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        var isCreating = false;
+        var title = 'Chuyến đi ${detail.destinationName}';
+        var tripQuery = '';
+
+        Future<void> createTrip(StateSetter setSheetState) async {
+          final normalizedTitle = title.trim();
+          if (normalizedTitle.isEmpty) {
+            _showMessage('Vui lòng nhập tên chuyến đi.');
+            return;
+          }
+
+          setSheetState(() => isCreating = true);
+          final profile = context.read<ProfileProvider>().profileData;
+          final userId = int.tryParse(profile?.id ?? '') ?? 1;
+          final createdTrip = await tripProvider.createTrip(
+            CreateTripRequest(
+              userId: userId,
+              destinationId: detail.destinationId,
+              destinationName: detail.destinationName,
+              title: normalizedTitle,
+              startDate: checkIn,
+              endDate: checkOut,
+              status: 'PENDING',
+            ),
+          );
+
+          if (!sheetContext.mounted) {
+            return;
+          }
+
+          setSheetState(() => isCreating = false);
+          if (createdTrip == null) {
+            _showMessage(tripProvider.error ?? 'Không thể tạo chuyến đi.');
+            return;
+          }
+
+          Navigator.of(sheetContext).pop(
+            _SelectedBookingTrip(tripId: createdTrip.tripId, dayNumber: 1),
+          );
+        }
+
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final normalizedQuery = tripQuery.trim().toLowerCase();
+            final visibleTrips = normalizedQuery.isEmpty
+                ? upcomingBookingTrips
+                : upcomingBookingTrips
+                    .where(
+                      (trip) =>
+                          trip.title.toLowerCase().contains(normalizedQuery) ||
+                          trip.destination
+                              .toLowerCase()
+                              .contains(normalizedQuery) ||
+                          trip.dateRange.toLowerCase().contains(normalizedQuery),
+                    )
+                    .toList(growable: false);
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                16,
+                20,
+                20 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: SafeArea(
+                top: false,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.88,
+                  ),
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    primary: false,
+                    shrinkWrap: true,
+                    children: [
+                    Center(
+                      child: Container(
+                        width: 72,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE2E8F0),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Thêm vào chuyến đi',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textHeading,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Phòng đã đặt sẽ nằm trong lịch trình chuyến đi của bạn. Chuyến đi cần cùng điểm đến và bao trọn ngày nhận/trả phòng.',
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      enabled: !isCreating,
+                      onChanged: (value) =>
+                          setSheetState(() => tripQuery = value),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search_rounded),
+                        labelText: 'Tìm chuyến đi',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (visibleTrips.isNotEmpty) ...[
+                      ...visibleTrips.map(
+                        (trip) {
+                          final blockedReason = _bookingTripBlockReason(
+                            trip: trip,
+                            detail: detail,
+                            checkIn: checkIn,
+                            checkOut: checkOut,
+                          );
+                          final canSelect = blockedReason == null;
+
+                          return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: InkWell(
+                            onTap: isCreating || !canSelect
+                                ? null
+                                : () {
+                                    Navigator.of(sheetContext).pop(
+                                      _SelectedBookingTrip(
+                                        tripId: trip.tripId,
+                                        dayNumber:
+                                            _dayNumberForTrip(trip, checkIn),
+                                      ),
+                                    );
+                                  },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: canSelect
+                                    ? Colors.white
+                                    : const Color(0xFFF8FAFC),
+                                border: Border.all(
+                                  color: AppColors.borderDefault,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.map_rounded,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          trip.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            color: AppColors.textHeading,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${trip.destination} • ${trip.dateRange}',
+                                          style: const TextStyle(
+                                            color: AppColors.textMuted,
+                                          ),
+                                        ),
+                                        if (blockedReason != null) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            blockedReason,
+                                            style: const TextStyle(
+                                              color: Color(0xFFB42318),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    canSelect
+                                        ? Icons.chevron_right_rounded
+                                        : Icons.lock_outline_rounded,
+                                    color: canSelect
+                                        ? AppColors.textHeading
+                                        : AppColors.textMuted,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                    ] else ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.borderDefault),
+                        ),
+                        child: const Text(
+                          'Không tìm thấy chuyến đi phù hợp. Hãy tạo chuyến đi mới để tiếp tục đặt phòng.',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            height: 1.45,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                    TextField(
+                      enabled: !isCreating,
+                      controller: TextEditingController(text: title)
+                        ..selection = TextSelection.collapsed(
+                          offset: title.length,
+                        ),
+                      onChanged: (value) => title = value,
+                      decoration: InputDecoration(
+                        labelText: 'Tên chuyến đi mới',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed:
+                            isCreating ? null : () => createTrip(setSheetState),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.black87,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: isCreating
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.black87,
+                                ),
+                              )
+                            : const Text(
+                                'Tạo chuyến đi mới',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                ),
+                              ),
+                      ),
+                    ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   int _nightsBetween(DateTime checkIn, DateTime checkOut) {
     return checkOut.difference(checkIn).inDays.clamp(1, 365);
+  }
+
+  DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
+
+  int _dayNumberForTrip(MyTripSummary trip, DateTime checkIn) {
+    return _dateOnly(checkIn).difference(_dateOnly(trip.startDate)).inDays + 1;
+  }
+
+  String? _bookingTripBlockReason({
+    required MyTripSummary trip,
+    required CatalogHotelDetail detail,
+    required DateTime checkIn,
+    required DateTime checkOut,
+  }) {
+    if (trip.destinationId != detail.destinationId) {
+      return 'Khac diem den voi khach san nay.';
+    }
+
+    final tripStart = _dateOnly(trip.startDate);
+    final tripEnd = _dateOnly(trip.endDate);
+    final bookingStart = _dateOnly(checkIn);
+    final bookingEnd = _dateOnly(checkOut);
+
+    if (tripStart.isAfter(bookingStart) || tripEnd.isBefore(bookingEnd)) {
+      return 'Ngay di phai bao tron ngay nhan/tra phong.';
+    }
+
+    return null;
   }
 
   String _formatDate(DateTime date) {
@@ -806,6 +1710,13 @@ class _HotelDetailViewState extends State<HotelDetailView> {
       SnackBar(content: Text(message)),
     );
   }
+}
+
+class _SelectedBookingTrip {
+  const _SelectedBookingTrip({required this.tripId, required this.dayNumber});
+
+  final int tripId;
+  final int dayNumber;
 }
 
 class _GalleryHeader extends StatefulWidget {
@@ -953,7 +1864,7 @@ class _RoomCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Sức chứa ${room.capacity} người • Còn ${room.availableQty} phòng',
+                  'Sức chứa ${room.capacity} người • Tối đa ${room.availableQty} phòng',
                   style: const TextStyle(color: AppColors.textMuted),
                 ),
               ],

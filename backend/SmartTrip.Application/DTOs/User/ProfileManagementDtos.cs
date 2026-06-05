@@ -5,6 +5,12 @@ public class UpdateUserProfileRequestDto
     public string Name { get; set; } = string.Empty;
     public string? Phone { get; set; }
     public string? BirthDate { get; set; }
+    public string? IdentityNumber { get; set; }
+}
+
+public class UpdateUserImageUrlRequestDto
+{
+    public string ImageUrl { get; set; } = string.Empty;
 }
 
 public class UserFavoriteDto
@@ -31,6 +37,7 @@ public class UserSettingsDto
     public string Email { get; set; } = string.Empty;
     public bool IsEmailVerified { get; set; }
     public bool PushNotificationEnabled { get; set; }
+    public bool EmailNotificationEnabled { get; set; }
     public bool EmailOfferEnabled { get; set; }
     public bool DarkModeEnabled { get; set; }
     public string Language { get; set; } = "vi";
@@ -40,6 +47,7 @@ public class UserSettingsDto
 public class UpdateUserSettingsDto
 {
     public bool PushNotificationEnabled { get; set; }
+    public bool EmailNotificationEnabled { get; set; } = true;
     public bool EmailOfferEnabled { get; set; }
     public bool DarkModeEnabled { get; set; }
     public string Language { get; set; } = "vi";

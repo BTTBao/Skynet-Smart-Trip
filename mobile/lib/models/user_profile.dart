@@ -1,10 +1,11 @@
-
 class UserProfile {
   final String id;
   final String name;
   final String email;
   final String phone;
   final String birthDate;
+  final String? identityNumber;
+  final String? identityCardPhotoUrl;
   final String avatarUrl;
   final bool isEmailVerified;
   final String memberTier;
@@ -18,6 +19,8 @@ class UserProfile {
     required this.email,
     required this.phone,
     required this.birthDate,
+    this.identityNumber,
+    this.identityCardPhotoUrl,
     required this.avatarUrl,
     required this.isEmailVerified,
     required this.memberTier,
@@ -32,6 +35,8 @@ class UserProfile {
     String? email,
     String? phone,
     String? birthDate,
+    Object? identityNumber = _sentinel,
+    Object? identityCardPhotoUrl = _sentinel,
     String? avatarUrl,
     bool? isEmailVerified,
     String? memberTier,
@@ -45,6 +50,12 @@ class UserProfile {
       email: email ?? this.email,
       phone: phone ?? this.phone,
       birthDate: birthDate ?? this.birthDate,
+      identityNumber: identityNumber == _sentinel
+          ? this.identityNumber
+          : identityNumber as String?,
+      identityCardPhotoUrl: identityCardPhotoUrl == _sentinel
+          ? this.identityCardPhotoUrl
+          : identityCardPhotoUrl as String?,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       isEmailVerified: isEmailVerified ?? this.isEmailVerified,
       memberTier: memberTier ?? this.memberTier,
@@ -61,13 +72,15 @@ class UserProfile {
       name: json['name'] ?? '',
       email: json['email'] ?? '',
       phone: json['phone'] ?? '',
-      avatarUrl: json['avatarUrl'] ?? 'https://i.pravatar.cc/150?u=skynet',
+      avatarUrl: (json['avatarUrl'] ?? '').toString(),
       isEmailVerified: json['isEmailVerified'] == true,
       memberTier: json['memberTier'] ?? 'Thành viên mới',
       tripsCount: json['tripsCount'] ?? 0,
       coins: json['coins'] ?? 0,
       vouchers: json['vouchers'] ?? 0,
       birthDate: json['birthDate'] ?? '',
+      identityNumber: json['identityNumber'] as String?,
+      identityCardPhotoUrl: json['identityCardPhotoUrl'] as String?,
     );
   }
 
@@ -85,6 +98,8 @@ class UserProfile {
       'coins': coins,
       'vouchers': vouchers,
       'birthDate': birthDate,
+      'identityNumber': identityNumber,
+      'identityCardPhotoUrl': identityCardPhotoUrl,
     };
   }
 
@@ -93,6 +108,9 @@ class UserProfile {
       'name': name,
       'phone': phone,
       'birthDate': birthDate,
+      'identityNumber': identityNumber,
     };
   }
 }
+
+const _sentinel = Object();

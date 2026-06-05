@@ -5,12 +5,22 @@ import '../../core/app_theme.dart';
 import '../../models/catalog_models.dart';
 import '../../providers/catalog_provider.dart';
 import '../../utils/app_currency_formatter.dart';
-import '../catalog/bus_detail_view.dart';
-import '../catalog/hotel_detail_view.dart';
+import 'package:intl/intl.dart';
+import '../transport/transport_search_screen.dart';
 import '../catalog/search_view.dart';
+import '../resort_detail/resort_detail_screen.dart';
+import '../resort_search/resort_search_screen.dart';
+import '../destination/destination_article_screen.dart';
 
 class HomeView extends StatefulWidget {
-  const HomeView({super.key});
+  const HomeView({
+    super.key,
+    this.onNavigateToExplore,
+    this.onNavigateToTrips,
+  });
+
+  final VoidCallback? onNavigateToExplore;
+  final VoidCallback? onNavigateToTrips;
 
   @override
   State<HomeView> createState() => _HomeViewState();
@@ -90,28 +100,46 @@ class _HomeViewState extends State<HomeView> {
                         label: 'Khách sạn',
                         color: const Color(0xFF3B82F6),
                         background: const Color(0xFFEFF6FF),
-                        onTap: _openSearch,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const ResortSearchScreen()),
+                          );
+                        },
                       ),
                       _CategoryItem(
                         icon: Icons.directions_bus_rounded,
                         label: 'Xe khách',
                         color: const Color(0xFFF97316),
                         background: const Color(0xFFFFF7ED),
-                        onTap: () => _openSearch(mode: SearchMode.bus),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const SearchView(
+                                initialMode: SearchMode.bus,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       _CategoryItem(
                         icon: Icons.map_outlined,
                         label: 'Tour',
                         color: const Color(0xFF8B5CF6),
                         background: const Color(0xFFF5F3FF),
-                        onTap: _openSearch,
+                        onTap: _openTrips,
                       ),
                       _CategoryItem(
                         icon: Icons.explore_outlined,
                         label: 'Khám phá',
                         color: const Color(0xFF22C55E),
                         background: const Color(0xFFF0FDF4),
-                        onTap: _openSearch,
+                        onTap: () {
+                          if (widget.onNavigateToExplore != null) {
+                            widget.onNavigateToExplore!();
+                          } else {
+                            _openSearch();
+                          }
+                        },
                       ),
                     ],
                   ),
@@ -134,10 +162,9 @@ class _HomeViewState extends State<HomeView> {
                         separatorBuilder: (_, _) => const SizedBox(width: 14),
                         itemBuilder: (context, index) => _DestinationCard(
                           item: home.popularDestinations[index],
-                          onTap: () => _openSearch(
-                            mode: SearchMode.hotel,
-                            destinationId: home.popularDestinations[index].id,
-                            initialQuery: home.popularDestinations[index].name,
+                          onTap: () => _showDestinationActionSheet(
+                            home.popularDestinations[index].name,
+                            home.popularDestinations[index].id,
                           ),
                         ),
                       ),
@@ -167,7 +194,7 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   const SizedBox(height: 28),
                   _SectionHeader(
-                    title: 'Xe khách nổi bật',
+                    title: 'Tuyen xe hom nay',
                     actionLabel: 'Xem tuyến',
                     onTap: () => _openSearch(mode: SearchMode.bus),
                   ),
@@ -176,7 +203,7 @@ class _HomeViewState extends State<HomeView> {
                     const _LoadingCard(height: 190)
                   else if (home != null)
                     SizedBox(
-                      height: 188,
+                      height: 200,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(),
@@ -192,7 +219,13 @@ class _HomeViewState extends State<HomeView> {
                   _SectionHeader(
                     title: 'Gợi ý cho bạn',
                     actionLabel: 'Khám phá',
-                    onTap: _openSearch,
+                    onTap: () {
+                      if (widget.onNavigateToExplore != null) {
+                        widget.onNavigateToExplore!();
+                      } else {
+                        _openSearch();
+                      }
+                    },
                   ),
                   const SizedBox(height: 14),
                   if (provider.isLoadingHome && home == null)
@@ -247,15 +280,219 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+
+  void _openTrips() {
+    if (widget.onNavigateToTrips != null) {
+      widget.onNavigateToTrips!();
+    }
+  }
+
   void _openHotel(CatalogHotelCard hotel) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => HotelDetailView(hotelId: hotel.id)),
+      MaterialPageRoute(
+        builder: (_) => ResortDetailScreen(hotelId: hotel.id),
+      ),
     );
   }
 
   void _openBus(CatalogBusCard bus) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => BusDetailView(scheduleId: bus.id)),
+      MaterialPageRoute(
+        builder: (_) => TransportSearchScreen(initialScheduleId: bus.id),
+      ),
+    );
+  }
+
+  void _showDestinationActionSheet(String destinationName, int destinationId) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Container(
+          padding: const EdgeInsets.only(left: 24, right: 24, top: 16, bottom: 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 50,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Khám phá $destinationName',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.black87),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Chọn loại hình dịch vụ bạn muốn trải nghiệm.',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                ),
+                const SizedBox(height: 24),
+                _buildActionOptionCard(
+                  sheetContext,
+                  icon: Icons.hotel_rounded,
+                  color: const Color(0xFF0D6B42),
+                  label: 'LƯU TRÚ',
+                  description: 'Tìm Khách sạn / Resort sang trọng',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ResortSearchScreen(
+                          destinationId: destinationId,
+                          destinationName: destinationName,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildActionOptionCard(
+                  sheetContext,
+                  icon: Icons.directions_bus_rounded,
+                  color: const Color(0xFF1B5E20),
+                  label: 'DI CHUYỂN',
+                  description: 'Đặt vé xe Limousine chất lượng cao',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SearchView(
+                          initialMode: SearchMode.bus,
+                          initialDestinationId: destinationId,
+                          initialQuery: destinationName,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      final nameLower = destinationName.toLowerCase();
+                      String slug = 'da-lat';
+                      String title = 'Đà Lạt: Bản Tình Ca Giữa Màn Sương';
+                      String imageUrl = 'https://images.unsplash.com/photo-1596423735880-532688b1ccfc?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+                      String category = 'Cẩm nang';
+                      String readTime = '4 phút đọc';
+
+                      if (nameLower.contains('nẵng') || nameLower.contains('nang')) {
+                        slug = 'da-nang';
+                        title = 'Kinh nghiệm du lịch Đà Nẵng tự túc từ A-Z';
+                        imageUrl = 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+                        category = 'Cẩm nang';
+                        readTime = '5 phút đọc';
+                      } else if (nameLower.contains('lộng') || nameLower.contains('long')) {
+                        slug = 'ha-long';
+                        title = 'Hạ Long có gì chơi? Gợi ý lịch trình 2 ngày 1 đêm';
+                        imageUrl = 'https://images.unsplash.com/photo-1524230507669-e29f7363618d?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80';
+                        category = 'Lịch trình';
+                        readTime = '6 phút đọc';
+                      }
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DestinationArticleScreen(
+                            title: title,
+                            imageUrl: imageUrl,
+                            category: category,
+                            readTime: readTime,
+                            citySlug: slug,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.menu_book_rounded, color: Colors.green[800], size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Đọc cẩm nang chi tiết về $destinationName',
+                          style: TextStyle(
+                            color: Colors.green[800],
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActionOptionCard(
+    BuildContext sheetContext, {
+    required IconData icon,
+    required Color color,
+    required String label,
+    required String description,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -625,7 +862,8 @@ class _BusCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: 230,
-        padding: const EdgeInsets.all(16),
+        height: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(22),
@@ -638,6 +876,7 @@ class _BusCard extends StatelessWidget {
           ],
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -678,7 +917,7 @@ class _BusCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Text(
               '${bus.fromDestination} → ${bus.toDestination}',
               maxLines: 2,
@@ -689,7 +928,7 @@ class _BusCard extends StatelessWidget {
                 color: AppColors.textHeading,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Row(
               children: [
                 const Icon(
@@ -704,7 +943,21 @@ class _BusCard extends StatelessWidget {
                 ),
               ],
             ),
-            const Spacer(),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.access_time_rounded, size: 16, color: AppColors.textMuted),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '${bus.departureTime != null ? DateFormat('HH:mm').format(bus.departureTime!) : '--:--'}  →  ${bus.arrivalTime != null ? DateFormat('HH:mm').format(bus.arrivalTime!) : '--:--'}',
+                    style: const TextStyle(color: AppColors.textMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
             Text(
               AppCurrencyFormatter.format(bus.price),
               style: const TextStyle(

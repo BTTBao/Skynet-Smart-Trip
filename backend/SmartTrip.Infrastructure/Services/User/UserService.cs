@@ -3,29 +3,38 @@ using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using System.Globalization;
+using Microsoft.Extensions.Logging;
+using SmartTrip.Application.DTOs.Notifications;
+using SmartTrip.Application.Interfaces.Email;
+using SmartTrip.Application.Interfaces.Notifications;
 
 namespace SmartTrip.Infrastructure.Services.User;
 
 public class UserService : IUserService
 {
     private const string PushNotificationKey = "push_notifications";
+    private const string EmailNotificationKey = "email_notifications";
     private const string EmailOfferKey = "email_offers";
     private const string DarkModeKey = "dark_mode";
     private const string LanguageKey = "language";
     private const string CurrencyKey = "currency";
 
     private readonly ApplicationDbContext _context;
-    private readonly IWebHostEnvironment _environment;
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IEmailService _emailService;
+    private readonly INotificationService _notificationService;
+    private readonly ILogger<UserService> _logger;
 
-    public UserService(ApplicationDbContext context, IWebHostEnvironment environment, IHttpContextAccessor httpContextAccessor)
+    public UserService(
+        ApplicationDbContext context,
+        IEmailService emailService,
+        INotificationService notificationService,
+        ILogger<UserService> logger)
     {
         _context = context;
-        _environment = environment;
-        _httpContextAccessor = httpContextAccessor;
+        _emailService = emailService;
+        _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task<UserDto?> GetUserProfileAsync(int userId)
@@ -44,7 +53,7 @@ public class UserService : IUserService
 
         var tripsCount = await _context.Trips
             .AsNoTracking()
-            .CountAsync(t => t.UserId == userId);
+            .CountAsync(t => t.UserId == userId && t.Status != TripStatus.BookingOnly);
 
         var vouchersCount = await _context.Promotions
             .AsNoTracking()
@@ -64,7 +73,9 @@ public class UserService : IUserService
             TripsCount = tripsCount,
             Coins = loyaltyPoints,
             Vouchers = vouchersCount,
-            BirthDate = user.BirthDate?.ToString("yyyy-MM-dd")
+            BirthDate = user.BirthDate?.ToString("yyyy-MM-dd"),
+            IdentityNumber = user.IdentityNumber,
+            IdentityCardPhotoUrl = user.IdentityCardPhotoUrl
         };
     }
 
@@ -79,13 +90,44 @@ public class UserService : IUserService
             return null;
         }
 
+        var reviews = await _context.Reviews
+            .AsNoTracking()
+            .Where(r => r.UserId == userId)
+            .ToListAsync();
+
         var trips = await _context.Trips
             .AsNoTracking()
             .Include(t => t.Destination)
             .Include(t => t.Invoices)
+            .Include(t => t.Payments)
             .Where(t => t.UserId == userId)
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
+
+        static string ResolveHistoryTripStatus(Trip t)
+        {
+            var hasPaidPayment = t.Payments.Any(p => p.Status == PaymentStatus.Paid);
+            var hasInvoice = t.Invoices.Any();
+
+            if (t.Status == TripStatus.Cancelled)
+            {
+                return TripStatus.Cancelled.ToString();
+            }
+
+            if (hasPaidPayment || hasInvoice)
+            {
+                return TripStatus.Paid.ToString();
+            }
+
+            return t.Status?.ToString() ?? TripStatus.Draft.ToString();
+        }
+
+        static decimal ResolvePaidTripAmount(Trip t)
+        {
+            return t.Payments
+                .Where(p => p.Status == PaymentStatus.Paid)
+                .Sum(p => p.Amount ?? 0m);
+        }
 
         var bookings = trips.Select(t => new BookingHistoryItemDto
         {
@@ -94,13 +136,14 @@ public class UserService : IUserService
             DestinationName = t.Destination?.Name ?? string.Empty,
             StartDate = t.StartDate?.ToString("yyyy-MM-dd"),
             EndDate = t.EndDate?.ToString("yyyy-MM-dd"),
-            TotalAmount = t.TotalAmount ?? 0,
-            Status = t.Status?.ToString() ?? TripStatus.Draft.ToString(),
+            TotalAmount = ResolvePaidTripAmount(t) > 0 ? ResolvePaidTripAmount(t) : t.TotalAmount ?? 0,
+            Status = ResolveHistoryTripStatus(t),
             CreatedAt = t.CreatedAt?.ToString("O"),
             InvoiceNumber = t.Invoices
                 .OrderByDescending(i => i.IssuedAt)
                 .Select(i => i.InvoiceNumber)
-                .FirstOrDefault()
+                .FirstOrDefault(),
+            IsBookingOnly = t.Status == TripStatus.BookingOnly
         }).ToList();
 
         var hotelItineraries = await _context.TripItineraries
@@ -108,17 +151,37 @@ public class UserService : IUserService
             .Where(i => i.Trip != null && i.Trip.UserId == userId && i.ServiceType == TripServiceType.Hotel)
             .ToListAsync();
 
-        var hotelIds = hotelItineraries
+        var itineraryCountsByTrip = await _context.TripItineraries
+            .AsNoTracking()
+            .Where(i => i.Trip != null && i.Trip.UserId == userId)
+            .GroupBy(i => i.TripId)
+            .Select(group => new { TripId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(item => item.TripId ?? 0, item => item.Count);
+
+        decimal ResolveItineraryHistoryAmount(TripItinerary itinerary, Trip? trip)
+        {
+            var rawAmount = (itinerary.BookedPrice ?? 0m) * (itinerary.Quantity ?? 1);
+            if (trip == null || itineraryCountsByTrip.GetValueOrDefault(trip.Id) != 1)
+            {
+                return rawAmount;
+            }
+
+            var paidAmount = ResolvePaidTripAmount(trip);
+            return paidAmount > 0 ? paidAmount : rawAmount;
+        }
+
+        var roomIds = hotelItineraries
             .Where(i => i.ServiceId.HasValue)
             .Select(i => i.ServiceId!.Value)
             .Distinct()
             .ToList();
 
-        var hotelsById = await _context.Hotels
+        var roomsById = await _context.Rooms
             .AsNoTracking()
-            .Include(h => h.Destination)
-            .Where(h => hotelIds.Contains(h.Id))
-            .ToDictionaryAsync(h => h.Id);
+            .Include(r => r.Hotel)
+                .ThenInclude(h => h!.Destination)
+            .Where(r => roomIds.Contains(r.Id))
+            .ToDictionaryAsync(r => r.Id);
 
         var tripsById = trips.ToDictionary(t => t.Id);
 
@@ -126,23 +189,35 @@ public class UserService : IUserService
             .OrderByDescending(i => tripsById.TryGetValue(i.TripId ?? 0, out var trip) ? trip.CreatedAt : null)
             .Select(i =>
             {
-                hotelsById.TryGetValue(i.ServiceId ?? 0, out var hotel);
+                roomsById.TryGetValue(i.ServiceId ?? 0, out var room);
                 tripsById.TryGetValue(i.TripId ?? 0, out var trip);
+                var targetHotelId = room?.HotelId ?? 0;
+                var isReviewed = reviews.Any(r => 
+                    r.TripId == i.TripId && 
+                    r.TargetType == ReviewTargetType.Hotel && 
+                    r.TargetId == targetHotelId);
 
                 return new HotelHistoryItemDto
                 {
                     TripId = i.TripId ?? 0,
                     ItineraryId = i.Id,
-                    ServiceId = hotel?.Id ?? i.ServiceId ?? 0,
+                    ServiceId = targetHotelId,
                     TripTitle = trip?.Title ?? "Chuyen di",
-                    HotelName = hotel?.Name ?? "Khach san",
-                    Address = hotel?.Address ?? string.Empty,
-                    DestinationName = hotel?.Destination?.Name ?? string.Empty,
-                    CheckInDate = trip?.StartDate?.ToString("yyyy-MM-dd"),
-                    CheckOutDate = trip?.EndDate?.ToString("yyyy-MM-dd"),
+                    HotelName = room?.Hotel?.Name ?? "Khach san",
+                    RoomType = room?.RoomType ?? string.Empty,
+                    Address = room?.Hotel?.Address ?? string.Empty,
+                    DestinationName = room?.Hotel?.Destination?.Name ?? string.Empty,
+                    CheckInDate = (i.ServiceDate ?? trip?.StartDate)?.ToString("yyyy-MM-dd"),
+                    CheckOutDate = (i.HotelCheckOutDate ?? trip?.EndDate)?.ToString("yyyy-MM-dd"),
                     Quantity = i.Quantity ?? 0,
-                    BookedPrice = i.BookedPrice ?? 0,
-                    Status = trip?.Status?.ToString() ?? TripStatus.Draft.ToString()
+                    BookedPrice = ResolveItineraryHistoryAmount(i, trip),
+                    Status = trip != null ? ResolveHistoryTripStatus(trip) : TripStatus.Draft.ToString(),
+                    IsReviewed = isReviewed,
+                    IsBookingOnly = trip?.Status == TripStatus.BookingOnly,
+                    InvoiceNumber = trip?.Invoices
+                        .OrderByDescending(invoice => invoice.IssuedAt)
+                        .Select(invoice => invoice.InvoiceNumber)
+                        .FirstOrDefault()
                 };
             })
             .ToList();
@@ -172,12 +247,18 @@ public class UserService : IUserService
             {
                 busSchedulesById.TryGetValue(i.ServiceId ?? 0, out var schedule);
                 tripsById.TryGetValue(i.TripId ?? 0, out var trip);
+                var targetCompanyId = schedule?.CompanyId ?? 0;
+                var isReviewed = reviews.Any(r => 
+                    r.TripId == i.TripId && 
+                    r.TargetType == ReviewTargetType.BusCompany && 
+                    r.TargetId == targetCompanyId);
 
                 return new BusHistoryItemDto
                 {
                     TripId = i.TripId ?? 0,
                     ItineraryId = i.Id,
                     ServiceId = schedule?.Id ?? i.ServiceId ?? 0,
+                    CompanyId = targetCompanyId,
                     TripTitle = trip?.Title ?? "Chuyen di",
                     CompanyName = schedule?.Company?.Name ?? "Nha xe",
                     FromDestination = schedule?.FromDest?.Name ?? string.Empty,
@@ -185,8 +266,15 @@ public class UserService : IUserService
                     DepartureTime = schedule?.DepartureTime?.ToString("O"),
                     ArrivalTime = schedule?.ArrivalTime?.ToString("O"),
                     Quantity = i.Quantity ?? 0,
-                    BookedPrice = i.BookedPrice ?? 0,
-                    Status = trip?.Status?.ToString() ?? TripStatus.Draft.ToString()
+                    BookedPrice = ResolveItineraryHistoryAmount(i, trip),
+                    Status = trip != null ? ResolveHistoryTripStatus(trip) : TripStatus.Draft.ToString(),
+                    IsReviewed = isReviewed,
+                    SelectedSeats = i.SelectedSeats,
+                    IsBookingOnly = trip?.Status == TripStatus.BookingOnly,
+                    InvoiceNumber = trip?.Invoices
+                        .OrderByDescending(invoice => invoice.IssuedAt)
+                        .Select(invoice => invoice.InvoiceNumber)
+                        .FirstOrDefault()
                 };
             })
             .ToList();
@@ -216,7 +304,8 @@ public class UserService : IUserService
                     PaidAt = p.PaidAt?.ToString("O"),
                     TransactionId = p.TransactionId,
                     InvoiceNumber = latestInvoice?.InvoiceNumber,
-                    InvoicePdfUrl = latestInvoice?.PdfUrl
+                    InvoicePdfUrl = latestInvoice?.PdfUrl,
+                    IsBookingOnly = p.Trip?.Status == TripStatus.BookingOnly
                 };
             })
             .ToList();
@@ -235,47 +324,51 @@ public class UserService : IUserService
         var user = await _context.Users.FindAsync(userId);
         if (user == null) return false;
 
+        var identityNumber = string.IsNullOrWhiteSpace(request.IdentityNumber)
+            ? null
+            : request.IdentityNumber.Trim();
+        if (!string.IsNullOrWhiteSpace(identityNumber))
+        {
+            var identityExists = await _context.Users
+                .AsNoTracking()
+                .AnyAsync(item => item.Id != userId && item.IdentityNumber == identityNumber);
+            if (identityExists)
+            {
+                throw new ArgumentException("So CCCD/CMND nay da duoc su dung boi tai khoan khac.");
+            }
+        }
+
         user.FullName = request.Name.Trim();
         user.Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
         user.BirthDate = ParseBirthDate(request.BirthDate);
+        user.IdentityNumber = identityNumber;
 
         await _context.SaveChangesAsync();
         return true;
     }
 
-    public async Task<string?> UploadAvatarAsync(int userId, IFormFile file)
+    public async Task<string?> UpdateAvatarUrlAsync(int userId, string imageUrl)
     {
         var user = await _context.Users.FindAsync(userId);
         if (user == null) return null;
 
-        string wwwRootPath = _environment.WebRootPath;
-        if (string.IsNullOrEmpty(wwwRootPath))
-        {
-            wwwRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-        }
-
-        string fileName = $"avatar_{userId}_{DateTime.UtcNow.Ticks}{Path.GetExtension(file.FileName)}";
-        string filePath = Path.Combine(wwwRootPath, "uploads", "avatars", fileName);
-
-        // Đảm bảo thư mục tồn tại
-        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
-        DeletePreviousAvatarIfOwnedByApp(user.AvatarUrl, wwwRootPath);
-
-        using (var fileStream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(fileStream);
-        }
-
-        // Tạo URL đầy đủ
-        var request = _httpContextAccessor.HttpContext?.Request;
-        string baseUrl = $"{request?.Scheme}://{request?.Host}{request?.PathBase}";
-        string avatarUrl = $"{baseUrl}/uploads/avatars/{fileName}";
-
-        // Cập nhật DB
+        var avatarUrl = NormalizeImageUrl(imageUrl);
         user.AvatarUrl = avatarUrl;
         await _context.SaveChangesAsync();
 
         return avatarUrl;
+    }
+
+    public async Task<string?> UpdateIdentityCardPhotoUrlAsync(int userId, string imageUrl)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return null;
+
+        var identityCardPhotoUrl = NormalizeImageUrl(imageUrl);
+        user.IdentityCardPhotoUrl = identityCardPhotoUrl;
+        await _context.SaveChangesAsync();
+
+        return identityCardPhotoUrl;
     }
 
     public async Task<List<UserFavoriteDto>> GetFavoritesAsync(int userId)
@@ -373,6 +466,7 @@ public class UserService : IUserService
         }
 
         await UpsertPreferenceAsync(userId, PushNotificationKey, request.PushNotificationEnabled.ToString().ToLowerInvariant());
+        await UpsertPreferenceAsync(userId, EmailNotificationKey, request.EmailNotificationEnabled.ToString().ToLowerInvariant());
         await UpsertPreferenceAsync(userId, EmailOfferKey, request.EmailOfferEnabled.ToString().ToLowerInvariant());
         await UpsertPreferenceAsync(userId, DarkModeKey, request.DarkModeEnabled.ToString().ToLowerInvariant());
         await UpsertPreferenceAsync(userId, LanguageKey, request.Language.Trim().ToLowerInvariant());
@@ -434,6 +528,19 @@ public class UserService : IUserService
 
         await _context.SaveChangesAsync();
 
+        await _notificationService.CreateAsync(new CreateNotificationDto
+        {
+            UserId = userId,
+            Title = "Mật khẩu đã được thay đổi",
+            Message = "Mật khẩu tài khoản SmartTrip của bạn đã được cập nhật thành công.",
+            Type = "account.password_changed",
+            ReferenceType = "account",
+            ReferenceId = userId,
+            ActionUrl = "/profile/security"
+        });
+
+        await SendPasswordChangedEmailAsync(user);
+
         return new UserActionResultDto
         {
             Success = true,
@@ -466,32 +573,16 @@ public class UserService : IUserService
         throw new InvalidOperationException("Ngay sinh khong hop le");
     }
 
-    private void DeletePreviousAvatarIfOwnedByApp(string? avatarUrl, string wwwRootPath)
+    private static string NormalizeImageUrl(string imageUrl)
     {
-        if (string.IsNullOrWhiteSpace(avatarUrl))
+        var normalized = imageUrl.Trim();
+        if (!Uri.TryCreate(normalized, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
-            return;
+            throw new ArgumentException("Duong dan anh khong hop le.");
         }
 
-        if (!Uri.TryCreate(avatarUrl, UriKind.Absolute, out var uri))
-        {
-            return;
-        }
-
-        var relativePath = uri.AbsolutePath
-            .Replace('/', Path.DirectorySeparatorChar)
-            .TrimStart(Path.DirectorySeparatorChar);
-
-        if (!relativePath.StartsWith($"uploads{Path.DirectorySeparatorChar}avatars", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        var fullPath = Path.Combine(wwwRootPath, relativePath);
-        if (File.Exists(fullPath))
-        {
-            File.Delete(fullPath);
-        }
+        return normalized;
     }
 
     private async Task<List<UserFavoriteDto>> MapFavoritesAsync(List<Wishlist> favorites)
@@ -601,6 +692,7 @@ public class UserService : IUserService
             Email = user.Email,
             IsEmailVerified = user.IsEmailVerified,
             PushNotificationEnabled = GetBoolPreference(preferences, PushNotificationKey, true),
+            EmailNotificationEnabled = GetBoolPreference(preferences, EmailNotificationKey, true),
             EmailOfferEnabled = GetBoolPreference(preferences, EmailOfferKey, false),
             DarkModeEnabled = GetBoolPreference(preferences, DarkModeKey, false),
             Language = GetStringPreference(preferences, LanguageKey, "vi"),
@@ -643,6 +735,25 @@ public class UserService : IUserService
         existing.UpdatedAt = DateTime.UtcNow;
     }
 
+    private async Task SendPasswordChangedEmailAsync(SmartTrip.Domain.Entities.User user)
+    {
+        try
+        {
+            if (!await _notificationService.AreEmailNotificationsEnabledAsync(user.Id))
+            {
+                return;
+            }
+
+            await _emailService.SendPasswordChangedEmailAsync(
+                user.Email,
+                user.FullName ?? user.Email);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send password changed email for user {UserId}", user.Id);
+        }
+    }
+
     private static string GetMemberTier(int loyaltyPoints)
     {
         if (loyaltyPoints >= 1000) return "Platinum Member";
@@ -651,3 +762,4 @@ public class UserService : IUserService
         return "Member";
     }
 }
+

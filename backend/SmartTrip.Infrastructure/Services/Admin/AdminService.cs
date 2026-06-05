@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SmartTrip.Application.DTOs.Admin;
+using SmartTrip.Application.DTOs.Notifications;
 using SmartTrip.Application.Interfaces.Admin;
 using SmartTrip.Application.Interfaces;
 using SmartTrip.Application.Interfaces.Email;
+using SmartTrip.Application.Interfaces.Notifications;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
 
@@ -19,17 +21,23 @@ public partial class AdminService : IAdminService
 {
     private readonly IApplicationDbContext _context;
     private readonly IEmailService _emailService;
+    private readonly INotificationService _notificationService;
+    private readonly IFcmPushService _fcmPushService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AdminService> _logger;
 
     public AdminService(
         IApplicationDbContext context,
         IEmailService emailService,
+        INotificationService notificationService,
+        IFcmPushService fcmPushService,
         IConfiguration configuration,
         ILogger<AdminService> logger)
     {
         _context = context;
         _emailService = emailService;
+        _notificationService = notificationService;
+        _fcmPushService = fcmPushService;
         _configuration = configuration;
         _logger = logger;
     }
@@ -262,6 +270,8 @@ public async Task<AdminUserStatsDto> GetUsersAsync(string? search = null)
             throw new BadHttpRequestException("Email đã tồn tại trong hệ thống.");
         }
 
+        var wasActive = user.IsActive == true;
+
         user.FullName = request.Name.Trim();
         user.Email = normalizedEmail;
         user.Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
@@ -269,6 +279,11 @@ public async Task<AdminUserStatsDto> GetUsersAsync(string? search = null)
         user.IsActive = request.IsActive;
 
         await _context.SaveChangesAsync();
+
+        if (wasActive != request.IsActive)
+        {
+            await NotifyAccountStatusChangedAsync(user, request.IsActive);
+        }
 
         return MapAdminUser(user);
     }
@@ -281,8 +296,14 @@ public async Task<AdminUserStatsDto> GetUsersAsync(string? search = null)
             throw new BadHttpRequestException("Không tìm thấy người dùng.");
         }
 
+        var wasActive = user.IsActive == true;
         user.IsActive = isActive;
         await _context.SaveChangesAsync();
+
+        if (wasActive != isActive)
+        {
+            await NotifyAccountStatusChangedAsync(user, isActive);
+        }
 
         return MapAdminUser(user);
     }
@@ -338,6 +359,8 @@ public async Task<AdminUserStatsDto> GetUsersAsync(string? search = null)
         user.RefreshTokenExpiry = null;
 
         await _context.SaveChangesAsync();
+
+        await NotifyAccountStatusChangedAsync(user, false);
     }
 
 public async Task<AdminTransportStatsDto> GetTransportStatsAsync()
@@ -439,9 +462,12 @@ public async Task<AdminTransportStatsDto> GetTransportStatsAsync()
 
         return new AdminBookingStatsDto
         {
-            TotalRevenue = trips
+            TotalRevenue = trips.Sum(t => t.Payments
+                .Where(payment => payment.Status == PaymentStatus.Paid)
+                .Sum(payment => payment.Amount.GetValueOrDefault())),
+            TotalProfit = trips
                 .Where(t => GetBookingPaymentStatus(t) == "paid")
-                .Sum(t => t.TotalAmount.GetValueOrDefault()),
+                .Sum(t => t.TotalProfit.GetValueOrDefault()),
             TotalBookings = trips.Count,
             NewCustomers = newCustomers,
             PaidBookings = paidBookings,
@@ -483,9 +509,9 @@ public async Task<AdminTransportStatsDto> GetTransportStatsAsync()
     {
         var ticketPrice = schedule.Price.GetValueOrDefault();
         var totalSeats = GetTotalSeatCount(schedule);
-        var commissionRate = (decimal)(schedule.CommissionRate ?? 0d);
+        var commissionRate = NormalizeCommissionRate(schedule.CommissionRate);
 
-        return ticketPrice * totalSeats * commissionRate / 100m;
+        return ticketPrice * totalSeats * commissionRate;
     }
 
     private static string GetTransportStatus(BusSchedule schedule, DateTime now)
@@ -587,6 +613,46 @@ public async Task<AdminTransportStatsDto> GetTransportStatsAsync()
         };
     }
 
+    private async Task NotifyAccountStatusChangedAsync(SmartTrip.Domain.Entities.User user, bool isActive)
+    {
+        try
+        {
+            await _notificationService.CreateAsync(new CreateNotificationDto
+            {
+                UserId = user.Id,
+                Title = isActive ? "Tài khoản đã được mở khóa" : "Tài khoản đã bị khóa",
+                Message = isActive
+                    ? "Tài khoản SmartTrip của bạn đã được mở lại."
+                    : "Tài khoản SmartTrip của bạn đã tạm thời bị khóa bởi quản trị viên.",
+                Type = isActive ? "account.unlocked" : "account.locked",
+                ReferenceType = "account",
+                ReferenceId = user.Id,
+                ActionUrl = "/profile"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create account status notification for user {UserId}", user.Id);
+        }
+
+        try
+        {
+            if (!await _notificationService.AreEmailNotificationsEnabledAsync(user.Id))
+            {
+                return;
+            }
+
+            await _emailService.SendAccountStatusChangedEmailAsync(
+                user.Email,
+                user.FullName ?? user.Email,
+                isActive);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send account status email for user {UserId}", user.Id);
+        }
+    }
+
     private static AdminUserDto MapAdminUser(SmartTrip.Domain.Entities.User user)
     {
         var bgColors = new[] { "bg-primary-container/20", "bg-secondary-container/20", "bg-tertiary-container/20", "bg-surface-container" };
@@ -607,3 +673,4 @@ public async Task<AdminTransportStatsDto> GetTransportStatsAsync()
         };
     }
 }
+

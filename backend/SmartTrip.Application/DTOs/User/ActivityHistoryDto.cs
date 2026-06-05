@@ -19,6 +19,7 @@ public class BookingHistoryItemDto
     public string Status { get; set; } = string.Empty;
     public string? CreatedAt { get; set; }
     public string? InvoiceNumber { get; set; }
+    public bool IsBookingOnly { get; set; }
 }
 
 public class HotelHistoryItemDto
@@ -28,6 +29,7 @@ public class HotelHistoryItemDto
     public int ServiceId { get; set; }
     public string TripTitle { get; set; } = string.Empty;
     public string HotelName { get; set; } = string.Empty;
+    public string RoomType { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
     public string DestinationName { get; set; } = string.Empty;
     public string? CheckInDate { get; set; }
@@ -35,6 +37,9 @@ public class HotelHistoryItemDto
     public int Quantity { get; set; }
     public decimal BookedPrice { get; set; }
     public string Status { get; set; } = string.Empty;
+    public bool IsReviewed { get; set; }
+    public bool IsBookingOnly { get; set; }
+    public string? InvoiceNumber { get; set; }
 }
 
 public class BusHistoryItemDto
@@ -42,6 +47,7 @@ public class BusHistoryItemDto
     public int TripId { get; set; }
     public int ItineraryId { get; set; }
     public int ServiceId { get; set; }
+    public int CompanyId { get; set; }
     public string TripTitle { get; set; } = string.Empty;
     public string CompanyName { get; set; } = string.Empty;
     public string FromDestination { get; set; } = string.Empty;
@@ -51,6 +57,10 @@ public class BusHistoryItemDto
     public int Quantity { get; set; }
     public decimal BookedPrice { get; set; }
     public string Status { get; set; } = string.Empty;
+    public bool IsReviewed { get; set; }
+    public string? SelectedSeats { get; set; }
+    public bool IsBookingOnly { get; set; }
+    public string? InvoiceNumber { get; set; }
 }
 
 public class PaymentHistoryItemDto
@@ -65,4 +75,5 @@ public class PaymentHistoryItemDto
     public string? TransactionId { get; set; }
     public string? InvoiceNumber { get; set; }
     public string? InvoicePdfUrl { get; set; }
+    public bool IsBookingOnly { get; set; }
 }

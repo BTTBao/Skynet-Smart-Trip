@@ -22,6 +22,7 @@ public class HotelController : ControllerBase
         var query = _context.Hotels
             .Include(h => h.Rooms)
             .Include(h => h.Amenities)
+            .Include(h => h.Destination)
             .Where(h => h.IsAvailable == true);
 
         if (destinationId.HasValue)
@@ -60,6 +61,8 @@ public class HotelController : ControllerBase
             return new
             {
                 h.Id,
+                h.DestinationId,
+                DestinationName = h.Destination != null ? h.Destination.Name : "",
                 h.Name,
                 h.Address,
                 h.StarRating,
@@ -82,6 +85,7 @@ public class HotelController : ControllerBase
         var hotel = await _context.Hotels
             .Include(h => h.Rooms)
             .Include(h => h.Amenities)
+            .Include(h => h.Destination)
             .FirstOrDefaultAsync(h => h.Id == id);
 
         if (hotel is null) return NotFound(new { message = "Không tìm thấy khách sạn." });
@@ -91,6 +95,21 @@ public class HotelController : ControllerBase
             .OrderBy(g => g.Id)
             .Select(g => g.ImageUrl)
             .ToListAsync();
+
+        var roomIds = hotel.Rooms.Select(r => r.Id).ToList();
+        var roomImages = await _context.Galleries
+            .Where(g =>
+                g.ReferenceType == GalleryReferenceType.Room &&
+                g.ReferenceId.HasValue &&
+                roomIds.Contains(g.ReferenceId.Value))
+            .OrderBy(g => g.Id)
+            .GroupBy(g => g.ReferenceId!.Value)
+            .ToDictionaryAsync(
+                group => group.Key,
+                group => group
+                    .Select(g => g.ImageUrl ?? string.Empty)
+                    .Where(url => !string.IsNullOrWhiteSpace(url))
+                    .ToList());
 
         var reviews = await _context.Reviews
             .Include(r => r.User)
@@ -115,6 +134,8 @@ public class HotelController : ControllerBase
         return Ok(new
         {
             hotel.Id,
+            hotel.DestinationId,
+            DestinationName = hotel.Destination != null ? hotel.Destination.Name : "",
             hotel.Name,
             hotel.Address,
             hotel.StarRating,
@@ -130,7 +151,8 @@ public class HotelController : ControllerBase
                 r.RoomType,
                 r.Capacity,
                 r.PricePerNight,
-                r.AvailableQty
+                r.AvailableQty,
+                ImageUrls = roomImages.TryGetValue(r.Id, out var urls) ? urls : []
             }),
             Reviews = reviews
         });
@@ -139,7 +161,11 @@ public class HotelController : ControllerBase
     // GET /api/hotel/{id}/calendar?year=2025&month=6
     // Trả về lịch giá động theo từng ngày trong tháng — giống Booking.com / Agoda
     [HttpGet("{id:int}/calendar")]
-    public async Task<IActionResult> GetHotelCalendar(int id, [FromQuery] int year, [FromQuery] int month)
+    public async Task<IActionResult> GetHotelCalendar(
+        int id,
+        [FromQuery] int year,
+        [FromQuery] int month,
+        [FromQuery] int? roomId)
     {
         if (year < 2020 || year > 2030 || month < 1 || month > 12)
             return BadRequest(new { message = "Tháng/năm không hợp lệ." });
@@ -150,32 +176,49 @@ public class HotelController : ControllerBase
 
         if (hotel is null) return NotFound();
         if (!hotel.Rooms.Any()) return Ok(new { hotelId = id, year, month, days = Array.Empty<object>() });
+        if (roomId.HasValue && hotel.Rooms.All(room => room.Id != roomId.Value))
+        {
+            return NotFound(new { message = "Room was not found for this hotel." });
+        }
 
-        // Lấy tất cả trip đã đặt khách sạn này trong khoảng tháng cần xem
+        // Lấy tất cả trip đã đặt các phòng của khách sạn này trong khoảng tháng cần xem
         var startOfMonth = new DateOnly(year, month, 1);
         var endOfMonth = startOfMonth.AddMonths(1);
+        var selectedRooms = roomId.HasValue
+            ? hotel.Rooms.Where(room => room.Id == roomId.Value).ToList()
+            : hotel.Rooms.ToList();
+        var roomIds = selectedRooms.Select(room => room.Id).ToList();
 
         var bookedItineraries = await _context.TripItineraries
             .Include(ti => ti.Trip)
             .Where(ti =>
                 ti.ServiceType == TripServiceType.Hotel &&
-                ti.ServiceId == id &&
+                ti.ServiceId.HasValue &&
+                roomIds.Contains(ti.ServiceId.Value) &&
                 ti.Trip != null &&
+                ti.Trip.StartDate.HasValue &&
+                ti.Trip.EndDate.HasValue &&
                 ti.Trip.StartDate < endOfMonth &&
                 ti.Trip.EndDate > startOfMonth &&
                 ti.Trip.Status != TripStatus.Cancelled &&
                 ti.Trip.Status != TripStatus.Draft)
             .Select(ti => new
             {
-                StartDate = ti.Trip!.StartDate,
-                EndDate = ti.Trip!.EndDate,
+                ti.ServiceId,
+                ti.ServiceDate,
+                ti.HotelCheckOutDate,
+                StartDate = ti.Trip!.StartDate!.Value,
+                EndDate = ti.Trip!.EndDate!.Value,
                 Quantity = ti.Quantity ?? 1
             })
             .ToListAsync();
 
         // Tổng số phòng của khách sạn
-        int totalRooms = hotel.Rooms.Sum(r => r.AvailableQty ?? 0);
-        decimal basePrice = hotel.Rooms.Min(r => r.PricePerNight) ?? 0;
+        int totalRooms = selectedRooms.Sum(r => r.AvailableQty ?? 0);
+        decimal basePrice = selectedRooms.Min(r => r.PricePerNight) ?? 0;
+        var selectedRoomType = roomId.HasValue
+            ? selectedRooms.FirstOrDefault()?.RoomType
+            : null;
 
         int daysInMonth = DateTime.DaysInMonth(year, month);
         var days = new List<object>();
@@ -186,7 +229,15 @@ public class HotelController : ControllerBase
 
             // Tính số phòng đã đặt cho ngày này
             int bookedQty = bookedItineraries
-                .Where(b => b.StartDate <= date && b.EndDate > date)
+                .Where(b =>
+                {
+                    var bookingStart = b.ServiceDate ?? b.StartDate;
+                    var bookingEnd = ResolveHotelBookingEndDate(
+                        bookingStart,
+                        b.HotelCheckOutDate ?? b.EndDate);
+
+                    return bookingStart <= date && bookingEnd > date;
+                })
                 .Sum(b => b.Quantity);
 
             int availableRooms = totalRooms - bookedQty;
@@ -230,10 +281,17 @@ public class HotelController : ControllerBase
         return Ok(new
         {
             HotelId = id,
+            RoomId = roomId,
+            RoomType = selectedRoomType,
             Year = year,
             Month = month,
             BasePrice = basePrice,
             Days = days
         });
+    }
+
+    private static DateOnly ResolveHotelBookingEndDate(DateOnly checkInDate, DateOnly fallbackCheckOutDate)
+    {
+        return fallbackCheckOutDate > checkInDate ? fallbackCheckOutDate : checkInDate.AddDays(1);
     }
 }

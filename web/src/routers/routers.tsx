@@ -10,6 +10,8 @@ import { TransportPage } from '../pages/transport';
 import { PromotionsPage } from '../pages/promotions';
 import { BookingsPage } from '../pages/bookings';
 import { ReportsPage } from '../pages/reports';
+import { ExplorePage } from '../pages/explore';
+import { NotificationsPage } from '../pages/notifications';
 
 const router = createBrowserRouter([
   {
@@ -31,7 +33,10 @@ const router = createBrowserRouter([
           { path: 'users', element: <UsersPage /> },
           { path: 'destinations', element: <DestinationsPage /> },
           { path: 'hotels', element: <HotelsPage /> },
+          { path: 'hotels/:hotelId', element: <HotelsPage /> },
           { path: 'transport', element: <TransportPage /> },
+          { path: 'explore', element: <ExplorePage /> },
+          { path: 'notifications', element: <NotificationsPage /> },
           { path: 'promotions', element: <PromotionsPage /> },
           { path: 'bookings', element: <BookingsPage /> },
           { path: 'reports', element: <ReportsPage /> },

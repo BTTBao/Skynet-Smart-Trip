@@ -48,6 +48,7 @@ class TripService extends ApiService {
     final response = await postWithFallback(
       '/trips/hotel-bookings',
       body: jsonEncode(request.toJson()),
+      requireAuth: true,
     );
 
     final data = Map<String, dynamic>.from(handleResponse(response));
@@ -61,6 +62,7 @@ class TripService extends ApiService {
     final response = await postWithFallback(
       '/trips/$tripId/fake-payment',
       body: jsonEncode(request.toJson()),
+      requireAuth: true,
     );
 
     final data = Map<String, dynamic>.from(handleResponse(response));
@@ -139,6 +141,35 @@ class TripService extends ApiService {
       requireAuth: true,
     );
 
+    handleResponse(response);
+  }
+
+  Future<void> submitReview({
+    required int tripId,
+    required String targetType,
+    required int targetId,
+    required int rating,
+    required String comment,
+  }) async {
+    final response = await postWithFallback(
+      '/reviews',
+      body: jsonEncode({
+        'tripId': tripId,
+        'targetType': targetType,
+        'targetId': targetId,
+        'rating': rating,
+        'comment': comment,
+      }),
+      requireAuth: true,
+    );
+    handleResponse(response);
+  }
+
+  Future<void> reLockSeats(int tripId) async {
+    final response = await postWithFallback(
+      '/trips/$tripId/re-lock-seats',
+      requireAuth: true,
+    );
     handleResponse(response);
   }
 }

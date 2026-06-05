@@ -41,7 +41,7 @@ class _SettingsViewState extends State<SettingsView> {
             elevation: 0,
             scrolledUnderElevation: 0,
             title: Text(
-              context.tr(vi: 'Cai dat', en: 'Settings'),
+              context.tr(vi: 'Cài đặt', en: 'Settings'),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             actions: [
@@ -82,7 +82,7 @@ class _SettingsViewState extends State<SettingsView> {
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: () => provider.loadSettings(forceRefresh: true),
-                child: Text(context.tr(vi: 'Thu lai', en: 'Retry')),
+                child: Text(context.tr(vi: 'Thử lại', en: 'Retry')),
               ),
             ],
           ),
@@ -100,7 +100,7 @@ class _SettingsViewState extends State<SettingsView> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildSectionTitle(context.tr(vi: 'Tai khoan', en: 'Account')),
+          _buildSectionTitle(context.tr(vi: 'Tài khoản', en: 'Account')),
           _SettingsCard(
             child: Column(
               children: [
@@ -114,15 +114,15 @@ class _SettingsViewState extends State<SettingsView> {
                   icon: settings.isEmailVerified
                       ? Icons.verified_outlined
                       : Icons.error_outline,
-                  title: context.tr(vi: 'Xac thuc email', en: 'Email verification'),
+                  title: context.tr(vi: 'Xác thực email', en: 'Email verification'),
                   subtitle: settings.isEmailVerified
-                      ? context.tr(vi: 'Da xac thuc', en: 'Verified')
-                      : context.tr(vi: 'Chua xac thuc', en: 'Not verified'),
+                      ? context.tr(vi: 'Đã xác thực', en: 'Verified')
+                      : context.tr(vi: 'Chưa xác thực', en: 'Not verified'),
                 ),
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.lock_outline),
-                  title: Text(context.tr(vi: 'Doi mat khau', en: 'Change password')),
+                  title: Text(context.tr(vi: 'Đổi mật khẩu', en: 'Change password')),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
                     Navigator.of(context).push(
@@ -136,7 +136,7 @@ class _SettingsViewState extends State<SettingsView> {
             ),
           ),
           const SizedBox(height: 20),
-          _buildSectionTitle(context.tr(vi: 'Thong bao', en: 'Notifications')),
+          _buildSectionTitle(context.tr(vi: 'Thông báo', en: 'Notifications')),
           _SettingsCard(
             child: Column(
               children: [
@@ -146,7 +146,21 @@ class _SettingsViewState extends State<SettingsView> {
                     provider,
                     settings.copyWith(pushNotificationEnabled: value),
                   ),
-                  title: Text(context.tr(vi: 'Thong bao day', en: 'Push notifications')),
+                  title: Text(context.tr(vi: 'Thông báo đẩy', en: 'Push notifications')),
+                ),
+                const Divider(height: 1),
+                SwitchListTile.adaptive(
+                  value: settings.emailNotificationEnabled,
+                  onChanged: (value) => _saveSetting(
+                    provider,
+                    settings.copyWith(emailNotificationEnabled: value),
+                  ),
+                  title: Text(
+                    context.tr(
+                      vi: 'Email thông báo quan trọng',
+                      en: 'Important email notifications',
+                    ),
+                  ),
                 ),
                 const Divider(height: 1),
                 SwitchListTile.adaptive(
@@ -155,13 +169,13 @@ class _SettingsViewState extends State<SettingsView> {
                     provider,
                     settings.copyWith(emailOfferEnabled: value),
                   ),
-                  title: Text(context.tr(vi: 'Nhan uu dai qua email', en: 'Email offers')),
+                  title: Text(context.tr(vi: 'Nhận ưu đãi qua email', en: 'Email offers')),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 20),
-          _buildSectionTitle(context.tr(vi: 'Tuy chinh', en: 'Preferences')),
+          _buildSectionTitle(context.tr(vi: 'Tùy chỉnh', en: 'Preferences')),
           _SettingsCard(
             child: Column(
               children: [
@@ -171,27 +185,27 @@ class _SettingsViewState extends State<SettingsView> {
                     provider,
                     settings.copyWith(darkModeEnabled: value),
                   ),
-                  title: Text(context.tr(vi: 'Che do toi', en: 'Dark mode')),
+                  title: Text(context.tr(vi: 'Chế độ tối', en: 'Dark mode')),
                   subtitle: Text(
                     context.tr(
-                      vi: 'Thay doi giao dien ngay lap tuc',
+                      vi: 'Thay đổi giao diện ngay lập tức',
                       en: 'Apply the new appearance immediately',
                     ),
                   ),
                 ),
                 const Divider(height: 1),
                 ListTile(
-                  title: Text(context.tr(vi: 'Ngon ngu', en: 'Language')),
+                  title: Text(context.tr(vi: 'Ngôn ngữ', en: 'Language')),
                   subtitle: Text(
                     settings.language.toLowerCase() == 'vi'
-                        ? 'Tieng Viet'
+                        ? 'Tiếng Việt'
                         : 'English',
                   ),
                   trailing: DropdownButton<String>(
                     value: settings.language.toLowerCase(),
                     underline: const SizedBox.shrink(),
                     items: const [
-                      DropdownMenuItem(value: 'vi', child: Text('Tieng Viet')),
+                      DropdownMenuItem(value: 'vi', child: Text('Tiếng Việt')),
                       DropdownMenuItem(value: 'en', child: Text('English')),
                     ],
                     onChanged: (value) {
@@ -204,7 +218,7 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
                 const Divider(height: 1),
                 ListTile(
-                  title: Text(context.tr(vi: 'Don vi tien te', en: 'Currency')),
+                  title: Text(context.tr(vi: 'Đơn vị tiền tệ', en: 'Currency')),
                   subtitle: Text(settings.currency.toUpperCase()),
                   trailing: DropdownButton<String>(
                     value: settings.currency.toUpperCase(),
@@ -287,7 +301,7 @@ class _SettingsViewState extends State<SettingsView> {
         content: Text(
           provider.error ??
               context.trRead(
-                vi: 'Khong the cap nhat cai dat.',
+                vi: 'Không thể cập nhật cài đặt.',
                 en: 'Unable to update settings.',
               ),
         ),

@@ -246,6 +246,295 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.ToTable("Destinations");
                 });
 
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExploreComment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<int>("ExplorePostId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("LikeCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int?>("ParentCommentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentCommentId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ExplorePostId", "CreatedAt");
+
+                    b.ToTable("ExploreComments");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExplorePost", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AuthorId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("AverageRating")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(3, 2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("CitySlug")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(80)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("CostLevel")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(2);
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<string>("Excerpt")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<bool>("IsVisible")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Province")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int>("RatingCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("Region")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Tags")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ThumbnailUrl")
+                        .HasMaxLength(500)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime");
+
+                    b.Property<int>("ViewCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("AverageRating");
+
+                    b.HasIndex("CitySlug");
+
+                    b.HasIndex("CostLevel");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("IsVisible");
+
+                    b.HasIndex("Province");
+
+                    b.HasIndex("Region");
+
+                    b.HasIndex("ViewCount");
+
+                    b.ToTable("ExplorePosts");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExplorePostImage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ExplorePostId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExplorePostId", "SortOrder");
+
+                    b.ToTable("ExplorePostImages");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExplorePostLike", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<int>("ExplorePostId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExplorePostId");
+
+                    b.HasIndex("UserId", "ExplorePostId")
+                        .IsUnique();
+
+                    b.ToTable("ExplorePostLikes");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExplorePostRating", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<int>("ExplorePostId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Rating")
+                        .HasColumnType("decimal(3, 2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExplorePostId");
+
+                    b.HasIndex("UserId", "ExplorePostId")
+                        .IsUnique();
+
+                    b.ToTable("ExplorePostRatings");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExplorePostSave", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<int>("ExplorePostId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExplorePostId");
+
+                    b.HasIndex("UserId", "ExplorePostId")
+                        .IsUnique();
+
+                    b.ToTable("ExplorePostSaves");
+                });
+
             modelBuilder.Entity("SmartTrip.Domain.Entities.Gallery", b =>
                 {
                     b.Property<int>("Id")
@@ -357,6 +646,10 @@ namespace SmartTrip.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ActionUrl")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<DateTime?>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
@@ -370,9 +663,22 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<string>("Message")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("ReferenceId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReferenceType")
+                        .HasMaxLength(50)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(50)");
+
                     b.Property<string>("Title")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Type")
+                        .HasMaxLength(80)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(80)");
 
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
@@ -591,6 +897,12 @@ namespace SmartTrip.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("LockedByTripId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("LockedUntil")
+                        .HasColumnType("datetime2");
+
                     b.Property<int?>("ScheduleId")
                         .HasColumnType("int");
 
@@ -683,10 +995,41 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<int?>("DayNumber")
                         .HasColumnType("int");
 
+                    b.Property<int>("AdultCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.Property<int>("ChildCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<TimeOnly?>("DepartureTime")
+                        .HasColumnType("time");
+
+                    b.Property<int>("InfantCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateOnly?>("HotelCheckOutDate")
+                        .HasColumnType("date");
+
                     b.Property<int?>("Quantity")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(1);
+
+                    b.Property<string>("SelectedSeats")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ServiceAddress")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateOnly?>("ServiceDate")
+                        .HasColumnType("date");
 
                     b.Property<int?>("ServiceId")
                         .HasColumnType("int");
@@ -748,6 +1091,16 @@ namespace SmartTrip.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("IdentityCardPhotoUrl")
+                        .HasMaxLength(500)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("IdentityNumber")
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
                     b.Property<bool?>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -807,6 +1160,62 @@ namespace SmartTrip.Infrastructure.Migrations
                         .HasFilter("[UserName] IS NOT NULL");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.UserFcmToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<string>("DeviceId")
+                        .HasMaxLength(120)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(120)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("datetime");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(512)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "IsActive");
+
+                    b.ToTable("UserFcmTokens");
                 });
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.UserPreference", b =>
@@ -961,6 +1370,111 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExploreComment", b =>
+                {
+                    b.HasOne("SmartTrip.Domain.Entities.ExplorePost", "ExplorePost")
+                        .WithMany("Comments")
+                        .HasForeignKey("ExplorePostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SmartTrip.Domain.Entities.ExploreComment", "ParentComment")
+                        .WithMany("Replies")
+                        .HasForeignKey("ParentCommentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SmartTrip.Domain.Entities.User", "User")
+                        .WithMany("ExploreComments")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ExplorePost");
+
+                    b.Navigation("ParentComment");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExplorePost", b =>
+                {
+                    b.HasOne("SmartTrip.Domain.Entities.User", "Author")
+                        .WithMany("ExplorePosts")
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Author");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExplorePostImage", b =>
+                {
+                    b.HasOne("SmartTrip.Domain.Entities.ExplorePost", "ExplorePost")
+                        .WithMany("Images")
+                        .HasForeignKey("ExplorePostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ExplorePost");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExplorePostLike", b =>
+                {
+                    b.HasOne("SmartTrip.Domain.Entities.ExplorePost", "ExplorePost")
+                        .WithMany("Likes")
+                        .HasForeignKey("ExplorePostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SmartTrip.Domain.Entities.User", "User")
+                        .WithMany("ExplorePostLikes")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ExplorePost");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExplorePostRating", b =>
+                {
+                    b.HasOne("SmartTrip.Domain.Entities.ExplorePost", "ExplorePost")
+                        .WithMany("Ratings")
+                        .HasForeignKey("ExplorePostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SmartTrip.Domain.Entities.User", "User")
+                        .WithMany("ExplorePostRatings")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ExplorePost");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExplorePostSave", b =>
+                {
+                    b.HasOne("SmartTrip.Domain.Entities.ExplorePost", "ExplorePost")
+                        .WithMany("Saves")
+                        .HasForeignKey("ExplorePostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SmartTrip.Domain.Entities.User", "User")
+                        .WithMany("ExplorePostSaves")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ExplorePost");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("SmartTrip.Domain.Entities.Hotel", b =>
                 {
                     b.HasOne("SmartTrip.Domain.Entities.Destination", "Destination")
@@ -1054,6 +1568,17 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Navigation("Trip");
                 });
 
+            modelBuilder.Entity("SmartTrip.Domain.Entities.UserFcmToken", b =>
+                {
+                    b.HasOne("SmartTrip.Domain.Entities.User", "User")
+                        .WithMany("FcmTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("SmartTrip.Domain.Entities.UserPreference", b =>
                 {
                     b.HasOne("SmartTrip.Domain.Entities.User", "User")
@@ -1106,6 +1631,24 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Navigation("Trips");
                 });
 
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExploreComment", b =>
+                {
+                    b.Navigation("Replies");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.ExplorePost", b =>
+                {
+                    b.Navigation("Comments");
+
+                    b.Navigation("Images");
+
+                    b.Navigation("Likes");
+
+                    b.Navigation("Ratings");
+
+                    b.Navigation("Saves");
+                });
+
             modelBuilder.Entity("SmartTrip.Domain.Entities.Hotel", b =>
                 {
                     b.Navigation("Rooms");
@@ -1125,6 +1668,18 @@ namespace SmartTrip.Infrastructure.Migrations
             modelBuilder.Entity("SmartTrip.Domain.Entities.User", b =>
                 {
                     b.Navigation("BlogPosts");
+
+                    b.Navigation("ExploreComments");
+
+                    b.Navigation("ExplorePostLikes");
+
+                    b.Navigation("ExplorePostRatings");
+
+                    b.Navigation("ExplorePostSaves");
+
+                    b.Navigation("ExplorePosts");
+
+                    b.Navigation("FcmTokens");
 
                     b.Navigation("Notifications");
 

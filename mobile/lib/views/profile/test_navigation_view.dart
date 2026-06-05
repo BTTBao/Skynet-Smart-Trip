@@ -20,7 +20,7 @@ class TestNavigationView extends StatelessWidget {
         children: [
           _buildTestItem(
             context,
-            title: '1. Ho so ca nhan',
+            title: '1. Hồ sơ cá nhân',
             icon: Icons.person,
             subtitle: 'Profile Screen',
             destination: const ProfileView(),
@@ -28,7 +28,7 @@ class TestNavigationView extends StatelessWidget {
           ),
           _buildTestItem(
             context,
-            title: '2. Chinh sua ho so',
+            title: '2. Chỉnh sửa hồ sơ',
             icon: Icons.edit,
             subtitle: 'Edit Profile Screen',
             destination: const EditProfileView(),
@@ -36,7 +36,7 @@ class TestNavigationView extends StatelessWidget {
           ),
           _buildTestItem(
             context,
-            title: '3. Cai dat',
+            title: '3. Cài đặt',
             icon: Icons.settings,
             subtitle: 'Settings Screen',
             destination: const SettingsView(),
@@ -44,7 +44,7 @@ class TestNavigationView extends StatelessWidget {
           ),
           _buildTestItem(
             context,
-            title: '4. Muc yeu thich',
+            title: '4. Mục yêu thích',
             icon: Icons.favorite,
             subtitle: 'Favorites Screen',
             destination: const FavoritesView(),
@@ -52,7 +52,7 @@ class TestNavigationView extends StatelessWidget {
           ),
           _buildTestItem(
             context,
-            title: '5. Lich su hoat dong',
+            title: '5. Lịch sử hoạt động',
             icon: Icons.history,
             subtitle: 'Activity History Screen',
             destination: const ActivityHistoryView(),
@@ -61,7 +61,7 @@ class TestNavigationView extends StatelessWidget {
           const SizedBox(height: 32),
           const Center(
             child: Text(
-              'Bam vao cac muc tren de xem giao dien',
+              'Bấm vào các mục trên để xem giao diện',
               style: TextStyle(
                 color: Colors.grey,
                 fontStyle: FontStyle.italic,

@@ -11,6 +11,7 @@ public class TripServiceOptionService : ITripServiceOptionService
 {
     private const string HotelServiceType = "HOTEL";
     private const string BusServiceType = "BUS";
+    private const string NoteServiceType = "NOTE";
 
     private readonly IApplicationDbContext _context;
 
@@ -22,6 +23,22 @@ public class TripServiceOptionService : ITripServiceOptionService
     public async Task<IReadOnlyList<TripServiceOptionDto>> GetServiceOptionsAsync(string serviceType, int? destinationId)
     {
         var normalizedServiceType = NormalizeServiceType(serviceType);
+
+        if (normalizedServiceType == NoteServiceType)
+        {
+            return new List<TripServiceOptionDto>
+            {
+                new()
+                {
+                    ServiceId = 1,
+                    ServiceType = NoteServiceType,
+                    Title = "Ghi chú",
+                    Subtitle = "Ghi lại nơi bạn muốn đi và thời gian dự kiến.",
+                    DefaultPrice = 0,
+                    DefaultCommissionRate = 0
+                }
+            };
+        }
 
         if (normalizedServiceType == HotelServiceType)
         {
@@ -97,33 +114,48 @@ public class TripServiceOptionService : ITripServiceOptionService
     {
         var normalizedServiceType = NormalizeServiceType(serviceType);
 
+        if (normalizedServiceType == NoteServiceType)
+        {
+            return new TripServiceOptionDto
+            {
+                ServiceId = serviceId <= 0 ? 1 : serviceId,
+                ServiceType = NoteServiceType,
+                Title = "Ghi chú",
+                Subtitle = "Ghi lại nơi bạn muốn đi và thời gian dự kiến.",
+                DefaultPrice = 0,
+                DefaultCommissionRate = 0
+            };
+        }
+
         if (normalizedServiceType == HotelServiceType)
         {
-            var hotel = await _context.Hotels
+            var room = await _context.Rooms
                 .AsNoTracking()
-                .Include(item => item.Destination)
-                .Include(item => item.Rooms)
-                .FirstOrDefaultAsync(item => item.Id == serviceId && item.IsAvailable != false);
+                .Include(item => item.Hotel)
+                .ThenInclude(item => item!.Destination)
+                .FirstOrDefaultAsync(item =>
+                    item.Id == serviceId &&
+                    item.Hotel != null &&
+                    item.Hotel.IsAvailable != false);
 
-            if (hotel == null)
+            if (room?.Hotel == null)
             {
                 return null;
             }
 
             return new TripServiceOptionDto
             {
-                ServiceId = hotel.Id,
+                ServiceId = room.Id,
                 ServiceType = HotelServiceType,
-                Title = hotel.Name,
+                Title = room.Hotel.Name,
                 Subtitle = string.Join(" • ", new[]
                 {
-                    hotel.Destination != null ? hotel.Destination.Name : null,
-                    hotel.Address
+                    room.RoomType,
+                    room.Hotel.Destination != null ? room.Hotel.Destination.Name : null,
+                    room.Hotel.Address
                 }.Where(value => !string.IsNullOrWhiteSpace(value))),
-                DefaultPrice = hotel.Rooms
-                    .OrderBy(room => room.PricePerNight)
-                    .Select(room => room.PricePerNight)
-                    .FirstOrDefault()
+                DefaultPrice = room.PricePerNight,
+                DefaultCommissionRate = room.CommissionRate
             };
         }
 
@@ -158,6 +190,7 @@ public class TripServiceOptionService : ITripServiceOptionService
             {
                 TripServiceType.Hotel => HotelServiceType,
                 TripServiceType.Bus => BusServiceType,
+                TripServiceType.Note => NoteServiceType,
                 _ => throw new ArgumentException("Unsupported service type.")
             };
         }
@@ -166,7 +199,8 @@ public class TripServiceOptionService : ITripServiceOptionService
         {
             HotelServiceType => HotelServiceType,
             BusServiceType => BusServiceType,
-            _ => throw new ArgumentException("ServiceType must be HOTEL or BUS.")
+            NoteServiceType => NoteServiceType,
+            _ => throw new ArgumentException("ServiceType must be HOTEL, BUS, or NOTE.")
         };
     }
 
@@ -181,7 +215,8 @@ public class TripServiceOptionService : ITripServiceOptionService
         {
             HotelServiceType => TripServiceType.Hotel,
             BusServiceType => TripServiceType.Bus,
-            _ => throw new ArgumentException("ServiceType must be HOTEL or BUS.")
+            NoteServiceType => TripServiceType.Note,
+            _ => throw new ArgumentException("ServiceType must be HOTEL, BUS, or NOTE.")
         };
     }
 

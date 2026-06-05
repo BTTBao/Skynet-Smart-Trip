@@ -4,9 +4,10 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'secure_storage_service.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiException implements Exception {
   ApiException(this.statusCode, this.message, {this.rawBody});
@@ -49,9 +50,9 @@ abstract class ApiService {
   }
 
   Map<String, String> get headers => const {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
 
   Future<Map<String, String>> getHeaders({
     bool requireAuth = false,
@@ -133,6 +134,7 @@ abstract class ApiService {
 
   Future<http.Response> deleteWithFallback(
     String path, {
+    Object? body,
     bool requireAuth = false,
     Map<String, String>? extraHeaders,
   }) async {
@@ -143,7 +145,7 @@ abstract class ApiService {
 
     return _sendWithFallback((baseUrl) {
       return http
-          .delete(buildUri(baseUrl, path), headers: requestHeaders)
+          .delete(buildUri(baseUrl, path), headers: requestHeaders, body: body)
           .timeout(const Duration(seconds: 30));
     });
   }
@@ -151,7 +153,7 @@ abstract class ApiService {
   Future<http.Response> multipartPostWithFallback(
     String path, {
     required String fileField,
-    required String filePath,
+    required XFile file,
     bool requireAuth = false,
     Map<String, String>? extraHeaders,
   }) async {
@@ -163,7 +165,28 @@ abstract class ApiService {
     return _sendWithFallback((baseUrl) async {
       final request = http.MultipartRequest('POST', buildUri(baseUrl, path));
       request.headers.addAll(requestHeaders);
-      request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
+      request.headers.remove('content-type');
+      request.headers.remove('Content-Type');
+      final resolvedContentType = _resolveImageContentType(file);
+
+      if (kIsWeb) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            fileField,
+            await file.readAsBytes(),
+            filename: file.name,
+            contentType: resolvedContentType,
+          ),
+        );
+      } else {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            fileField,
+            file.path,
+            contentType: resolvedContentType,
+          ),
+        );
+      }
 
       final streamedResponse = await request.send().timeout(
         const Duration(seconds: 40),
@@ -225,7 +248,8 @@ abstract class ApiService {
     try {
       final decoded = jsonDecode(response.body);
       if (decoded is Map<String, dynamic>) {
-        final message = decoded['message'] ?? decoded['error'] ?? decoded['title'];
+        final message =
+            decoded['message'] ?? decoded['error'] ?? decoded['title'];
         if (message is String && message.trim().isNotEmpty) {
           return message.trim();
         }
@@ -233,5 +257,28 @@ abstract class ApiService {
     } catch (_) {}
 
     return 'Loi API: ${response.statusCode} - ${response.body}';
+  }
+
+  MediaType? _resolveImageContentType(XFile file) {
+    if (file.mimeType != null && file.mimeType!.trim().isNotEmpty) {
+      try {
+        return MediaType.parse(file.mimeType!);
+      } catch (_) {}
+    }
+
+    final nameLower = file.name.toLowerCase();
+    if (nameLower.endsWith('.png')) {
+      return MediaType('image', 'png');
+    }
+
+    if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg')) {
+      return MediaType('image', 'jpeg');
+    }
+
+    if (nameLower.endsWith('.webp')) {
+      return MediaType('image', 'webp');
+    }
+
+    return null;
   }
 }

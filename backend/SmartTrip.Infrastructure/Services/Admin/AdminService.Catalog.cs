@@ -107,11 +107,35 @@ public partial class AdminService
             .OrderBy(hotel => hotel.Name)
             .ToListAsync();
 
-        return hotels.Select(MapHotel).ToList();
+        var revenueLookup = await BuildHotelRevenueLookupAsync(hotels.Select(hotel => hotel.Id).ToList());
+
+        return hotels
+            .Select(hotel => MapHotel(hotel, revenueLookup.GetValueOrDefault(hotel.Id)))
+            .ToList();
+    }
+
+    public async Task<AdminHotelDetailDto> GetHotelDetailAsync(int hotelId)
+    {
+        var hotel = await _context.Hotels
+            .Include(item => item.Destination)
+            .Include(item => item.Rooms)
+            .FirstOrDefaultAsync(item => item.Id == hotelId);
+
+        if (hotel is null)
+        {
+            throw new BadHttpRequestException("Không tìm thấy khách sạn.");
+        }
+
+        var roomIds = hotel.Rooms.Select(room => room.Id).ToList();
+        var roomGalleryLookup = await BuildGalleryLookupAsync(GalleryReferenceType.Room, roomIds);
+        var revenueLookup = await BuildHotelRevenueLookupAsync([hotelId]);
+        return MapHotelDetail(hotel, revenueLookup.GetValueOrDefault(hotelId), roomGalleryLookup);
     }
 
     public async Task<AdminHotelDto> CreateHotelAsync(AdminHotelRequest request)
     {
+        ValidateHotelRequest(request);
+
         var destinationExists = await _context.Destinations.AnyAsync(destination => destination.Id == request.DestinationId);
         if (!destinationExists)
         {
@@ -136,11 +160,13 @@ public partial class AdminService
             .Include(item => item.Rooms)
             .FirstAsync(item => item.Id == hotel.Id);
 
-        return MapHotel(created);
+        return MapHotel(created, 0);
     }
 
     public async Task<AdminHotelDto> UpdateHotelAsync(int hotelId, AdminHotelRequest request)
     {
+        ValidateHotelRequest(request);
+
         var hotel = await _context.Hotels
             .Include(item => item.Destination)
             .Include(item => item.Rooms)
@@ -149,6 +175,12 @@ public partial class AdminService
         if (hotel is null)
         {
             throw new BadHttpRequestException("Không tìm thấy khách sạn.");
+        }
+
+        var destinationExists = await _context.Destinations.AnyAsync(destination => destination.Id == request.DestinationId);
+        if (!destinationExists)
+        {
+            throw new BadHttpRequestException("Điểm đến không hợp lệ.");
         }
 
         hotel.DestinationId = request.DestinationId;
@@ -160,27 +192,71 @@ public partial class AdminService
 
         await _context.SaveChangesAsync();
 
-        return MapHotel(hotel);
+        var revenueLookup = await BuildHotelRevenueLookupAsync([hotelId]);
+        return MapHotel(hotel, revenueLookup.GetValueOrDefault(hotelId));
     }
 
-    public async Task DeleteHotelAsync(int hotelId)
+    public async Task<AdminRoomDto> CreateRoomAsync(int hotelId, AdminRoomRequest request)
     {
-        var hotel = await _context.Hotels
-            .Include(item => item.Rooms)
-            .FirstOrDefaultAsync(item => item.Id == hotelId);
+        ValidateRoomRequest(request);
 
+        var hotel = await _context.Hotels.FirstOrDefaultAsync(item => item.Id == hotelId);
         if (hotel is null)
         {
             throw new BadHttpRequestException("Không tìm thấy khách sạn.");
         }
 
-        if (hotel.Rooms.Any())
+        var room = new Room
         {
-            throw new BadHttpRequestException("Không thể xóa khách sạn còn phòng đang quản lý.");
+            HotelId = hotelId,
+            RoomType = request.RoomType.Trim(),
+            Capacity = request.Capacity,
+            PricePerNight = request.PricePerNight,
+            CommissionRate = request.CommissionRate,
+            AvailableQty = request.AvailableQty
+        };
+
+        _context.Rooms.Add(room);
+        await _context.SaveChangesAsync();
+
+        var imageUrls = NormalizeGalleryUrls(request.ImageUrls);
+        AddGalleryImages(GalleryReferenceType.Room, room.Id, imageUrls);
+        await _context.SaveChangesAsync();
+
+        return MapRoom(room, imageUrls);
+    }
+
+    public async Task<AdminRoomDto> UpdateRoomAsync(int roomId, AdminRoomRequest request)
+    {
+        ValidateRoomRequest(request);
+
+        var room = await _context.Rooms.FirstOrDefaultAsync(item => item.Id == roomId);
+        if (room is null)
+        {
+            throw new BadHttpRequestException("Không tìm thấy phòng.");
         }
 
-        _context.Hotels.Remove(hotel);
+        room.RoomType = request.RoomType.Trim();
+        room.Capacity = request.Capacity;
+        room.PricePerNight = request.PricePerNight;
+        room.CommissionRate = request.CommissionRate;
+        room.AvailableQty = request.AvailableQty;
+
+        var imageUrls = NormalizeGalleryUrls(request.ImageUrls);
+        await ReplaceGalleryImagesAsync(GalleryReferenceType.Room, room.Id, imageUrls);
         await _context.SaveChangesAsync();
+
+        return MapRoom(room, imageUrls);
+    }
+
+    public Task DeleteRoomAsync(int roomId)
+    {
+        throw new BadHttpRequestException("Không hỗ trợ xóa phòng. Hãy đặt số lượng còn bán về 0 để ngừng nhận booking.");
+    }
+
+    public Task DeleteHotelAsync(int hotelId)
+    {
+        throw new BadHttpRequestException("Không hỗ trợ xóa khách sạn. Hãy chuyển khách sạn sang trạng thái ngừng bán để giữ an toàn dữ liệu.");
     }
 
     public async Task<List<AdminPromotionDto>> GetPromotionsAsync()
@@ -194,6 +270,13 @@ public partial class AdminService
 
     public async Task<AdminPromotionDto> CreatePromotionAsync(AdminPromotionRequest request)
     {
+        ValidatePromotionRequest(request);
+        var normalizedCode = request.Code.Trim().ToUpperInvariant();
+        if (await _context.Promotions.AnyAsync(item => item.Code == normalizedCode))
+        {
+            throw new BadHttpRequestException("Ma khuyen mai da ton tai.");
+        }
+
         if (string.IsNullOrWhiteSpace(request.Code))
         {
             throw new BadHttpRequestException("Mã khuyến mãi không được để trống.");
@@ -201,7 +284,7 @@ public partial class AdminService
 
         var promotion = new Promotion
         {
-            Code = request.Code.Trim().ToUpperInvariant(),
+            Code = normalizedCode,
             DiscountPercent = request.DiscountPercent,
             MaxDiscountAmount = request.MaxDiscountAmount,
             ValidUntil = request.ValidUntil,
@@ -217,13 +300,24 @@ public partial class AdminService
 
     public async Task<AdminPromotionDto> UpdatePromotionAsync(int promotionId, AdminPromotionRequest request)
     {
+        ValidatePromotionRequest(request);
         var promotion = await _context.Promotions.FirstOrDefaultAsync(item => item.Id == promotionId);
         if (promotion is null)
         {
             throw new BadHttpRequestException("Không tìm thấy khuyến mãi.");
         }
 
-        promotion.Code = request.Code.Trim().ToUpperInvariant();
+        var normalizedCode = request.Code.Trim().ToUpperInvariant();
+        if (await _context.Promotions.AnyAsync(item => item.Id != promotionId && item.Code == normalizedCode))
+        {
+            throw new BadHttpRequestException("Ma khuyen mai da ton tai.");
+        }
+        if (request.UsageLimit < promotion.UsedCount.GetValueOrDefault())
+        {
+            throw new BadHttpRequestException("Gioi han luot dung khong duoc nho hon so luot da dung.");
+        }
+
+        promotion.Code = normalizedCode;
         promotion.DiscountPercent = request.DiscountPercent;
         promotion.MaxDiscountAmount = request.MaxDiscountAmount;
         promotion.ValidUntil = request.ValidUntil;
@@ -240,6 +334,11 @@ public partial class AdminService
         if (promotion is null)
         {
             throw new BadHttpRequestException("Không tìm thấy khuyến mãi.");
+        }
+
+        if (promotion.UsedCount.GetValueOrDefault() > 0)
+        {
+            throw new BadHttpRequestException("Khong the xoa khuyen mai da phat sinh luot dung.");
         }
 
         _context.Promotions.Remove(promotion);
@@ -281,6 +380,53 @@ public partial class AdminService
         };
     }
 
+    private async Task<Dictionary<int, decimal>> BuildHotelRevenueLookupAsync(List<int> hotelIds)
+    {
+        if (hotelIds.Count == 0)
+        {
+            return new Dictionary<int, decimal>();
+        }
+
+        var roomMappings = await _context.Rooms
+            .AsNoTracking()
+            .Where(room => room.HotelId.HasValue && hotelIds.Contains(room.HotelId.Value))
+            .Select(room => new
+            {
+                RoomId = room.Id,
+                HotelId = room.HotelId!.Value
+            })
+            .ToListAsync();
+
+        if (roomMappings.Count == 0)
+        {
+            return new Dictionary<int, decimal>();
+        }
+
+        var roomToHotelLookup = roomMappings.ToDictionary(item => item.RoomId, item => item.HotelId);
+        var roomIds = roomMappings.Select(item => item.RoomId).ToList();
+
+        var hotelItineraries = await _context.TripItineraries
+            .AsNoTracking()
+            .Include(item => item.Trip)
+            .Where(item =>
+                item.ServiceType == TripServiceType.Hotel &&
+                item.ServiceId.HasValue &&
+                roomIds.Contains(item.ServiceId.Value) &&
+                item.Trip != null &&
+                item.Trip.Status == TripStatus.Paid)
+            .Select(item => new
+            {
+                RoomId = item.ServiceId!.Value,
+                Revenue = item.BookedPrice.GetValueOrDefault(),
+                Quantity = item.Quantity ?? 1
+            })
+            .ToListAsync();
+
+        return hotelItineraries
+            .GroupBy(item => roomToHotelLookup[item.RoomId])
+            .ToDictionary(group => group.Key, group => group.Sum(item => item.Revenue * (item.Quantity <= 0 ? 1 : item.Quantity)));
+    }
+
     private static AdminDestinationDto MapDestination(Destination destination)
     {
         return new AdminDestinationDto
@@ -295,8 +441,15 @@ public partial class AdminService
         };
     }
 
-    private static AdminHotelDto MapHotel(Hotel hotel)
+    private static AdminHotelDto MapHotel(Hotel hotel, decimal totalRevenue)
     {
+        var availableRoomQty = hotel.Rooms.Sum(room => Math.Max(room.AvailableQty ?? 0, 0));
+        var lowestPrice = hotel.Rooms
+            .Where(room => room.PricePerNight.HasValue)
+            .Select(room => room.PricePerNight!.Value)
+            .DefaultIfEmpty(0)
+            .Min();
+
         return new AdminHotelDto
         {
             Id = hotel.Id,
@@ -307,8 +460,152 @@ public partial class AdminService
             StarRating = hotel.StarRating ?? 0,
             Description = hotel.Description ?? string.Empty,
             IsAvailable = hotel.IsAvailable ?? false,
-            RoomCount = hotel.Rooms.Count
+            RoomCount = hotel.Rooms.Count,
+            AvailableRoomQty = availableRoomQty,
+            LowestPrice = lowestPrice,
+            TotalRevenue = totalRevenue
         };
+    }
+
+    private static AdminHotelDetailDto MapHotelDetail(
+        Hotel hotel,
+        decimal totalRevenue,
+        Dictionary<int, List<string>> roomGalleryLookup)
+    {
+        var summary = MapHotel(hotel, totalRevenue);
+
+        return new AdminHotelDetailDto
+        {
+            Id = summary.Id,
+            DestinationId = summary.DestinationId,
+            DestinationName = summary.DestinationName,
+            Name = summary.Name,
+            Address = summary.Address,
+            StarRating = summary.StarRating,
+            Description = summary.Description,
+            IsAvailable = summary.IsAvailable,
+            RoomCount = summary.RoomCount,
+            AvailableRoomQty = summary.AvailableRoomQty,
+            LowestPrice = summary.LowestPrice,
+            TotalRevenue = summary.TotalRevenue,
+            Rooms = hotel.Rooms
+                .OrderBy(room => room.PricePerNight ?? decimal.MaxValue)
+                .ThenBy(room => room.RoomType)
+                .Select(room => MapRoom(
+                    room,
+                    roomGalleryLookup.TryGetValue(room.Id, out var images) ? images : []))
+                .ToList()
+        };
+    }
+
+    private static AdminRoomDto MapRoom(Room room, List<string>? imageUrls = null)
+    {
+        var availableQty = Math.Max(room.AvailableQty ?? 0, 0);
+
+        return new AdminRoomDto
+        {
+            Id = room.Id,
+            HotelId = room.HotelId ?? 0,
+            RoomType = room.RoomType ?? "Standard",
+            Capacity = room.Capacity ?? 0,
+            PricePerNight = room.PricePerNight ?? 0,
+            CommissionRate = (double)(NormalizeCommissionRate(room.CommissionRate) * 100m),
+            AvailableQty = availableQty,
+            IsSelling = availableQty > 0,
+            ImageUrls = imageUrls ?? []
+        };
+    }
+
+    private async Task<Dictionary<int, List<string>>> BuildGalleryLookupAsync(GalleryReferenceType referenceType, List<int> referenceIds)
+    {
+        if (referenceIds.Count == 0)
+        {
+            return new Dictionary<int, List<string>>();
+        }
+
+        return await _context.Galleries
+            .AsNoTracking()
+            .Where(gallery =>
+                gallery.ReferenceType == referenceType &&
+                gallery.ReferenceId.HasValue &&
+                referenceIds.Contains(gallery.ReferenceId.Value))
+            .OrderBy(gallery => gallery.Id)
+            .GroupBy(gallery => gallery.ReferenceId!.Value)
+            .ToDictionaryAsync(
+                group => group.Key,
+                group => group
+                    .Select(gallery => gallery.ImageUrl ?? string.Empty)
+                    .Where(url => !string.IsNullOrWhiteSpace(url))
+                    .ToList());
+    }
+
+    private async Task ReplaceGalleryImagesAsync(GalleryReferenceType referenceType, int referenceId, List<string> imageUrls)
+    {
+        var existing = await _context.Galleries
+            .Where(gallery => gallery.ReferenceType == referenceType && gallery.ReferenceId == referenceId)
+            .ToListAsync();
+
+        _context.Galleries.RemoveRange(existing);
+        AddGalleryImages(referenceType, referenceId, imageUrls);
+    }
+
+    private void AddGalleryImages(GalleryReferenceType referenceType, int referenceId, List<string> imageUrls)
+    {
+        foreach (var imageUrl in imageUrls)
+        {
+            _context.Galleries.Add(new Gallery
+            {
+                ReferenceType = referenceType,
+                ReferenceId = referenceId,
+                ImageUrl = imageUrl
+            });
+        }
+    }
+
+    private static List<string> NormalizeGalleryUrls(IEnumerable<string>? imageUrls)
+    {
+        if (imageUrls is null)
+        {
+            return [];
+        }
+
+        var normalized = imageUrls
+            .Select(url => url?.Trim() ?? string.Empty)
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(12)
+            .ToList();
+
+        if (normalized.Any(url => url.Length > 255))
+        {
+            throw new BadHttpRequestException("URL anh khong duoc vuot qua 255 ky tu.");
+        }
+
+        return normalized;
+    }
+
+    private static void ValidatePromotionRequest(AdminPromotionRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Code))
+        {
+            throw new BadHttpRequestException("Ma khuyen mai khong duoc de trong.");
+        }
+        if (request.DiscountPercent <= 0 || request.DiscountPercent > 100)
+        {
+            throw new BadHttpRequestException("Phan tram giam phai lon hon 0 va khong vuot qua 100.");
+        }
+        if (request.MaxDiscountAmount < 0)
+        {
+            throw new BadHttpRequestException("Muc giam toi da khong hop le.");
+        }
+        if (request.UsageLimit <= 0)
+        {
+            throw new BadHttpRequestException("Gioi han luot dung phai lon hon 0.");
+        }
+        if (request.ValidUntil <= DateTime.UtcNow)
+        {
+            throw new BadHttpRequestException("Han dung phai nam trong tuong lai.");
+        }
     }
 
     private static AdminPromotionDto MapPromotion(Promotion promotion)
@@ -323,7 +620,53 @@ public partial class AdminService
             ValidUntil = validUntil.ToString("yyyy-MM-dd"),
             UsageLimit = promotion.UsageLimit ?? 0,
             UsedCount = promotion.UsedCount ?? 0,
-            IsActive = validUntil >= DateTime.UtcNow
+            IsActive = validUntil >= DateTime.UtcNow && (promotion.UsageLimit == null || promotion.UsedCount < promotion.UsageLimit)
         };
+    }
+
+    private static void ValidateHotelRequest(AdminHotelRequest request)
+    {
+        if (request.DestinationId <= 0)
+        {
+            throw new BadHttpRequestException("Điểm đến không hợp lệ.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            throw new BadHttpRequestException("Tên khách sạn không được để trống.");
+        }
+
+        if (request.StarRating < 1 || request.StarRating > 5)
+        {
+            throw new BadHttpRequestException("Số sao phải nằm trong khoảng từ 1 đến 5.");
+        }
+    }
+
+    private static void ValidateRoomRequest(AdminRoomRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RoomType))
+        {
+            throw new BadHttpRequestException("Loại phòng không được để trống.");
+        }
+
+        if (request.Capacity <= 0)
+        {
+            throw new BadHttpRequestException("Sức chứa phải lớn hơn 0.");
+        }
+
+        if (request.PricePerNight <= 0)
+        {
+            throw new BadHttpRequestException("Giá mỗi đêm phải lớn hơn 0.");
+        }
+
+        if (request.CommissionRate < 0 || request.CommissionRate > 100)
+        {
+            throw new BadHttpRequestException("Hoa hồng phải nằm trong khoảng từ 0 đến 100.");
+        }
+
+        if (request.AvailableQty < 0)
+        {
+            throw new BadHttpRequestException("Số lượng còn bán không được âm.");
+        }
     }
 }

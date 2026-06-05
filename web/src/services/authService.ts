@@ -6,9 +6,12 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  AccessToken?: string;
+  RefreshToken?: string;
+  ExpiresIn?: number;
 }
 
 export interface AuthProfile {
@@ -29,7 +32,10 @@ export interface ResetPasswordRequest {
 
 export const authService = {
   async login(payload: LoginRequest): Promise<LoginResponse> {
-    const response = await apiClient.post<LoginResponse>('/auth/login', payload);
+    const response = await apiClient.post<LoginResponse>('/auth/login', {
+      identifier: payload.email,
+      password: payload.password,
+    });
     return response.data;
   },
 

@@ -270,7 +270,9 @@ BEGIN TRY
                 ServiceId,
                 Quantity,
                 BookedPrice,
-                BookedCommissionRate
+                BookedCommissionRate,
+                ServiceDate,
+                HotelCheckOutDate
             )
             VALUES
             (
@@ -280,7 +282,9 @@ BEGIN TRY
                 @HotelAId,
                 1,
                 @HotelAPrice * 2,
-                0.12
+                0.12,
+                @PastStartDate,
+                @PastEndDate
             );
         END;
 
@@ -301,7 +305,9 @@ BEGIN TRY
                 ServiceId,
                 Quantity,
                 BookedPrice,
-                BookedCommissionRate
+                BookedCommissionRate,
+                ServiceDate,
+                HotelCheckOutDate
             )
             VALUES
             (
@@ -311,7 +317,9 @@ BEGIN TRY
                 @BusAId,
                 2,
                 @BusAPrice * 2,
-                0.08
+                0.08,
+                NULL,
+                NULL
             );
         END;
 
@@ -332,7 +340,9 @@ BEGIN TRY
                 ServiceId,
                 Quantity,
                 BookedPrice,
-                BookedCommissionRate
+                BookedCommissionRate,
+                ServiceDate,
+                HotelCheckOutDate
             )
             VALUES
             (
@@ -342,7 +352,9 @@ BEGIN TRY
                 @HotelBId,
                 1,
                 @HotelBPrice * 3,
-                0.10
+                0.10,
+                @FutureStartDate,
+                @FutureEndDate
             );
         END;
 

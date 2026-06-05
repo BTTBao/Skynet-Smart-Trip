@@ -19,10 +19,13 @@ class OpenStreetMapGeocodingService {
       'addressdetails': '0',
     });
 
-    final response = await http.get(uri, headers: const {
-      'Accept': 'application/json',
-      'User-Agent': 'SkynetSmartTrip/1.0',
-    });
+    final response = await http.get(
+      uri,
+      headers: const {
+        'Accept': 'application/json',
+        'User-Agent': 'SkynetSmartTrip/1.0',
+      },
+    );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       return null;
@@ -45,5 +48,52 @@ class OpenStreetMapGeocodingService {
     }
 
     return LatLng(lat, lon);
+  }
+
+  Future<String?> reverseGeocode(LatLng position) async {
+    final uri = Uri.https('nominatim.openstreetmap.org', '/reverse', {
+      'format': 'jsonv2',
+      'lat': position.latitude.toString(),
+      'lon': position.longitude.toString(),
+      'zoom': '12',
+      'addressdetails': '1',
+    });
+
+    final response = await http.get(
+      uri,
+      headers: const {
+        'Accept': 'application/json',
+        'User-Agent': 'SkynetSmartTrip/1.0',
+      },
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      return null;
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) {
+      return null;
+    }
+
+    final address = decoded['address'];
+    if (address is Map<String, dynamic>) {
+      final city =
+          address['city'] ??
+          address['town'] ??
+          address['village'] ??
+          address['county'] ??
+          address['state'];
+      if (city != null && city.toString().trim().isNotEmpty) {
+        return city.toString().trim();
+      }
+    }
+
+    final displayName = decoded['display_name']?.toString();
+    if (displayName == null || displayName.trim().isEmpty) {
+      return null;
+    }
+
+    return displayName.split(',').first.trim();
   }
 }

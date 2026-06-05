@@ -123,16 +123,32 @@ public class GrokAiService : IGrokAiService
         sb.AppendLine("Tra loi bang JSON hop le theo schema sau, khong them markdown:");
         sb.AppendLine(@"{
   ""text"": ""Noi dung tra loi chinh"",
-  ""responseType"": ""text|destination_card|itinerary|hotel_list|weather"",
+  ""responseType"": ""text|destination_card|itinerary|hotel_list|transport_list|weather"",
   ""destinationCards"": [{ ""name"": """", ""description"": """", ""rating"": 4.5, ""bestSeason"": """", ""estimatedBudget"": """", ""isHot"": false }],
-  ""suggestedItinerary"": { ""title"": """", ""destination"": """", ""totalDays"": 3, ""estimatedBudget"": """", ""days"": [{ ""dayNumber"": 1, ""theme"": """", ""activities"": [{ ""time"": ""08:00"", ""title"": """", ""description"": """", ""icon"": ""restaurant|attraction|transport|hotel|shopping|entertainment"", ""estimatedCost"": """" }] }] },
+  ""suggestedItinerary"": {
+    ""title"": """",
+    ""destination"": """",
+    ""totalDays"": 3,
+    ""estimatedBudget"": """",
+    ""costBreakdown"": { ""transportCost"": 0, ""hotelCost"": 0, ""foodCost"": 0, ""activityCost"": 0, ""totalCost"": 0, ""currency"": ""VND"" },
+    ""days"": [{ ""dayNumber"": 1, ""theme"": """", ""activities"": [{ ""time"": ""08:00"", ""title"": """", ""description"": """", ""icon"": ""restaurant|attraction|transport|hotel|shopping|entertainment"", ""estimatedCost"": """" }] }]
+  },
   ""hotelCards"": [{ ""name"": """", ""address"": """", ""starRating"": 4, ""description"": """", ""pricePerNight"": 500000, ""destinationName"": """", ""amenities"": [""WiFi"", ""Pool""] }],
+  ""transportCards"": [{ ""companyName"": """", ""fromDestinationName"": """", ""toDestinationName"": """", ""price"": 180000, ""departureTime"": ""2026-06-03T08:00:00Z"" }],
   ""quickActions"": [{ ""label"": ""Goi y text"", ""icon"": ""explore|hotel|restaurant|calendar|weather|map"", ""actionPayload"": ""Cau gui khi user tap"" }]
 }");
         sb.AppendLine("Lua chon responseType dung voi ngu canh va luon kem 2-4 quickActions.");
         sb.AppendLine("Nhan quick action co the ngan gon, nhung actionPayload phai la cau tieng Viet tu nhien ma nguoi dung thuc su se gui.");
         sb.AppendLine("Tuyet doi khong tra ve ma ky thuat, token noi bo, hay chuoi dang SHOW_DETAILS_HOIAN, OPEN_HOTEL, DETAIL_ID_123.");
         sb.AppendLine("Ngu gon, huu ich, mang goc nhin local guide Viet Nam.");
+        sb.AppendLine("Neu nguoi dung muon lap ke hoach/lich trinh ma chua du thong tin bat buoc, KHONG duoc len plan ngay.");
+        sb.AppendLine("Thong tin bat buoc truoc khi len plan: diem den, diem xuat phat, so nguoi, ngan sach.");
+        sb.AppendLine("Neu thieu thong tin, chi hoi lai nhung muc con thieu bang mot cau ngan gon va de responseType='text'.");
+        sb.AppendLine("Chi tao suggestedItinerary khi da co du thong tin o tin nhan hien tai hoac lich su chat.");
+        sb.AppendLine("Khi tao plan, phai dua thong tin cu the vao tung ngay: neu co xe/khach san thi dat truc tiep vao activities cua Ngay 1, khong tao muc goi y rieng o tren.");
+        sb.AppendLine("Moi muc co chi phi nhu xe, khach san, bua an, ve tham quan, cafe, vui choi can co estimatedCost neu co the uoc tinh.");
+        sb.AppendLine("Tong chi phi chi xuat hien o costBreakdown va phai phan anh tong cua ca plan.");
+        sb.AppendLine("Goi y phai thuc te, cu the, uu tien cach viet giong travel planner tai Viet Nam, tranh noi chung chung.");
 
         if (!string.IsNullOrWhiteSpace(context.DatabaseContext))
         {
@@ -251,12 +267,12 @@ public class GrokAiService : IGrokAiService
     {
         return context.DetectedIntent switch
         {
-            "promotion_query" => "Minh dang chuyen sang che do tra loi tu du lieu he thong de goi y khuyen mai cho ban.",
-            "bus_query" => "Minh dang chuyen sang du lieu he thong de tim tuyen xe phu hop cho ban.",
-            "hotel_query" => "Minh dang lay nhanh danh sach khach san phu hop tu he thong.",
-            "itinerary_request" => "Minh dang dung du lieu san co de lap lich trinh tham khao cho ban.",
-            "budget_query" => "Minh dang tong hop chi phi tham khao tu du lieu he thong cho ban.",
-            _ => "Minh dang su dung du lieu san co cua he thong de ho tro ban ngay luc nay."
+            "promotion_query" => "De minh xem nhanh cac uu dai phu hop cho ban nhe.",
+            "bus_query" => "De minh tim nhanh cac tuyen di phu hop cho ban nhe.",
+            "hotel_query" => "De minh loc nhanh mot vai khach san phu hop cho ban nhe.",
+            "itinerary_request" => "De minh len nhanh mot lich trinh tham khao de ban de hinh dung hon nhe.",
+            "budget_query" => "De minh uoc tinh nhanh chi phi tham khao cho ban nhe.",
+            _ => "De minh xem nhanh thong tin phu hop cho ban nhe."
         };
     }
 

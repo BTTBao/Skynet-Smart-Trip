@@ -23,7 +23,7 @@ jobs:
       - name: 🏗️ Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.32.x"  # Cố định version khớp với sdk: ^3.11.0 trong pubspec.yaml
+          flutter-version: "3.44.1"
           channel: stable
           cache: true
 

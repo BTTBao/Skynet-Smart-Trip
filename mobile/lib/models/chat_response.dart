@@ -10,6 +10,7 @@ class ChatResponse {
   final List<QuickAction>? quickActions;
   final WeatherInfo? weatherInfo;
   final List<HotelCard>? hotelCards;
+  final List<TransportCard>? transportCards;
   final DateTime timestamp;
 
   ChatResponse({
@@ -21,6 +22,7 @@ class ChatResponse {
     this.quickActions,
     this.weatherInfo,
     this.hotelCards,
+    this.transportCards,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
@@ -47,6 +49,11 @@ class ChatResponse {
           : null,
       hotelCards: normalizedJson['hotelCards'] != null
           ? (normalizedJson['hotelCards'] as List).map((e) => HotelCard.fromJson(e)).toList()
+          : null,
+      transportCards: normalizedJson['transportCards'] != null
+          ? (normalizedJson['transportCards'] as List)
+                .map((e) => TransportCard.fromJson(e))
+                .toList()
           : null,
       timestamp: normalizedJson['timestamp'] != null ? DateTime.tryParse(normalizedJson['timestamp']) : null,
     );
@@ -112,6 +119,8 @@ class ChatResponse {
             (payload['destinationCards'] as List).isNotEmpty) ||
         (payload['hotelCards'] is List &&
             (payload['hotelCards'] as List).isNotEmpty) ||
+        (payload['transportCards'] is List &&
+            (payload['transportCards'] as List).isNotEmpty) ||
         payload['suggestedItinerary'] != null ||
         payload['weatherInfo'] != null;
   }
@@ -164,8 +173,10 @@ class HotelCard {
   final String? description;
   final double? pricePerNight;
   final String? destinationName;
+  final int? destinationId;
   final List<String>? amenities;
   final bool? isAvailable;
+  final List<HotelRoomCard>? rooms;
 
   HotelCard({
     this.id,
@@ -175,8 +186,10 @@ class HotelCard {
     this.description,
     this.pricePerNight,
     this.destinationName,
+    this.destinationId,
     this.amenities,
     this.isAvailable,
+    this.rooms,
   });
 
   factory HotelCard.fromJson(Map<String, dynamic> json) {
@@ -188,10 +201,87 @@ class HotelCard {
       description: json['description'],
       pricePerNight: (json['pricePerNight'] as num?)?.toDouble(),
       destinationName: json['destinationName'],
+      destinationId: json['destinationId'],
       amenities: json['amenities'] != null
           ? List<String>.from(json['amenities'])
           : null,
       isAvailable: json['isAvailable'],
+      rooms: json['rooms'] != null
+          ? (json['rooms'] as List)
+              .map((e) => HotelRoomCard.fromJson(e))
+              .toList()
+          : null,
+    );
+  }
+}
+
+class HotelRoomCard {
+  final int id;
+  final String roomType;
+  final double pricePerNight;
+  final int capacity;
+  final int availableQty;
+
+  const HotelRoomCard({
+    required this.id,
+    required this.roomType,
+    required this.pricePerNight,
+    required this.capacity,
+    required this.availableQty,
+  });
+
+  factory HotelRoomCard.fromJson(Map<String, dynamic> json) {
+    return HotelRoomCard(
+      id: json['id'] ?? 0,
+      roomType: json['roomType'] ?? 'Standard',
+      pricePerNight: (json['pricePerNight'] as num?)?.toDouble() ?? 0,
+      capacity: json['capacity'] ?? 2,
+      availableQty: json['availableQty'] ?? 0,
+    );
+  }
+}
+
+class TransportCard {
+  final int? scheduleId;
+  final int? fromDestinationId;
+  final String? fromDestinationName;
+  final int? toDestinationId;
+  final String? toDestinationName;
+  final String companyName;
+  final double? price;
+  final DateTime? departureTime;
+  final DateTime? arrivalTime;
+  final int? totalSeats;
+
+  TransportCard({
+    this.scheduleId,
+    this.fromDestinationId,
+    this.fromDestinationName,
+    this.toDestinationId,
+    this.toDestinationName,
+    required this.companyName,
+    this.price,
+    this.departureTime,
+    this.arrivalTime,
+    this.totalSeats,
+  });
+
+  factory TransportCard.fromJson(Map<String, dynamic> json) {
+    return TransportCard(
+      scheduleId: json['scheduleId'],
+      fromDestinationId: json['fromDestinationId'],
+      fromDestinationName: json['fromDestinationName'],
+      toDestinationId: json['toDestinationId'],
+      toDestinationName: json['toDestinationName'],
+      companyName: json['companyName'] ?? '',
+      price: (json['price'] as num?)?.toDouble(),
+      departureTime: json['departureTime'] != null
+          ? DateTime.tryParse(json['departureTime'])
+          : null,
+      arrivalTime: json['arrivalTime'] != null
+          ? DateTime.tryParse(json['arrivalTime'])
+          : null,
+      totalSeats: json['totalSeats'],
     );
   }
 }
@@ -223,17 +313,25 @@ class QuickAction {
 class SuggestedItinerary {
   final String title;
   final String destination;
+  final int? destinationId;
   final int totalDays;
   final String? estimatedBudget;
   final String? travelStyle;
+  final HotelPlanSuggestion? hotelSuggestion;
+  final TransportPlanSuggestion? transportSuggestion;
+  final ItineraryCostBreakdown? costBreakdown;
   final List<ItineraryDay> days;
 
   SuggestedItinerary({
     required this.title,
     required this.destination,
+    this.destinationId,
     required this.totalDays,
     this.estimatedBudget,
     this.travelStyle,
+    this.hotelSuggestion,
+    this.transportSuggestion,
+    this.costBreakdown,
     required this.days,
   });
 
@@ -241,12 +339,134 @@ class SuggestedItinerary {
     return SuggestedItinerary(
       title: json['title'] ?? '',
       destination: json['destination'] ?? '',
+      destinationId: json['destinationId'],
       totalDays: json['totalDays'] ?? 0,
       estimatedBudget: json['estimatedBudget'],
       travelStyle: json['travelStyle'],
+      hotelSuggestion: json['hotelSuggestion'] != null
+          ? HotelPlanSuggestion.fromJson(json['hotelSuggestion'])
+          : null,
+      transportSuggestion: json['transportSuggestion'] != null
+          ? TransportPlanSuggestion.fromJson(json['transportSuggestion'])
+          : null,
+      costBreakdown: json['costBreakdown'] != null
+          ? ItineraryCostBreakdown.fromJson(json['costBreakdown'])
+          : null,
       days: json['days'] != null
           ? (json['days'] as List).map((e) => ItineraryDay.fromJson(e)).toList()
           : [],
+    );
+  }
+}
+
+class HotelPlanSuggestion {
+  final int? hotelId;
+  final int? roomId;
+  final String name;
+  final String? roomType;
+  final String? address;
+  final String? destinationName;
+  final double? pricePerNight;
+  final int? capacity;
+  final int? availableQty;
+
+  HotelPlanSuggestion({
+    this.hotelId,
+    this.roomId,
+    required this.name,
+    this.roomType,
+    this.address,
+    this.destinationName,
+    this.pricePerNight,
+    this.capacity,
+    this.availableQty,
+  });
+
+  factory HotelPlanSuggestion.fromJson(Map<String, dynamic> json) {
+    return HotelPlanSuggestion(
+      hotelId: json['hotelId'],
+      roomId: json['roomId'],
+      name: json['name'] ?? '',
+      roomType: json['roomType'],
+      address: json['address'],
+      destinationName: json['destinationName'],
+      pricePerNight: (json['pricePerNight'] as num?)?.toDouble(),
+      capacity: json['capacity'],
+      availableQty: json['availableQty'],
+    );
+  }
+}
+
+class TransportPlanSuggestion {
+  final int? scheduleId;
+  final int? fromDestinationId;
+  final String? fromDestinationName;
+  final int? toDestinationId;
+  final String? toDestinationName;
+  final String companyName;
+  final double? price;
+  final DateTime? departureTime;
+  final DateTime? arrivalTime;
+  final int? totalSeats;
+
+  TransportPlanSuggestion({
+    this.scheduleId,
+    this.fromDestinationId,
+    this.fromDestinationName,
+    this.toDestinationId,
+    this.toDestinationName,
+    required this.companyName,
+    this.price,
+    this.departureTime,
+    this.arrivalTime,
+    this.totalSeats,
+  });
+
+  factory TransportPlanSuggestion.fromJson(Map<String, dynamic> json) {
+    return TransportPlanSuggestion(
+      scheduleId: json['scheduleId'],
+      fromDestinationId: json['fromDestinationId'],
+      fromDestinationName: json['fromDestinationName'],
+      toDestinationId: json['toDestinationId'],
+      toDestinationName: json['toDestinationName'],
+      companyName: json['companyName'] ?? '',
+      price: (json['price'] as num?)?.toDouble(),
+      departureTime: json['departureTime'] != null
+          ? DateTime.tryParse(json['departureTime'])
+          : null,
+      arrivalTime: json['arrivalTime'] != null
+          ? DateTime.tryParse(json['arrivalTime'])
+          : null,
+      totalSeats: json['totalSeats'],
+    );
+  }
+}
+
+class ItineraryCostBreakdown {
+  final double? transportCost;
+  final double? hotelCost;
+  final double? foodCost;
+  final double? activityCost;
+  final double? totalCost;
+  final String currency;
+
+  ItineraryCostBreakdown({
+    this.transportCost,
+    this.hotelCost,
+    this.foodCost,
+    this.activityCost,
+    this.totalCost,
+    this.currency = 'VND',
+  });
+
+  factory ItineraryCostBreakdown.fromJson(Map<String, dynamic> json) {
+    return ItineraryCostBreakdown(
+      transportCost: (json['transportCost'] as num?)?.toDouble(),
+      hotelCost: (json['hotelCost'] as num?)?.toDouble(),
+      foodCost: (json['foodCost'] as num?)?.toDouble(),
+      activityCost: (json['activityCost'] as num?)?.toDouble(),
+      totalCost: (json['totalCost'] as num?)?.toDouble(),
+      currency: json['currency'] ?? 'VND',
     );
   }
 }

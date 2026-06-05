@@ -347,6 +347,8 @@ class _EditActivitySheetState extends State<_EditActivitySheet> {
   late DateTime _serviceDate;
   late TimeOfDay _departureTime;
 
+  bool get _isNote => widget.activity.title.toLowerCase().contains('ghi chu');
+
   @override
   void initState() {
     super.initState();
@@ -515,9 +517,9 @@ class _EditActivitySheetState extends State<_EditActivitySheet> {
               ],
             ),
             const SizedBox(height: 14),
-            const Text(
-              'Dia chi',
-              style: TextStyle(
+            Text(
+              _isNote ? 'Noi dung ghi chu' : 'Dia chi',
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: TripUiColors.textPrimary,
@@ -527,7 +529,9 @@ class _EditActivitySheetState extends State<_EditActivitySheet> {
             TextField(
               controller: _addressController,
               decoration: InputDecoration(
-                hintText: 'Nhap dia chi de ve lai lo trinh tren map',
+                hintText: _isNote
+                    ? 'Nhap noi dung ghi chu'
+                    : 'Nhap dia chi de ve lai lo trinh tren map',
                 filled: true,
                 fillColor: const Color(0xFFF1F4F6),
                 border: OutlineInputBorder(

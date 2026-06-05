@@ -17,7 +17,6 @@ class TripProvider with ChangeNotifier {
   List<MyTripSummary> _trips = [];
   TripDetail? _currentTrip;
   int? _currentTripId;
-  int? _currentUserId;
   bool _isLoadingTrips = false;
   bool _isLoadingTripDetail = false;
   bool _isSubmitting = false;
@@ -29,7 +28,7 @@ class TripProvider with ChangeNotifier {
   bool get isLoadingTrips => _isLoadingTrips;
   bool get isLoadingTripDetail => _isLoadingTripDetail;
   bool get isSubmitting => _isSubmitting;
-  String? get error => _error;
+  String? get error => _error; 
 
   List<MyTripSummary> get upcomingTrips {
     final now = DateTime.now();
@@ -129,7 +128,6 @@ class TripProvider with ChangeNotifier {
 
     try {
       final createdTrip = await _tripService.createHotelBooking(request);
-      _currentUserId = request.userId;
       _trips = [
         createdTrip,
         ..._trips.where((trip) => trip.tripId != createdTrip.tripId),
@@ -180,7 +178,7 @@ class TripProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> addItinerary(
+  Future<int?> addItinerary(
     int tripId,
     CreateTripItineraryRequest request,
   ) async {
@@ -189,15 +187,15 @@ class TripProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _tripService.addItinerary(tripId, request);
+      final entry = await _tripService.addItinerary(tripId, request);
       await fetchTripDetail(tripId);
       await fetchTrips(silent: true);
-      return true;
+      return entry.itineraryId;
     } catch (e) {
       _error = e.toString();
       _isSubmitting = false;
       notifyListeners();
-      return false;
+      return null;
     } finally {
       _isSubmitting = false;
       notifyListeners();

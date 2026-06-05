@@ -119,6 +119,49 @@ public static class DevelopmentDataSeeder
             await context.SaveChangesAsync();
         }
 
+        var destinationSeedPool = new[]
+        {
+            new Destination
+            {
+                Name = "Hà Nội",
+                Description = "Thủ đô với phố cổ, hồ Hoàn Kiếm và nhiều trải nghiệm văn hóa ẩm thực.",
+                CoverImageUrl = "https://images.unsplash.com/photo-1509030450996-dd1a26dda07a",
+                IsHot = true
+            },
+            new Destination
+            {
+                Name = "TP. Hồ Chí Minh",
+                Description = "Thành phố năng động với ẩm thực phong phú, nhịp sống sôi động và nhiều điểm vui chơi.",
+                CoverImageUrl = "https://images.unsplash.com/photo-1528127269322-539801943592",
+                IsHot = true
+            },
+            new Destination
+            {
+                Name = "Phú Quý",
+                Description = "Hòn đảo yên bình với biển xanh, hải sản tươi và nhịp sống thư thả.",
+                CoverImageUrl = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+                IsHot = true
+            },
+            new Destination
+            {
+                Name = "Hội An",
+                Description = "Phố cổ lãng mạn nổi bật với đèn lồng, ẩm thực địa phương và không khí chậm rãi.",
+                CoverImageUrl = "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b",
+                IsHot = true
+            }
+        };
+
+        foreach (var destination in destinationSeedPool)
+        {
+            var exists = await context.Destinations.AnyAsync(item => item.Name == destination.Name);
+            if (!exists)
+            {
+                context.Destinations.Add(destination);
+            }
+        }
+
+        await context.SaveChangesAsync();
+
         if (!await context.BusCompanies.AnyAsync())
         {
             context.BusCompanies.AddRange(
@@ -137,6 +180,33 @@ public static class DevelopmentDataSeeder
 
             await context.SaveChangesAsync();
         }
+
+        var busCompanySeedPool = new[]
+        {
+            new BusCompany
+            {
+                Name = "Phuong Trang FUTA",
+                Hotline = "19006067",
+                LogoUrl = "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957"
+            },
+            new BusCompany
+            {
+                Name = "Thanh Buoi Express",
+                Hotline = "19006079",
+                LogoUrl = "https://images.unsplash.com/photo-1517142089942-ba376ce32a2e"
+            }
+        };
+
+        foreach (var company in busCompanySeedPool)
+        {
+            var exists = await context.BusCompanies.AnyAsync(item => item.Name == company.Name);
+            if (!exists)
+            {
+                context.BusCompanies.Add(company);
+            }
+        }
+
+        await context.SaveChangesAsync();
 
         if (!await context.Promotions.AnyAsync())
         {
@@ -228,6 +298,61 @@ public static class DevelopmentDataSeeder
             }
         }
 
+        var allDestinations = await context.Destinations.ToListAsync();
+        int? FindDestinationId(string destinationName)
+            => allDestinations.FirstOrDefault(item => item.Name == destinationName)?.Id;
+
+        var hotelSeedPool = new List<Hotel>
+        {
+            new()
+            {
+                DestinationId = FindDestinationId("Hà Nội") ?? 0,
+                Name = "Old Quarter Garden Hotel",
+                Address = "18 Hàng Bạc, Hoàn Kiếm, Hà Nội",
+                StarRating = 4,
+                Description = "Khách sạn ấm cúng ngay khu phố cổ, thuận tiện đi bộ hồ Hoàn Kiếm và khám phá ẩm thực đêm.",
+                IsAvailable = true
+            },
+            new()
+            {
+                DestinationId = FindDestinationId("TP. Hồ Chí Minh") ?? 0,
+                Name = "Saigon Central Stay",
+                Address = "92 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh",
+                StarRating = 4,
+                Description = "Khách sạn trung tâm phù hợp cho du lịch tự túc, gần phố đi bộ và nhiều quán ăn nổi tiếng.",
+                IsAvailable = true
+            },
+            new()
+            {
+                DestinationId = FindDestinationId("Phú Quý") ?? 0,
+                Name = "Phu Quy Sea View",
+                Address = "Lô 5 Tam Thanh, Phú Quý, Bình Thuận",
+                StarRating = 3,
+                Description = "Chỗ nghỉ gần biển với không gian giản dị, phù hợp cho nhóm bạn và khách thích khám phá đảo.",
+                IsAvailable = true
+            },
+            new()
+            {
+                DestinationId = FindDestinationId("Hội An") ?? 0,
+                Name = "Lantern Riverside Hotel",
+                Address = "21 Bạch Đằng, Hội An, Quảng Nam",
+                StarRating = 4,
+                Description = "Khách sạn sát sông, thuận tiện dạo phố cổ, ngắm đèn lồng và thưởng thức cà phê ven sông.",
+                IsAvailable = true
+            }
+        };
+
+        foreach (var hotel in hotelSeedPool.Where(item => item.DestinationId > 0))
+        {
+            var exists = await context.Hotels.AnyAsync(item => item.Name == hotel.Name);
+            if (!exists)
+            {
+                context.Hotels.Add(hotel);
+            }
+        }
+
+        await context.SaveChangesAsync();
+
         if (!await context.Amenities.AnyAsync())
         {
             context.Amenities.AddRange(
@@ -318,6 +443,51 @@ public static class DevelopmentDataSeeder
                 await context.SaveChangesAsync();
             }
         }
+
+        var allHotels = await context.Hotels.ToListAsync();
+        Hotel? FindHotel(string hotelName)
+            => allHotels.FirstOrDefault(item => item.Name == hotelName);
+
+        var roomSeedPool = new List<Room>();
+        void AddRoomSeed(string hotelName, string roomType, int capacity, decimal price, double commissionRate, int qty)
+        {
+            var hotel = FindHotel(hotelName);
+            if (hotel == null)
+            {
+                return;
+            }
+
+            roomSeedPool.Add(new Room
+            {
+                HotelId = hotel.Id,
+                RoomType = roomType,
+                Capacity = capacity,
+                PricePerNight = price,
+                CommissionRate = commissionRate,
+                AvailableQty = qty
+            });
+        }
+
+        AddRoomSeed("Old Quarter Garden Hotel", "Phòng Standard", 2, 920000m, 0.10, 8);
+        AddRoomSeed("Old Quarter Garden Hotel", "Phòng Family", 4, 1650000m, 0.12, 4);
+        AddRoomSeed("Saigon Central Stay", "Phòng City View", 2, 980000m, 0.10, 10);
+        AddRoomSeed("Saigon Central Stay", "Suite Gia Đình", 4, 1850000m, 0.12, 4);
+        AddRoomSeed("Phu Quy Sea View", "Phòng Tiêu Chuẩn", 2, 650000m, 0.08, 6);
+        AddRoomSeed("Phu Quy Sea View", "Phòng Nhìn Biển", 4, 1200000m, 0.10, 3);
+        AddRoomSeed("Lantern Riverside Hotel", "Phòng Deluxe", 2, 1100000m, 0.10, 7);
+        AddRoomSeed("Lantern Riverside Hotel", "Phòng Balcony", 3, 1450000m, 0.12, 4);
+
+        foreach (var room in roomSeedPool)
+        {
+            var exists = await context.Rooms.AnyAsync(item =>
+                item.HotelId == room.HotelId && item.RoomType == room.RoomType);
+            if (!exists)
+            {
+                context.Rooms.Add(room);
+            }
+        }
+
+        await context.SaveChangesAsync();
 
         if (!await context.Reviews.AnyAsync())
         {
@@ -451,6 +621,83 @@ public static class DevelopmentDataSeeder
             }
         }
 
+        var allCompanies = await context.BusCompanies.OrderBy(item => item.Id).ToListAsync();
+        var allDestinationsForRoutes = await context.Destinations.OrderBy(item => item.Id).ToListAsync();
+        int? FindRouteDestinationId(string destinationName)
+            => allDestinationsForRoutes.FirstOrDefault(item => item.Name == destinationName)?.Id;
+        int ResolveCompanyId(string preferredName)
+            => allCompanies.FirstOrDefault(item => item.Name == preferredName)?.Id
+                ?? allCompanies.First().Id;
+
+        if (allCompanies.Count > 0 && allDestinationsForRoutes.Count > 0)
+        {
+            var routeSeedPool = new List<BusSchedule>();
+            var baseDate = DateTime.UtcNow.AddDays(2).Date;
+
+            void AddDailyRoute(
+                string companyName,
+                string fromName,
+                string toName,
+                int departureHour,
+                int durationHours,
+                decimal price,
+                int totalSeats,
+                int totalDays = 10)
+            {
+                var fromId = FindRouteDestinationId(fromName);
+                var toId = FindRouteDestinationId(toName);
+                if (!fromId.HasValue || !toId.HasValue)
+                {
+                    return;
+                }
+
+                for (var dayOffset = 0; dayOffset < totalDays; dayOffset++)
+                {
+                    var departure = baseDate.AddDays(dayOffset).AddHours(departureHour);
+                    routeSeedPool.Add(new BusSchedule
+                    {
+                        CompanyId = ResolveCompanyId(companyName),
+                        FromDestId = fromId.Value,
+                        ToDestId = toId.Value,
+                        DepartureTime = departure,
+                        ArrivalTime = departure.AddHours(durationHours),
+                        Price = price,
+                        CommissionRate = 0.08,
+                        TotalSeats = totalSeats
+                    });
+                }
+            }
+
+            AddDailyRoute("Phuong Trang FUTA", "TP. Hồ Chí Minh", "Đà Lạt", 22, 7, 320000m, 36);
+            AddDailyRoute("Thanh Buoi Express", "TP. Hồ Chí Minh", "Đà Lạt", 23, 7, 340000m, 34);
+            AddDailyRoute("Phuong Trang FUTA", "Đà Lạt", "TP. Hồ Chí Minh", 22, 7, 320000m, 36);
+            AddDailyRoute("Thanh Buoi Express", "Đà Lạt", "TP. Hồ Chí Minh", 23, 7, 340000m, 34);
+            AddDailyRoute("Phuong Trang FUTA", "TP. Hồ Chí Minh", "Nha Trang", 21, 8, 360000m, 40);
+            AddDailyRoute("Phuong Trang FUTA", "Nha Trang", "TP. Hồ Chí Minh", 21, 8, 360000m, 40);
+            AddDailyRoute("Skynet Express", "Đà Nẵng", "Hội An", 8, 1, 180000m, 20);
+            AddDailyRoute("Viet Travel Bus", "Đà Nẵng", "Hội An", 15, 1, 150000m, 24);
+            AddDailyRoute("Skynet Express", "Hội An", "Đà Nẵng", 9, 1, 180000m, 20);
+            AddDailyRoute("Viet Travel Bus", "Hội An", "Đà Nẵng", 16, 1, 150000m, 24);
+            AddDailyRoute("Phuong Trang FUTA", "Hà Nội", "Hạ Long", 7, 3, 220000m, 29);
+            AddDailyRoute("Phuong Trang FUTA", "Hạ Long", "Hà Nội", 15, 3, 220000m, 29);
+
+            foreach (var schedule in routeSeedPool)
+            {
+                var exists = await context.BusSchedules.AnyAsync(item =>
+                    item.CompanyId == schedule.CompanyId &&
+                    item.FromDestId == schedule.FromDestId &&
+                    item.ToDestId == schedule.ToDestId &&
+                    item.DepartureTime == schedule.DepartureTime);
+
+                if (!exists)
+                {
+                    context.BusSchedules.Add(schedule);
+                }
+            }
+
+            await context.SaveChangesAsync();
+        }
+
         if (!await context.Seats.AnyAsync())
         {
             var schedules = await context.BusSchedules.ToListAsync();
@@ -537,7 +784,9 @@ public static class DevelopmentDataSeeder
                             ServiceId = hotels[0].Id,
                             Quantity = 2,
                             BookedPrice = 1600000m,
-                            BookedCommissionRate = 0.1
+                            BookedCommissionRate = 0.1,
+                            ServiceDate = trips[0].StartDate,
+                            HotelCheckOutDate = trips[0].EndDate
                         },
                         new TripItinerary
                         {
@@ -547,7 +796,9 @@ public static class DevelopmentDataSeeder
                             ServiceId = hotels[1].Id,
                             Quantity = 3,
                             BookedPrice = 4200000m,
-                            BookedCommissionRate = 0.12
+                            BookedCommissionRate = 0.12,
+                            ServiceDate = trips[1].StartDate,
+                            HotelCheckOutDate = trips[1].EndDate
                         });
                 }
 
@@ -734,5 +985,224 @@ public static class DevelopmentDataSeeder
                 await context.SaveChangesAsync();
             }
         }
+
+        await SeedExploreAsync(context, demoUser.Id, adminUser.Id);
     }
+
+    private static async Task SeedExploreAsync(ApplicationDbContext context, int demoUserId, int adminUserId)
+    {
+        if (await context.ExplorePosts.AnyAsync())
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        var posts = new[]
+        {
+            new ExploreSeedPost(
+                "Khám phá Vịnh Hạ Long - kỳ quan thiên nhiên thế giới",
+                "Vịnh Hạ Long với hàng nghìn hòn đảo đá vôi, làn nước xanh ngọc và những đêm ngủ trên du thuyền đáng nhớ.",
+                "Vịnh Hạ Long là một trong những biểu tượng du lịch Việt Nam. Du khách nên dành ít nhất hai ngày để đi thuyền qua các cụm đảo, ghé hang Sửng Sốt và ngắm hoàng hôn trên vịnh.",
+                "https://images.unsplash.com/photo-1528127269322-539801943592?w=1200",
+                "Hạ Long",
+                "ha-long",
+                "Quảng Ninh",
+                "north",
+                3,
+                4.7m,
+                1820,
+                "biển,đảo,hạ-long,unesco",
+                now.AddDays(-1)),
+            new ExploreSeedPost(
+                "Sa Pa trong sương giữa dãy Hoàng Liên Sơn",
+                "Ruộng bậc thang, bản làng và khí hậu mát lạnh khiến Sa Pa luôn là điểm đến miền núi rất đáng đi.",
+                "Sa Pa đẹp nhất vào mùa lúa chín và những ngày trời trong sau mưa. Hãy thử trekking bản Cát Cát, Tả Van và dậy sớm để săn mây trên đèo Ô Quy Hồ.",
+                "https://images.unsplash.com/photo-1605640840605-14ac1855827b?w=1200",
+                "Sa Pa",
+                "sapa",
+                "Lào Cai",
+                "north",
+                2,
+                4.5m,
+                3240,
+                "núi,sapa,bản-làng,trekking",
+                now.AddDays(-3)),
+            new ExploreSeedPost(
+                "Hội An - phố cổ nghìn tuổi lung linh ánh đèn",
+                "Nhịp sống chậm, kiến trúc cổ và những con phố đèn lồng tạo nên một Hội An rất riêng.",
+                "Hội An phù hợp để đi bộ, ăn cao lầu, uống cà phê trong phố cổ và đạp xe ra làng rau Trà Quế. Buổi tối là thời điểm đẹp nhất để chụp ảnh ven sông Hoài.",
+                "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=1200",
+                "Hội An",
+                "hoi-an",
+                "Quảng Nam",
+                "central",
+                2,
+                4.8m,
+                5120,
+                "phố-cổ,di-sản,hội-an,ẩm-thực",
+                now.AddDays(-5)),
+            new ExploreSeedPost(
+                "Phú Quốc - hòn đảo ngọc của Việt Nam",
+                "Biển xanh, cát trắng, hải sản tươi và nhiều lựa chọn nghỉ dưỡng cho mọi lịch trình.",
+                "Phú Quốc có đủ trải nghiệm từ nghỉ dưỡng ở bãi Kem, ngắm hoàng hôn Dinh Cậu đến khám phá các đảo nhỏ phía Nam. Nên thuê xe máy nếu muốn đi nhiều điểm trong ngày.",
+                "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200",
+                "Phú Quốc",
+                "phu-quoc",
+                "Kiên Giang",
+                "south",
+                3,
+                4.6m,
+                7650,
+                "biển,đảo,phú-quốc,resort",
+                now.AddDays(-7)),
+            new ExploreSeedPost(
+                "Đà Lạt - thành phố ngàn hoa trong sương",
+                "Không khí mát mẻ, đồi thông và những quán cà phê nhìn xuống thung lũng làm Đà Lạt rất dễ thương.",
+                "Đà Lạt hợp cho chuyến đi chậm: sáng uống cà phê, trưa ghé vườn dâu, chiều ngắm hoàng hôn ở đồi Đa Phú. Buổi tối nhớ thử bánh căn và sữa đậu nành nóng.",
+                "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200",
+                "Đà Lạt",
+                "da-lat",
+                "Lâm Đồng",
+                "south",
+                2,
+                4.4m,
+                4320,
+                "đà-lạt,núi,cà-phê,lâm-đồng",
+                now.AddDays(-2)),
+            new ExploreSeedPost(
+                "Huế - cố đô dịu dàng bên sông Hương",
+                "Di sản cung đình, ẩm thực tinh tế và nhịp sống chậm khiến Huế là một điểm dừng rất khác.",
+                "Một ngày ở Huế nên bắt đầu với Đại Nội, tiếp tục bằng lăng Minh Mạng hoặc Khải Định và kết thúc bằng bún bò, chè Huế bên bờ sông Hương.",
+                "https://images.unsplash.com/photo-1567521464027-f127ff144326?w=1200",
+                "Huế",
+                "hue",
+                "Thừa Thiên Huế",
+                "central",
+                2,
+                4.5m,
+                3890,
+                "huế,cố-đô,di-sản,ẩm-thực",
+                now.AddDays(-4)),
+            new ExploreSeedPost(
+                "Ninh Bình - Tràng An giữa núi đá và đồng lúa",
+                "Đi thuyền qua hang động, leo Hang Múa và ngắm mùa lúa là những trải nghiệm rất đáng nhớ.",
+                "Ninh Bình dễ đi từ Hà Nội trong hai ngày một đêm. Tràng An, Tam Cốc, Hang Múa và chùa Bái Đính là các điểm phù hợp cho người lần đầu ghé.",
+                "https://images.unsplash.com/photo-1528181304800-259b08848526?w=1200",
+                "Ninh Bình",
+                "ninh-binh",
+                "Ninh Bình",
+                "north",
+                1,
+                4.6m,
+                2760,
+                "ninh-bình,tràng-an,núi,tiết-kiệm",
+                now.AddDays(-6)),
+            new ExploreSeedPost(
+                "Đà Nẵng - thành phố biển đáng sống",
+                "Biển Mỹ Khê, cầu Rồng, Sơn Trà và khoảng cách gần Hội An giúp Đà Nẵng rất dễ lên lịch.",
+                "Đà Nẵng phù hợp cho cả nghỉ dưỡng và khám phá. Hãy dành một buổi sáng ở bán đảo Sơn Trà, chiều tắm biển Mỹ Khê và tối xem cầu Rồng cuối tuần.",
+                "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=1200",
+                "Đà Nẵng",
+                "da-nang",
+                "Đà Nẵng",
+                "central",
+                2,
+                4.6m,
+                5870,
+                "đà-nẵng,biển,thành-phố,sơn-trà",
+                now.AddDays(-8))
+        };
+
+        foreach (var seed in posts)
+        {
+            var post = new ExplorePost
+            {
+                AuthorId = seed.CreatedAt.Day % 2 == 0 ? demoUserId : adminUserId,
+                Title = seed.Title,
+                Excerpt = seed.Excerpt,
+                Content = $"{seed.Content}\n\n[image:{seed.ImageUrl}]",
+                ThumbnailUrl = seed.ImageUrl,
+                Location = seed.Location,
+                CitySlug = seed.CitySlug,
+                Province = seed.Province,
+                Region = seed.Region,
+                CostLevel = seed.CostLevel,
+                AverageRating = seed.Rating,
+                RatingCount = 3,
+                ViewCount = seed.ViewCount,
+                Tags = seed.Tags,
+                CreatedAt = seed.CreatedAt
+            };
+
+            post.Images.Add(new ExplorePostImage
+            {
+                ImageUrl = seed.ImageUrl,
+                SortOrder = 0
+            });
+
+            context.ExplorePosts.Add(post);
+        }
+
+        await context.SaveChangesAsync();
+
+        var savedPosts = await context.ExplorePosts.OrderBy(post => post.Id).ToListAsync();
+        foreach (var post in savedPosts)
+        {
+            context.ExplorePostRatings.AddRange(
+                new ExplorePostRating { ExplorePostId = post.Id, UserId = demoUserId, Rating = post.AverageRating, CreatedAt = post.CreatedAt.AddHours(2) },
+                new ExplorePostRating { ExplorePostId = post.Id, UserId = adminUserId, Rating = Math.Min(5m, post.AverageRating + 0.2m), CreatedAt = post.CreatedAt.AddHours(3) });
+
+            context.ExplorePostLikes.Add(new ExplorePostLike
+            {
+                ExplorePostId = post.Id,
+                UserId = demoUserId,
+                CreatedAt = post.CreatedAt.AddHours(4)
+            });
+
+            if (post.Id % 2 == 0)
+            {
+                context.ExplorePostSaves.Add(new ExplorePostSave
+                {
+                    ExplorePostId = post.Id,
+                    UserId = demoUserId,
+                    CreatedAt = post.CreatedAt.AddHours(5)
+                });
+            }
+
+            context.ExploreComments.AddRange(
+                new ExploreComment
+                {
+                    ExplorePostId = post.Id,
+                    UserId = demoUserId,
+                    Content = "Bài viết rất hữu ích, mình đã lưu lại cho chuyến đi sắp tới.",
+                    LikeCount = 8,
+                    CreatedAt = post.CreatedAt.AddHours(6)
+                },
+                new ExploreComment
+                {
+                    ExplorePostId = post.Id,
+                    UserId = adminUserId,
+                    Content = "Gợi ý lịch trình rõ ràng và ảnh minh họa đẹp.",
+                    LikeCount = 4,
+                    CreatedAt = post.CreatedAt.AddHours(8)
+                });
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    private sealed record ExploreSeedPost(
+        string Title,
+        string Excerpt,
+        string Content,
+        string ImageUrl,
+        string Location,
+        string CitySlug,
+        string Province,
+        string Region,
+        int CostLevel,
+        decimal Rating,
+        int ViewCount,
+        string Tags,
+        DateTime CreatedAt);
 }

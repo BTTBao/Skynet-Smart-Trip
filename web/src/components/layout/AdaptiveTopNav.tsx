@@ -10,6 +10,8 @@ const placeholderByPath: Record<string, string> = {
   '/': 'Tìm kiếm báo cáo, người dùng, giao dịch...',
   '/users': 'Tìm kiếm người dùng, email, số điện thoại...',
   '/transport': 'Tìm kiếm lịch trình, mã chuyến, nhà xe...',
+  '/explore': 'Tìm kiếm bài Explore, vị trí, tag...',
+  '/notifications': 'Tìm kiếm thông báo, người nhận, loại...',
   '/bookings': 'Tìm kiếm booking, khách hàng, điểm đến...',
 };
 

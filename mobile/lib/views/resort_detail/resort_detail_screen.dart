@@ -84,6 +84,13 @@ class _ResortDetailScreenState extends State<ResortDetailScreen> {
     if (hotel == null) {
       return const Scaffold(body: SizedBox.shrink());
     }
+    if (hotel.rooms.isNotEmpty && selectedRoomIndex >= hotel.rooms.length) {
+      selectedRoomIndex = 0;
+    }
+    final selectedRoom = hotel.rooms.isNotEmpty ? hotel.rooms[selectedRoomIndex] : null;
+    final selectedImageUrls = selectedRoom?.imageUrls.isNotEmpty == true
+        ? selectedRoom!.imageUrls
+        : hotel.imageUrls;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -91,8 +98,9 @@ class _ResortDetailScreenState extends State<ResortDetailScreen> {
         child: Column(
           children: [
             ResortImageHeader(
-              imageUrls: hotel.imageUrls.isNotEmpty
-                  ? hotel.imageUrls
+              key: ValueKey(selectedRoom?.id ?? hotel.id),
+              imageUrls: selectedImageUrls.isNotEmpty
+                  ? selectedImageUrls
                   : ['https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80'],
             ),
             ResortInfoSection(
@@ -108,7 +116,11 @@ class _ResortDetailScreenState extends State<ResortDetailScreen> {
             // Room types
             _buildRoomTypesSection(hotel),
             const Divider(color: Color(0xFFEEEEEE), thickness: 1),
-            ResortLocationMap(),
+            ResortLocationMap(
+              location: hotel.address,
+              placeName: hotel.name,
+              destinationName: hotel.destinationName,
+            ),
             const Divider(color: Color(0xFFEEEEEE), thickness: 1),
             ResortReviews(reviews: hotel.reviews),
             const SizedBox(height: 20),
@@ -116,16 +128,15 @@ class _ResortDetailScreenState extends State<ResortDetailScreen> {
         ),
       ),
       bottomNavigationBar: ResortBottomBar(
-        price: hotel.rooms.isNotEmpty
-            ? hotel.rooms[selectedRoomIndex].pricePerNight
-            : hotel.minPricePerNight,
+        price: selectedRoom?.pricePerNight ?? hotel.minPricePerNight,
         onBookNow: () {
+          context.read<HotelProvider>().clearCalendar();
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => BookingDateGuestScreen(
                 hotel: hotel,
-                selectedRoom: hotel.rooms.isNotEmpty ? hotel.rooms[selectedRoomIndex] : null,
+                selectedRoom: selectedRoom,
               ),
             ),
           );

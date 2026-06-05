@@ -18,12 +18,22 @@ public class CatalogService : ICatalogService
 
     public async Task<CatalogHomeDto> GetHomeAsync()
     {
-        var destinations = await _context.Destinations
+        var destinationBookingCounts = await _context.Trips
             .AsNoTracking()
-            .OrderByDescending(destination => destination.IsHot)
+            .Where(trip => trip.DestinationId.HasValue &&
+                           (trip.Status == TripStatus.Paid || trip.Status == TripStatus.BookingOnly))
+            .GroupBy(trip => trip.DestinationId!.Value)
+            .Select(group => new { DestinationId = group.Key, BookingCount = group.Count() })
+            .ToDictionaryAsync(item => item.DestinationId, item => item.BookingCount);
+
+        var destinations = (await _context.Destinations
+            .AsNoTracking()
+            .ToListAsync())
+            .OrderByDescending(destination => destinationBookingCounts.GetValueOrDefault(destination.Id))
+            .ThenByDescending(destination => destination.IsHot)
             .ThenBy(destination => destination.Name)
             .Take(6)
-            .ToListAsync();
+            .ToList();
 
         var hotels = await _context.Hotels
             .AsNoTracking()
@@ -42,14 +52,25 @@ public class CatalogService : ICatalogService
             .ToListAsync();
         var hotelGalleries = await GetGalleryLookupAsync(GalleryReferenceType.Hotel, hotelIds);
 
-        var busSchedules = await _context.BusSchedules
+        var busSchedulesQuery = _context.BusSchedules
             .AsNoTracking()
             .Include(schedule => schedule.Company)
             .Include(schedule => schedule.FromDest)
-            .Include(schedule => schedule.ToDest)
+            .Include(schedule => schedule.ToDest);
+
+        var now = DateTime.UtcNow;
+        var busSchedules = await busSchedulesQuery
+            .Where(schedule => !schedule.DepartureTime.HasValue || schedule.DepartureTime >= now)
             .OrderBy(schedule => schedule.DepartureTime)
             .Take(8)
             .ToListAsync();
+        if (busSchedules.Count == 0)
+        {
+            busSchedules = await busSchedulesQuery
+                .OrderByDescending(schedule => schedule.DepartureTime)
+                .Take(8)
+                .ToListAsync();
+        }
 
         var busCompanyIds = busSchedules.Where(schedule => schedule.CompanyId.HasValue).Select(schedule => schedule.CompanyId!.Value).Distinct().ToList();
         var busReviews = await _context.Reviews
@@ -78,6 +99,9 @@ public class CatalogService : ICatalogService
             RecommendedHotels = mappedHotels.OrderBy(hotel => hotel.PricePerNight).Take(4).ToList(),
             FeaturedBuses = busSchedules
                 .Select(schedule => MapBusCard(schedule, busReviews.Where(review => review.TargetId == schedule.CompanyId).ToList()))
+                .OrderByDescending(bus => bus.Rating)
+                .ThenByDescending(bus => bus.ReviewCount)
+                .ThenBy(bus => bus.DepartureTime)
                 .Take(6)
                 .ToList()
         };
@@ -160,6 +184,8 @@ public class CatalogService : ICatalogService
             .OrderByDescending(review => review.CreatedAt)
             .ToListAsync();
         var galleries = await GetGalleryLookupAsync(GalleryReferenceType.Hotel, [hotelId]);
+        var roomIds = hotel.Rooms.Select(room => room.Id).ToList();
+        var roomGalleries = await GetGalleryLookupAsync(GalleryReferenceType.Room, roomIds);
         var card = MapHotelCard(hotel, reviews, galleries);
 
         return new CatalogHotelDetailDto
@@ -189,10 +215,101 @@ public class CatalogService : ICatalogService
                     RoomType = room.RoomType ?? "Standard",
                     Capacity = room.Capacity ?? 2,
                     PricePerNight = room.PricePerNight ?? 0,
-                    AvailableQty = room.AvailableQty ?? 0
+                    AvailableQty = room.AvailableQty ?? 0,
+                    ImageUrls = roomGalleries.TryGetValue(room.Id, out var roomImages) ? roomImages : []
                 })
                 .ToList(),
             Reviews = reviews.Select(MapReview).ToList()
+        };
+    }
+
+    public async Task<CatalogRoomAvailabilityDto> GetRoomAvailabilityAsync(
+        int roomId,
+        DateOnly checkInDate,
+        DateOnly checkOutDate,
+        int quantity)
+    {
+        if (roomId <= 0)
+        {
+            throw new ArgumentException("RoomId phai lon hon 0.");
+        }
+
+        if (checkOutDate <= checkInDate)
+        {
+            checkOutDate = checkInDate.AddDays(1);
+        }
+
+        if (quantity <= 0)
+        {
+            throw new ArgumentException("So luong phong phai lon hon 0.");
+        }
+
+        var room = await _context.Rooms
+            .AsNoTracking()
+            .Include(item => item.Hotel)
+            .FirstOrDefaultAsync(item => item.Id == roomId);
+
+        if (room?.Hotel == null || room.Hotel.IsAvailable == false)
+        {
+            return new CatalogRoomAvailabilityDto
+            {
+                RoomId = roomId,
+                TotalQty = 0,
+                RemainingQty = 0,
+                IsAvailable = false,
+                Message = "Phong nay hien khong con kha dung."
+            };
+        }
+
+        var totalQty = Math.Max(room.AvailableQty ?? 0, 0);
+        if (totalQty == 0)
+        {
+            return new CatalogRoomAvailabilityDto
+            {
+                RoomId = roomId,
+                TotalQty = 0,
+                RemainingQty = 0,
+                IsAvailable = false,
+                Message = "Loai phong nay hien da het phong."
+            };
+        }
+
+        var bookings = await _context.TripItineraries
+            .AsNoTracking()
+            .Include(item => item.Trip)
+            .Where(item =>
+                item.ServiceType == TripServiceType.Hotel &&
+                item.ServiceId == roomId &&
+                item.Trip != null &&
+                item.Trip.Status != TripStatus.Cancelled &&
+                item.Trip.StartDate.HasValue &&
+                item.Trip.EndDate.HasValue)
+            .ToListAsync();
+
+        var bookedQty = GetPeakBookedQtyForDateRange(
+            checkInDate,
+            checkOutDate,
+            bookings.Select(item => (
+                StartDate: item.ServiceDate ?? item.Trip!.StartDate!.Value,
+                EndDate: ResolveHotelBookingEndDate(
+                    item.ServiceDate ?? item.Trip!.StartDate!.Value,
+                    item.HotelCheckOutDate ?? item.Trip!.EndDate!.Value),
+                Quantity: item.Quantity ?? 1)));
+
+        var remainingQty = Math.Max(totalQty - bookedQty, 0);
+
+        return new CatalogRoomAvailabilityDto
+        {
+            RoomId = roomId,
+            TotalQty = totalQty,
+            RemainingQty = remainingQty,
+            IsAvailable = quantity <= remainingQty,
+            Message = remainingQty switch
+            {
+                <= 0 => "Da het phong trong khoang ngay nay.",
+                _ when quantity > remainingQty => $"Chi con {remainingQty} phong trong khoang ngay ban chon.",
+                _ => $"Con {remainingQty} phong co the dat."
+            }
         };
     }
 
@@ -400,6 +517,35 @@ public class CatalogService : ICatalogService
     private static string NormalizeBusSort(string? sort)
     {
         return sort?.Trim().ToLowerInvariant() ?? "earliest";
+    }
+
+    private static int GetPeakBookedQtyForDateRange(
+        DateOnly checkInDate,
+        DateOnly checkOutDate,
+        IEnumerable<(DateOnly StartDate, DateOnly EndDate, int Quantity)> bookings)
+    {
+        var peakBookedQty = 0;
+
+        for (var date = checkInDate; date < checkOutDate; date = date.AddDays(1))
+        {
+            var bookedQtyForDate = bookings
+                .Where(item => item.StartDate <= date && item.EndDate > date)
+                .Sum(item => item.Quantity <= 0 ? 0 : item.Quantity);
+
+            if (bookedQtyForDate > peakBookedQty)
+            {
+                peakBookedQty = bookedQtyForDate;
+            }
+        }
+
+        return peakBookedQty;
+    }
+
+    private static DateOnly ResolveHotelBookingEndDate(
+        DateOnly checkInDate,
+        DateOnly fallbackCheckOutDate)
+    {
+        return fallbackCheckOutDate > checkInDate ? fallbackCheckOutDate : checkInDate.AddDays(1);
     }
 
     private static double BuildLatitude(int id) => 11.9404 + (id * 0.0035);

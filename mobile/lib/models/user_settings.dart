@@ -3,6 +3,7 @@ class UserSettings {
     required this.email,
     required this.isEmailVerified,
     required this.pushNotificationEnabled,
+    required this.emailNotificationEnabled,
     required this.emailOfferEnabled,
     required this.darkModeEnabled,
     required this.language,
@@ -12,6 +13,7 @@ class UserSettings {
   final String email;
   final bool isEmailVerified;
   final bool pushNotificationEnabled;
+  final bool emailNotificationEnabled;
   final bool emailOfferEnabled;
   final bool darkModeEnabled;
   final String language;
@@ -21,6 +23,7 @@ class UserSettings {
     String? email,
     bool? isEmailVerified,
     bool? pushNotificationEnabled,
+    bool? emailNotificationEnabled,
     bool? emailOfferEnabled,
     bool? darkModeEnabled,
     String? language,
@@ -31,6 +34,8 @@ class UserSettings {
       isEmailVerified: isEmailVerified ?? this.isEmailVerified,
       pushNotificationEnabled:
           pushNotificationEnabled ?? this.pushNotificationEnabled,
+      emailNotificationEnabled:
+          emailNotificationEnabled ?? this.emailNotificationEnabled,
       emailOfferEnabled: emailOfferEnabled ?? this.emailOfferEnabled,
       darkModeEnabled: darkModeEnabled ?? this.darkModeEnabled,
       language: language ?? this.language,
@@ -43,6 +48,7 @@ class UserSettings {
       email: (json['email'] ?? '').toString(),
       isEmailVerified: json['isEmailVerified'] == true,
       pushNotificationEnabled: json['pushNotificationEnabled'] != false,
+      emailNotificationEnabled: json['emailNotificationEnabled'] != false,
       emailOfferEnabled: json['emailOfferEnabled'] == true,
       darkModeEnabled: json['darkModeEnabled'] == true,
       language: (json['language'] ?? 'vi').toString(),
@@ -53,6 +59,7 @@ class UserSettings {
   Map<String, dynamic> toJson() {
     return {
       'pushNotificationEnabled': pushNotificationEnabled,
+      'emailNotificationEnabled': emailNotificationEnabled,
       'emailOfferEnabled': emailOfferEnabled,
       'darkModeEnabled': darkModeEnabled,
       'language': language,

@@ -72,6 +72,16 @@ class AuthService extends ApiService {
     return handleResponse(response) as Map<String, dynamic>;
   }
 
+  Future<bool> validateSession() async {
+    try {
+      final response = await getWithFallback('/user/me', requireAuth: true);
+      handleResponse(response);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> logout(String refreshToken) async {
     await postWithFallback(
       '/auth/logout',

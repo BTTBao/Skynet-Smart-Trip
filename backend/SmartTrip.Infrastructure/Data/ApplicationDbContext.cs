@@ -14,10 +14,17 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
     public virtual DbSet<BusCompany> BusCompanies { get; set; }
     public virtual DbSet<BusSchedule> BusSchedules { get; set; }
     public virtual DbSet<Destination> Destinations { get; set; }
+    public virtual DbSet<ExplorePost> ExplorePosts { get; set; }
+    public virtual DbSet<ExplorePostImage> ExplorePostImages { get; set; }
+    public virtual DbSet<ExplorePostLike> ExplorePostLikes { get; set; }
+    public virtual DbSet<ExplorePostSave> ExplorePostSaves { get; set; }
+    public virtual DbSet<ExplorePostRating> ExplorePostRatings { get; set; }
+    public virtual DbSet<ExploreComment> ExploreComments { get; set; }
     public virtual DbSet<Gallery> Galleries { get; set; }
     public virtual DbSet<Hotel> Hotels { get; set; }
     public virtual DbSet<Invoice> Invoices { get; set; }
     public virtual DbSet<Notification> Notifications { get; set; }
+    public virtual DbSet<UserFcmToken> UserFcmTokens { get; set; }
     public virtual DbSet<Payment> Payments { get; set; }
     public virtual DbSet<Promotion> Promotions { get; set; }
     public virtual DbSet<Review> Reviews { get; set; }
@@ -74,6 +81,124 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.Name).HasMaxLength(100);
         });
 
+        modelBuilder.Entity<ExplorePost>(entity =>
+        {
+            entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Excerpt).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.Content).IsRequired();
+            entity.Property(e => e.ThumbnailUrl).HasMaxLength(500).IsUnicode(false);
+            entity.Property(e => e.Location).HasMaxLength(120).IsRequired();
+            entity.Property(e => e.CitySlug).HasMaxLength(80).IsUnicode(false).IsRequired();
+            entity.Property(e => e.Province).HasMaxLength(120).IsRequired();
+            entity.Property(e => e.Region).HasMaxLength(20).IsUnicode(false).IsRequired();
+            entity.Property(e => e.Latitude);
+            entity.Property(e => e.Longitude);
+            entity.Property(e => e.CostLevel).HasDefaultValue(2);
+            entity.Property(e => e.AverageRating).HasDefaultValue(0m).HasColumnType("decimal(3, 2)");
+            entity.Property(e => e.RatingCount).HasDefaultValue(0);
+            entity.Property(e => e.ViewCount).HasDefaultValue(0);
+            entity.Property(e => e.IsVisible).HasDefaultValue(true);
+            entity.Property(e => e.Tags).HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => e.Province);
+            entity.HasIndex(e => e.Region);
+            entity.HasIndex(e => e.CitySlug);
+            entity.HasIndex(e => e.CostLevel);
+            entity.HasIndex(e => e.AverageRating);
+            entity.HasIndex(e => e.ViewCount);
+            entity.HasIndex(e => e.IsVisible);
+
+            entity.HasOne(e => e.Author)
+                .WithMany(u => u.ExplorePosts)
+                .HasForeignKey(e => e.AuthorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExplorePostImage>(entity =>
+        {
+            entity.Property(e => e.ImageUrl).HasMaxLength(500).IsUnicode(false).IsRequired();
+            entity.Property(e => e.SortOrder).HasDefaultValue(0);
+
+            entity.HasIndex(e => new { e.ExplorePostId, e.SortOrder });
+
+            entity.HasOne(e => e.ExplorePost)
+                .WithMany(p => p.Images)
+                .HasForeignKey(e => e.ExplorePostId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ExplorePostLike>(entity =>
+        {
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.HasIndex(e => new { e.UserId, e.ExplorePostId }).IsUnique();
+
+            entity.HasOne(e => e.ExplorePost)
+                .WithMany(p => p.Likes)
+                .HasForeignKey(e => e.ExplorePostId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ExplorePostLikes)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExplorePostSave>(entity =>
+        {
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.HasIndex(e => new { e.UserId, e.ExplorePostId }).IsUnique();
+
+            entity.HasOne(e => e.ExplorePost)
+                .WithMany(p => p.Saves)
+                .HasForeignKey(e => e.ExplorePostId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ExplorePostSaves)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExplorePostRating>(entity =>
+        {
+            entity.Property(e => e.Rating).HasColumnType("decimal(3, 2)");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
+            entity.HasIndex(e => new { e.UserId, e.ExplorePostId }).IsUnique();
+
+            entity.HasOne(e => e.ExplorePost)
+                .WithMany(p => p.Ratings)
+                .HasForeignKey(e => e.ExplorePostId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ExplorePostRatings)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ExploreComment>(entity =>
+        {
+            entity.Property(e => e.Content).HasMaxLength(1000).IsRequired();
+            entity.Property(e => e.LikeCount).HasDefaultValue(0);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.HasIndex(e => new { e.ExplorePostId, e.CreatedAt });
+            entity.HasIndex(e => e.ParentCommentId);
+
+            entity.HasOne(e => e.ExplorePost)
+                .WithMany(p => p.Comments)
+                .HasForeignKey(e => e.ExplorePostId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.ParentComment)
+                .WithMany(e => e.Replies)
+                .HasForeignKey(e => e.ParentCommentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ExploreComments)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<Gallery>(entity =>
         {
             entity.Property(e => e.ImageUrl).HasMaxLength(255).IsUnicode(false);
@@ -110,11 +235,33 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
 
         modelBuilder.Entity<Notification>(entity =>
         {
+            entity.Property(e => e.ActionUrl).HasMaxLength(255);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
             entity.Property(e => e.IsRead).HasDefaultValue(false);
+            entity.Property(e => e.ReferenceType).HasMaxLength(50).IsUnicode(false);
             entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.Type).HasMaxLength(80).IsUnicode(false);
 
             entity.HasOne(d => d.User).WithMany(p => p.Notifications).HasForeignKey(d => d.UserId);
+        });
+
+        modelBuilder.Entity<UserFcmToken>(entity =>
+        {
+            entity.Property(e => e.Token).HasMaxLength(512).IsUnicode(false).IsRequired();
+            entity.Property(e => e.Platform).HasMaxLength(30).IsUnicode(false).IsRequired();
+            entity.Property(e => e.DeviceId).HasMaxLength(120).IsUnicode(false);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.Property(e => e.LastUsedAt).HasColumnType("datetime");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+
+            entity.HasIndex(e => e.Token).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.IsActive });
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.FcmTokens)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Payment>(entity =>
@@ -192,8 +339,12 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.BookedPrice).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.DepartureTime).HasColumnType("time");
             entity.Property(e => e.Quantity).HasDefaultValue(1);
+            entity.Property(e => e.AdultCount).HasDefaultValue(1);
+            entity.Property(e => e.ChildCount).HasDefaultValue(0);
+            entity.Property(e => e.InfantCount).HasDefaultValue(0);
             entity.Property(e => e.ServiceAddress).HasMaxLength(500);
             entity.Property(e => e.ServiceDate).HasColumnType("date");
+            entity.Property(e => e.HotelCheckOutDate).HasColumnType("date");
             entity.Property(e => e.ServiceType).HasMaxLength(20);
 
             entity.HasOne(d => d.Trip).WithMany(p => p.TripItineraries).HasForeignKey(d => d.TripId);
@@ -203,9 +354,12 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
         {
             entity.HasIndex(e => e.Email).IsUnique();
             entity.HasIndex(e => e.UserName).IsUnique().HasFilter("[UserName] IS NOT NULL");
+            entity.HasIndex(e => e.IdentityNumber).IsUnique().HasFilter("[IdentityNumber] IS NOT NULL");
             entity.Property(e => e.AuthProvider).HasMaxLength(20).HasConversion<string>().HasDefaultValue(SmartTrip.Domain.Enums.AuthProvider.Local);
             entity.Property(e => e.AvatarUrl).HasMaxLength(255).IsUnicode(false);
             entity.Property(e => e.BirthDate).HasColumnType("date");
+            entity.Property(e => e.IdentityNumber).HasMaxLength(20).IsUnicode(false);
+            entity.Property(e => e.IdentityCardPhotoUrl).HasMaxLength(500).IsUnicode(false);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
             entity.Property(e => e.Email).HasMaxLength(100).IsUnicode(false);
             entity.Property(e => e.FullName).HasMaxLength(100);

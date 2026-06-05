@@ -8,4 +8,5 @@ public enum PaymentStatus
     Cancelled = 4,
     Refunded = 5,
     Expired = 6,
+    InvalidSignature = 7,
 }

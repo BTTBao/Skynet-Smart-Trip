@@ -1,4 +1,4 @@
-using Google.Apis.Auth;
+﻿using Google.Apis.Auth;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -10,8 +10,10 @@ using SmartTrip.Application.DTOs.Auth.RefreshToken;
 using SmartTrip.Application.DTOs.Auth.Register;
 using SmartTrip.Application.DTOs.Auth.ResetPassword;
 using SmartTrip.Application.DTOs.Auth.VerifyEmail;
+using SmartTrip.Application.DTOs.Notifications;
 using SmartTrip.Application.Interfaces.Auth;
 using SmartTrip.Application.Interfaces.Email;
+using SmartTrip.Application.Interfaces.Notifications;
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
@@ -24,6 +26,7 @@ namespace SmartTrip.Application.Services.Auth
         private readonly ITokenService _tokenService;
         private readonly GoogleAuthSettings _googleSettings;
         private readonly IEmailService _emailService;
+        private readonly INotificationService _notificationService;
         private readonly IConfiguration _configuration;
         private readonly ILogger<AuthService> _logger;
 
@@ -38,6 +41,7 @@ namespace SmartTrip.Application.Services.Auth
             ITokenService tokenService,
             IOptions<GoogleAuthSettings> googleSettings,
             IEmailService emailService,
+            INotificationService notificationService,
             IConfiguration configuration,
             ILogger<AuthService> logger)
         {
@@ -45,6 +49,7 @@ namespace SmartTrip.Application.Services.Auth
             _tokenService = tokenService;
             _googleSettings = googleSettings.Value;
             _emailService = emailService;
+            _notificationService = notificationService;
             _configuration = configuration;
             _logger = logger;
         }
@@ -274,7 +279,15 @@ namespace SmartTrip.Application.Services.Auth
             user.EmailVerificationToken = null;
             user.EmailVerificationTokenExpiry = null;
 
-            return await _userRepository.UpdateUserAsync(user);
+            var updated = await _userRepository.UpdateUserAsync(user);
+            if (!updated)
+            {
+                return false;
+            }
+
+            await CreateEmailVerifiedNotificationSafeAsync(user);
+            await SendWelcomeEmailSafeAsync(user);
+            return true;
         }
 
         public async Task<AuthResultDto> RefreshTokenAsync(RefreshTokenRequest request)
@@ -347,5 +360,41 @@ namespace SmartTrip.Application.Services.Auth
             }
         }
 
+        private async Task SendWelcomeEmailSafeAsync(User user)
+        {
+            try
+            {
+                await _emailService.SendWelcomeEmailAsync(
+                    user.Email,
+                    user.FullName ?? user.Email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send welcome email to {Email}", user.Email);
+            }
+        }
+
+        private async Task CreateEmailVerifiedNotificationSafeAsync(User user)
+        {
+            try
+            {
+                await _notificationService.CreateAsync(new CreateNotificationDto
+                {
+                    UserId = user.Id,
+                    Title = "Email đã được xác thực",
+                    Message = "Tài khoản SmartTrip của bạn đã xác thực email thành công.",
+                    Type = "account.email_verified",
+                    ReferenceType = "account",
+                    ReferenceId = user.Id,
+                    ActionUrl = "/profile"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to create email verified notification for user {UserId}", user.Id);
+            }
+        }
+
     }
 }
+

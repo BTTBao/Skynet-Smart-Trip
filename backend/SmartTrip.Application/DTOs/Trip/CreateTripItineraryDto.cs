@@ -16,7 +16,17 @@ public class CreateTripItineraryDto
 
     public DateOnly? ServiceDate { get; set; }
 
+    public DateOnly? HotelCheckOutDate { get; set; }
+
     public TimeOnly? DepartureTime { get; set; }
 
     public string? ServiceAddress { get; set; }
+
+    public string? SelectedSeats { get; set; }
+
+    public int AdultCount { get; set; } = 1;
+
+    public int ChildCount { get; set; }
+
+    public int InfantCount { get; set; }
 }
