@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../widgets/checkout/resort_summary_card.dart';
 import '../main_shell.dart'; // To go back to home
-import '../trip/trip_itinerary_detail_view.dart';
 
 class PaymentSuccessScreen extends StatelessWidget {
   final int bookingId;
@@ -14,7 +13,7 @@ class PaymentSuccessScreen extends StatelessWidget {
   final DateTime paymentTime;
 
   const PaymentSuccessScreen({
-    Key? key,
+    super.key,
     required this.bookingId,
     required this.hotelName,
     required this.dateRange,
@@ -23,7 +22,9 @@ class PaymentSuccessScreen extends StatelessWidget {
     required this.totalPrice,
     required this.paymentMethod,
     required this.paymentTime,
-  }) : super(key: key);
+  });
+
+  String get _bookingCode => 'SKN-${bookingId.toString().padLeft(6, '0')}';
 
   String _formatPrice(double price) {
     final formatted = price
@@ -120,7 +121,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                     style: TextStyle(color: Colors.grey[600], fontSize: 14),
                   ),
                   Text(
-                    'ST$bookingId',
+                    _bookingCode,
                     style: TextStyle(
                       color: Colors.green[500],
                       fontWeight: FontWeight.bold,
@@ -178,7 +179,13 @@ class PaymentSuccessScreen extends StatelessWidget {
               const SizedBox(height: 24),
               _buildInfoRow(
                 'Hình thức thanh toán',
-                _formatPaymentMethod(paymentMethod),
+                paymentMethod == 'Momo'
+                    ? 'Ví điện tử MoMo'
+                    : paymentMethod == 'Zalopay'
+                    ? 'Ví điện tử ZaloPay'
+                    : paymentMethod == 'BankTransfer'
+                    ? 'Chuyển khoản ngân hàng'
+                    : 'Thẻ quốc tế',
               ),
               const SizedBox(height: 12),
               _buildInfoRow('Thời gian', _formatDateTime(paymentTime)),
@@ -187,25 +194,17 @@ class PaymentSuccessScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // Reset stack to MainShell and push TripItineraryDetailView
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (_) => const MainShell()),
+                      MaterialPageRoute(
+                        builder: (_) => const MainShell(initialIndex: 3),
+                      ),
                       (route) => false,
                     );
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => TripItineraryDetailView(
-                          tripId: bookingId,
-                          tripTitle: hotelName,
-                        ),
-                      ),
-                    );
                   },
-                  icon: const Icon(Icons.airplane_ticket, color: Colors.black),
+                  icon: const Icon(Icons.luggage, color: Colors.black),
                   label: const Text(
-                    'Xem vé điện tử',
+                    'Xem chuyến đi',
                     style: TextStyle(
                       color: Colors.black,
                       fontWeight: FontWeight.bold,

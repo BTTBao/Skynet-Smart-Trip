@@ -8,6 +8,7 @@ import '../../models/trip_timeline_entry.dart';
 import '../../models/update_trip_itinerary_request.dart';
 import '../../providers/trip_provider.dart';
 import '../../widgets/trip/widgets.dart';
+import '../profile/invoice_detail_view.dart';
 import '../transport/transport_checkout_screen.dart';
 import 'trip_itinerary_map_view.dart';
 import 'trip_ui_constants.dart';
@@ -97,6 +98,65 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
 
   bool _isNoteEntry(TripTimelineEntry entry) {
     return (entry.serviceType ?? '').toUpperCase() == 'NOTE';
+  }
+
+  void _openInvoiceDetail(TripDetail? detail, TripTimelineEntry entry) {
+    final serviceType = (entry.serviceType ?? '').toUpperCase();
+    final isBus = serviceType == 'BUS';
+    final isHotel = serviceType == 'HOTEL';
+
+    if (!isBus && !isHotel) {
+      return;
+    }
+
+    final dateText = isHotel
+        ? entry.hotelBookingDateLabel ?? _dateLabel(entry.serviceDate)
+        : _busDateLabel(entry);
+    final quantityText = isHotel
+        ? '${entry.quantity ?? 1} phòng'
+        : _busQuantityLabel(entry);
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InvoiceDetailView(
+          title: detail?.title ?? widget.tripTitle ?? entry.caption,
+          serviceType: isBus ? 'Vé xe' : 'Khách sạn',
+          providerName: entry.caption,
+          routeOrAddress: entry.serviceAddress ?? entry.description,
+          dateText: dateText,
+          quantityText: quantityText,
+          amount: entry.bookedPrice ?? 0,
+          status: detail?.status ?? 'PAID',
+          invoiceNumber: null,
+        ),
+      ),
+    );
+  }
+
+  String _dateLabel(DateTime? date) {
+    if (date == null) {
+      return 'Đang cập nhật';
+    }
+
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  String _busDateLabel(TripTimelineEntry entry) {
+    final date = _dateLabel(entry.serviceDate);
+    final time = (entry.departureTime ?? entry.time).trim();
+    return time.isEmpty ? date : '$date $time';
+  }
+
+  String _busQuantityLabel(TripTimelineEntry entry) {
+    final address = entry.serviceAddress ?? '';
+    final seatMatch = RegExp(r'Gh[ếe]:\s*([^•]+)', caseSensitive: false)
+        .firstMatch(address);
+    final seats = seatMatch?.group(1)?.trim();
+    if (seats != null && seats.isNotEmpty) {
+      return 'Ghế $seats';
+    }
+
+    return '${entry.quantity ?? 1} vé';
   }
 
   void _openMapView(TripDetail? detail, String title) {
@@ -485,6 +545,8 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
                           TripTimeline(
                             entries: selectedEntries,
                             canManageEntry: _isNoteEntry,
+                            onInvoiceEntry: (entry) =>
+                                _openInvoiceDetail(detail, entry),
                             onEditEntry: detail == null
                                 ? null
                                 : (entry) => _openEditEntrySheet(

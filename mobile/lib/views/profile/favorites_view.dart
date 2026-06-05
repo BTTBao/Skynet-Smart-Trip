@@ -38,7 +38,7 @@ class _FavoritesViewState extends State<FavoritesView> {
             elevation: 0,
             scrolledUnderElevation: 0,
             title: Text(
-              context.tr(vi: 'Dich vu yeu thich', en: 'Favorites'),
+              context.tr(vi: 'Dịch vụ yêu thích', en: 'Favorites'),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
@@ -66,7 +66,7 @@ class _FavoritesViewState extends State<FavoritesView> {
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: () => provider.loadFavorites(forceRefresh: true),
-                child: Text(context.tr(vi: 'Thu lai', en: 'Retry')),
+                child: Text(context.tr(vi: 'Thử lại', en: 'Retry')),
               ),
             ],
           ),
@@ -84,11 +84,11 @@ class _FavoritesViewState extends State<FavoritesView> {
             EmptyStatePlaceholder(
               icon: Icons.favorite_outline,
               title: context.tr(
-                vi: 'Chua co muc yeu thich',
+                vi: 'Chưa có mục yêu thích',
                 en: 'No favorites yet',
               ),
               subtitle: context.tr(
-                vi: 'Khach san va chuyen xe ban danh dau se hien thi tai day.',
+                vi: 'Khách sạn và chuyến xe bạn đánh dấu sẽ hiển thị tại đây.',
                 en: 'Saved hotels and bus routes will appear here.',
               ),
             ),
@@ -133,12 +133,12 @@ class _FavoritesViewState extends State<FavoritesView> {
         content: Text(
           success
               ? context.trRead(
-                  vi: 'Da xoa khoi yeu thich.',
+                  vi: 'Đã xóa khỏi yêu thích.',
                   en: 'Removed from favorites.',
                 )
               : (provider.error ??
                   context.trRead(
-                    vi: 'Khong the xoa muc yeu thich.',
+                    vi: 'Không thể xóa mục yêu thích.',
                     en: 'Unable to remove favorite.',
                   )),
         ),
@@ -244,7 +244,7 @@ class _FavoriteCard extends StatelessWidget {
           IconButton(
             onPressed: onRemove,
             icon: const Icon(Icons.delete_outline),
-            tooltip: 'Xoa khoi yeu thich',
+            tooltip: 'Xóa khỏi yêu thích',
           ),
         ],
       ),

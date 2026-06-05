@@ -10,6 +10,9 @@ class CreateTripItineraryRequest {
     this.departureTime,
     this.serviceAddress,
     this.selectedSeats,
+    this.adultCount = 1,
+    this.childCount = 0,
+    this.infantCount = 0,
   });
 
   final int dayNumber;
@@ -22,6 +25,9 @@ class CreateTripItineraryRequest {
   final String? departureTime;
   final String? serviceAddress;
   final String? selectedSeats;
+  final int adultCount;
+  final int childCount;
+  final int infantCount;
 
   Map<String, dynamic> toJson() {
     final date = serviceDate;
@@ -37,9 +43,15 @@ class CreateTripItineraryRequest {
       'bookedPrice': bookedPrice,
       'bookedCommissionRate': bookedCommissionRate,
       if (dateText != null) 'serviceDate': dateText,
-      if ((departureTime ?? '').trim().isNotEmpty) 'departureTime': departureTime,
-      if ((serviceAddress ?? '').trim().isNotEmpty) 'serviceAddress': serviceAddress,
-      if ((selectedSeats ?? '').trim().isNotEmpty) 'selectedSeats': selectedSeats,
+      if ((departureTime ?? '').trim().isNotEmpty)
+        'departureTime': departureTime,
+      if ((serviceAddress ?? '').trim().isNotEmpty)
+        'serviceAddress': serviceAddress,
+      if ((selectedSeats ?? '').trim().isNotEmpty)
+        'selectedSeats': selectedSeats,
+      'adultCount': adultCount,
+      'childCount': childCount,
+      'infantCount': infantCount,
     };
   }
 }

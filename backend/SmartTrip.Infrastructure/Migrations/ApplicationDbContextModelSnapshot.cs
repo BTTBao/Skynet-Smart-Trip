@@ -995,8 +995,23 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<int?>("DayNumber")
                         .HasColumnType("int");
 
+                    b.Property<int>("AdultCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.Property<int>("ChildCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<TimeOnly?>("DepartureTime")
                         .HasColumnType("time");
+
+                    b.Property<int>("InfantCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<int?>("Quantity")
                         .ValueGeneratedOnAdd()

@@ -8,10 +8,12 @@ class MyTripCard extends StatelessWidget {
     super.key,
     required this.trip,
     required this.onTap,
+    this.onReviewTap,
   });
 
   final MyTripSummary trip;
   final VoidCallback onTap;
+  final VoidCallback? onReviewTap;
 
   @override
   Widget build(BuildContext context) {
@@ -157,18 +159,40 @@ class MyTripCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF2F5F7),
-                  borderRadius: BorderRadius.circular(14),
+              if (onReviewTap == null)
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF2F5F7),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.share_outlined,
+                    color: TripUiColors.textSecondary,
+                  ),
+                )
+              else
+                Tooltip(
+                  message: 'Đánh giá dịch vụ',
+                  child: InkWell(
+                    onTap: onReviewTap,
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      width: 48,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF7E6),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFFFD27A)),
+                      ),
+                      child: const Icon(
+                        Icons.star_rate_rounded,
+                        color: Color(0xFFF59E0B),
+                      ),
+                    ),
+                  ),
                 ),
-                child: const Icon(
-                  Icons.share_outlined,
-                  color: TripUiColors.textSecondary,
-                ),
-              ),
             ],
           ),
         ],

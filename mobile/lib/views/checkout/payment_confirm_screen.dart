@@ -210,7 +210,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Chọn Voucher của bạn',
+                        'Chọn mã khuyến mãi khả dụng',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -232,7 +232,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                                 vertical: 24.0,
                               ),
                               child: Text(
-                                'Túi đồ trống. Bạn không có voucher khả dụng.',
+                                'Hiện không có mã khuyến mãi khả dụng.',
                                 style: TextStyle(color: Colors.grey[500]),
                               ),
                             ),
@@ -438,6 +438,27 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       if (!mounted) return;
 
       if (!payment.isPaid) {
+        final status = payment.status.toUpperCase();
+        if (status == 'FAILED' ||
+            status == 'CANCELLED' ||
+            status == 'EXPIRED') {
+          final finalPayPrice = (widget.totalPrice - _discountAmount)
+              .clamp(0, double.infinity)
+              .toDouble();
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PaymentFailedScreen(
+                totalPrice: finalPayPrice,
+                status: status,
+                message:
+                    'PayOS da tra ve trang thai $status. Chua co khoan tien nao duoc ghi nhan.',
+                onRetry: _handlePayment,
+              ),
+            ),
+          );
+          return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('PayOS dang o trang thai ${payment.status}.')),
         );
@@ -450,11 +471,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
 
       final double finalPayPrice = widget.totalPrice - _discountAmount;
 
-      await _refreshHotelAvailability();
-      context.read<TripProvider>().fetchTrips(silent: true);
-      if (widget.existingTripId != null) {
-        context.read<TripProvider>().fetchTripDetail(widget.existingTripId!);
-      }
+      await _syncAfterConfirmedPayment();
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
@@ -526,6 +543,21 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         roomId: widget.selectedRoom?.id,
         forceRefresh: true,
       );
+    }
+  }
+
+  Future<void> _syncAfterConfirmedPayment() async {
+    try {
+      await _refreshHotelAvailability();
+      if (!mounted) return;
+      final tripProvider = context.read<TripProvider>();
+      await tripProvider.fetchTrips(silent: true);
+      if (widget.existingTripId != null) {
+        await tripProvider.fetchTripDetail(widget.existingTripId!);
+      }
+    } catch (_) {
+      // Payment is already confirmed. A refresh failure must not turn it into
+      // a failed-payment experience; data will synchronize on the next load.
     }
   }
 
@@ -889,6 +921,61 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     return null;
   }
 
+  Future<bool?> _askTripCreationPreference() {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Bạn có muốn tạo chuyến đi không?'),
+        content: const Text(
+          'Nếu tạo chuyến đi, booking này sẽ được thêm vào lịch trình để bạn quản lý cùng chuyến đi. Nếu không tạo, hệ thống vẫn lưu hóa đơn trong lịch sử hoạt động.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(null),
+            child: const Text('Quay lại'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Không tạo'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF6DE899),
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Tạo/chọn chuyến đi'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<_SelectedCheckoutTrip?> _createBookingOnlyTrip({
+    required int userId,
+    required int? destinationId,
+    required String destinationName,
+  }) async {
+    final tripProvider = context.read<TripProvider>();
+    final createdTrip = await tripProvider.createTrip(
+      CreateTripRequest(
+        userId: userId,
+        destinationId: destinationId,
+        destinationName: destinationName,
+        title: 'Hóa đơn đặt phòng - ${widget.hotel.name}',
+        startDate: widget.checkIn,
+        endDate: widget.checkOut,
+        status: 'BOOKING_ONLY',
+      ),
+    );
+
+    if (createdTrip == null) {
+      throw Exception(tripProvider.error ?? 'Không thể tạo hóa đơn đặt phòng.');
+    }
+
+    return _SelectedCheckoutTrip(tripId: createdTrip.tripId, dayNumber: 1);
+  }
+
   Future<void> _handlePayment() async {
     setState(() => _isProcessing = true);
 
@@ -971,16 +1058,36 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       if (_pendingTripId != null) {
         currentTripId = _pendingTripId!;
       } else {
-        final selectedTrip = widget.existingTripId != null
-            ? _SelectedCheckoutTrip(
-                tripId: widget.existingTripId!,
-                dayNumber: _resolveExistingTripDayNumber(),
-              )
-            : await _selectOrCreateTripForBooking(
-                userId: userId,
-                destinationId: widget.hotel.destinationId,
-                destinationName: hotelDestName,
-              );
+        _SelectedCheckoutTrip? selectedTrip;
+        if (widget.existingTripId != null) {
+          selectedTrip = _SelectedCheckoutTrip(
+            tripId: widget.existingTripId!,
+            dayNumber: _resolveExistingTripDayNumber(),
+          );
+        } else {
+          if (mounted) {
+            setState(() => _isProcessing = false);
+          }
+          final wantsTrip = await _askTripCreationPreference();
+          if (wantsTrip == null) {
+            return;
+          }
+          if (mounted) {
+            setState(() => _isProcessing = true);
+          }
+
+          selectedTrip = wantsTrip
+              ? await _selectOrCreateTripForBooking(
+                  userId: userId,
+                  destinationId: widget.hotel.destinationId,
+                  destinationName: hotelDestName,
+                )
+              : await _createBookingOnlyTrip(
+                  userId: userId,
+                  destinationId: widget.hotel.destinationId,
+                  destinationName: hotelDestName,
+                );
+        }
         if (selectedTrip == null) {
           if (mounted) {
             setState(() => _isProcessing = false);
@@ -993,11 +1100,11 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
           serviceType: 'HOTEL',
           serviceId: widget.selectedRoom?.id ?? widget.hotel.id,
           quantity: widget.roomQuantity,
-          bookedPrice:
-              (widget.selectedRoom?.pricePerNight ??
-                  widget.hotel.minPricePerNight) *
-              widget.checkOut.difference(widget.checkIn).inDays.clamp(1, 365),
+          bookedPrice: widget.totalPrice / widget.roomQuantity,
           serviceDate: widget.checkIn,
+          adultCount: widget.adultCount,
+          childCount: widget.childCount,
+          infantCount: widget.infantCount,
         );
 
         final itinerarySuccess = await tripProvider.addItinerary(
@@ -1031,11 +1138,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         if (_appliedPromoCode != null) {
           context.read<ProfileProvider>().useVoucher(_appliedPromoCode!);
         }
-        await _refreshHotelAvailability();
-        tripProvider.fetchTrips(silent: true);
-        if (widget.existingTripId != null) {
-          tripProvider.fetchTripDetail(widget.existingTripId!);
-        }
+        await _syncAfterConfirmedPayment();
 
         if (mounted) {
           Navigator.pushAndRemoveUntil(
@@ -1107,11 +1210,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       if (_appliedPromoCode != null) {
         context.read<ProfileProvider>().useVoucher(_appliedPromoCode!);
       }
-      await _refreshHotelAvailability();
-      tripProvider.fetchTrips(silent: true);
-      if (widget.existingTripId != null) {
-        tripProvider.fetchTripDetail(widget.existingTripId!);
-      }
+      await _syncAfterConfirmedPayment();
 
       if (mounted) {
         Navigator.pushAndRemoveUntil(
@@ -1140,9 +1239,18 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
             backgroundColor: Colors.red,
           ),
         );
+        final finalPayPrice = (widget.totalPrice - _discountAmount)
+            .clamp(0, double.infinity)
+            .toDouble();
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const PaymentFailedScreen()),
+          MaterialPageRoute(
+            builder: (_) => PaymentFailedScreen(
+              totalPrice: finalPayPrice,
+              message: e.toString().replaceFirst('Exception: ', ''),
+              onRetry: _handlePayment,
+            ),
+          ),
         );
       }
     } finally {
@@ -1395,9 +1503,24 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
 
   Widget _buildPriceDetails() {
     final double finalPayPrice = widget.totalPrice - _discountAmount;
-    final double serviceFee =
-        widget.totalPrice * 0.1; // 10% tax and service fee included
-    final double basePrice = widget.totalPrice - serviceFee;
+    final selectedCapacity = widget.selectedRoom?.capacity ?? 2;
+    final roomCapacity = selectedCapacity > 0 ? selectedCapacity : 1;
+    final standardCapacity = roomCapacity * widget.roomQuantity;
+    final extraGuestCount =
+        (widget.adultCount + widget.childCount - standardCapacity)
+            .clamp(0, widget.roomQuantity)
+            .toInt();
+    final nights = widget.checkOut
+        .difference(widget.checkIn)
+        .inDays
+        .clamp(1, 365)
+        .toInt();
+    final extraGuestFee =
+        (widget.selectedRoom?.pricePerNight ?? widget.hotel.minPricePerNight) *
+        0.2 *
+        nights *
+        extraGuestCount;
+    final roomPrice = widget.totalPrice - extraGuestFee;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -1543,7 +1666,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                 style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
               Text(
-                _formatPriceFull(basePrice),
+                _formatPriceFull(roomPrice),
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
@@ -1551,23 +1674,25 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Thuế & Phí dịch vụ (10%)',
-                style: TextStyle(color: Colors.grey[600], fontSize: 14),
-              ),
-              Text(
-                _formatPriceFull(serviceFee),
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+          if (extraGuestCount > 0) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Phụ thu $extraGuestCount khách thêm',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
                 ),
-              ),
-            ],
-          ),
+                Text(
+                  _formatPriceFull(extraGuestFee),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (_discountAmount > 0) ...[
             const SizedBox(height: 12),
             Row(

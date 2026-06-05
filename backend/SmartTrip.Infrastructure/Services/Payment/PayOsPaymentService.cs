@@ -569,7 +569,7 @@ public class PayOsPaymentService : IPaymentService
 
                             if (schedule != null)
                             {
-                                var bookingCode = $"SKN-{payment.Id.ToString().PadLeft(4, '0')}";
+                                var bookingCode = $"SKN-{payment.TripId.GetValueOrDefault():D6}";
                                 var selectedSeats = "";
                                 if (metadata.TryGetProperty("selectedSeats", out var seatsElement) && seatsElement.ValueKind == JsonValueKind.Array)
                                 {

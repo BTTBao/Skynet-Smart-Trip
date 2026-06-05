@@ -6,4 +6,5 @@ public enum PaymentMethod
     Vnpay = 2,
     Card = 3,
     PayOS = 4,
+    Promotion = 5,
 }

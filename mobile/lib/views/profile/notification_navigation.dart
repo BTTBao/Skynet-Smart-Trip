@@ -5,6 +5,7 @@ import '../../models/app_notification.dart';
 import '../../providers/notification_provider.dart';
 import '../explore/explore_post_detail_view.dart';
 import '../trip/trip_itinerary_detail_view.dart';
+import 'invoice_lookup_view.dart';
 
 class NotificationNavigation {
   const NotificationNavigation._();
@@ -27,6 +28,35 @@ class NotificationNavigation {
     }
 
     final actionUrl = target.actionUrl ?? '';
+    final invoiceTripId = _extractId(actionUrl, '/activity/invoices/');
+    if (invoiceTripId != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => InvoiceLookupView(tripId: invoiceTripId),
+        ),
+      );
+      return true;
+    }
+
+    if (target.referenceType == 'booking' && target.referenceId != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => InvoiceLookupView(tripId: target.referenceId!),
+        ),
+      );
+      return true;
+    }
+
+    if (target.referenceType == 'payment' && target.referenceId != null) {
+      final paymentTripId = _extractId(actionUrl, '/trips/') ?? target.referenceId;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => InvoiceLookupView(tripId: paymentTripId!),
+        ),
+      );
+      return true;
+    }
+
     final tripId = _extractId(actionUrl, '/trips/');
     if (tripId != null) {
       await Navigator.of(context).push(
@@ -49,8 +79,7 @@ class NotificationNavigation {
       return true;
     }
 
-    if ((target.referenceType == 'trip' || target.referenceType == 'booking') &&
-        target.referenceId != null) {
+    if (target.referenceType == 'trip' && target.referenceId != null) {
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => TripItineraryDetailView(tripId: target.referenceId!),

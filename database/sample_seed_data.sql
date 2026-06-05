@@ -128,6 +128,21 @@ GO
    5. HOTELS
    ========================= */
 IF NOT EXISTS (SELECT 1 FROM Hotels)
+DECLARE @DaNangId int = (SELECT TOP 1 Id FROM Destinations WHERE Name = N'Da Nang');
+DECLARE @HoiAnId int = (SELECT TOP 1 Id FROM Destinations WHERE Name = N'Hoi An');
+DECLARE @HueId int = (SELECT TOP 1 Id FROM Destinations WHERE Name = N'Hue');
+DECLARE @AdminId int = (SELECT TOP 1 Id FROM Users WHERE Email = 'admin@skynettrip.local');
+DECLARE @AliceId int = (SELECT TOP 1 Id FROM Users WHERE Email = 'alice@skynettrip.local');
+DECLARE @BobId int = (SELECT TOP 1 Id FROM Users WHERE Email = 'bob@skynettrip.local');
+DECLARE @WifiId int = (SELECT TOP 1 Id FROM Amenities WHERE Name = N'Free Wifi');
+DECLARE @PoolId int = (SELECT TOP 1 Id FROM Amenities WHERE Name = N'Swimming Pool');
+DECLARE @BreakfastId int = (SELECT TOP 1 Id FROM Amenities WHERE Name = N'Breakfast');
+DECLARE @ShuttleId int = (SELECT TOP 1 Id FROM Amenities WHERE Name = N'Airport Shuttle');
+DECLARE @SkynetBusId int = (SELECT TOP 1 Id FROM BusCompanies WHERE Name = N'Skynet Express');
+DECLARE @CentralBusId int = (SELECT TOP 1 Id FROM BusCompanies WHERE Name = N'Central Travel Bus');
+GO
+/* Hotels */
+IF NOT EXISTS (SELECT 1 FROM Hotels WHERE Name = N'Sea Light Da Nang Hotel')
 BEGIN
     INSERT INTO Hotels (DestinationId, Name, Address, StarRating, Description, IsAvailable)
     VALUES

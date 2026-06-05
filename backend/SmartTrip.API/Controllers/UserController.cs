@@ -291,19 +291,24 @@ public class UserController : ControllerBase
             return BadRequest("Ten nguoi dung khong duoc de trong");
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Phone) && request.Phone.Trim().Length < 10)
+        var phone = request.Phone?.Trim();
+        if (string.IsNullOrWhiteSpace(phone) ||
+            phone.Length < 10 ||
+            phone.Length > 11 ||
+            !phone.All(char.IsDigit))
         {
             return BadRequest("So dien thoai khong hop le");
         }
 
-        if (!string.IsNullOrWhiteSpace(request.BirthDate) &&
-            !DateTime.TryParse(request.BirthDate, out _))
+        if (string.IsNullOrWhiteSpace(request.BirthDate) ||
+            !DateTime.TryParse(request.BirthDate, out var birthDate) ||
+            birthDate.Date >= DateTime.UtcNow.Date)
         {
             return BadRequest("Ngay sinh khong hop le");
         }
 
         var identityNumber = request.IdentityNumber?.Trim();
-        if (!string.IsNullOrWhiteSpace(identityNumber) &&
+        if (string.IsNullOrWhiteSpace(identityNumber) ||
             (identityNumber.Length != 9 && identityNumber.Length != 12 ||
              !identityNumber.All(char.IsDigit)))
         {

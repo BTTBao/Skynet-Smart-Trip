@@ -39,6 +39,7 @@ class BookingHistoryItem {
   final String status;
   final String? createdAt;
   final String? invoiceNumber;
+  final bool isBookingOnly;
 
   const BookingHistoryItem({
     required this.tripId,
@@ -50,6 +51,7 @@ class BookingHistoryItem {
     required this.status,
     required this.createdAt,
     required this.invoiceNumber,
+    required this.isBookingOnly,
   });
 
   factory BookingHistoryItem.fromJson(Map<String, dynamic> json) {
@@ -63,6 +65,7 @@ class BookingHistoryItem {
       status: json['status'] ?? '',
       createdAt: json['createdAt'],
       invoiceNumber: json['invoiceNumber'],
+      isBookingOnly: json['isBookingOnly'] ?? false,
     );
   }
 }
@@ -81,6 +84,8 @@ class HotelHistoryItem {
   final double bookedPrice;
   final String status;
   final bool isReviewed;
+  final bool isBookingOnly;
+  final String? invoiceNumber;
 
   const HotelHistoryItem({
     required this.tripId,
@@ -96,6 +101,8 @@ class HotelHistoryItem {
     required this.bookedPrice,
     required this.status,
     required this.isReviewed,
+    required this.isBookingOnly,
+    required this.invoiceNumber,
   });
 
   factory HotelHistoryItem.fromJson(Map<String, dynamic> json) {
@@ -113,6 +120,8 @@ class HotelHistoryItem {
       bookedPrice: (json['bookedPrice'] ?? 0).toDouble(),
       status: json['status'] ?? '',
       isReviewed: json['isReviewed'] ?? false,
+      isBookingOnly: json['isBookingOnly'] ?? false,
+      invoiceNumber: json['invoiceNumber'],
     );
   }
 }
@@ -133,6 +142,8 @@ class BusHistoryItem {
   final String status;
   final bool isReviewed;
   final String? selectedSeats;
+  final bool isBookingOnly;
+  final String? invoiceNumber;
 
   const BusHistoryItem({
     required this.tripId,
@@ -149,6 +160,8 @@ class BusHistoryItem {
     required this.bookedPrice,
     required this.status,
     required this.isReviewed,
+    required this.isBookingOnly,
+    required this.invoiceNumber,
     this.selectedSeats,
   });
 
@@ -168,7 +181,9 @@ class BusHistoryItem {
       bookedPrice: (json['bookedPrice'] ?? 0).toDouble(),
       status: json['status'] ?? '',
       isReviewed: json['isReviewed'] ?? false,
+      isBookingOnly: json['isBookingOnly'] ?? false,
       selectedSeats: json['selectedSeats'],
+      invoiceNumber: json['invoiceNumber'],
     );
   }
 }
@@ -184,6 +199,7 @@ class PaymentHistoryItem {
   final String? transactionId;
   final String? invoiceNumber;
   final String? invoicePdfUrl;
+  final bool isBookingOnly;
 
   const PaymentHistoryItem({
     required this.paymentId,
@@ -196,6 +212,7 @@ class PaymentHistoryItem {
     required this.transactionId,
     required this.invoiceNumber,
     required this.invoicePdfUrl,
+    required this.isBookingOnly,
   });
 
   factory PaymentHistoryItem.fromJson(Map<String, dynamic> json) {
@@ -210,6 +227,7 @@ class PaymentHistoryItem {
       transactionId: json['transactionId'],
       invoiceNumber: json['invoiceNumber'],
       invoicePdfUrl: json['invoicePdfUrl'],
+      isBookingOnly: json['isBookingOnly'] ?? false,
     );
   }
 }

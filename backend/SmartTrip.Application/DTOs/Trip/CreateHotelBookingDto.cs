@@ -19,4 +19,10 @@ public class CreateHotelBookingDto
     public DateOnly CheckOutDate { get; set; }
 
     public int Quantity { get; set; } = 1;
+
+    public int AdultCount { get; set; } = 1;
+
+    public int ChildCount { get; set; }
+
+    public int InfantCount { get; set; }
 }

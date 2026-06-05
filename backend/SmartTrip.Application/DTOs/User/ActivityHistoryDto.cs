@@ -19,6 +19,7 @@ public class BookingHistoryItemDto
     public string Status { get; set; } = string.Empty;
     public string? CreatedAt { get; set; }
     public string? InvoiceNumber { get; set; }
+    public bool IsBookingOnly { get; set; }
 }
 
 public class HotelHistoryItemDto
@@ -36,6 +37,8 @@ public class HotelHistoryItemDto
     public decimal BookedPrice { get; set; }
     public string Status { get; set; } = string.Empty;
     public bool IsReviewed { get; set; }
+    public bool IsBookingOnly { get; set; }
+    public string? InvoiceNumber { get; set; }
 }
 
 public class BusHistoryItemDto
@@ -55,6 +58,8 @@ public class BusHistoryItemDto
     public string Status { get; set; } = string.Empty;
     public bool IsReviewed { get; set; }
     public string? SelectedSeats { get; set; }
+    public bool IsBookingOnly { get; set; }
+    public string? InvoiceNumber { get; set; }
 }
 
 public class PaymentHistoryItemDto
@@ -69,4 +74,5 @@ public class PaymentHistoryItemDto
     public string? TransactionId { get; set; }
     public string? InvoiceNumber { get; set; }
     public string? InvoicePdfUrl { get; set; }
+    public bool IsBookingOnly { get; set; }
 }

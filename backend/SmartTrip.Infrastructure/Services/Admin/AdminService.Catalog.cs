@@ -270,6 +270,13 @@ public partial class AdminService
 
     public async Task<AdminPromotionDto> CreatePromotionAsync(AdminPromotionRequest request)
     {
+        ValidatePromotionRequest(request);
+        var normalizedCode = request.Code.Trim().ToUpperInvariant();
+        if (await _context.Promotions.AnyAsync(item => item.Code == normalizedCode))
+        {
+            throw new BadHttpRequestException("Ma khuyen mai da ton tai.");
+        }
+
         if (string.IsNullOrWhiteSpace(request.Code))
         {
             throw new BadHttpRequestException("Mã khuyến mãi không được để trống.");
@@ -277,7 +284,7 @@ public partial class AdminService
 
         var promotion = new Promotion
         {
-            Code = request.Code.Trim().ToUpperInvariant(),
+            Code = normalizedCode,
             DiscountPercent = request.DiscountPercent,
             MaxDiscountAmount = request.MaxDiscountAmount,
             ValidUntil = request.ValidUntil,
@@ -293,13 +300,24 @@ public partial class AdminService
 
     public async Task<AdminPromotionDto> UpdatePromotionAsync(int promotionId, AdminPromotionRequest request)
     {
+        ValidatePromotionRequest(request);
         var promotion = await _context.Promotions.FirstOrDefaultAsync(item => item.Id == promotionId);
         if (promotion is null)
         {
             throw new BadHttpRequestException("Không tìm thấy khuyến mãi.");
         }
 
-        promotion.Code = request.Code.Trim().ToUpperInvariant();
+        var normalizedCode = request.Code.Trim().ToUpperInvariant();
+        if (await _context.Promotions.AnyAsync(item => item.Id != promotionId && item.Code == normalizedCode))
+        {
+            throw new BadHttpRequestException("Ma khuyen mai da ton tai.");
+        }
+        if (request.UsageLimit < promotion.UsedCount.GetValueOrDefault())
+        {
+            throw new BadHttpRequestException("Gioi han luot dung khong duoc nho hon so luot da dung.");
+        }
+
+        promotion.Code = normalizedCode;
         promotion.DiscountPercent = request.DiscountPercent;
         promotion.MaxDiscountAmount = request.MaxDiscountAmount;
         promotion.ValidUntil = request.ValidUntil;
@@ -316,6 +334,11 @@ public partial class AdminService
         if (promotion is null)
         {
             throw new BadHttpRequestException("Không tìm thấy khuyến mãi.");
+        }
+
+        if (promotion.UsedCount.GetValueOrDefault() > 0)
+        {
+            throw new BadHttpRequestException("Khong the xoa khuyen mai da phat sinh luot dung.");
         }
 
         _context.Promotions.Remove(promotion);
@@ -559,6 +582,30 @@ public partial class AdminService
         }
 
         return normalized;
+    }
+
+    private static void ValidatePromotionRequest(AdminPromotionRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Code))
+        {
+            throw new BadHttpRequestException("Ma khuyen mai khong duoc de trong.");
+        }
+        if (request.DiscountPercent <= 0 || request.DiscountPercent > 100)
+        {
+            throw new BadHttpRequestException("Phan tram giam phai lon hon 0 va khong vuot qua 100.");
+        }
+        if (request.MaxDiscountAmount < 0)
+        {
+            throw new BadHttpRequestException("Muc giam toi da khong hop le.");
+        }
+        if (request.UsageLimit <= 0)
+        {
+            throw new BadHttpRequestException("Gioi han luot dung phai lon hon 0.");
+        }
+        if (request.ValidUntil <= DateTime.UtcNow)
+        {
+            throw new BadHttpRequestException("Han dung phai nam trong tuong lai.");
+        }
     }
 
     private static AdminPromotionDto MapPromotion(Promotion promotion)

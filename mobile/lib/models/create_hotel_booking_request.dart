@@ -7,6 +7,9 @@ class CreateHotelBookingRequest {
     required this.checkInDate,
     required this.checkOutDate,
     required this.quantity,
+    this.adultCount = 1,
+    this.childCount = 0,
+    this.infantCount = 0,
     this.destinationId,
     this.destinationName,
   });
@@ -20,6 +23,9 @@ class CreateHotelBookingRequest {
   final DateTime checkInDate;
   final DateTime checkOutDate;
   final int quantity;
+  final int adultCount;
+  final int childCount;
+  final int infantCount;
 
   Map<String, dynamic> toJson() {
     return {
@@ -32,6 +38,9 @@ class CreateHotelBookingRequest {
       'checkInDate': _formatDate(checkInDate),
       'checkOutDate': _formatDate(checkOutDate),
       'quantity': quantity,
+      'adultCount': adultCount,
+      'childCount': childCount,
+      'infantCount': infantCount,
     };
   }
 

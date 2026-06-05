@@ -433,7 +433,7 @@ public partial class AdminService
         return new AdminBookingDto
         {
             Id = trip.Id,
-            DisplayId = $"#SKN-{trip.Id:D4}",
+            DisplayId = $"SKN-{trip.Id:D6}",
             UserName = trip.User?.FullName ?? "Khách vãng lai",
             UserCode = trip.UserId.HasValue ? $"ID: SKY-{trip.UserId.Value:D4}" : "Khách chưa đăng nhập",
             Destination = trip.Destination?.Name ?? "Chưa xác định",

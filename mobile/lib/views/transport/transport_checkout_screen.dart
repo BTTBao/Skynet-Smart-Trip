@@ -595,6 +595,61 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
     );
   }
 
+  Future<bool?> _askTripCreationPreference() {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Bạn có muốn tạo chuyến đi không?'),
+        content: const Text(
+          'Nếu tạo chuyến đi, vé xe này sẽ được thêm vào lịch trình. Nếu không tạo, hệ thống vẫn lưu hóa đơn trong lịch sử hoạt động.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(null),
+            child: const Text('Quay lại'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Không tạo'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: _kPrimary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Tạo/chọn chuyến đi'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<_SelectedTransportTrip> _createBookingOnlyTrip({
+    required int userId,
+    required BusScheduleModel schedule,
+  }) async {
+    final tripProvider = context.read<TripProvider>();
+    final createdTrip = await tripProvider.createTrip(
+      CreateTripRequest(
+        userId: userId,
+        destinationId: schedule.toDestId,
+        destinationName: schedule.toDestName,
+        title:
+            'Hóa đơn vé xe - ${schedule.fromDestName} đến ${schedule.toDestName}',
+        startDate: schedule.departureTime,
+        endDate: schedule.arrivalTime,
+        status: 'BOOKING_ONLY',
+      ),
+    );
+
+    if (createdTrip == null) {
+      throw Exception(tripProvider.error ?? 'Không thể tạo hóa đơn vé xe.');
+    }
+
+    return _SelectedTransportTrip(tripId: createdTrip.tripId, dayNumber: 1);
+  }
+
   Future<void> _handlePayment(
     BuildContext context,
     BusProvider busProvider,
@@ -670,10 +725,19 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
         if (mounted) {
           setState(() => _isProcessing = false);
         }
-        final selectedTrip = await _selectOrCreateTripForBooking(
-          userId: userId,
-          schedule: schedule,
-        );
+        final wantsTrip = await _askTripCreationPreference();
+        if (wantsTrip == null) {
+          return;
+        }
+        if (mounted) {
+          setState(() => _isProcessing = true);
+        }
+        final selectedTrip = wantsTrip
+            ? await _selectOrCreateTripForBooking(
+                userId: userId,
+                schedule: schedule,
+              )
+            : await _createBookingOnlyTrip(userId: userId, schedule: schedule);
         if (selectedTrip == null) {
           return;
         }
@@ -1219,7 +1283,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Chọn Voucher của bạn',
+                    'Chọn mã khuyến mãi khả dụng',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -1238,7 +1302,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24.0),
                     child: Text(
-                      'Túi đồ trống. Bạn không có voucher khả dụng.',
+                      'Hiện không có mã khuyến mãi khả dụng.',
                       style: TextStyle(color: Colors.grey[500]),
                     ),
                   ),
@@ -1852,14 +1916,6 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                 }
                 return null;
               },
-            ),
-            const SizedBox(height: 14),
-            _buildPassengerTextField(
-              label: 'Ghi chú / Yêu cầu đặc biệt',
-              hint: 'Ví dụ: Ghế tầng dưới, không say xe...',
-              controller: _passengerNotesController,
-              maxLines: 2,
-              icon: Icons.chat_bubble_outline,
             ),
           ],
         ),
