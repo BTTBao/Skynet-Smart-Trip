@@ -76,6 +76,7 @@ class HotelHistoryItem {
   final int serviceId;
   final String tripTitle;
   final String hotelName;
+  final String roomType;
   final String address;
   final String destinationName;
   final String? checkInDate;
@@ -93,6 +94,7 @@ class HotelHistoryItem {
     required this.serviceId,
     required this.tripTitle,
     required this.hotelName,
+    required this.roomType,
     required this.address,
     required this.destinationName,
     required this.checkInDate,
@@ -112,6 +114,7 @@ class HotelHistoryItem {
       serviceId: json['serviceId'] ?? 0,
       tripTitle: json['tripTitle'] ?? '',
       hotelName: json['hotelName'] ?? '',
+      roomType: json['roomType'] ?? '',
       address: json['address'] ?? '',
       destinationName: json['destinationName'] ?? '',
       checkInDate: json['checkInDate'],

@@ -41,6 +41,9 @@ public class ItineraryService : IItineraryService
         ValidateDayNumber(trip, request.DayNumber);
 
         var normalizedServiceType = TripServiceOptionService.NormalizeServiceType(request.ServiceType);
+        var requestedHotelCheckOutDate = normalizedServiceType == HotelServiceType
+            ? request.HotelCheckOutDate ?? trip.EndDate
+            : null;
         var serviceOption = await _optionService.GetServiceOptionByIdAsync(normalizedServiceType, request.ServiceId);
         if (serviceOption == null)
         {
@@ -52,12 +55,13 @@ public class ItineraryService : IItineraryService
                 item.TripId == tripId &&
                 item.ServiceType == TripServiceType.Hotel &&
                 item.ServiceId == request.ServiceId &&
-                item.ServiceDate == request.ServiceDate)
+                item.ServiceDate == request.ServiceDate &&
+                item.HotelCheckOutDate == requestedHotelCheckOutDate)
             : null;
 
         if (normalizedServiceType == HotelServiceType)
         {
-            await ValidateHotelBookingAsync(trip, request, existingHotelItinerary?.Quantity ?? 0);
+            await ValidateHotelBookingAsync(trip, request, existingHotelItinerary);
         }
 
         if (normalizedServiceType == BusServiceType && !string.IsNullOrEmpty(request.SelectedSeats))
@@ -74,6 +78,7 @@ public class ItineraryService : IItineraryService
             existingHotelItinerary.BookedPrice = request.BookedPrice ?? existingHotelItinerary.BookedPrice;
             existingHotelItinerary.BookedCommissionRate = request.BookedCommissionRate ?? existingHotelItinerary.BookedCommissionRate;
             existingHotelItinerary.ServiceDate = request.ServiceDate ?? existingHotelItinerary.ServiceDate;
+            existingHotelItinerary.HotelCheckOutDate = requestedHotelCheckOutDate ?? existingHotelItinerary.HotelCheckOutDate;
             existingHotelItinerary.DepartureTime = request.DepartureTime ?? existingHotelItinerary.DepartureTime;
             existingHotelItinerary.ServiceAddress = request.ServiceAddress ?? existingHotelItinerary.ServiceAddress;
 
@@ -96,6 +101,7 @@ public class ItineraryService : IItineraryService
             BookedPrice = request.BookedPrice ?? await ResolveDefaultBookedPriceAsync(normalizedServiceType, request.ServiceId, trip) ?? serviceOption.DefaultPrice ?? 0,
             BookedCommissionRate = request.BookedCommissionRate ?? serviceOption.DefaultCommissionRate ?? 0,
             ServiceDate = request.ServiceDate,
+            HotelCheckOutDate = requestedHotelCheckOutDate,
             DepartureTime = request.DepartureTime,
             ServiceAddress = request.ServiceAddress,
             SelectedSeats = request.SelectedSeats
@@ -134,16 +140,7 @@ public class ItineraryService : IItineraryService
                         .FirstOrDefaultAsync()
                     : null;
                 var checkInDate = itinerary.ServiceDate ?? tripDates?.StartDate;
-                var fallbackCheckOutDate = tripDates?.EndDate;
-
-                if (checkInDate.HasValue && fallbackCheckOutDate.HasValue)
-                {
-                    hotelCheckOutDate = ResolveHotelCheckOutDate(
-                        itinerary.BookedPrice,
-                        room.PricePerNight,
-                        checkInDate.Value,
-                        fallbackCheckOutDate.Value);
-                }
+                hotelCheckOutDate = ResolveHotelCheckOutDate(itinerary, checkInDate, tripDates?.EndDate);
 
                 serviceName = room.Hotel.Name;
                 serviceSubtitle = string.Join(" • ", new[]
@@ -339,6 +336,11 @@ public class ItineraryService : IItineraryService
             itinerary.ServiceDate = request.ServiceDate.Value;
         }
 
+        if (request.HotelCheckOutDate.HasValue)
+        {
+            itinerary.HotelCheckOutDate = request.HotelCheckOutDate.Value;
+        }
+
         if (request.DepartureTime.HasValue)
         {
             itinerary.DepartureTime = request.DepartureTime.Value;
@@ -379,7 +381,7 @@ public class ItineraryService : IItineraryService
         return true;
     }
 
-    private async Task ValidateHotelBookingAsync(TripEntity trip, CreateTripItineraryDto request, int existingQuantityInTrip)
+    private async Task ValidateHotelBookingAsync(TripEntity trip, CreateTripItineraryDto request, TripItinerary? existingHotelItinerary)
     {
         if (trip.StartDate == null || trip.EndDate == null)
         {
@@ -413,7 +415,7 @@ public class ItineraryService : IItineraryService
             request.ChildCount,
             request.InfantCount);
 
-        var checkOut = ResolveHotelCheckOutDate(request, room, checkIn, tripEnd);
+        var checkOut = ResolveHotelCheckOutDate(request, checkIn, tripEnd);
         if (checkOut <= checkIn)
         {
             throw new ArgumentException("Check-out date must be after check-in date.");
@@ -447,7 +449,7 @@ public class ItineraryService : IItineraryService
             throw new InvalidOperationException("This room type is currently sold out.");
         }
 
-        var requestedTotalInTrip = existingQuantityInTrip + request.Quantity;
+        var requestedTotalInTrip = (existingHotelItinerary?.Quantity ?? 0) + request.Quantity;
         if (requestedTotalInTrip > totalRooms)
         {
             throw new InvalidOperationException($"Only {totalRooms} room(s) are available for the selected room type.");
@@ -459,26 +461,23 @@ public class ItineraryService : IItineraryService
             .Where(item =>
                 item.ServiceType == TripServiceType.Hotel &&
                 item.ServiceId == request.ServiceId &&
-                item.TripId != trip.Id &&
+                (existingHotelItinerary == null || item.Id != existingHotelItinerary.Id) &&
                 item.Trip != null &&
                 item.Trip.Status != TripStatus.Cancelled &&
                 item.Trip.StartDate.HasValue &&
                 item.Trip.EndDate.HasValue)
             .ToListAsync();
 
-        var bookedRooms = overlappingBookings
-            .Where(item =>
+        var bookedRooms = GetPeakBookedQtyForDateRange(
+            checkIn,
+            checkOut,
+            overlappingBookings.Select(item =>
             {
                 var bookedCheckIn = item.ServiceDate ?? item.Trip!.StartDate!.Value;
-                var bookedCheckOut = ResolveHotelCheckOutDate(
-                    item.BookedPrice,
-                    room.PricePerNight,
-                    bookedCheckIn,
-                    item.Trip!.EndDate!.Value);
+                var bookedCheckOut = ResolveHotelCheckOutDate(item, bookedCheckIn, item.Trip!.EndDate!.Value);
 
-                return DateRangesOverlap(checkIn, checkOut, bookedCheckIn, bookedCheckOut);
-            })
-            .Sum(item => item.Quantity ?? 1);
+                return (StartDate: bookedCheckIn, EndDate: bookedCheckOut, Quantity: item.Quantity ?? 1);
+            }));
 
         var remainingRooms = totalRooms - bookedRooms;
         if (requestedTotalInTrip > remainingRooms)
@@ -538,39 +537,57 @@ public class ItineraryService : IItineraryService
         return (pricePerNight ?? 0) * nights;
     }
 
-    private static bool DateRangesOverlap(DateOnly start, DateOnly end, DateOnly otherStart, DateOnly otherEnd)
-    {
-        return start < otherEnd && end > otherStart;
-    }
-
     private static DateOnly ResolveHotelCheckOutDate(
         CreateTripItineraryDto request,
-        Room room,
         DateOnly checkIn,
         DateOnly fallbackCheckOut)
     {
-        return ResolveHotelCheckOutDate(request.BookedPrice, room.PricePerNight, checkIn, fallbackCheckOut);
+        return NormalizeHotelCheckOutDate(checkIn, request.HotelCheckOutDate ?? fallbackCheckOut);
     }
 
     private static DateOnly ResolveHotelCheckOutDate(
-        decimal? bookedPrice,
-        decimal? pricePerNight,
+        TripItinerary itinerary,
+        DateOnly? checkIn,
+        DateOnly? fallbackCheckOut)
+    {
+        var resolvedCheckIn = checkIn ?? itinerary.ServiceDate;
+        if (!resolvedCheckIn.HasValue)
+        {
+            return fallbackCheckOut ?? DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1);
+        }
+
+        return NormalizeHotelCheckOutDate(
+            resolvedCheckIn.Value,
+            itinerary.HotelCheckOutDate ?? fallbackCheckOut ?? resolvedCheckIn.Value.AddDays(1));
+    }
+
+    private static DateOnly NormalizeHotelCheckOutDate(
         DateOnly checkIn,
         DateOnly fallbackCheckOut)
     {
-        var nightlyPrice = pricePerNight ?? 0;
-        if (bookedPrice.HasValue && nightlyPrice > 0)
-        {
-            var nightsValue = bookedPrice.Value / nightlyPrice;
-            var roundedNights = (int)Math.Round(nightsValue, MidpointRounding.AwayFromZero);
+        return fallbackCheckOut > checkIn ? fallbackCheckOut : checkIn.AddDays(1);
+    }
 
-            if (roundedNights > 0 && Math.Abs(nightsValue - roundedNights) < 0.01m)
+    private static int GetPeakBookedQtyForDateRange(
+        DateOnly checkInDate,
+        DateOnly checkOutDate,
+        IEnumerable<(DateOnly StartDate, DateOnly EndDate, int Quantity)> bookings)
+    {
+        var peakBookedQty = 0;
+
+        for (var date = checkInDate; date < checkOutDate; date = date.AddDays(1))
+        {
+            var bookedQtyForDate = bookings
+                .Where(item => item.StartDate <= date && item.EndDate > date)
+                .Sum(item => item.Quantity <= 0 ? 0 : item.Quantity);
+
+            if (bookedQtyForDate > peakBookedQty)
             {
-                return checkIn.AddDays(roundedNights);
+                peakBookedQty = bookedQtyForDate;
             }
         }
 
-        return fallbackCheckOut;
+        return peakBookedQty;
     }
 
     private static string FormatHotelBookingDateRange(DateOnly checkIn, DateOnly? checkOut)

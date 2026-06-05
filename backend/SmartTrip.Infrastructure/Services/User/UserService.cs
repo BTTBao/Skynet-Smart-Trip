@@ -107,9 +107,19 @@ public class UserService : IUserService
         static string ResolveHistoryTripStatus(Trip t)
         {
             var hasPaidPayment = t.Payments.Any(p => p.Status == PaymentStatus.Paid);
-            return t.Status == TripStatus.BookingOnly && hasPaidPayment
-                ? TripStatus.Paid.ToString()
-                : t.Status?.ToString() ?? TripStatus.Draft.ToString();
+            var hasInvoice = t.Invoices.Any();
+
+            if (t.Status == TripStatus.Cancelled)
+            {
+                return TripStatus.Cancelled.ToString();
+            }
+
+            if (hasPaidPayment || hasInvoice)
+            {
+                return TripStatus.Paid.ToString();
+            }
+
+            return t.Status?.ToString() ?? TripStatus.Draft.ToString();
         }
 
         static decimal ResolvePaidTripAmount(Trip t)
@@ -160,17 +170,18 @@ public class UserService : IUserService
             return paidAmount > 0 ? paidAmount : rawAmount;
         }
 
-        var hotelIds = hotelItineraries
+        var roomIds = hotelItineraries
             .Where(i => i.ServiceId.HasValue)
             .Select(i => i.ServiceId!.Value)
             .Distinct()
             .ToList();
 
-        var hotelsById = await _context.Hotels
+        var roomsById = await _context.Rooms
             .AsNoTracking()
-            .Include(h => h.Destination)
-            .Where(h => hotelIds.Contains(h.Id))
-            .ToDictionaryAsync(h => h.Id);
+            .Include(r => r.Hotel)
+                .ThenInclude(h => h!.Destination)
+            .Where(r => roomIds.Contains(r.Id))
+            .ToDictionaryAsync(r => r.Id);
 
         var tripsById = trips.ToDictionary(t => t.Id);
 
@@ -178,9 +189,9 @@ public class UserService : IUserService
             .OrderByDescending(i => tripsById.TryGetValue(i.TripId ?? 0, out var trip) ? trip.CreatedAt : null)
             .Select(i =>
             {
-                hotelsById.TryGetValue(i.ServiceId ?? 0, out var hotel);
+                roomsById.TryGetValue(i.ServiceId ?? 0, out var room);
                 tripsById.TryGetValue(i.TripId ?? 0, out var trip);
-                var targetHotelId = hotel?.Id ?? i.ServiceId ?? 0;
+                var targetHotelId = room?.HotelId ?? 0;
                 var isReviewed = reviews.Any(r => 
                     r.TripId == i.TripId && 
                     r.TargetType == ReviewTargetType.Hotel && 
@@ -192,11 +203,12 @@ public class UserService : IUserService
                     ItineraryId = i.Id,
                     ServiceId = targetHotelId,
                     TripTitle = trip?.Title ?? "Chuyen di",
-                    HotelName = hotel?.Name ?? "Khach san",
-                    Address = hotel?.Address ?? string.Empty,
-                    DestinationName = hotel?.Destination?.Name ?? string.Empty,
-                    CheckInDate = trip?.StartDate?.ToString("yyyy-MM-dd"),
-                    CheckOutDate = trip?.EndDate?.ToString("yyyy-MM-dd"),
+                    HotelName = room?.Hotel?.Name ?? "Khach san",
+                    RoomType = room?.RoomType ?? string.Empty,
+                    Address = room?.Hotel?.Address ?? string.Empty,
+                    DestinationName = room?.Hotel?.Destination?.Name ?? string.Empty,
+                    CheckInDate = (i.ServiceDate ?? trip?.StartDate)?.ToString("yyyy-MM-dd"),
+                    CheckOutDate = (i.HotelCheckOutDate ?? trip?.EndDate)?.ToString("yyyy-MM-dd"),
                     Quantity = i.Quantity ?? 0,
                     BookedPrice = ResolveItineraryHistoryAmount(i, trip),
                     Status = trip != null ? ResolveHistoryTripStatus(trip) : TripStatus.Draft.ToString(),

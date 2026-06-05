@@ -204,7 +204,8 @@ public class TripController : ControllerBase
                     InfantCount = request.InfantCount,
                     BookedPrice = totalRoomPrice / request.Quantity,
                     BookedCommissionRate = room.CommissionRate,
-                    ServiceDate = request.CheckInDate
+                    ServiceDate = request.CheckInDate,
+                    HotelCheckOutDate = request.CheckOutDate
                 });
 
                 await transaction.CommitAsync();
@@ -428,7 +429,13 @@ public class TripController : ControllerBase
             if (trip.Payments.Any(item => item.Status == PaymentStatus.Paid) ||
                 trip.Invoices.Any())
             {
-                return Conflict(new { message = "Booking da duoc thanh toan va phat hanh hoa don." });
+                return Ok(new
+                {
+                    message = "Booking da duoc thanh toan va phat hanh hoa don.",
+                    tripId = trip.Id,
+                    status = "PAID",
+                    alreadyPaid = true
+                });
             }
 
             if (request.Amount < 0)

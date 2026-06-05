@@ -344,6 +344,7 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.InfantCount).HasDefaultValue(0);
             entity.Property(e => e.ServiceAddress).HasMaxLength(500);
             entity.Property(e => e.ServiceDate).HasColumnType("date");
+            entity.Property(e => e.HotelCheckOutDate).HasColumnType("date");
             entity.Property(e => e.ServiceType).HasMaxLength(20);
 
             entity.HasOne(d => d.Trip).WithMany(p => p.TripItineraries).HasForeignKey(d => d.TripId);

@@ -536,7 +536,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => InvoiceDetailView(
-          title: item.tripTitle,
+          title: _hotelServiceTitle(item),
           serviceType: 'Khách sạn',
           providerName: item.hotelName,
           routeOrAddress: '${item.destinationName} - ${item.address}',
@@ -554,7 +554,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => InvoiceDetailView(
-          title: item.tripTitle,
+          title: _busServiceTitle(item),
           serviceType: 'Vé xe',
           providerName: item.companyName,
           routeOrAddress: '${item.fromDestination} -> ${item.toDestination}',
@@ -613,7 +613,41 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       return false;
     }
 
-    return parsed.toLocal().isBefore(DateTime.now());
+    final now = DateTime.now();
+    final raw = (completedAt ?? '').trim();
+    final completedLocal = parsed.toLocal();
+    final hasExplicitTime = raw.contains('T') || raw.contains(':');
+
+    if (hasExplicitTime) {
+      return !completedLocal.isAfter(now);
+    }
+
+    final today = DateTime(now.year, now.month, now.day);
+    final completedDate = DateTime(
+      completedLocal.year,
+      completedLocal.month,
+      completedLocal.day,
+    );
+    return today.isAfter(completedDate);
+  }
+
+  String _hotelServiceTitle(HotelHistoryItem item) {
+    final roomType = item.roomType.trim();
+    if (roomType.isEmpty) {
+      return item.hotelName;
+    }
+
+    return '${item.hotelName} - $roomType';
+  }
+
+  String _busServiceTitle(BusHistoryItem item) {
+    final from = item.fromDestination.trim();
+    final to = item.toDestination.trim();
+    if (from.isEmpty || to.isEmpty) {
+      return item.companyName;
+    }
+
+    return '${item.companyName} - $from -> $to';
   }
 
   void _showReviewSheet({
