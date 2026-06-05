@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/create_trip_itinerary_request.dart';
@@ -16,7 +16,7 @@ import '../../widgets/chatbot/message_bubble.dart';
 import '../../widgets/chatbot/quick_action_chips.dart';
 import '../../widgets/chatbot/typing_indicator.dart';
 import '../../widgets/chatbot/welcome_screen.dart';
-import '../catalog/hotel_detail_view.dart';
+import '../resort_detail/resort_detail_screen.dart';
 import '../profile/profile_session_helper.dart';
 import '../transport/transport_search_screen.dart';
 import '../trip/trip_itinerary_detail_view.dart';
@@ -204,7 +204,7 @@ class _ChatbotViewState extends State<ChatbotView> {
               Icons.history_rounded,
               color: Colors.white.withValues(alpha: 0.78),
             ),
-            tooltip: 'Lich su doan chat',
+            tooltip: 'Lịch sử đoạn chat',
           ),
           IconButton(
             onPressed: chatProvider.isTyping ? null : chatProvider.startNewChat,
@@ -212,7 +212,7 @@ class _ChatbotViewState extends State<ChatbotView> {
               Icons.add_comment_rounded,
               color: Colors.white.withValues(alpha: 0.7),
             ),
-            tooltip: 'Tao doan chat moi',
+            tooltip: 'Tạo đoạn chat mới',
           ),
         ],
       ),
@@ -221,16 +221,16 @@ class _ChatbotViewState extends State<ChatbotView> {
 
   String _buildStatusText(ChatProvider chatProvider) {
     if (chatProvider.isLoadingHistory) {
-      return 'Dang tai lich su...';
+      return 'Đang tải lịch sử...';
     }
     if (chatProvider.currentSessionId != null &&
         chatProvider.currentSessionId!.isNotEmpty) {
-      return 'Dang xem doan chat da luu';
+      return 'Đang xem đoạn chat đã lưu';
     }
     if (chatProvider.isTyping) {
-      return 'Dang tra loi...';
+      return 'Đang trả lời...';
     }
-    return 'Truc tuyen';
+    return 'Trực tuyến';
   }
 
   Widget _buildMessageList(ChatProvider chatProvider) {
@@ -290,7 +290,7 @@ class _ChatbotViewState extends State<ChatbotView> {
                       children: [
                         Expanded(
                           child: Text(
-                            'Lich su doan chat',
+                            'Lịch sử đoạn chat',
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(fontWeight: FontWeight.w700),
                           ),
@@ -301,7 +301,7 @@ class _ChatbotViewState extends State<ChatbotView> {
                             Navigator.of(sheetContext).pop();
                           },
                           icon: const Icon(Icons.add_comment_outlined),
-                          label: const Text('Chat moi'),
+                          label: const Text('Chat mới'),
                         ),
                       ],
                     ),
@@ -366,13 +366,13 @@ class _ChatbotViewState extends State<ChatbotView> {
   Future<void> _handleBookRoom(HotelCard card) async {
     final hotelId = card.id;
     if (hotelId == null || hotelId <= 0) {
-      _showToastMessage('Khong tim thay thong tin khach san de mo man dat.');
+      _showToastMessage('Không tìm thấy thông tin khách sạn để mở màn đặt.');
       return;
     }
 
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => HotelDetailView(hotelId: hotelId),
+        builder: (_) => ResortDetailScreen(hotelId: hotelId),
       ),
     );
   }
@@ -392,27 +392,37 @@ class _ChatbotViewState extends State<ChatbotView> {
   Future<void> _handleBookPlannedHotel(HotelPlanSuggestion hotel) async {
     final hotelId = hotel.hotelId;
     if (hotelId == null || hotelId <= 0) {
-      _showToastMessage('Khong tim thay thong tin khach san de mo man dat.');
+      _showToastMessage('Không tìm thấy thông tin khách sạn để mở màn đặt.');
       return;
     }
 
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => HotelDetailView(hotelId: hotelId),
+        builder: (_) => ResortDetailScreen(hotelId: hotelId),
       ),
     );
   }
 
-  void _handleBookPlannedTransport(TransportPlanSuggestion transport) {
-    _showToastMessage(
-      'Nut dat xe trong plan da them xong. Logic mo man dat xe minh se noi tiep o buoc sau.',
+  Future<void> _handleBookPlannedTransport(
+    TransportPlanSuggestion transport,
+  ) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TransportSearchScreen(
+          toDestId: transport.toDestinationId,
+          toDestName: transport.toDestinationName ?? itineraryDestinationFallback,
+          initialDate:
+              transport.departureTime ?? _resolveLatestChatBookingDates().checkIn,
+          initialScheduleId: transport.scheduleId,
+        ),
+      ),
     );
   }
 
   Future<void> _saveSuggestedItinerary(SuggestedItinerary itinerary) async {
     final userId = await context.read<AuthProvider>().getUserId();
     if (userId == null) {
-      _showToastMessage('Ban can dang nhap de luu chuyen di.');
+      _showToastMessage('Bạn cần đăng nhập để lưu chuyến đi.');
       return;
     }
 
@@ -438,49 +448,19 @@ class _ChatbotViewState extends State<ChatbotView> {
     );
 
     if (createdTrip == null) {
-      _showToastMessage(tripProvider.error ?? 'Khong the luu chuyen di.');
+      _showToastMessage(tripProvider.error ?? 'Không thể lưu chuyến đi.');
       return;
     }
 
-    var saveOk = true;
-
-    final transport = itinerary.transportSuggestion;
-    if (transport?.scheduleId != null) {
-      saveOk = await tripProvider.addItinerary(
-        createdTrip.tripId,
-        CreateTripItineraryRequest(
-          dayNumber: 1,
-          serviceType: 'BUS',
-          serviceId: transport!.scheduleId!,
-          quantity: 1,
-          bookedPrice: transport.price,
-          serviceDate: startDate,
-        ),
-      );
-    }
-
-    if (saveOk) {
-      final hotel = itinerary.hotelSuggestion;
-      if (hotel?.roomId != null) {
-        final nights = endDate.difference(startDate).inDays.clamp(1, 30).toInt();
-        saveOk = await tripProvider.addItinerary(
-          createdTrip.tripId,
-          CreateTripItineraryRequest(
-            dayNumber: 1,
-            serviceType: 'HOTEL',
-            serviceId: hotel!.roomId!,
-            quantity: 1,
-            bookedPrice: (hotel.pricePerNight ?? 0) * nights,
-            serviceDate: startDate,
-          ),
-        );
-      }
-    }
+    final saveOk = await _saveItineraryPlanEntries(
+      tripProvider: tripProvider,
+      tripId: createdTrip.tripId,
+      itinerary: itinerary,
+      startDate: startDate,
+    );
 
     if (!saveOk) {
-      _showToastMessage(
-        tripProvider.error ?? 'Da tao chuyen di nhung chua luu du dich vu.',
-      );
+      _showToastMessage(tripProvider.error ?? 'Đã tạo chuyến đi nhưng chưa lưu được plan.');
       return;
     }
 
@@ -488,7 +468,7 @@ class _ChatbotViewState extends State<ChatbotView> {
       return;
     }
 
-    _showToastMessage('Da luu plan vao chuyen di.');
+    _showToastMessage('Đã lưu plan vào chuyến đi.');
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => TripItineraryDetailView(
@@ -500,9 +480,88 @@ class _ChatbotViewState extends State<ChatbotView> {
       ),
     );
   }
+
+  String get itineraryDestinationFallback => 'Điểm đến';
+
+  Future<bool> _saveItineraryPlanEntries({
+    required TripProvider tripProvider,
+    required int tripId,
+    required SuggestedItinerary itinerary,
+    required DateTime startDate,
+  }) async {
+    for (final day in itinerary.days) {
+      final serviceDate = startDate.add(Duration(days: day.dayNumber - 1));
+      for (final activity in day.activities) {
+        final noteRequest = CreateTripItineraryRequest(
+          dayNumber: day.dayNumber,
+          serviceType: 'NOTE',
+          serviceId: 1,
+          quantity: 1,
+          bookedPrice: _parseEstimatedCost(activity.estimatedCost),
+          bookedCommissionRate: 0,
+          serviceDate: serviceDate,
+          departureTime: _normalizeActivityTime(activity.time),
+          serviceAddress: _buildTripPlanNoteContent(activity),
+        );
+
+        final success = await tripProvider.addItinerary(tripId, noteRequest);
+        if (!success) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  String _buildTripPlanNoteContent(ItineraryActivity activity) {
+    final lines = <String>[
+      activity.title.trim(),
+      if ((activity.description ?? '').trim().isNotEmpty)
+        activity.description!.trim(),
+      if ((activity.estimatedCost ?? '').trim().isNotEmpty)
+        'Chi phí dự kiến: ${activity.estimatedCost!.trim()}',
+    ];
+
+    return lines.join('\n');
+  }
+
+  double? _parseEstimatedCost(String? rawValue) {
+    final text = rawValue?.trim();
+    if (text == null || text.isEmpty) {
+      return null;
+    }
+
+    final normalized = text
+        .replaceAll(RegExp(r'[^0-9,\.]'), '')
+        .replaceAll('.', '')
+        .replaceAll(',', '.');
+    return double.tryParse(normalized);
+  }
+
+  String? _normalizeActivityTime(String rawTime) {
+    final text = rawTime.trim();
+    final match = RegExp(r'^(\d{1,2}):(\d{2})$').firstMatch(text);
+    if (match == null) {
+      return null;
+    }
+
+    final hour = int.tryParse(match.group(1)!);
+    final minute = int.tryParse(match.group(2)!);
+    if (hour == null ||
+        minute == null ||
+        hour < 0 ||
+        hour > 23 ||
+        minute < 0 ||
+        minute > 59) {
+      return null;
+    }
+
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}:00';
+  }
     /*
     if (card.rooms == null || card.rooms!.isEmpty) {
-      _showToastMessage('Khách sạn hiện không có phòng trống.');
+      _showToastMessage('KhÃ¡ch sáº¡n hiá»‡n khÃ´ng cÃ³ phÃ²ng trá»‘ng.');
       return;
     }
 
@@ -567,12 +626,12 @@ class _ChatbotViewState extends State<ChatbotView> {
 
             Future<void> submitBooking() async {
               if (!checkOut.isAfter(checkIn)) {
-                _showToastMessage('Ngày trả phòng phải sau ngày nhận phòng.');
+                _showToastMessage('NgÃ y tráº£ phÃ²ng pháº£i sau ngÃ y nháº­n phÃ²ng.');
                 return;
               }
 
               if (roomQuantity > selectedRoom.availableQty) {
-                _showToastMessage('Số phòng đặt vượt quá số phòng còn trống.');
+                _showToastMessage('Sá»‘ phÃ²ng Ä‘áº·t vÆ°á»£t quÃ¡ sá»‘ phÃ²ng cÃ²n trá»‘ng.');
                 return;
               }
 
@@ -585,7 +644,7 @@ class _ChatbotViewState extends State<ChatbotView> {
                   roomId: selectedRoom.id,
                   destinationId: card.destinationId,
                   destinationName: card.destinationName,
-                  title: 'Đặt phòng - ${card.name}',
+                  title: 'Äáº·t phÃ²ng - ${card.name}',
                   checkInDate: checkIn,
                   checkOutDate: checkOut,
                   quantity: roomQuantity,
@@ -596,7 +655,7 @@ class _ChatbotViewState extends State<ChatbotView> {
               if (createdTrip == null) {
                 setSheetState(() => isSubmitting = false);
                 _showToastMessage(
-                  tripProvider.error ?? 'Không thể tạo đơn đặt phòng.',
+                  tripProvider.error ?? 'KhÃ´ng thá»ƒ táº¡o Ä‘Æ¡n Ä‘áº·t phÃ²ng.',
                 );
                 return;
               }
@@ -660,7 +719,7 @@ class _ChatbotViewState extends State<ChatbotView> {
                       children: [
                         Expanded(
                           child: _BookingDateTile(
-                            label: 'Nhận phòng',
+                            label: 'Nháº­n phÃ²ng',
                             value: _formatDate(checkIn),
                             onTap: () => pickDate(isCheckIn: true),
                           ),
@@ -668,7 +727,7 @@ class _ChatbotViewState extends State<ChatbotView> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: _BookingDateTile(
-                            label: 'Trả phòng',
+                            label: 'Tráº£ phÃ²ng',
                             value: _formatDate(checkOut),
                             onTap: () => pickDate(isCheckIn: false),
                           ),
@@ -706,7 +765,7 @@ class _ChatbotViewState extends State<ChatbotView> {
                                     ),
                                   ),
                                   Text(
-                                    '${room.capacity} người • ${room.availableQty} phòng • ${appSettings.formatCurrency(room.pricePerNight)}/đêm',
+                                    '${room.capacity} ngÆ°á»i â€¢ ${room.availableQty} phÃ²ng â€¢ ${appSettings.formatCurrency(room.pricePerNight)}/Ä‘Ãªm',
                                     style: const TextStyle(
                                       color: AppColors.textMuted,
                                       fontSize: 12,
@@ -751,7 +810,7 @@ class _ChatbotViewState extends State<ChatbotView> {
                         children: [
                           const Expanded(
                             child: Text(
-                              'Số phòng',
+                              'Sá»‘ phÃ²ng',
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 color: AppColors.textHeading,
@@ -782,7 +841,7 @@ class _ChatbotViewState extends State<ChatbotView> {
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      '$nights đêm • ${selectedRoom.capacity} người/phòng • Còn ${selectedRoom.availableQty} phòng',
+                      '$nights Ä‘Ãªm â€¢ ${selectedRoom.capacity} ngÆ°á»i/phÃ²ng â€¢ CÃ²n ${selectedRoom.availableQty} phÃ²ng',
                       style: const TextStyle(color: AppColors.textMuted),
                     ),
                     const SizedBox(height: 16),
@@ -790,7 +849,7 @@ class _ChatbotViewState extends State<ChatbotView> {
                       children: [
                         const Expanded(
                           child: Text(
-                            'Tổng tiền',
+                            'Tá»•ng tiá»n',
                             style: TextStyle(color: AppColors.textMuted),
                           ),
                         ),
@@ -827,7 +886,7 @@ class _ChatbotViewState extends State<ChatbotView> {
                                 ),
                               )
                             : const Text(
-                                'Xác nhận đặt phòng',
+                                'XÃ¡c nháº­n Ä‘áº·t phÃ²ng',
                                 style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w800,
@@ -856,7 +915,7 @@ class _ChatbotViewState extends State<ChatbotView> {
       mode: LaunchMode.externalApplication,
     );
     if (!opened) {
-      throw Exception('Khong the mo trang thanh toan PayOS.');
+      throw Exception('Không thể mở trang thanh toán PayOS.');
     }
   }
 
@@ -870,7 +929,7 @@ class _ChatbotViewState extends State<ChatbotView> {
       case 'Momo':
         return 'MoMo';
       case 'Card':
-        return 'The ngan hang';
+        return 'Thẻ ngân hàng';
       default:
         return 'VNPay';
     }
@@ -925,7 +984,7 @@ class _ChatbotViewState extends State<ChatbotView> {
                 final payment = await PaymentService().createPayOsPayment(
                   tripId: tripId,
                   amount: amount,
-                  description: 'Dat phong $tripId',
+                  description: 'Đặt phòng $tripId',
                   orderCode: orderCode,
                   metadata: {
                     'type': 'HOTEL',
@@ -939,7 +998,7 @@ class _ChatbotViewState extends State<ChatbotView> {
 
                 final checkoutUrl = payment.checkoutUrl;
                 if (checkoutUrl == null || checkoutUrl.isEmpty) {
-                  throw Exception('PayOS khong tra ve link thanh toan.');
+                  throw Exception('PayOS không trả về link thanh toán.');
                 }
 
                 pendingOrderCode = orderCode;
@@ -1003,7 +1062,7 @@ class _ChatbotViewState extends State<ChatbotView> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '$hotelName • $roomType',
+                      '$hotelName â€¢ $roomType',
                       style: const TextStyle(
                         color: AppColors.textMuted,
                         fontWeight: FontWeight.w600,
@@ -1295,14 +1354,14 @@ class _EmptySessionState extends StatelessWidget {
           const Icon(Icons.forum_outlined, size: 44, color: Colors.grey),
           const SizedBox(height: 12),
           const Text(
-            'Chua co doan chat nao duoc luu.',
+            'Chưa có đoạn chat nào được lưu.',
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
             onPressed: onCreateNew,
             icon: const Icon(Icons.add_comment_outlined),
-            label: const Text('Bat dau chat moi'),
+            label: const Text('Bắt đầu chat mới'),
           ),
         ],
       ),
@@ -1344,7 +1403,7 @@ class _ChatErrorBanner extends StatelessWidget {
             ),
           ),
           if (canRetry)
-            TextButton(onPressed: onRetry, child: const Text('Thu lai')),
+            TextButton(onPressed: onRetry, child: const Text('Thử lại')),
         ],
       ),
     );
@@ -1398,7 +1457,7 @@ class _SessionTile extends StatelessWidget {
       trailing: IconButton(
         onPressed: onDelete,
         icon: const Icon(Icons.delete_outline_rounded),
-        tooltip: 'Xoa doan chat',
+        tooltip: 'Lịch sử đoạn chat',
       ),
     );
   }
@@ -1406,7 +1465,7 @@ class _SessionTile extends StatelessWidget {
   String _buildTitle(ChatSessionSummary session) {
     final preview = session.previewText.trim();
     if (preview.isEmpty) {
-      return 'Doan chat';
+      return 'Đoạn chat';
     }
 
     if (preview.length <= 28) {
@@ -1422,7 +1481,7 @@ class _SessionTile extends StatelessWidget {
     final hour = session.lastUpdatedAt.hour.toString().padLeft(2, '0');
     final minute = session.lastUpdatedAt.minute.toString().padLeft(2, '0');
     final preview = session.previewText.trim().isEmpty
-        ? 'Khong co noi dung xem truoc'
+        ? 'Không có nội dung xem trước'
         : session.previewText.trim();
 
     return '$day/$month $hour:$minute - $preview';
@@ -1523,3 +1582,6 @@ class _DateMatch {
   final int start;
   final DateTime date;
 }
+
+
+

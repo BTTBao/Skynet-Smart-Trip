@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/user_profile.dart';
@@ -723,3 +723,4 @@ class _ErrorState extends StatelessWidget {
     );
   }
 }
+

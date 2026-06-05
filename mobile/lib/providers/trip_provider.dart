@@ -21,14 +21,14 @@ class TripProvider with ChangeNotifier {
   bool _isLoadingTripDetail = false;
   bool _isSubmitting = false;
   String? _error;
-  
+
   List<MyTripSummary> get trips => List.unmodifiable(_trips);
   TripDetail? get currentTrip => _currentTrip;
   int? get currentTripId => _currentTripId;
   bool get isLoadingTrips => _isLoadingTrips;
   bool get isLoadingTripDetail => _isLoadingTripDetail;
   bool get isSubmitting => _isSubmitting;
-  String? get error => _error;
+  String? get error => _error; 
 
   List<MyTripSummary> get upcomingTrips {
     final now = DateTime.now();
