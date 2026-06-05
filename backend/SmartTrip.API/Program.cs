@@ -1,3 +1,4 @@
+using SmartTrip.API.Filters;
 using SmartTrip.API.Middlewares;
 using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Infrastructure.Services.User;
@@ -19,7 +20,10 @@ builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
 // Controllers
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add(new ImageStorageExceptionFilter());
+});
 builder.Services.AddScoped<IUserService, UserService>(); // đưa vào ServiceExtensions cho gọn
 builder.Services.AddScoped<IChatService, ChatService>(); // đưa vào ServiceExtensions cho gọn
 builder.Services.AddHttpContextAccessor(); // Để lấy URL đầy đủ của ảnh
@@ -88,7 +92,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowAll");
 
-app.UseStaticFiles(); // Cho phép truy cập file trong wwwroot (ảnh đại diện)
+app.UseStaticFiles(); // Phuc vu static asset san co; anh upload moi duoc luu tren Firebase Storage.
 
 app.UseAuthentication();
 app.UseAuthorization();
