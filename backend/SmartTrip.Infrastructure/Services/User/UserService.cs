@@ -112,6 +112,13 @@ public class UserService : IUserService
                 : t.Status?.ToString() ?? TripStatus.Draft.ToString();
         }
 
+        static decimal ResolvePaidTripAmount(Trip t)
+        {
+            return t.Payments
+                .Where(p => p.Status == PaymentStatus.Paid)
+                .Sum(p => p.Amount ?? 0m);
+        }
+
         var bookings = trips.Select(t => new BookingHistoryItemDto
         {
             TripId = t.Id,
@@ -119,7 +126,7 @@ public class UserService : IUserService
             DestinationName = t.Destination?.Name ?? string.Empty,
             StartDate = t.StartDate?.ToString("yyyy-MM-dd"),
             EndDate = t.EndDate?.ToString("yyyy-MM-dd"),
-            TotalAmount = t.TotalAmount ?? 0,
+            TotalAmount = ResolvePaidTripAmount(t) > 0 ? ResolvePaidTripAmount(t) : t.TotalAmount ?? 0,
             Status = ResolveHistoryTripStatus(t),
             CreatedAt = t.CreatedAt?.ToString("O"),
             InvoiceNumber = t.Invoices
@@ -133,6 +140,25 @@ public class UserService : IUserService
             .AsNoTracking()
             .Where(i => i.Trip != null && i.Trip.UserId == userId && i.ServiceType == TripServiceType.Hotel)
             .ToListAsync();
+
+        var itineraryCountsByTrip = await _context.TripItineraries
+            .AsNoTracking()
+            .Where(i => i.Trip != null && i.Trip.UserId == userId)
+            .GroupBy(i => i.TripId)
+            .Select(group => new { TripId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(item => item.TripId ?? 0, item => item.Count);
+
+        decimal ResolveItineraryHistoryAmount(TripItinerary itinerary, Trip? trip)
+        {
+            var rawAmount = (itinerary.BookedPrice ?? 0m) * (itinerary.Quantity ?? 1);
+            if (trip == null || itineraryCountsByTrip.GetValueOrDefault(trip.Id) != 1)
+            {
+                return rawAmount;
+            }
+
+            var paidAmount = ResolvePaidTripAmount(trip);
+            return paidAmount > 0 ? paidAmount : rawAmount;
+        }
 
         var hotelIds = hotelItineraries
             .Where(i => i.ServiceId.HasValue)
@@ -172,7 +198,7 @@ public class UserService : IUserService
                     CheckInDate = trip?.StartDate?.ToString("yyyy-MM-dd"),
                     CheckOutDate = trip?.EndDate?.ToString("yyyy-MM-dd"),
                     Quantity = i.Quantity ?? 0,
-                    BookedPrice = i.BookedPrice ?? 0,
+                    BookedPrice = ResolveItineraryHistoryAmount(i, trip),
                     Status = trip != null ? ResolveHistoryTripStatus(trip) : TripStatus.Draft.ToString(),
                     IsReviewed = isReviewed,
                     IsBookingOnly = trip?.Status == TripStatus.BookingOnly,
@@ -228,7 +254,7 @@ public class UserService : IUserService
                     DepartureTime = schedule?.DepartureTime?.ToString("O"),
                     ArrivalTime = schedule?.ArrivalTime?.ToString("O"),
                     Quantity = i.Quantity ?? 0,
-                    BookedPrice = i.BookedPrice ?? 0,
+                    BookedPrice = ResolveItineraryHistoryAmount(i, trip),
                     Status = trip != null ? ResolveHistoryTripStatus(trip) : TripStatus.Draft.ToString(),
                     IsReviewed = isReviewed,
                     SelectedSeats = i.SelectedSeats,

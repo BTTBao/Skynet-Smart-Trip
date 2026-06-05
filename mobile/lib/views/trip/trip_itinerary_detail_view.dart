@@ -305,8 +305,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
       return;
     }
 
-    final request = result;
-    final success = await provider.addItinerary(widget.tripId, request);
+    final itineraryId = await provider.addItinerary(widget.tripId, result);
     if (!mounted) {
       return;
     }
@@ -314,7 +313,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          success ? 'Đã thêm dịch vụ vào lịch trình.' : (provider.error ?? 'Thêm dịch vụ thất bại.'),
+          itineraryId != null ? 'Đã thêm dịch vụ vào lịch trình.' : (provider.error ?? 'Thêm dịch vụ thất bại.'),
         ),
       ),
     );

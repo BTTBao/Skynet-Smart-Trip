@@ -77,6 +77,7 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
   void _onDayTap(HotelCalendarDay day) {
     if (!day.available) return;
     final date = day.dateTime;
+    var selectedSameCheckoutDay = false;
     setState(() {
       if (_checkIn == null || (_checkIn != null && _checkOut != null)) {
         _checkIn = date;
@@ -86,12 +87,20 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
           _checkOut = _checkIn;
           _checkIn = date;
         } else if (date == _checkIn) {
-          _checkOut = date;
+          _checkOut = null;
+          selectedSameCheckoutDay = true;
         } else {
           _checkOut = date;
         }
       }
     });
+    if (selectedSameCheckoutDay) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ngay tra phong phai sau ngay nhan phong.'),
+        ),
+      );
+    }
   }
 
   int get nightsCount {

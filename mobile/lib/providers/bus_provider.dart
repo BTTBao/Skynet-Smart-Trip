@@ -7,7 +7,7 @@ class BusProvider with ChangeNotifier {
 
   List<BusScheduleModel> _schedules = [];
   List<BusSeatModel> _seats = [];
-  
+
   bool _isLoadingSchedules = false;
   bool _isLoadingSeats = false;
   bool _isSubmitting = false;
@@ -20,7 +20,7 @@ class BusProvider with ChangeNotifier {
 
   List<BusScheduleModel> get schedules => List.unmodifiable(_schedules);
   List<BusSeatModel> get seats => List.unmodifiable(_seats);
-  
+
   bool get isLoadingSchedules => _isLoadingSchedules;
   bool get isLoadingSeats => _isLoadingSeats;
   bool get isSubmitting => _isSubmitting;
@@ -38,13 +38,17 @@ class BusProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleSeatSelection(String seatNumber) {
+  bool toggleSeatSelection(String seatNumber) {
     if (_selectedSeatNumbers.contains(seatNumber)) {
       _selectedSeatNumbers.remove(seatNumber);
+    } else if (_selectedSeatNumbers.length >= 5) {
+      notifyListeners();
+      return false;
     } else {
       _selectedSeatNumbers.add(seatNumber);
     }
     notifyListeners();
+    return true;
   }
 
   void clearSeatSelection() {
@@ -52,7 +56,11 @@ class BusProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchSchedules({int? fromDestId, int? toDestId, String? date}) async {
+  Future<void> fetchSchedules({
+    int? fromDestId,
+    int? toDestId,
+    String? date,
+  }) async {
     _isLoadingSchedules = true;
     _error = null;
     _scheduleError = null;

@@ -7,7 +7,6 @@ import '../../providers/trip_provider.dart';
 import '../../models/create_trip_request.dart';
 import '../../models/create_trip_itinerary_request.dart';
 import '../../models/bus_schedule_model.dart';
-import '../../models/my_trip_summary.dart';
 import '../../services/payment_service.dart';
 import 'transport_ticket_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -39,6 +38,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
   bool _isProcessing = false;
   int? _pendingOrderCode;
   int? _pendingTripId;
+  int? _pendingItineraryId;
 
   double _discountAmount = 0.0;
   String? _appliedPromoCode;
@@ -203,6 +203,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
         MaterialPageRoute(
           builder: (_) => TransportTicketScreen(
             bookingId: tripId,
+            itineraryId: widget.existingTripId == null ? _pendingItineraryId : null,
+            destinationId: schedule.toDestId,
+            destinationName: schedule.toDestName,
             schedule: schedule,
             seats: seats,
           ),
@@ -342,387 +345,6 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
     );
   }
 
-  DateTime _dateOnly(DateTime date) =>
-      DateTime(date.year, date.month, date.day);
-
-  int _dayNumberForTrip(MyTripSummary trip, DateTime serviceDate) {
-    return _dateOnly(serviceDate).difference(_dateOnly(trip.startDate)).inDays +
-        1;
-  }
-
-  bool _tripDestinationMatchesSchedule(
-    MyTripSummary trip,
-    BusScheduleModel schedule,
-  ) {
-    if (schedule.toDestId != null && trip.destinationId != null) {
-      return trip.destinationId == schedule.toDestId;
-    }
-
-    return trip.destination.trim().toLowerCase() ==
-        schedule.toDestName.trim().toLowerCase();
-  }
-
-  String? _transportTripBlockReason(
-    MyTripSummary trip,
-    BusScheduleModel schedule,
-  ) {
-    final departureDate = _dateOnly(schedule.departureTime);
-    final tripStart = _dateOnly(trip.startDate);
-    final tripEnd = _dateOnly(trip.endDate);
-
-    if (!_tripDestinationMatchesSchedule(trip, schedule)) {
-      return 'Khác điểm đến với tuyến xe.';
-    }
-
-    if (tripStart.isAfter(departureDate) || tripEnd.isBefore(departureDate)) {
-      return 'Ngày đi của chuyến xe không nằm trong chuyến đi này.';
-    }
-
-    return null;
-  }
-
-  Future<_SelectedTransportTrip?> _selectOrCreateTripForBooking({
-    required int userId,
-    required BusScheduleModel schedule,
-  }) async {
-    final tripProvider = context.read<TripProvider>();
-    await tripProvider.fetchTrips(silent: true);
-
-    if (!mounted) {
-      return null;
-    }
-
-    final trips =
-        tripProvider.upcomingTrips
-            .where(
-              (trip) =>
-                  trip.status != 'CANCELLED' &&
-                  _transportTripBlockReason(trip, schedule) == null,
-            )
-            .toList(growable: false)
-          ..sort((left, right) => left.startDate.compareTo(right.startDate));
-
-    return showModalBottomSheet<_SelectedTransportTrip>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        var isCreating = false;
-        var title = 'Chuyến đi ${schedule.toDestName}';
-        var query = '';
-
-        Future<void> createTrip(StateSetter setSheetState) async {
-          final normalizedTitle = title.trim();
-          if (normalizedTitle.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Vui lòng nhập tên chuyến đi.')),
-            );
-            return;
-          }
-
-          setSheetState(() => isCreating = true);
-          final createdTrip = await tripProvider.createTrip(
-            CreateTripRequest(
-              userId: userId,
-              destinationId: schedule.toDestId,
-              destinationName: schedule.toDestName,
-              title: normalizedTitle,
-              startDate: schedule.departureTime,
-              endDate: schedule.arrivalTime,
-              status: 'PENDING',
-            ),
-          );
-
-          if (!sheetContext.mounted) {
-            return;
-          }
-
-          setSheetState(() => isCreating = false);
-          if (createdTrip == null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(tripProvider.error ?? 'Không thể tạo chuyến đi.'),
-              ),
-            );
-            return;
-          }
-
-          Navigator.of(sheetContext).pop(
-            _SelectedTransportTrip(tripId: createdTrip.tripId, dayNumber: 1),
-          );
-        }
-
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            final normalizedQuery = query.trim().toLowerCase();
-            final visibleTrips = normalizedQuery.isEmpty
-                ? trips
-                : trips
-                      .where(
-                        (trip) =>
-                            trip.title.toLowerCase().contains(
-                              normalizedQuery,
-                            ) ||
-                            trip.destination.toLowerCase().contains(
-                              normalizedQuery,
-                            ) ||
-                            trip.dateRange.toLowerCase().contains(
-                              normalizedQuery,
-                            ),
-                      )
-                      .toList(growable: false);
-
-            return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: EdgeInsets.fromLTRB(
-                20,
-                16,
-                20,
-                20 + MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: SafeArea(
-                top: false,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.88,
-                  ),
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    shrinkWrap: true,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 56,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE2E8F0),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Thêm vào chuyến đi',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Chọn chuyến đi phù hợp với tuyến ${schedule.fromDestName} → ${schedule.toDestName}, hoặc tạo chuyến đi mới.',
-                        style: const TextStyle(color: Colors.grey, height: 1.4),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        enabled: !isCreating,
-                        onChanged: (value) =>
-                            setSheetState(() => query = value),
-                        decoration: InputDecoration(
-                          prefixIcon: const Icon(Icons.search),
-                          labelText: 'Tìm chuyến đi',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (visibleTrips.isNotEmpty) ...[
-                        ...visibleTrips.map((trip) {
-                          final blockedReason = _transportTripBlockReason(
-                            trip,
-                            schedule,
-                          );
-                          final canSelect = blockedReason == null;
-
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: InkWell(
-                              onTap: isCreating || !canSelect
-                                  ? null
-                                  : () => Navigator.of(sheetContext).pop(
-                                      _SelectedTransportTrip(
-                                        tripId: trip.tripId,
-                                        dayNumber: _dayNumberForTrip(
-                                          trip,
-                                          schedule.departureTime,
-                                        ),
-                                      ),
-                                    ),
-                              borderRadius: BorderRadius.circular(16),
-                              child: Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: canSelect
-                                      ? Colors.white
-                                      : const Color(0xFFF8FAFC),
-                                  border: Border.all(
-                                    color: const Color(0xFFE2E8F0),
-                                  ),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.map_rounded,
-                                      color: Color(0xFF0D6B42),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            trip.title,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            '${trip.destination} • ${trip.dateRange}',
-                                            style: const TextStyle(
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                          if (blockedReason != null) ...[
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              blockedReason,
-                                              style: const TextStyle(
-                                                color: Color(0xFFB42318),
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                    Icon(
-                                      canSelect
-                                          ? Icons.chevron_right_rounded
-                                          : Icons.lock_outline_rounded,
-                                      color: canSelect
-                                          ? Colors.black87
-                                          : Colors.grey,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
-                        const SizedBox(height: 8),
-                      ] else ...[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: const Text(
-                            'Không tìm thấy chuyến đi phù hợp. Hãy tạo chuyến đi mới để tiếp tục đặt vé.',
-                            style: TextStyle(color: Colors.grey, height: 1.45),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-                      TextField(
-                        enabled: !isCreating,
-                        controller: TextEditingController(text: title)
-                          ..selection = TextSelection.collapsed(
-                            offset: title.length,
-                          ),
-                        onChanged: (value) => title = value,
-                        decoration: InputDecoration(
-                          labelText: 'Tên chuyến đi mới',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: isCreating
-                              ? null
-                              : () => createTrip(setSheetState),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D6B42),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                          ),
-                          child: isCreating
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text(
-                                  'Tạo chuyến đi mới',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<bool?> _askTripCreationPreference() {
-    return showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Bạn có muốn tạo chuyến đi không?'),
-        content: const Text(
-          'Nếu tạo chuyến đi, vé xe này sẽ được thêm vào lịch trình. Nếu không tạo, hệ thống vẫn lưu hóa đơn trong lịch sử hoạt động.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(null),
-            child: const Text('Quay lại'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Không tạo'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: _kPrimary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Tạo/chọn chuyến đi'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<_SelectedTransportTrip> _createBookingOnlyTrip({
     required int userId,
     required BusScheduleModel schedule,
@@ -808,11 +430,11 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
           selectedSeats: seats.join(', '),
         );
 
-        final itinerarySuccess = await tripProvider.addItinerary(
+        final itineraryId = await tripProvider.addItinerary(
           currentTripId,
           itineraryRequest,
         );
-        if (!itinerarySuccess) {
+        if (itineraryId == null) {
           throw Exception(
             tripProvider.error ??
                 'Không thể thêm thông tin vé xe vào lịch trình.',
@@ -820,30 +442,10 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
         }
         _pendingTripId = currentTripId;
       } else {
-        if (mounted) {
-          setState(() => _isProcessing = false);
-        }
-        final wantsTrip = await _askTripCreationPreference();
-        if (wantsTrip == null) {
-          return;
-        }
-        if (mounted) {
-          setState(() => _isProcessing = true);
-        }
-        final selectedTrip = wantsTrip
-            ? await _selectOrCreateTripForBooking(
-                userId: userId,
-                schedule: schedule,
-              )
-            : await _createBookingOnlyTrip(userId: userId, schedule: schedule);
-        if (selectedTrip == null) {
-          return;
-        }
-        if (mounted) {
-          setState(() => _isProcessing = true);
-        }
+        // Luôn tạo chuyến đi tạm BOOKING_ONLY trước thanh toán
+        final selectedTrip = await _createBookingOnlyTrip(userId: userId, schedule: schedule);
         currentTripId = selectedTrip.tripId;
-        // 2. Thêm vé xe khách vào Itinerary
+
         final itineraryRequest = CreateTripItineraryRequest(
           dayNumber: selectedTrip.dayNumber,
           serviceType: 'BUS',
@@ -861,16 +463,17 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
           selectedSeats: seats.join(', '),
         );
 
-        final itinerarySuccess = await tripProvider.addItinerary(
+        final itineraryId = await tripProvider.addItinerary(
           currentTripId,
           itineraryRequest,
         );
-        if (!itinerarySuccess) {
+        if (itineraryId == null) {
           throw Exception(
             tripProvider.error ??
                 'Không thể thêm thông tin vé xe vào lịch trình.',
           );
         }
+        _pendingItineraryId = itineraryId;
         _pendingTripId = currentTripId;
       }
 
@@ -902,6 +505,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
             MaterialPageRoute(
               builder: (_) => TransportTicketScreen(
                 bookingId: currentTripId,
+                itineraryId: widget.existingTripId == null ? _pendingItineraryId : null,
+                destinationId: schedule.toDestId,
+                destinationName: schedule.toDestName,
                 schedule: schedule,
                 seats: seats,
               ),
@@ -1002,6 +608,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
           MaterialPageRoute(
             builder: (_) => TransportTicketScreen(
               bookingId: currentTripId,
+              itineraryId: widget.existingTripId == null ? _pendingItineraryId : null,
+              destinationId: schedule.toDestId,
+              destinationName: schedule.toDestName,
               schedule: schedule,
               seats: seats,
             ),

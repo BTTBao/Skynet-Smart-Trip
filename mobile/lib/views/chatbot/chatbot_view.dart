@@ -16,7 +16,7 @@ import '../../widgets/chatbot/message_bubble.dart';
 import '../../widgets/chatbot/quick_action_chips.dart';
 import '../../widgets/chatbot/typing_indicator.dart';
 import '../../widgets/chatbot/welcome_screen.dart';
-import '../resort_detail/resort_detail_screen.dart';
+import '../catalog/hotel_detail_view.dart';
 import '../profile/profile_session_helper.dart';
 import '../transport/transport_search_screen.dart';
 import '../trip/trip_itinerary_detail_view.dart';
@@ -421,7 +421,7 @@ class _ChatbotViewState extends State<ChatbotView> {
       MaterialPageRoute(
         builder: (_) => TransportSearchScreen(
           toDestId: transport.toDestinationId,
-          toDestName: transport.toDestinationName ?? itineraryDestinationFallback,
+          toDestName: transport.toDestinationName ?? '',
           initialDate:
               transport.departureTime ?? _resolveLatestChatBookingDates().checkIn,
           initialScheduleId: transport.scheduleId,
@@ -467,7 +467,7 @@ class _ChatbotViewState extends State<ChatbotView> {
 
     final transport = itinerary.transportSuggestion;
     if (transport?.scheduleId != null) {
-      saveOk = await tripProvider.addItinerary(
+      final itineraryId = await tripProvider.addItinerary(
         createdTrip.tripId,
         CreateTripItineraryRequest(
           dayNumber: 1,
@@ -478,13 +478,14 @@ class _ChatbotViewState extends State<ChatbotView> {
           serviceDate: startDate,
         ),
       );
+      saveOk = itineraryId != null;
     }
 
     if (saveOk) {
       final hotel = itinerary.hotelSuggestion;
       if (hotel?.roomId != null) {
         final nights = endDate.difference(startDate).inDays.clamp(1, 30).toInt();
-        saveOk = await tripProvider.addItinerary(
+        final itineraryId = await tripProvider.addItinerary(
           createdTrip.tripId,
           CreateTripItineraryRequest(
             dayNumber: 1,
@@ -495,6 +496,7 @@ class _ChatbotViewState extends State<ChatbotView> {
             serviceDate: startDate,
           ),
         );
+        saveOk = itineraryId != null;
       }
     }
 

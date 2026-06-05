@@ -1,4 +1,5 @@
 class UpdateTripItineraryRequest {
+  final int? tripId;
   final int? dayNumber;
   final int? quantity;
   final double? bookedPrice;
@@ -8,6 +9,7 @@ class UpdateTripItineraryRequest {
   final String? serviceAddress;
 
   UpdateTripItineraryRequest({
+    this.tripId,
     this.dayNumber,
     this.quantity,
     this.bookedPrice,
@@ -24,6 +26,7 @@ class UpdateTripItineraryRequest {
         : '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
     return {
+      if (tripId != null) 'tripId': tripId,
       if (dayNumber != null) 'dayNumber': dayNumber,
       if (quantity != null) 'quantity': quantity,
       if (bookedPrice != null) 'bookedPrice': bookedPrice,

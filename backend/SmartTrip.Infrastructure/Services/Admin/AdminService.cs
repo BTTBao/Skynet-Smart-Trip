@@ -462,9 +462,12 @@ public async Task<AdminTransportStatsDto> GetTransportStatsAsync()
 
         return new AdminBookingStatsDto
         {
-            TotalRevenue = trips
+            TotalRevenue = trips.Sum(t => t.Payments
+                .Where(payment => payment.Status == PaymentStatus.Paid)
+                .Sum(payment => payment.Amount.GetValueOrDefault())),
+            TotalProfit = trips
                 .Where(t => GetBookingPaymentStatus(t) == "paid")
-                .Sum(t => t.TotalAmount.GetValueOrDefault()),
+                .Sum(t => t.TotalProfit.GetValueOrDefault()),
             TotalBookings = trips.Count,
             NewCustomers = newCustomers,
             PaidBookings = paidBookings,
@@ -506,9 +509,9 @@ public async Task<AdminTransportStatsDto> GetTransportStatsAsync()
     {
         var ticketPrice = schedule.Price.GetValueOrDefault();
         var totalSeats = GetTotalSeatCount(schedule);
-        var commissionRate = (decimal)(schedule.CommissionRate ?? 0d);
+        var commissionRate = NormalizeCommissionRate(schedule.CommissionRate);
 
-        return ticketPrice * totalSeats * commissionRate / 100m;
+        return ticketPrice * totalSeats * commissionRate;
     }
 
     private static string GetTransportStatus(BusSchedule schedule, DateTime now)
