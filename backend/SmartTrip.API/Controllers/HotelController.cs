@@ -206,7 +206,7 @@ public class HotelController : ControllerBase
             {
                 ti.ServiceId,
                 ti.ServiceDate,
-                ti.BookedPrice,
+                ti.HotelCheckOutDate,
                 StartDate = ti.Trip!.StartDate!.Value,
                 EndDate = ti.Trip!.EndDate!.Value,
                 Quantity = ti.Quantity ?? 1
@@ -219,9 +219,6 @@ public class HotelController : ControllerBase
         var selectedRoomType = roomId.HasValue
             ? selectedRooms.FirstOrDefault()?.RoomType
             : null;
-        var roomPriceLookup = selectedRooms.ToDictionary(
-            room => room.Id,
-            room => room.PricePerNight ?? 0);
 
         int daysInMonth = DateTime.DaysInMonth(year, month);
         var days = new List<object>();
@@ -237,11 +234,7 @@ public class HotelController : ControllerBase
                     var bookingStart = b.ServiceDate ?? b.StartDate;
                     var bookingEnd = ResolveHotelBookingEndDate(
                         bookingStart,
-                        b.EndDate,
-                        b.BookedPrice,
-                        b.ServiceId.HasValue && roomPriceLookup.TryGetValue(b.ServiceId.Value, out var roomPrice)
-                            ? roomPrice
-                            : basePrice);
+                        b.HotelCheckOutDate ?? b.EndDate);
 
                     return bookingStart <= date && bookingEnd > date;
                 })
@@ -297,23 +290,8 @@ public class HotelController : ControllerBase
         });
     }
 
-    private static DateOnly ResolveHotelBookingEndDate(
-        DateOnly checkInDate,
-        DateOnly fallbackCheckOutDate,
-        decimal? bookedPrice,
-        decimal? pricePerNight)
+    private static DateOnly ResolveHotelBookingEndDate(DateOnly checkInDate, DateOnly fallbackCheckOutDate)
     {
-        if (bookedPrice.HasValue && pricePerNight.HasValue && pricePerNight.Value > 0)
-        {
-            var nightsValue = bookedPrice.Value / pricePerNight.Value;
-            var roundedNights = (int)Math.Round(nightsValue, MidpointRounding.AwayFromZero);
-
-            if (roundedNights > 0 && Math.Abs(nightsValue - roundedNights) < 0.01m)
-            {
-                return checkInDate.AddDays(roundedNights);
-            }
-        }
-
-        return fallbackCheckOutDate;
+        return fallbackCheckOutDate > checkInDate ? fallbackCheckOutDate : checkInDate.AddDays(1);
     }
 }

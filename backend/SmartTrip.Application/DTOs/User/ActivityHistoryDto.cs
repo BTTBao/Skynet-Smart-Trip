@@ -29,6 +29,7 @@ public class HotelHistoryItemDto
     public int ServiceId { get; set; }
     public string TripTitle { get; set; } = string.Empty;
     public string HotelName { get; set; } = string.Empty;
+    public string RoomType { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
     public string DestinationName { get; set; } = string.Empty;
     public string? CheckInDate { get; set; }

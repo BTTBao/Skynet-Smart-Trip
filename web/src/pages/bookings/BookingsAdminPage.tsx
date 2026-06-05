@@ -10,6 +10,7 @@ import {
 import { downloadCsv, getPageNumbers } from '../../utils/adminActions';
 import { getErrorMessage } from '../../utils/http';
 
+
 const PAGE_SIZE = 6;
 
 const paymentStatusConfig: Record<
@@ -17,17 +18,17 @@ const paymentStatusConfig: Record<
   { label: string; className: string; dotClass: string }
 > = {
   paid: {
-    label: 'Paid',
+    label: 'Da thanh toan',
     className: 'bg-[#10B981]/10 text-[#10B981]',
     dotClass: 'bg-[#10B981]',
   },
   pending: {
-    label: 'Pending',
+    label: 'Cho xu ly',
     className: 'bg-[#F97316]/10 text-[#F97316]',
     dotClass: 'bg-[#F97316]',
   },
   cancelled: {
-    label: 'Cancelled',
+    label: 'Da huy',
     className: 'bg-[#6B7280]/10 text-[#6B7280]',
     dotClass: 'bg-[#6B7280]',
   },
@@ -138,6 +139,7 @@ export default function BookingsAdminPage() {
       { key: 'userCode', header: 'Mã người dùng' },
       { key: 'destination', header: 'Điểm đến' },
       { key: 'totalAmount', header: 'Tổng tiền' },
+      { key: 'totalProfit', header: 'Lợi nhuận' },
       { key: 'summary', header: 'Tóm tắt' },
       { key: 'paymentStatus', header: 'Thanh toán' },
       { key: 'tripStatus', header: 'Trạng thái chuyến' },
@@ -252,8 +254,8 @@ export default function BookingsAdminPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <SummaryCard icon="payments" iconClass="bg-primary/10 text-primary" trend={`${paidRatio}%`} label="Tổng doanh thu" value={formatCompactCurrency(stats.totalRevenue)} />
-        <SummaryCard icon="confirmation_number" iconClass="bg-secondary-container/10 text-secondary-container" trend={`${stats.pendingBookings} chờ`} label="Tổng lượt đặt" value={`${stats.totalBookings.toLocaleString()} Booking`} />
-        <SummaryCard icon="group" iconClass="bg-tertiary/10 text-tertiary" trend={`+${stats.newCustomers}`} label="Khách hàng mới" value={`${stats.newCustomers.toLocaleString()} Thành viên`} />
+        <SummaryCard icon="account_balance_wallet" iconClass="bg-secondary-container/10 text-secondary-container" trend="Net" label="Tong loi nhuan" value={formatCompactCurrency(stats.totalProfit)} />
+        <SummaryCard icon="confirmation_number" iconClass="bg-tertiary/10 text-tertiary" trend={`${stats.pendingBookings} chờ`} label="Tổng lượt đặt" value={`${stats.totalBookings.toLocaleString()} Booking`} />
       </div>
 
       <div className="bg-white rounded-[2rem] shadow-[0px_40px_80px_rgba(21,28,39,0.04)] overflow-hidden border border-surface-container-high/40">
@@ -274,6 +276,7 @@ export default function BookingsAdminPage() {
                 <th className="px-10 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Tên người dùng</th>
                 <th className="px-10 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest">Điểm đến</th>
                 <th className="px-10 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest text-right">Tổng tiền</th>
+                <th className="px-10 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest text-right">Lợi nhuận</th>
                 <th className="px-10 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest text-center">Trạng thái thanh toán</th>
                 <th className="px-10 py-5 text-[11px] font-bold text-on-surface-variant uppercase tracking-widest text-center">Hành động</th>
               </tr>
@@ -313,6 +316,10 @@ export default function BookingsAdminPage() {
                     <td className="px-10 py-6 text-right">
                       <p className="font-bold text-on-surface">{booking.totalAmount}</p>
                       <p className="text-[10px] text-on-surface-variant">{booking.summary}</p>
+                    </td>
+                    <td className="px-10 py-6 text-right">
+                      <p className="font-bold text-[#10B981]">{booking.totalProfit}</p>
+                      <p className="text-[10px] text-on-surface-variant">Da chot luc booking</p>
                     </td>
                     <td className="px-10 py-6 text-center">
                       <span className={`inline-flex items-center px-4 py-1.5 rounded-full text-[11px] font-bold tracking-wide ${status.className}`}>
@@ -392,7 +399,7 @@ export default function BookingsAdminPage() {
                 <div className="bg-surface-container-low rounded-2xl p-5">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Giá trị</p>
                   <p className="text-sm font-bold text-on-surface mt-2">{detail.totalAmount}</p>
-                  <p className="text-xs text-on-surface-variant mt-1">{detail.summary}</p>
+                  <p className="text-xs text-on-surface-variant mt-1">Loi nhuan: {detail.totalProfit}</p>
                 </div>
               </div>
 

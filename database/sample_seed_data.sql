@@ -348,6 +348,7 @@ BEGIN
         BookedPrice,
         BookedCommissionRate,
         ServiceDate,
+        HotelCheckOutDate,
         DepartureTime,
         ServiceAddress,
         SelectedSeats
@@ -362,6 +363,7 @@ BEGIN
             2500000.00,
             0.12,
             CAST(DATEADD(DAY, 7, GETDATE()) AS date),
+            CAST(DATEADD(DAY, 10, GETDATE()) AS date),
             NULL,
             N'12 Hồ Xuân Hương, Phường 3, Đà Lạt',
             NULL
@@ -375,6 +377,7 @@ BEGIN
             640000.00,
             0.08,
             CAST(DATEADD(DAY, 7, GETDATE()) AS date),
+            NULL,
             '22:00',
             N'Bến xe Miền Đông',
             N'S01,S02'
@@ -388,6 +391,7 @@ BEGIN
             7350000.00,
             0.12,
             CAST(DATEADD(DAY, 20, GETDATE()) AS date),
+            CAST(DATEADD(DAY, 24, GETDATE()) AS date),
             NULL,
             N'99 Trần Hưng Đạo, Dương Đông, Phú Quốc',
             NULL
@@ -401,6 +405,7 @@ BEGIN
             1700000.00,
             0.12,
             CAST(DATEADD(DAY, 12, GETDATE()) AS date),
+            CAST(DATEADD(DAY, 15, GETDATE()) AS date),
             NULL,
             N'12 Võ Nguyên Giáp, Sơn Trà, Đà Nẵng',
             NULL
@@ -414,6 +419,7 @@ BEGIN
             360000.00,
             0.08,
             CAST(DATEADD(DAY, 13, GETDATE()) AS date),
+            NULL,
             '08:00',
             N'Trung tâm Đà Nẵng',
             N'S01,S02'

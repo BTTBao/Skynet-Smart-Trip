@@ -8,6 +8,11 @@ public class UpdateUserProfileRequestDto
     public string? IdentityNumber { get; set; }
 }
 
+public class UpdateUserImageUrlRequestDto
+{
+    public string ImageUrl { get; set; } = string.Empty;
+}
+
 public class UserFavoriteDto
 {
     public int WishId { get; set; }

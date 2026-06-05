@@ -204,7 +204,8 @@ public class TripController : ControllerBase
                     InfantCount = request.InfantCount,
                     BookedPrice = totalRoomPrice / request.Quantity,
                     BookedCommissionRate = room.CommissionRate,
-                    ServiceDate = request.CheckInDate
+                    ServiceDate = request.CheckInDate,
+                    HotelCheckOutDate = request.CheckOutDate
                 });
 
                 await transaction.CommitAsync();
@@ -428,7 +429,13 @@ public class TripController : ControllerBase
             if (trip.Payments.Any(item => item.Status == PaymentStatus.Paid) ||
                 trip.Invoices.Any())
             {
-                return Conflict(new { message = "Booking da duoc thanh toan va phat hanh hoa don." });
+                return Ok(new
+                {
+                    message = "Booking da duoc thanh toan va phat hanh hoa don.",
+                    tripId = trip.Id,
+                    status = "PAID",
+                    alreadyPaid = true
+                });
             }
 
             if (request.Amount < 0)
@@ -463,6 +470,7 @@ public class TripController : ControllerBase
             {
                 trip.Status = TripStatus.Paid;
             }
+            trip.TotalProfit = CalculateTripProfitFromPaidAmount(trip, request.Amount);
 
             var invoice = new Invoice
             {
@@ -846,6 +854,35 @@ public class TripController : ControllerBase
         {
             _logger.LogError(ex, "Failed to send payment success email for trip {TripId}", trip.Id);
         }
+    }
+
+    private static decimal CalculateTripProfitFromPaidAmount(Trip trip, decimal paidAmount)
+    {
+        if (paidAmount <= 0 || trip.TripItineraries.Count == 0)
+        {
+            return 0m;
+        }
+
+        var grossAmount = trip.TripItineraries.Sum(item =>
+            item.BookedPrice.GetValueOrDefault() * item.Quantity.GetValueOrDefault(1));
+
+        if (grossAmount <= 0)
+        {
+            return 0m;
+        }
+
+        return trip.TripItineraries.Sum(item =>
+        {
+            var lineGross = item.BookedPrice.GetValueOrDefault() * item.Quantity.GetValueOrDefault(1);
+            var paidLineAmount = paidAmount * lineGross / grossAmount;
+            return paidLineAmount * NormalizeCommissionRate(item.BookedCommissionRate);
+        });
+    }
+
+    private static decimal NormalizeCommissionRate(double? rate)
+    {
+        var value = (decimal)(rate ?? 0d);
+        return value > 1m ? value / 100m : value;
     }
 }
 

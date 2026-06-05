@@ -851,7 +851,7 @@ class _HotelDetailViewState extends State<HotelDetailView> {
               }
 
               setSheetState(() => isSubmitting = true);
-              final itineraryAdded = await tripProvider.addItinerary(
+              final itineraryId = await tripProvider.addItinerary(
                 selectedTrip.tripId,
                 CreateTripItineraryRequest(
                   dayNumber: selectedTrip.dayNumber,
@@ -864,7 +864,7 @@ class _HotelDetailViewState extends State<HotelDetailView> {
                 ),
               );
 
-              if (!itineraryAdded) {
+              if (itineraryId == null) {
                 if (sheetContext.mounted) {
                   setSheetState(() => isSubmitting = false);
                 }

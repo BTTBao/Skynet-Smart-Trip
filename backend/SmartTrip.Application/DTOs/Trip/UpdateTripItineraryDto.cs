@@ -2,6 +2,8 @@ namespace SmartTrip.Application.DTOs.Trip;
 
 public class UpdateTripItineraryDto
 {
+    public int? TripId { get; set; }
+
     public int? DayNumber { get; set; }
 
     public int? Quantity { get; set; }
@@ -11,6 +13,8 @@ public class UpdateTripItineraryDto
     public double? BookedCommissionRate { get; set; }
 
     public DateOnly? ServiceDate { get; set; }
+
+    public DateOnly? HotelCheckOutDate { get; set; }
 
     public TimeOnly? DepartureTime { get; set; }
 

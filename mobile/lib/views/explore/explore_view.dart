@@ -1795,6 +1795,7 @@ class _CreatePostFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton.extended(
+      heroTag: null,
       onPressed: () {
         Navigator.of(context).push(
           MaterialPageRoute(

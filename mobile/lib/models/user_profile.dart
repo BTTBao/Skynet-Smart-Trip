@@ -1,4 +1,3 @@
-
 class UserProfile {
   final String id;
   final String name;
@@ -73,7 +72,7 @@ class UserProfile {
       name: json['name'] ?? '',
       email: json['email'] ?? '',
       phone: json['phone'] ?? '',
-      avatarUrl: json['avatarUrl'] ?? 'https://i.pravatar.cc/150?u=skynet',
+      avatarUrl: (json['avatarUrl'] ?? '').toString(),
       isEmailVerified: json['isEmailVerified'] == true,
       memberTier: json['memberTier'] ?? 'Thành viên mới',
       tripsCount: json['tripsCount'] ?? 0,

@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SmartTrip.API.Utilities;
 using SmartTrip.Application.DTOs.User;
+using SmartTrip.Application.Interfaces.Storage;
 using SmartTrip.Application.Interfaces.User;
 using System.Security.Claims;
 
@@ -11,10 +13,12 @@ namespace SmartTrip.API.Controllers;
 public class UserController : ControllerBase
 {
     private readonly IUserService _userService;
+    private readonly IImageStorageService _imageStorageService;
 
-    public UserController(IUserService userService)
+    public UserController(IUserService userService, IImageStorageService imageStorageService)
     {
         _userService = userService;
+        _imageStorageService = imageStorageService;
     }
 
     [Authorize]
@@ -96,6 +100,34 @@ public class UserController : ControllerBase
         }
 
         return await UploadIdentityCardPhoto(userId.Value, request);
+    }
+
+    [Authorize]
+    [HttpPut("me/avatar-url")]
+    [HttpPatch("me/avatar-url")]
+    public async Task<IActionResult> UpdateCurrentAvatarUrl([FromBody] UpdateUserImageUrlRequestDto request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+        {
+            return Unauthorized();
+        }
+
+        return await UpdateAvatarUrl(userId.Value, request);
+    }
+
+    [Authorize]
+    [HttpPut("me/identity-card-photo-url")]
+    [HttpPatch("me/identity-card-photo-url")]
+    public async Task<IActionResult> UpdateCurrentIdentityCardPhotoUrl([FromBody] UpdateUserImageUrlRequestDto request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+        {
+            return Unauthorized();
+        }
+
+        return await UpdateIdentityCardPhotoUrl(userId.Value, request);
     }
 
     [Authorize]
@@ -361,27 +393,55 @@ public class UserController : ControllerBase
             return BadRequest("Anh dai dien khong duoc vuot qua 5MB");
         }
 
-        var extension = Path.GetExtension(file.FileName);
-        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-        if (string.IsNullOrWhiteSpace(extension) ||
-            !allowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+        await using var stream = file.OpenReadStream();
+        if (!ImageUploadValidation.TryValidateImageStream(stream, file.FileName, out var errorMessage, out var resolvedContentType))
         {
-            return BadRequest("Chi ho tro anh JPG, PNG hoac WEBP");
+            return BadRequest(TranslateImageValidationMessage(errorMessage));
         }
 
-        if (string.IsNullOrWhiteSpace(file.ContentType) ||
-            !file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-        {
-            return BadRequest("File tai len khong phai la anh hop le");
-        }
+        var upload = await _imageStorageService.UploadImageAsync(
+            stream,
+            file.FileName,
+            resolvedContentType ?? file.ContentType,
+            $"users/{id}/avatars",
+            HttpContext.RequestAborted);
 
-        var avatarUrl = await _userService.UploadAvatarAsync(id, file);
+        var avatarUrl = await _userService.UpdateAvatarUrlAsync(id, upload.ImageUrl);
         if (avatarUrl == null)
         {
             return NotFound("Nguoi dung khong ton tai");
         }
 
-        return Ok(new { avatarUrl });
+        return Ok(new { avatarUrl, imageUrl = avatarUrl, imagePath = upload.ImagePath, fileName = upload.FileName });
+    }
+
+    [Authorize]
+    [HttpPut("{id:int}/avatar-url")]
+    [HttpPatch("{id:int}/avatar-url")]
+    public async Task<IActionResult> UpdateAvatarUrl(int id, [FromBody] UpdateUserImageUrlRequestDto request)
+    {
+        var accessResult = EnsureCurrentUserAccess(id);
+        if (accessResult != null)
+        {
+            return accessResult;
+        }
+
+        if (request == null || string.IsNullOrWhiteSpace(request.ImageUrl))
+        {
+            return BadRequest("Duong dan anh khong hop le");
+        }
+
+        try
+        {
+            var avatarUrl = await _userService.UpdateAvatarUrlAsync(id, request.ImageUrl);
+            return avatarUrl == null
+                ? NotFound("Nguoi dung khong ton tai")
+                : Ok(new { avatarUrl, imageUrl = avatarUrl });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [Authorize]
@@ -406,27 +466,55 @@ public class UserController : ControllerBase
             return BadRequest("Anh mat truoc CCCD khong duoc vuot qua 5MB");
         }
 
-        var extension = Path.GetExtension(file.FileName);
-        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-        if (string.IsNullOrWhiteSpace(extension) ||
-            !allowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+        await using var stream = file.OpenReadStream();
+        if (!ImageUploadValidation.TryValidateImageStream(stream, file.FileName, out var errorMessage, out var resolvedContentType))
         {
-            return BadRequest("Chi ho tro anh JPG, PNG hoac WEBP");
+            return BadRequest(TranslateImageValidationMessage(errorMessage));
         }
 
-        if (string.IsNullOrWhiteSpace(file.ContentType) ||
-            !file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-        {
-            return BadRequest("File tai len khong phai la anh hop le");
-        }
+        var upload = await _imageStorageService.UploadImageAsync(
+            stream,
+            file.FileName,
+            resolvedContentType ?? file.ContentType,
+            $"users/{id}/identity-cards",
+            HttpContext.RequestAborted);
 
-        var identityCardPhotoUrl = await _userService.UploadIdentityCardPhotoAsync(id, file);
+        var identityCardPhotoUrl = await _userService.UpdateIdentityCardPhotoUrlAsync(id, upload.ImageUrl);
         if (identityCardPhotoUrl == null)
         {
             return NotFound("Nguoi dung khong ton tai");
         }
 
-        return Ok(new { identityCardPhotoUrl });
+        return Ok(new { identityCardPhotoUrl, imageUrl = identityCardPhotoUrl, imagePath = upload.ImagePath, fileName = upload.FileName });
+    }
+
+    [Authorize]
+    [HttpPut("{id:int}/identity-card-photo-url")]
+    [HttpPatch("{id:int}/identity-card-photo-url")]
+    public async Task<IActionResult> UpdateIdentityCardPhotoUrl(int id, [FromBody] UpdateUserImageUrlRequestDto request)
+    {
+        var accessResult = EnsureCurrentUserAccess(id);
+        if (accessResult != null)
+        {
+            return accessResult;
+        }
+
+        if (request == null || string.IsNullOrWhiteSpace(request.ImageUrl))
+        {
+            return BadRequest("Duong dan anh khong hop le");
+        }
+
+        try
+        {
+            var identityCardPhotoUrl = await _userService.UpdateIdentityCardPhotoUrlAsync(id, request.ImageUrl);
+            return identityCardPhotoUrl == null
+                ? NotFound("Nguoi dung khong ton tai")
+                : Ok(new { identityCardPhotoUrl, imageUrl = identityCardPhotoUrl });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     private IActionResult? EnsureCurrentUserAccess(int userId)
@@ -453,5 +541,16 @@ public class UserController : ControllerBase
             ?? User.FindFirstValue("sub");
 
         return int.TryParse(rawUserId, out var userId) ? userId : null;
+    }
+
+    private static string TranslateImageValidationMessage(string? errorMessage)
+    {
+        return errorMessage switch
+        {
+            "Only JPG, PNG, or WEBP images are supported." => "Chi ho tro anh JPG, PNG hoac WEBP",
+            "The uploaded file is not a valid JPG, PNG, or WEBP image." => "File tai len khong phai la anh hop le",
+            "The uploaded file extension does not match its actual image format." => "Dinh dang tep khong khop voi noi dung anh",
+            _ => "File tai len khong phai la anh hop le"
+        };
     }
 }

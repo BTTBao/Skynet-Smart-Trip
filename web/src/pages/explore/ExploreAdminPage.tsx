@@ -53,6 +53,7 @@ export default function ExploreAdminPage() {
   const [tagDraft, setTagDraft] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const hasExploreImages = form.imageUrls.length > 0;
 
   const loadPosts = async (search = query) => {
     const data = await adminService.getExplorePosts({ search: search.trim() || undefined });
@@ -215,6 +216,13 @@ export default function ExploreAdminPage() {
     setTagDraft('');
   };
 
+  const removeImage = (imageUrl: string) => {
+    setForm((current) => ({
+      ...current,
+      imageUrls: current.imageUrls.filter((item) => item !== imageUrl),
+    }));
+  };
+
   const handleUploadImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -320,7 +328,35 @@ export default function ExploreAdminPage() {
                 <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleUploadImage} className="hidden" disabled={uploading} />
               </label>
             </div>
-            <div className="mt-4 flex flex-wrap gap-3">
+            <div className="mt-4">
+              {hasExploreImages ? (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+                  {form.imageUrls.map((url, index) => (
+                    <div key={`${url}-${index}`} className="group overflow-hidden rounded-[1.4rem] bg-white ring-1 ring-outline-variant/10">
+                      <div className="relative aspect-[4/3] w-full overflow-hidden">
+                        <img src={url} alt="" className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(url)}
+                          className="absolute right-2 top-2 rounded-full bg-white/95 px-2.5 py-1 text-xs font-black text-on-surface shadow-sm"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-[11px] font-bold text-on-surface-variant">Ảnh {index + 1}</span>
+                        {index === 0 ? <span className="rounded-full bg-primary-container/10 px-2 py-1 text-[10px] font-black text-primary-container">Thumbnail</span> : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-[1.4rem] border border-dashed border-outline-variant/20 bg-white px-5 py-8 text-center text-sm font-bold text-on-surface-variant">
+                  Upload ảnh để xem preview tại đây
+                </div>
+              )}
+            </div>
+            <div className="hidden mt-4 flex flex-wrap gap-3">
               {form.imageUrls.map((url) => (
                 <button key={url} type="button" onClick={() => setForm((current) => ({ ...current, imageUrls: current.imageUrls.filter((item) => item !== url) }))} className="group flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold text-on-surface">
                   <span className="max-w-[220px] truncate">{url}</span>
