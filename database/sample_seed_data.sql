@@ -96,7 +96,6 @@ BEGIN
         ('SUMMER15', 15, 500000.00, DATEADD(DAY, 90, GETDATE()), 300, 24);
 END
 GO
-
 DECLARE @DaNangId int = (SELECT TOP 1 Id FROM Destinations WHERE Name = N'Da Nang');
 DECLARE @HoiAnId int = (SELECT TOP 1 Id FROM Destinations WHERE Name = N'Hoi An');
 DECLARE @HueId int = (SELECT TOP 1 Id FROM Destinations WHERE Name = N'Hue');
@@ -110,7 +109,6 @@ DECLARE @ShuttleId int = (SELECT TOP 1 Id FROM Amenities WHERE Name = N'Airport 
 DECLARE @SkynetBusId int = (SELECT TOP 1 Id FROM BusCompanies WHERE Name = N'Skynet Express');
 DECLARE @CentralBusId int = (SELECT TOP 1 Id FROM BusCompanies WHERE Name = N'Central Travel Bus');
 GO
-
 /* Hotels */
 IF NOT EXISTS (SELECT 1 FROM Hotels WHERE Name = N'Sea Light Da Nang Hotel')
 BEGIN

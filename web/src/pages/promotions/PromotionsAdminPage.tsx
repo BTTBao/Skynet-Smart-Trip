@@ -60,7 +60,7 @@ export default function PromotionsAdminPage() {
     try {
       const payload = {
         ...form,
-        validUntil: `${form.validUntil}T00:00:00`,
+        validUntil: `${form.validUntil}T23:59:59`,
       };
 
       if (editingPromotion) {

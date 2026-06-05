@@ -42,7 +42,7 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
   @override
   void initState() {
     super.initState();
-    adultCount = widget.selectedRoom?.capacity ?? 2;
+    adultCount = 2;
     if (widget.initialCheckIn != null) {
       _checkIn = _dateOnly(widget.initialCheckIn!);
       _currentMonth = DateTime(_checkIn!.year, _checkIn!.month);
@@ -115,9 +115,45 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
     // Nếu không có calendar data cho tất cả các ngày thì fallback về basePrice
     final roomPrice = total > 0
         ? total
-        : (widget.selectedRoom?.pricePerNight ?? widget.hotel.minPricePerNight) *
-            nightsCount;
-    return roomPrice * roomQuantity;
+        : (widget.selectedRoom?.pricePerNight ??
+                  widget.hotel.minPricePerNight) *
+              nightsCount;
+    return roomPrice * roomQuantity + extraGuestFee;
+  }
+
+  int get roomCapacity {
+    final capacity = widget.selectedRoom?.capacity ?? 2;
+    return capacity > 0 ? capacity : 1;
+  }
+
+  int get countedGuestCount => adultCount + childCount;
+
+  int get standardGuestCapacity => roomCapacity * roomQuantity;
+
+  int get maximumGuestCapacity => (roomCapacity + 1) * roomQuantity;
+
+  int get extraGuestCount => (countedGuestCount - standardGuestCapacity)
+      .clamp(0, roomQuantity)
+      .toInt();
+
+  double get extraGuestFee {
+    if (extraGuestCount == 0) return 0;
+    final nightlyPrice =
+        widget.selectedRoom?.pricePerNight ?? widget.hotel.minPricePerNight;
+    return nightlyPrice * 0.2 * nightsCount * extraGuestCount;
+  }
+
+  String? get _guestCapacityWarning {
+    if (adultCount < roomQuantity) {
+      return 'Mỗi phòng phải có ít nhất 1 người lớn.';
+    }
+    if (countedGuestCount > maximumGuestCapacity) {
+      return 'Tối đa $maximumGuestCapacity khách cho $roomQuantity phòng. Hãy tăng số phòng.';
+    }
+    if (infantCount > roomQuantity) {
+      return 'Mỗi phòng chỉ được khai báo tối đa 1 em bé dưới 2 tuổi.';
+    }
+    return null;
   }
 
   int get availableRoomsForSelection {
@@ -126,9 +162,13 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
       return selectedRoomQty;
     }
 
-    final selectedDays = context.read<HotelProvider>().calendarDays.where((day) {
-      return _isSelectedStayDate(day.dateTime);
-    }).toList(growable: false);
+    final selectedDays = context
+        .read<HotelProvider>()
+        .calendarDays
+        .where((day) {
+          return _isSelectedStayDate(day.dateTime);
+        })
+        .toList(growable: false);
 
     if (selectedDays.isEmpty) {
       return selectedRoomQty;
@@ -136,7 +176,10 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
 
     final minCalendarQty = selectedDays
         .map((day) => day.available ? day.availableRooms : 0)
-        .fold<int>(selectedRoomQty, (minQty, qty) => qty < minQty ? qty : minQty);
+        .fold<int>(
+          selectedRoomQty,
+          (minQty, qty) => qty < minQty ? qty : minQty,
+        );
     return minCalendarQty < selectedRoomQty ? minCalendarQty : selectedRoomQty;
   }
 
@@ -169,7 +212,9 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
   }
 
   String? get _tripDateWarning {
-    if (widget.existingTripId == null || _checkIn == null || _checkOut == null) {
+    if (widget.existingTripId == null ||
+        _checkIn == null ||
+        _checkOut == null) {
       return null;
     }
 
@@ -228,14 +273,17 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Chọn ngày', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Chọn ngày',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     _checkIn == null
                         ? 'Chọn ngày check-in'
                         : _checkOut == null
-                            ? 'Chọn ngày check-out'
-                            : '${_formatDate(_checkIn!)} → ${_formatDate(_checkOut!)} · $nightsCount đêm',
+                        ? 'Chọn ngày check-out'
+                        : '${_formatDate(_checkIn!)} → ${_formatDate(_checkOut!)} · $nightsCount đêm',
                     style: TextStyle(color: Colors.grey[600], fontSize: 13),
                   ),
                 ],
@@ -275,16 +323,49 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
                   ],
                 ),
                 child: Column(
                   children: [
-                    _buildGuestCounter('Người lớn', 'Từ 13 tuổi trở lên', adultCount, (val) => setState(() => adultCount = val)),
-                    const Divider(height: 1, color: Color(0xFFF0F0F0), indent: 16, endIndent: 16),
-                    _buildGuestCounter('Trẻ em', 'Độ tuổi 2 - 12', childCount, (val) => setState(() => childCount = val)),
-                    const Divider(height: 1, color: Color(0xFFF0F0F0), indent: 16, endIndent: 16),
-                    _buildGuestCounter('Em bé', 'Dưới 2 tuổi', infantCount, (val) => setState(() => infantCount = val)),
+                    _buildGuestCounter(
+                      'Người lớn',
+                      'Từ 13 tuổi trở lên',
+                      adultCount,
+                      (val) => setState(() => adultCount = val),
+                      minValue: roomQuantity,
+                      maxValue: maximumGuestCapacity - childCount,
+                    ),
+                    const Divider(
+                      height: 1,
+                      color: Color(0xFFF0F0F0),
+                      indent: 16,
+                      endIndent: 16,
+                    ),
+                    _buildGuestCounter(
+                      'Trẻ em',
+                      'Độ tuổi 2 - 12',
+                      childCount,
+                      (val) => setState(() => childCount = val),
+                      maxValue: maximumGuestCapacity - adultCount,
+                    ),
+                    const Divider(
+                      height: 1,
+                      color: Color(0xFFF0F0F0),
+                      indent: 16,
+                      endIndent: 16,
+                    ),
+                    _buildGuestCounter(
+                      'Em bé',
+                      'Dưới 2 tuổi',
+                      infantCount,
+                      (val) => setState(() => infantCount = val),
+                      maxValue: roomQuantity,
+                    ),
                   ],
                 ),
               ),
@@ -321,10 +402,58 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
                     if (val < 1 || val > maxQty) {
                       return;
                     }
-                    setState(() => roomQuantity = val);
+                    setState(() {
+                      roomQuantity = val;
+                      if (adultCount < val) {
+                        adultCount = val;
+                      }
+                      infantCount = infantCount.clamp(0, val);
+                    });
                   },
                   minValue: 1,
                   maxValue: availableRoomsForSelection,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _guestCapacityWarning == null
+                      ? const Color(0xFFF0F9F4)
+                      : const Color(0xFFFFF4E5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Suc chua: $standardGuestCapacity khach tieu chuan, toi da $maximumGuestCapacity khach',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      _guestCapacityWarning ??
+                          (extraGuestCount > 0
+                              ? '$extraGuestCount khach vuot suc chua se tinh phu thu 20% gia phong moi dem.'
+                              : 'Moi phong duoc them toi da 1 khach phu thu. Em be khong tinh vao suc chua.'),
+                      style: TextStyle(
+                        color: _guestCapacityWarning == null
+                            ? const Color(0xFF0D6B42)
+                            : const Color(0xFFE65100),
+                        height: 1.4,
+                      ),
+                    ),
+                    if (extraGuestFee > 0) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        'Phu thu khach them: ${_formatPriceFull(extraGuestFee)}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
@@ -342,15 +471,26 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
                   children: [
                     Container(
                       margin: const EdgeInsets.only(top: 2),
-                      decoration: const BoxDecoration(color: Color(0xFF6DE899), shape: BoxShape.circle),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF6DE899),
+                        shape: BoxShape.circle,
+                      ),
                       padding: const EdgeInsets.all(4),
-                      child: const Icon(Icons.info_outline, color: Colors.white, size: 14),
+                      child: const Icon(
+                        Icons.info_outline,
+                        color: Colors.white,
+                        size: 14,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text(
                         'Giá phòng có thể thay đổi tùy thuộc vào ngày bạn chọn (cuối tuần, ngày lễ). Hãy đảm bảo thông tin check-in/check-out chính xác.',
-                        style: TextStyle(color: Colors.black87, fontSize: 13, height: 1.5),
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 13,
+                          height: 1.5,
+                        ),
                       ),
                     ),
                   ],
@@ -373,23 +513,48 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE8F8F0)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8)],
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8),
+        ],
       ),
       child: Row(
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: widget.hotel.coverImageUrl.isNotEmpty
-                ? Image.network(widget.hotel.coverImageUrl, width: 60, height: 60, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(width: 60, height: 60, color: Colors.grey[200], child: const Icon(Icons.hotel, color: Colors.grey)))
-                : Container(width: 60, height: 60, color: Colors.grey[200], child: const Icon(Icons.hotel, color: Colors.grey)),
+                ? Image.network(
+                    widget.hotel.coverImageUrl,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 60,
+                      height: 60,
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.hotel, color: Colors.grey),
+                    ),
+                  )
+                : Container(
+                    width: 60,
+                    height: 60,
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.hotel, color: Colors.grey),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.hotel.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(
+                  widget.hotel.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 2),
                 if (widget.selectedRoom != null) ...[
                   Text(
@@ -407,8 +572,16 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
                 Row(
                   children: [
                     const Icon(Icons.star, color: Colors.amber, size: 12),
-                    Text(' ${widget.hotel.avgRating} · ', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                    Text(widget.hotel.address, style: TextStyle(fontSize: 11, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(
+                      ' ${widget.hotel.avgRating} · ',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                    Text(
+                      widget.hotel.address,
+                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ],
@@ -420,14 +593,34 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
   }
 
   Widget _buildCalendar(HotelProvider provider) {
-    final monthNames = ['', 'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+    final monthNames = [
+      '',
+      'Tháng 1',
+      'Tháng 2',
+      'Tháng 3',
+      'Tháng 4',
+      'Tháng 5',
+      'Tháng 6',
+      'Tháng 7',
+      'Tháng 8',
+      'Tháng 9',
+      'Tháng 10',
+      'Tháng 11',
+      'Tháng 12',
+    ];
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -439,14 +632,18 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
                 icon: const Icon(Icons.chevron_left),
                 onPressed: () {
                   final now = DateTime.now();
-                  if (_currentMonth.year > now.year || _currentMonth.month > now.month) {
+                  if (_currentMonth.year > now.year ||
+                      _currentMonth.month > now.month) {
                     _prevMonth();
                   }
                 },
               ),
               Text(
                 '${monthNames[_currentMonth.month]} ${_currentMonth.year}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right),
@@ -459,18 +656,74 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: const [
-              Text('T2', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-              Text('T3', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-              Text('T4', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-              Text('T5', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-              Text('T6', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-              Text('T7', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-              Text('CN', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+              Text(
+                'T2',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'T3',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'T4',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'T5',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'T6',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'T7',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'CN',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           if (provider.isLoadingCalendar)
-            const SizedBox(height: 160, child: Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6DE899)))))
+            const SizedBox(
+              height: 160,
+              child: Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6DE899)),
+                ),
+              ),
+            )
           else if (provider.calendarError != null)
             SizedBox(
               height: 160,
@@ -478,17 +731,34 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.red, size: 32),
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 32,
+                    ),
                     const SizedBox(height: 8),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Text(provider.calendarError!, style: const TextStyle(color: Colors.grey, fontSize: 13), textAlign: TextAlign.center),
+                      child: Text(
+                        provider.calendarError!,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 13,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     TextButton(
                       onPressed: () => _fetchCalendar(_currentMonth),
-                      child: const Text('Thử lại', style: TextStyle(color: Color(0xFF6DE899), fontWeight: FontWeight.bold)),
-                    )
+                      child: const Text(
+                        'Thử lại',
+                        style: TextStyle(
+                          color: Color(0xFF6DE899),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -496,7 +766,12 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
           else if (provider.calendarDays.isEmpty)
             const SizedBox(
               height: 160,
-              child: Center(child: Text('Không có lịch giá cho tháng này.', style: TextStyle(color: Colors.grey))),
+              child: Center(
+                child: Text(
+                  'Không có lịch giá cho tháng này.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
             )
           else
             _buildCalendarGrid(provider.calendarDays),
@@ -540,13 +815,20 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
     final date = day.dateTime;
     final isCheckIn = _checkIn != null && date == _checkIn;
     final isCheckOut = _checkOut != null && date == _checkOut;
-    final isInRange = _checkIn != null && _checkOut != null &&
-        date.isAfter(_checkIn!) && date.isBefore(_checkOut!);
-    final isPast = date.isBefore(DateTime.now().subtract(const Duration(days: 1)));
+    final isInRange =
+        _checkIn != null &&
+        _checkOut != null &&
+        date.isAfter(_checkIn!) &&
+        date.isBefore(_checkOut!);
+    final isPast = date.isBefore(
+      DateTime.now().subtract(const Duration(days: 1)),
+    );
 
     Color bgColor = Colors.transparent;
     BorderRadius? borderRadius;
-    Color dateColor = day.available && !isPast ? Colors.black87 : Colors.grey[400]!;
+    Color dateColor = day.available && !isPast
+        ? Colors.black87
+        : Colors.grey[400]!;
     Color priceColor = Colors.grey[500]!;
     FontWeight dateFontWeight = FontWeight.normal;
 
@@ -591,17 +873,32 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
           children: [
             Text(
               '${day.day}',
-              style: TextStyle(fontSize: 15, fontWeight: dateFontWeight, color: dateColor,
-                  decoration: (!day.available && !isPast) ? TextDecoration.lineThrough : null),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: dateFontWeight,
+                color: dateColor,
+                decoration: (!day.available && !isPast)
+                    ? TextDecoration.lineThrough
+                    : null,
+              ),
             ),
             if (priceText.isNotEmpty)
-              Text(priceText, style: TextStyle(fontSize: 9, color: priceColor, fontWeight: FontWeight.w500)),
+              Text(
+                priceText,
+                style: TextStyle(
+                  fontSize: 9,
+                  color: priceColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             if (day.available && !isPast)
               Text(
                 '${day.availableRooms} phòng',
                 style: TextStyle(
                   fontSize: 8,
-                  color: isCheckIn || isCheckOut ? Colors.white70 : Colors.grey[500],
+                  color: isCheckIn || isCheckOut
+                      ? Colors.white70
+                      : Colors.grey[500],
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -615,7 +912,14 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
         const SizedBox(width: 4),
         Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
       ],
@@ -641,9 +945,18 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text(subtitle, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+              Text(
+                subtitle,
+                style: TextStyle(color: Colors.grey[500], fontSize: 12),
+              ),
             ],
           ),
           Row(
@@ -651,8 +964,13 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
               GestureDetector(
                 onTap: canDecrease ? () => onChanged(count - 1) : null,
                 child: Container(
-                  width: 32, height: 32,
-                  decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.green[100]!), color: Colors.white),
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.green[100]!),
+                    color: Colors.white,
+                  ),
                   child: Center(
                     child: Icon(
                       Icons.remove,
@@ -662,16 +980,32 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
                   ),
                 ),
               ),
-              SizedBox(width: 32, child: Center(child: Text('$count', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)))),
+              SizedBox(
+                width: 32,
+                child: Center(
+                  child: Text(
+                    '$count',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
               GestureDetector(
                 onTap: canIncrease ? () => onChanged(count + 1) : null,
                 child: Container(
-                  width: 32, height: 32,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: canIncrease ? const Color(0xFF6DE899) : Colors.grey[300],
+                    color: canIncrease
+                        ? const Color(0xFF6DE899)
+                        : Colors.grey[300],
                   ),
-                  child: const Center(child: Icon(Icons.add, color: Colors.white, size: 16)),
+                  child: const Center(
+                    child: Icon(Icons.add, color: Colors.white, size: 16),
+                  ),
                 ),
               ),
             ],
@@ -689,8 +1023,11 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
     final nights = nightsCount > 0 ? nightsCount : 1;
     final guests = adultCount + childCount;
     final tripDateWarning = _tripDateWarning;
-    final canContinue = hasSelection &&
+    final guestCapacityWarning = _guestCapacityWarning;
+    final canContinue =
+        hasSelection &&
         tripDateWarning == null &&
+        guestCapacityWarning == null &&
         availableRoomsForSelection > 0 &&
         roomQuantity <= availableRoomsForSelection;
 
@@ -698,7 +1035,13 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), offset: const Offset(0, -2), blurRadius: 10)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            offset: const Offset(0, -2),
+            blurRadius: 10,
+          ),
+        ],
       ),
       child: SafeArea(
         child: Row(
@@ -712,25 +1055,43 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
                   children: [
                     Text(
                       _formatPriceFull(price),
-                      style: const TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     if (hasSelection) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.green[50], borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green[50],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         child: Text(
                           '$nights đêm',
-                          style: const TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: Colors.green,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ]
+                    ],
                   ],
                 ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.calendar_today, color: Colors.grey[500], size: 12),
+                    Icon(
+                      Icons.calendar_today,
+                      color: Colors.grey[500],
+                      size: 12,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       hasSelection
@@ -754,40 +1115,67 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
                     ),
                   ),
                 ],
+                if (guestCapacityWarning != null) ...[
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.52,
+                    child: Text(
+                      guestCapacityWarning,
+                      style: const TextStyle(
+                        color: Color(0xFFE65100),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
             ElevatedButton(
-              onPressed: canContinue ? () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CustomerInfoScreen(
-                      hotel: widget.hotel,
-                      selectedRoom: widget.selectedRoom,
-                      checkIn: _checkIn!,
-                      checkOut: _checkOut!,
-                      adultCount: adultCount,
-                      childCount: childCount,
-                      infantCount: infantCount,
-                      roomQuantity: roomQuantity,
-                      totalPrice: price,
-                      existingTripId: widget.existingTripId,
-                      existingTripDayNumber: widget.existingTripDayNumber,
-                      existingTripStartDate: widget.existingTripStartDate,
-                      existingTripEndDate: widget.existingTripEndDate,
-                    ),
-                  ),
-                );
-              } : null,
+              onPressed: canContinue
+                  ? () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CustomerInfoScreen(
+                            hotel: widget.hotel,
+                            selectedRoom: widget.selectedRoom,
+                            checkIn: _checkIn!,
+                            checkOut: _checkOut!,
+                            adultCount: adultCount,
+                            childCount: childCount,
+                            infantCount: infantCount,
+                            roomQuantity: roomQuantity,
+                            totalPrice: price,
+                            existingTripId: widget.existingTripId,
+                            existingTripDayNumber: widget.existingTripDayNumber,
+                            existingTripStartDate: widget.existingTripStartDate,
+                            existingTripEndDate: widget.existingTripEndDate,
+                          ),
+                        ),
+                      );
+                    }
+                  : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: canContinue ? const Color(0xFF6DE899) : Colors.grey[300],
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                backgroundColor: canContinue
+                    ? const Color(0xFF6DE899)
+                    : Colors.grey[300],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 14,
+                ),
                 elevation: 0,
               ),
               child: Text(
                 hasSelection ? 'Tiếp tục' : 'Chọn ngày',
-                style: TextStyle(color: hasSelection ? Colors.black : Colors.grey, fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(
+                  color: hasSelection ? Colors.black : Colors.grey,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
             ),
           ],
@@ -808,10 +1196,12 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
   }
 
   String _formatPriceFull(double price) {
-    final formatted = price.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]}.',
-    );
+    final formatted = price
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]}.',
+        );
     return '$formatted₫';
   }
 }

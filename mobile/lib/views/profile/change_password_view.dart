@@ -42,7 +42,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
         confirmPassword.isEmpty) {
       setState(() {
         _inlineError = context.trRead(
-          vi: 'Vui long nhap day du thong tin.',
+          vi: 'Vui lòng nhập đầy đủ thông tin.',
           en: 'Please fill in all fields.',
         );
       });
@@ -52,7 +52,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
     if (newPassword.length < 8) {
       setState(() {
         _inlineError = context.trRead(
-          vi: 'Mat khau moi phai co it nhat 8 ky tu.',
+          vi: 'Mật khẩu mới phải có ít nhất 8 ký tự.',
           en: 'New password must be at least 8 characters.',
         );
       });
@@ -62,7 +62,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
     if (newPassword != confirmPassword) {
       setState(() {
         _inlineError = context.trRead(
-          vi: 'Xac nhan mat khau moi khong khop.',
+          vi: 'Xác nhận mật khẩu mới không khớp.',
           en: 'Password confirmation does not match.',
         );
       });
@@ -84,7 +84,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
       await showSessionExpiredDialog(
         context,
         message: context.trRead(
-          vi: 'Doi mat khau thanh cong. Vui long dang nhap lai.',
+          vi: 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.',
           en: 'Password updated successfully. Please sign in again.',
         ),
       );
@@ -99,7 +99,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
     setState(() {
       _inlineError = provider.error ??
           context.trRead(
-            vi: 'Doi mat khau that bai.',
+            vi: 'Đổi mật khẩu thất bại.',
             en: 'Unable to update password.',
           );
     });
@@ -117,7 +117,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
         scrolledUnderElevation: 0,
         elevation: 0,
         title: Text(
-          context.tr(vi: 'Doi mat khau', en: 'Change password'),
+          context.tr(vi: 'Đổi mật khẩu', en: 'Change password'),
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
@@ -128,7 +128,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
             _PasswordField(
               controller: _currentPasswordController,
               label: context.tr(
-                vi: 'Mat khau hien tai',
+                vi: 'Mật khẩu hiện tại',
                 en: 'Current password',
               ),
               obscureText: !_showCurrentPassword,
@@ -139,7 +139,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
             const SizedBox(height: 16),
             _PasswordField(
               controller: _newPasswordController,
-              label: context.tr(vi: 'Mat khau moi', en: 'New password'),
+              label: context.tr(vi: 'Mật khẩu mới', en: 'New password'),
               obscureText: !_showNewPassword,
               onToggle: () {
                 setState(() => _showNewPassword = !_showNewPassword);
@@ -149,7 +149,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
             _PasswordField(
               controller: _confirmPasswordController,
               label: context.tr(
-                vi: 'Xac nhan mat khau moi',
+                vi: 'Xác nhận mật khẩu mới',
                 en: 'Confirm new password',
               ),
               obscureText: !_showConfirmPassword,
@@ -176,7 +176,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
                         )
                       : Text(
                           context.tr(
-                            vi: 'Cap nhat mat khau',
+                            vi: 'Cập nhật mật khẩu',
                             en: 'Update password',
                           ),
                         ),

@@ -339,6 +339,9 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.BookedPrice).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.DepartureTime).HasColumnType("time");
             entity.Property(e => e.Quantity).HasDefaultValue(1);
+            entity.Property(e => e.AdultCount).HasDefaultValue(1);
+            entity.Property(e => e.ChildCount).HasDefaultValue(0);
+            entity.Property(e => e.InfantCount).HasDefaultValue(0);
             entity.Property(e => e.ServiceAddress).HasMaxLength(500);
             entity.Property(e => e.ServiceDate).HasColumnType("date");
             entity.Property(e => e.ServiceType).HasMaxLength(20);

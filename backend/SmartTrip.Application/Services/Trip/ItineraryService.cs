@@ -68,6 +68,9 @@ public class ItineraryService : IItineraryService
         if (existingHotelItinerary != null)
         {
             existingHotelItinerary.Quantity = (existingHotelItinerary.Quantity ?? 1) + request.Quantity;
+            existingHotelItinerary.AdultCount += request.AdultCount;
+            existingHotelItinerary.ChildCount += request.ChildCount;
+            existingHotelItinerary.InfantCount += request.InfantCount;
             existingHotelItinerary.BookedPrice = request.BookedPrice ?? existingHotelItinerary.BookedPrice;
             existingHotelItinerary.BookedCommissionRate = request.BookedCommissionRate ?? existingHotelItinerary.BookedCommissionRate;
             existingHotelItinerary.ServiceDate = request.ServiceDate ?? existingHotelItinerary.ServiceDate;
@@ -87,6 +90,9 @@ public class ItineraryService : IItineraryService
             ServiceType = TripServiceOptionService.ParseServiceTypeEnum(request.ServiceType),
             ServiceId = request.ServiceId,
             Quantity = request.Quantity,
+            AdultCount = request.AdultCount,
+            ChildCount = request.ChildCount,
+            InfantCount = request.InfantCount,
             BookedPrice = request.BookedPrice ?? await ResolveDefaultBookedPriceAsync(normalizedServiceType, request.ServiceId, trip) ?? serviceOption.DefaultPrice ?? 0,
             BookedCommissionRate = request.BookedCommissionRate ?? serviceOption.DefaultCommissionRate ?? 0,
             ServiceDate = request.ServiceDate,
@@ -206,6 +212,9 @@ public class ItineraryService : IItineraryService
             ServiceName = serviceName,
             ServiceSubtitle = serviceSubtitle,
             Quantity = itinerary.Quantity ?? 1,
+            AdultCount = itinerary.AdultCount,
+            ChildCount = itinerary.ChildCount,
+            InfantCount = itinerary.InfantCount,
             BookedPrice = itinerary.BookedPrice,
             BookedCommissionRate = itinerary.BookedCommissionRate,
             ServiceDate = itinerary.ServiceDate,
@@ -317,10 +326,33 @@ public class ItineraryService : IItineraryService
             throw new KeyNotFoundException($"Room {request.ServiceId} was not found or is not available.");
         }
 
+        ValidateHotelGuestCapacity(
+            room.Capacity.GetValueOrDefault(1),
+            request.Quantity,
+            request.AdultCount,
+            request.ChildCount,
+            request.InfantCount);
+
         var checkOut = ResolveHotelCheckOutDate(request, room, checkIn, tripEnd);
         if (checkOut <= checkIn)
         {
             throw new ArgumentException("Check-out date must be after check-in date.");
+        }
+
+        var extraGuestCount = Math.Max(
+            0,
+            request.AdultCount + request.ChildCount -
+            room.Capacity.GetValueOrDefault(1) * request.Quantity);
+        var nights = Math.Max(1, checkOut.DayNumber - checkIn.DayNumber);
+        var roomPrice = room.PricePerNight.GetValueOrDefault();
+        var minimumBookingTotal =
+            roomPrice * nights * request.Quantity +
+            roomPrice * 0.2m * nights * extraGuestCount;
+        var submittedBookingTotal =
+            request.BookedPrice.GetValueOrDefault() * request.Quantity;
+        if (request.BookedPrice.HasValue && submittedBookingTotal < minimumBookingTotal)
+        {
+            throw new ArgumentException("Tong tien dat phong chua bao gom phu thu khach vuot suc chua.");
         }
 
         var lastUsedDate = checkOut.AddDays(-1);
@@ -372,6 +404,40 @@ public class ItineraryService : IItineraryService
         if (requestedTotalInTrip > remainingRooms)
         {
             throw new InvalidOperationException($"Only {Math.Max(remainingRooms, 0)} room(s) are still available for these dates.");
+        }
+    }
+
+    private static void ValidateHotelGuestCapacity(
+        int roomCapacity,
+        int roomQuantity,
+        int adultCount,
+        int childCount,
+        int infantCount)
+    {
+        if (roomQuantity <= 0)
+        {
+            throw new ArgumentException("So luong phong khong hop le.");
+        }
+        if (adultCount < roomQuantity)
+        {
+            throw new ArgumentException("Moi phong phai co it nhat mot nguoi lon.");
+        }
+        if (childCount < 0 || infantCount < 0)
+        {
+            throw new ArgumentException("So luong khach khong hop le.");
+        }
+
+        var standardCapacity = Math.Max(roomCapacity, 1) * roomQuantity;
+        var maximumCapacityWithExtraGuest = (Math.Max(roomCapacity, 1) + 1) * roomQuantity;
+        var countedGuests = adultCount + childCount;
+        if (countedGuests > maximumCapacityWithExtraGuest)
+        {
+            throw new ArgumentException(
+                $"Toi da {maximumCapacityWithExtraGuest} khach cho {roomQuantity} phong, bao gom toi da 1 khach phu thu moi phong.");
+        }
+        if (infantCount > roomQuantity)
+        {
+            throw new ArgumentException("Moi phong chi duoc khai bao toi da mot em be duoi 2 tuoi.");
         }
     }
 

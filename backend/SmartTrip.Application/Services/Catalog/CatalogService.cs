@@ -18,12 +18,22 @@ public class CatalogService : ICatalogService
 
     public async Task<CatalogHomeDto> GetHomeAsync()
     {
-        var destinations = await _context.Destinations
+        var destinationBookingCounts = await _context.Trips
             .AsNoTracking()
-            .OrderByDescending(destination => destination.IsHot)
+            .Where(trip => trip.DestinationId.HasValue &&
+                           (trip.Status == TripStatus.Paid || trip.Status == TripStatus.BookingOnly))
+            .GroupBy(trip => trip.DestinationId!.Value)
+            .Select(group => new { DestinationId = group.Key, BookingCount = group.Count() })
+            .ToDictionaryAsync(item => item.DestinationId, item => item.BookingCount);
+
+        var destinations = (await _context.Destinations
+            .AsNoTracking()
+            .ToListAsync())
+            .OrderByDescending(destination => destinationBookingCounts.GetValueOrDefault(destination.Id))
+            .ThenByDescending(destination => destination.IsHot)
             .ThenBy(destination => destination.Name)
             .Take(6)
-            .ToListAsync();
+            .ToList();
 
         var hotels = await _context.Hotels
             .AsNoTracking()

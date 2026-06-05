@@ -81,17 +81,30 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
     return '$formatted₫';
   }
 
-  bool _hasRequiredProfileInfo() {
+  List<String> _missingProfileFields() {
     final profile = context.read<ProfileProvider>().profileData;
-    final hasCCCD = profile?.identityNumber != null && profile!.identityNumber!.trim().isNotEmpty;
-    final hasCCCDPhoto = profile?.identityCardPhotoUrl != null && profile!.identityCardPhotoUrl!.trim().isNotEmpty;
+    final missing = <String>[];
+    final identityNumber = profile?.identityNumber?.trim() ?? '';
+    final birthDate = DateTime.tryParse(profile?.birthDate.trim() ?? '');
+    final phone = profile?.phone.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
 
-    return _fullNameController.text.trim().isNotEmpty &&
-        _emailController.text.trim().isNotEmpty &&
-        _phoneController.text.trim().isNotEmpty &&
-        hasCCCD &&
-        hasCCCDPhoto;
+    if ((profile?.name.trim() ?? '').isEmpty) missing.add('ho va ten');
+    if ((profile?.email.trim() ?? '').isEmpty) missing.add('email');
+    if (phone.length < 10 || phone.length > 11) missing.add('so dien thoai');
+    if (birthDate == null || !birthDate.isBefore(DateTime.now())) {
+      missing.add('ngay sinh');
+    }
+    if (!RegExp(r'^(\d{9}|\d{12})$').hasMatch(identityNumber)) {
+      missing.add('so CCCD/CMND');
+    }
+    if ((profile?.identityCardPhotoUrl?.trim() ?? '').isEmpty) {
+      missing.add('anh mat truoc CCCD');
+    }
+
+    return missing;
   }
+
+  bool _hasRequiredProfileInfo() => _missingProfileFields().isEmpty;
 
   Future<void> _loadProfileInfo({bool forceRefresh = false}) async {
     final provider = context.read<ProfileProvider>();
@@ -112,12 +125,16 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
       _redirectingToProfile = true;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Vui lòng cập nhật đầy đủ thông tin cá nhân và ảnh CCCD để đặt phòng.'),
+          content: Text(
+            'Vui lòng cập nhật đầy đủ thông tin cá nhân và ảnh CCCD để đặt phòng.',
+          ),
         ),
       );
       await Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const EditProfileView()),
+        MaterialPageRoute(
+          builder: (_) => const EditProfileView(requiredForBooking: true),
+        ),
       );
       if (!mounted) return;
       await _loadProfileInfo(forceRefresh: true);
@@ -129,12 +146,16 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
     if (!_hasRequiredProfileInfo()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Vui lòng hoàn tất thông tin cá nhân và chụp ảnh CCCD trong hồ sơ.'),
+          content: Text(
+            'Vui lòng hoàn tất thông tin cá nhân và chụp ảnh CCCD trong hồ sơ.',
+          ),
         ),
       );
       await Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const EditProfileView()),
+        MaterialPageRoute(
+          builder: (_) => const EditProfileView(requiredForBooking: true),
+        ),
       );
       if (!mounted) return;
       await _loadProfileInfo(forceRefresh: true);
@@ -142,7 +163,9 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
       if (!_hasRequiredProfileInfo()) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Hồ sơ vẫn thiếu thông tin liên hệ hoặc ảnh chụp CCCD.'),
+            content: Text(
+              'Hồ sơ vẫn thiếu thông tin liên hệ hoặc ảnh chụp CCCD.',
+            ),
           ),
         );
         return;
@@ -272,7 +295,6 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                   ),
                   _buildPhoneField(_phoneController),
                   _buildIdentityCardSection(),
-                  _buildTextAreaField(_specialRequestController),
                   const SizedBox(height: 32),
                 ],
               ),
@@ -285,8 +307,15 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
     final profile = context.watch<ProfileProvider>().profileData;
     if (profile == null) return const SizedBox.shrink();
 
-    final hasCCCD = profile.identityNumber != null && profile.identityNumber!.trim().isNotEmpty;
-    final hasCCCDPhoto = profile.identityCardPhotoUrl != null && profile.identityCardPhotoUrl!.trim().isNotEmpty;
+    final hasCCCD = RegExp(
+      r'^(\d{9}|\d{12})$',
+    ).hasMatch(profile.identityNumber?.trim() ?? '');
+    final hasCCCDPhoto =
+        profile.identityCardPhotoUrl != null &&
+        profile.identityCardPhotoUrl!.trim().isNotEmpty;
+    final birthDate = DateTime.tryParse(profile.birthDate.trim());
+    final hasBirthDate =
+        birthDate != null && birthDate.isBefore(DateTime.now());
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -296,7 +325,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: hasCCCD && hasCCCDPhoto
+            color: hasCCCD && hasCCCDPhoto && hasBirthDate
                 ? const Color(0xFF0D6B42).withOpacity(0.2)
                 : Colors.orange.withOpacity(0.3),
             width: 1.5,
@@ -309,7 +338,9 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
               children: [
                 Icon(
                   Icons.badge_outlined,
-                  color: hasCCCD && hasCCCDPhoto ? const Color(0xFF0D6B42) : Colors.orange,
+                  color: hasCCCD && hasCCCDPhoto && hasBirthDate
+                      ? const Color(0xFF0D6B42)
+                      : Colors.orange,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
@@ -322,10 +353,14 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                   ),
                 ),
                 const Spacer(),
-                if (hasCCCD && hasCCCDPhoto)
+                if (hasCCCD && hasCCCDPhoto && hasBirthDate)
                   const Row(
                     children: [
-                      Icon(Icons.check_circle, color: Color(0xFF0D6B42), size: 16),
+                      Icon(
+                        Icons.check_circle,
+                        color: Color(0xFF0D6B42),
+                        size: 16,
+                      ),
                       SizedBox(width: 4),
                       Text(
                         'Hợp lệ',
@@ -355,6 +390,24 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
               ],
             ),
             const Divider(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Ngay sinh:',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
+                Text(
+                  hasBirthDate ? profile.birthDate : 'Trong',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: hasBirthDate ? Colors.black87 : Colors.red,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -390,7 +443,10 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                     height: 120,
                     color: Colors.grey[100],
                     child: const Center(
-                      child: Icon(Icons.broken_image_outlined, color: Colors.grey),
+                      child: Icon(
+                        Icons.broken_image_outlined,
+                        color: Colors.grey,
+                      ),
                     ),
                   ),
                 ),
@@ -402,7 +458,10 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[200]!, style: BorderStyle.solid),
+                  border: Border.all(
+                    color: Colors.grey[200]!,
+                    style: BorderStyle.solid,
+                  ),
                 ),
                 child: const Center(
                   child: Text(
@@ -411,7 +470,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                   ),
                 ),
               ),
-            if (!hasCCCD || !hasCCCDPhoto) ...[
+            if (!hasCCCD || !hasCCCDPhoto || !hasBirthDate) ...[
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
@@ -419,7 +478,10 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                   onPressed: () async {
                     await Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const EditProfileView()),
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            const EditProfileView(requiredForBooking: true),
+                      ),
                     );
                     _loadProfileInfo(forceRefresh: true);
                   },
@@ -670,7 +732,10 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                       onTap: () => _showBookingDetails(context),
                       borderRadius: BorderRadius.circular(4),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
                         child: Row(
                           children: [
                             Text(

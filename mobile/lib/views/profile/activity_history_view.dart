@@ -108,7 +108,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
         elevation: 0,
         scrolledUnderElevation: 0,
         title: Text(
-          context.tr(vi: 'Lich su hoat dong', en: 'Activity history'),
+          context.tr(vi: 'Lịch sử hoạt động', en: 'Activity history'),
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
@@ -136,7 +136,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: _fetchHistory,
-                child: Text(context.tr(vi: 'Thu lai', en: 'Retry')),
+                child: Text(context.tr(vi: 'Thử lại', en: 'Retry')),
               ),
             ],
           ),
@@ -166,7 +166,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                 const SizedBox(width: 8),
                 _buildSectionChip(
                   _HistorySection.hotels,
-                  'Khach san',
+                  'Khách sạn',
                   Icons.hotel_outlined,
                 ),
                 const SizedBox(width: 8),
@@ -178,7 +178,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                 const SizedBox(width: 8),
                 _buildSectionChip(
                   _HistorySection.payments,
-                  'Thanh toan',
+                  'Thanh toán',
                   Icons.payments_outlined,
                 ),
               ],
@@ -237,9 +237,9 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       case _HistorySection.bookings:
         return _buildListOrEmpty<BookingHistoryItem>(
           items: history.bookings,
-          emptyTitle: context.tr(vi: 'Chua co booking', en: 'No bookings yet'),
+          emptyTitle: context.tr(vi: 'Chưa có booking', en: 'No bookings yet'),
           emptySubtitle: context.tr(
-            vi: 'Cac booking cua ban se hien thi tai day.',
+            vi: 'Các booking của bạn sẽ hiển thị tại đây.',
             en: 'Your bookings will appear here.',
           ),
           itemBuilder: _buildBookingCard,
@@ -248,11 +248,11 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
         return _buildListOrEmpty<HotelHistoryItem>(
           items: history.hotels,
           emptyTitle: context.tr(
-            vi: 'Chua co lich su khach san',
+            vi: 'Chưa có lịch sử khách sạn',
             en: 'No hotel history yet',
           ),
           emptySubtitle: context.tr(
-            vi: 'Dat phong cua ban se hien thi tai day.',
+            vi: 'Đặt phòng của bạn sẽ hiển thị tại đây.',
             en: 'Your hotel bookings will appear here.',
           ),
           itemBuilder: _buildHotelCard,
@@ -261,11 +261,11 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
         return _buildListOrEmpty<BusHistoryItem>(
           items: history.buses,
           emptyTitle: context.tr(
-            vi: 'Chua co lich su ve xe',
+            vi: 'Chưa có lịch sử vé xe',
             en: 'No bus history yet',
           ),
           emptySubtitle: context.tr(
-            vi: 'Thong tin ve xe va hanh trinh se hien thi tai day.',
+            vi: 'Thông tin về vé xe và hành trình sẽ hiển thị tại đây.',
             en: 'Your bus tickets and routes will appear here.',
           ),
           itemBuilder: _buildBusCard,
@@ -274,11 +274,11 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
         return _buildListOrEmpty<PaymentHistoryItem>(
           items: history.payments,
           emptyTitle: context.tr(
-            vi: 'Chua co lich su thanh toan',
+            vi: 'Chưa có lịch sử thanh toán',
             en: 'No payment history yet',
           ),
           emptySubtitle: context.tr(
-            vi: 'Giao dich cua ban se hien thi tai day.',
+            vi: 'Giao dịch của bạn sẽ hiển thị tại đây.',
             en: 'Your transactions will appear here.',
           ),
           itemBuilder: _buildPaymentCard,
@@ -301,7 +301,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
             icon: Icons.history,
             title: emptyTitle,
             subtitle: emptySubtitle,
-            buttonText: context.tr(vi: 'Lam moi', en: 'Refresh'),
+            buttonText: context.tr(vi: 'Làm mới', en: 'Refresh'),
             onButtonPressed: _fetchHistory,
           ),
         ],
@@ -335,9 +335,9 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
           : null,
       extraLines: [
         if ((item.invoiceNumber ?? '').isNotEmpty)
-          '${context.tr(vi: 'Hoa don', en: 'Invoice')}: ${item.invoiceNumber}',
+          '${context.tr(vi: 'Hóa đơn', en: 'Invoice')}: ${item.invoiceNumber}',
         if ((item.createdAt ?? '').isNotEmpty)
-          '${context.tr(vi: 'Tao luc', en: 'Created at')}: ${_formatDateTime(item.createdAt)}',
+          '${context.tr(vi: 'Tạo lúc', en: 'Created at')}: ${_formatDateTime(item.createdAt)}',
       ],
     );
   }
@@ -380,10 +380,10 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                   ? () => _showPaymentModal(item.tripId, item.bookedPrice, 'Thanh toán ${item.tripId}', 'HOTEL')
                   : null),
       extraLines: [
-        '${context.tr(vi: 'Chuyen di', en: 'Trip')}: ${item.tripTitle}',
-        '${context.tr(vi: 'So luong', en: 'Quantity')}: ${item.quantity}',
+        '${context.tr(vi: 'Chuyến đi', en: 'Trip')}: ${item.tripTitle}',
+        '${context.tr(vi: 'Số lượng', en: 'Quantity')}: ${item.quantity}',
         if ((item.invoiceNumber ?? '').isNotEmpty)
-          '${context.tr(vi: 'Hoa don', en: 'Invoice')}: ${item.invoiceNumber}',
+          '${context.tr(vi: 'Hóa đơn', en: 'Invoice')}: ${item.invoiceNumber}',
         if (!isReviewed && !canReview && item.status.toUpperCase() != 'PENDING')
           'Bạn có thể đánh giá sau khi sử dụng dịch vụ.',
       ],
@@ -468,12 +468,12 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                   ? () => _repayBusTicket(item)
                   : null,
       extraLines: [
-        '${context.tr(vi: 'Chuyen di', en: 'Trip')}: ${item.tripTitle}',
-        '${context.tr(vi: 'So luong', en: 'Quantity')}: ${item.quantity}',
+        '${context.tr(vi: 'Chuyến đi', en: 'Trip')}: ${item.tripTitle}',
+        '${context.tr(vi: 'Số lượng', en: 'Quantity')}: ${item.quantity}',
         if (item.selectedSeats != null && item.selectedSeats!.isNotEmpty)
           'Số ghế: ${item.selectedSeats}',
         if ((item.invoiceNumber ?? '').isNotEmpty)
-          '${context.tr(vi: 'Hoa don', en: 'Invoice')}: ${item.invoiceNumber}',
+          '${context.tr(vi: 'Hóa đơn', en: 'Invoice')}: ${item.invoiceNumber}',
         if (!isReviewed && !canReview && !isPending)
           'Bạn có thể đánh giá sau khi kết thúc chuyến xe.',
       ],
@@ -484,7 +484,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
     return _HistoryCard(
       title: item.tripTitle,
       subtitle:
-          '${context.tr(vi: 'Phuong thuc', en: 'Method')}: ${item.paymentMethod}',
+          '${context.tr(vi: 'Phương thức', en: 'Method')}: ${item.paymentMethod}',
       amount: _currency(item.amount),
       status: item.status,
       dateText: _formatDateTime(item.paidAt),
@@ -495,9 +495,9 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       onDetailTap: () => _openPaymentInvoice(item),
       extraLines: [
         if ((item.invoiceNumber ?? '').isNotEmpty)
-          '${context.tr(vi: 'Hoa don', en: 'Invoice')}: ${item.invoiceNumber}',
+          '${context.tr(vi: 'Hóa đơn', en: 'Invoice')}: ${item.invoiceNumber}',
         if ((item.transactionId ?? '').isNotEmpty)
-          '${context.tr(vi: 'Ma giao dich', en: 'Transaction ID')}: ${item.transactionId}',
+          '${context.tr(vi: 'Mã giao dịch', en: 'Transaction ID')}: ${item.transactionId}',
       ],
     );
   }

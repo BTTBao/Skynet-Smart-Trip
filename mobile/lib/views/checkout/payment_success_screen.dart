@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../widgets/checkout/resort_summary_card.dart';
 import '../main_shell.dart'; // To go back to home
-import '../trip/trip_itinerary_detail_view.dart';
 
 class PaymentSuccessScreen extends StatelessWidget {
   final int bookingId;
@@ -25,11 +24,15 @@ class PaymentSuccessScreen extends StatelessWidget {
     required this.paymentTime,
   }) : super(key: key);
 
+  String get _bookingCode => 'SKN-${bookingId.toString().padLeft(6, '0')}';
+
   String _formatPrice(double price) {
-    final formatted = price.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]}.',
-    );
+    final formatted = price
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]}.',
+        );
     return '$formattedđ';
   }
 
@@ -48,7 +51,11 @@ class PaymentSuccessScreen extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const MainShell()), (route) => false),
+          onPressed: () => Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const MainShell()),
+            (route) => false,
+          ),
         ),
         title: const Text(
           'Thanh toán',
@@ -89,8 +96,18 @@ class PaymentSuccessScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Mã đặt chỗ: ', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-                  Text('ST$bookingId', style: TextStyle(color: Colors.green[500], fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(
+                    'Mã đặt chỗ: ',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  ),
+                  Text(
+                    _bookingCode,
+                    style: TextStyle(
+                      color: Colors.green[500],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 32),
@@ -119,15 +136,37 @@ class PaymentSuccessScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Tổng số tiền thanh toán', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-                        Text(_formatPrice(totalPrice), style: TextStyle(color: Colors.green[400], fontWeight: FontWeight.bold, fontSize: 18)),
+                        Text(
+                          'Tổng số tiền thanh toán',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          _formatPrice(totalPrice),
+                          style: TextStyle(
+                            color: Colors.green[400],
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
                       ],
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
-              _buildInfoRow('Hình thức thanh toán', paymentMethod == 'Momo' ? 'Ví điện tử MoMo' : paymentMethod == 'Zalopay' ? 'Ví điện tử ZaloPay' : paymentMethod == 'BankTransfer' ? 'Chuyển khoản ngân hàng' : 'Thẻ quốc tế'),
+              _buildInfoRow(
+                'Hình thức thanh toán',
+                paymentMethod == 'Momo'
+                    ? 'Ví điện tử MoMo'
+                    : paymentMethod == 'Zalopay'
+                    ? 'Ví điện tử ZaloPay'
+                    : paymentMethod == 'BankTransfer'
+                    ? 'Chuyển khoản ngân hàng'
+                    : 'Thẻ quốc tế',
+              ),
               const SizedBox(height: 12),
               _buildInfoRow('Thời gian', _formatDateTime(paymentTime)),
               const SizedBox(height: 48),
@@ -135,27 +174,28 @@ class PaymentSuccessScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // Reset stack to MainShell and push TripItineraryDetailView
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (_) => const MainShell()),
+                      MaterialPageRoute(
+                        builder: (_) => const MainShell(initialIndex: 3),
+                      ),
                       (route) => false,
                     );
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => TripItineraryDetailView(
-                          tripId: bookingId,
-                          tripTitle: hotelName,
-                        ),
-                      ),
-                    );
                   },
-                  icon: const Icon(Icons.airplane_ticket, color: Colors.black),
-                  label: const Text('Xem vé điện tử', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+                  icon: const Icon(Icons.luggage, color: Colors.black),
+                  label: const Text(
+                    'Xem chuyến đi',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green[400],
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     elevation: 0,
                   ),
@@ -167,13 +207,26 @@ class PaymentSuccessScreen extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: () {
                     // Navigate back to home
-                    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const MainShell()), (route) => false);
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MainShell()),
+                      (route) => false,
+                    );
                   },
                   icon: const Icon(Icons.home, color: Color(0xFF1E293B)),
-                  label: const Text('Về trang chủ', style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 16)),
+                  label: const Text(
+                    'Về trang chủ',
+                    style: TextStyle(
+                      color: Color(0xFF1E293B),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFFE2E8F0)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                 ),
@@ -191,7 +244,10 @@ class PaymentSuccessScreen extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 13)),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        ),
       ],
     );
   }

@@ -28,7 +28,7 @@ class _ExplorePostDetailViewState extends State<ExplorePostDetailView>
   late AnimationController _heartAnimController;
   late Animation<double> _heartScaleAnim;
   bool _showHeart = false;
-
+ 
   @override
   void initState() {
     super.initState();

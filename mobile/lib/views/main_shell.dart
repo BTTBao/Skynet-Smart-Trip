@@ -20,7 +20,9 @@ abstract class MainShellController {
 }
 
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  const MainShell({super.key, this.initialIndex = 0});
+
+  final int initialIndex;
 
   static MainShellController? maybeOf(BuildContext context) {
     return context.findAncestorStateOfType<_MainShellState>();
@@ -50,6 +52,7 @@ class _MainShellState extends State<MainShell> implements MainShellController {
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialIndex.clamp(0, 4);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProfileProvider>().fetchProfile(forceRefresh: false);
@@ -132,7 +135,7 @@ class _MainShellState extends State<MainShell> implements MainShellController {
                   index: 0,
                   icon: Icons.home_outlined,
                   activeIcon: Icons.home,
-                  label: context.tr(vi: 'Trang chu', en: 'Home'),
+                  label: context.tr(vi: 'Trang chủ', en: 'Home'),
                 ),
                 _buildNavItem(
                   index: 1,
@@ -144,13 +147,13 @@ class _MainShellState extends State<MainShell> implements MainShellController {
                   index: 2,
                   icon: Icons.explore_outlined,
                   activeIcon: Icons.explore,
-                  label: context.tr(vi: 'Kham pha', en: 'Explore'),
+                  label: context.tr(vi: 'Khám phá', en: 'Explore'),
                 ),
                 _buildNavItem(
                   index: 3,
-                  icon: Icons.bookmark_outline,
-                  activeIcon: Icons.bookmark,
-                  label: context.tr(vi: 'Chuyen di', en: 'Trips'),
+                  icon: Icons.luggage_outlined,
+                  activeIcon: Icons.luggage,
+                  label: context.tr(vi: 'Chuyến đi', en: 'Trips'),
                 ),
                 Consumer<NotificationProvider>(
                   builder: (context, notificationProvider, _) {
@@ -158,7 +161,7 @@ class _MainShellState extends State<MainShell> implements MainShellController {
                       index: 4,
                       icon: Icons.person_outline,
                       activeIcon: Icons.person,
-                      label: context.tr(vi: 'Ho so', en: 'Profile'),
+                      label: context.tr(vi: 'Hồ sơ', en: 'Profile'),
                       badgeCount: notificationProvider.unreadCount,
                     );
                   },

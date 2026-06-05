@@ -8,7 +8,9 @@ import '../../widgets/widgets.dart';
 import 'profile_session_helper.dart';
 
 class EditProfileView extends StatefulWidget {
-  const EditProfileView({super.key});
+  const EditProfileView({super.key, this.requiredForBooking = false});
+
+  final bool requiredForBooking;
 
   @override
   State<EditProfileView> createState() => _EditProfileViewState();
@@ -31,7 +33,9 @@ class _EditProfileViewState extends State<EditProfileView> {
     _emailController = TextEditingController(text: user?.email ?? '');
     _phoneController = TextEditingController(text: user?.phone ?? '');
     _birthDateController = TextEditingController(text: user?.birthDate ?? '');
-    _identityController = TextEditingController(text: user?.identityNumber ?? '');
+    _identityController = TextEditingController(
+      text: user?.identityNumber ?? '',
+    );
   }
 
   @override
@@ -63,7 +67,7 @@ class _EditProfileViewState extends State<EditProfileView> {
               elevation: 0,
               scrolledUnderElevation: 0,
               title: Text(
-                context.tr(vi: 'Chinh sua ho so', en: 'Edit profile'),
+                context.tr(vi: 'Chỉnh sửa hồ sơ', en: 'Edit profile'),
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               actions: [
@@ -75,7 +79,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Text(context.tr(vi: 'Luu', en: 'Save')),
+                      : Text(context.tr(vi: 'Lưu', en: 'Save')),
                 ),
               ],
             ),
@@ -86,6 +90,39 @@ class _EditProfileViewState extends State<EditProfileView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (widget.requiredForBooking) ...[
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEAF7EF),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF0D6B42).withOpacity(0.2),
+                          ),
+                        ),
+                        child: const Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.verified_user_outlined,
+                              color: Color(0xFF0D6B42),
+                            ),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Hoàn tất ngày sinh, CCCD và ảnh mặt trước CCCD để tiếp tục đặt phòng.',
+                                style: TextStyle(
+                                  color: Color(0xFF0D6B42),
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                     Center(
                       child: ProfileAvatar(
                         avatarUrl: provider.profileData?.avatarUrl ?? '',
@@ -96,7 +133,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                     const SizedBox(height: 16),
                     Center(
                       child: Text(
-                        context.tr(vi: 'Anh dai dien', en: 'Profile photo'),
+                        context.tr(vi: 'Ảnh đại diện', en: 'Profile photo'),
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontWeight: FontWeight.w500,
@@ -105,21 +142,24 @@ class _EditProfileViewState extends State<EditProfileView> {
                     ),
                     const SizedBox(height: 28),
                     CustomTextField(
-                      label: context.tr(vi: 'Ho va ten', en: 'Full name'),
+                      label: context.tr(vi: 'Họ và tên', en: 'Full name'),
                       icon: Icons.person_outline,
                       controller: _nameController,
-                      hintText: context.tr(vi: 'Nhap ho va ten', en: 'Enter your full name'),
+                      hintText: context.tr(
+                        vi: 'Nhập họ và tên',
+                        en: 'Enter your full name',
+                      ),
                       validator: (value) {
                         final text = value?.trim() ?? '';
                         if (text.isEmpty) {
                           return context.trRead(
-                            vi: 'Vui long nhap ho va ten.',
+                            vi: 'Vui lòng nhập họ và tên.',
                             en: 'Please enter your full name.',
                           );
                         }
                         if (text.length < 2) {
                           return context.trRead(
-                            vi: 'Ho va ten qua ngan.',
+                            vi: 'Họ và tên quá ngắn.',
                             en: 'Full name is too short.',
                           );
                         }
@@ -131,7 +171,10 @@ class _EditProfileViewState extends State<EditProfileView> {
                       label: context.tr(vi: 'Email', en: 'Email'),
                       icon: Icons.mail_outline,
                       controller: _emailController,
-                      hintText: context.tr(vi: 'Email dang ky', en: 'Registered email'),
+                      hintText: context.tr(
+                        vi: 'Email dang ky',
+                        en: 'Registered email',
+                      ),
                       readOnly: true,
                       enabled: false,
                       suffixIcon: Icon(
@@ -143,7 +186,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                     const SizedBox(height: 8),
                     Text(
                       context.tr(
-                        vi: 'Email duoc khoa de giu nguyen thong tin xac thuc tai khoan.',
+                        vi: 'Email được khóa để giữ nguyên thông tin xác thực tài khoản.',
                         en: 'Email is locked to preserve account verification.',
                       ),
                       style: TextStyle(
@@ -153,22 +196,28 @@ class _EditProfileViewState extends State<EditProfileView> {
                     ),
                     const SizedBox(height: 16),
                     CustomTextField(
-                      label: context.tr(vi: 'So dien thoai', en: 'Phone'),
+                      label: context.tr(vi: 'Số điện thoại', en: 'Phone'),
                       icon: Icons.phone_outlined,
                       controller: _phoneController,
-                      hintText: context.tr(vi: 'Nhap so dien thoai', en: 'Enter your phone'),
+                      hintText: context.tr(
+                        vi: 'Nhập số điện thoại',
+                        en: 'Enter your phone',
+                      ),
                       keyboardType: TextInputType.phone,
                       validator: (value) {
-                        final raw = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                        final raw = (value ?? '').replaceAll(
+                          RegExp(r'[^0-9]'),
+                          '',
+                        );
                         if (raw.isEmpty) {
                           return context.trRead(
-                            vi: 'Vui long nhap so dien thoai.',
+                            vi: 'Vui lòng nhập số điện thoại.',
                             en: 'Please enter your phone number.',
                           );
                         }
                         if (raw.length < 10 || raw.length > 11) {
                           return context.trRead(
-                            vi: 'So dien thoai khong hop le.',
+                            vi: 'Số điện thoại không hợp lệ.',
                             en: 'Invalid phone number.',
                           );
                         }
@@ -177,35 +226,65 @@ class _EditProfileViewState extends State<EditProfileView> {
                     ),
                     const SizedBox(height: 16),
                     CustomTextField(
-                      label: context.tr(vi: 'Ngay sinh', en: 'Birth date'),
+                      label: context.tr(vi: 'Ngày sinh', en: 'Birth date'),
                       icon: Icons.calendar_today_outlined,
                       controller: _birthDateController,
                       hintText: 'YYYY-MM-DD',
                       readOnly: true,
                       onTap: _pickBirthDate,
                       suffixIcon: const Icon(Icons.expand_more),
+                      validator: (value) {
+                        final text = (value ?? '').trim();
+                        if (text.isEmpty) {
+                          return context.trRead(
+                            vi: 'Vui lòng chọn ngày sinh.',
+                            en: 'Please select your birth date.',
+                          );
+                        }
+                        final birthDate = _parseBirthDate(text);
+                        if (birthDate == null ||
+                            !birthDate.isBefore(DateTime.now())) {
+                          return context.trRead(
+                            vi: 'Ngày sinh không hợp lệ.',
+                            en: 'Invalid birth date.',
+                          );
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 16),
                     CustomTextField(
-                      label: context.tr(vi: 'So CCCD / CMND', en: 'ID Card Number'),
+                      label: context.tr(
+                        vi: 'Số CCCD / CMND',
+                        en: 'ID Card Number',
+                      ),
                       icon: Icons.credit_card_outlined,
                       controller: _identityController,
                       hintText: context.tr(
-                        vi: 'Nhap so CCCD hoac CMND',
+                        vi: 'Nhập số CCCD hoặc CMND',
                         en: 'Enter your ID card number',
                       ),
                       keyboardType: TextInputType.number,
                       validator: (value) {
                         final text = (value ?? '').trim();
-                        if (text.isNotEmpty && !RegExp(r'^\d+$').hasMatch(text)) {
+                        if (text.isEmpty) {
                           return context.trRead(
-                            vi: 'So CCCD/CMND chi duoc gom cac chu so.',
+                            vi: 'Vui lòng nhập số CCCD/CMND.',
+                            en: 'Please enter your ID number.',
+                          );
+                        }
+                        if (text.isNotEmpty &&
+                            !RegExp(r'^\d+$').hasMatch(text)) {
+                          return context.trRead(
+                            vi: 'Số CCCD/CMND chỉ được gồm các chữ số.',
                             en: 'ID number must contain digits only.',
                           );
                         }
-                        if (text.isNotEmpty && text.length != 9 && text.length != 12) {
+                        if (text.isNotEmpty &&
+                            text.length != 9 &&
+                            text.length != 12) {
                           return context.trRead(
-                            vi: 'So CCCD/CMND khong hop le (9 hoac 12 so).',
+                            vi: 'Số CCCD/CMND không hợp lệ (9 hoặc 12 số).',
                             en: 'ID number must be 9 or 12 digits.',
                           );
                         }
@@ -217,7 +296,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                       padding: const EdgeInsets.only(left: 4, bottom: 6),
                       child: Text(
                         context.tr(
-                          vi: 'Anh mat truoc CCCD / CMND',
+                          vi: 'Ảnh mặt trước CCCD / CMND',
                           en: 'Front Side of Identity Card',
                         ),
                         style: TextStyle(
@@ -228,7 +307,9 @@ class _EditProfileViewState extends State<EditProfileView> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: provider.isUploadingIdentityPhoto ? null : _showIdentityCardPhotoPicker,
+                      onTap: provider.isUploadingIdentityPhoto
+                          ? null
+                          : _showIdentityCardPhotoPicker,
                       child: Container(
                         height: 180,
                         decoration: BoxDecoration(
@@ -247,97 +328,111 @@ class _EditProfileViewState extends State<EditProfileView> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0D6B42)),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Color(0xFF0D6B42),
+                                      ),
                                     ),
                                     SizedBox(height: 10),
-                                    Text('Dang tai anh len...'),
+                                    Text('Đang tải ảnh lên...'),
                                   ],
                                 ),
                               )
-                            : (provider.profileData?.identityCardPhotoUrl != null &&
-                                    provider.profileData!.identityCardPhotoUrl!.isNotEmpty)
-                                ? Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      Image.network(
-                                        provider.profileData!.identityCardPhotoUrl!,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Center(
-                                            child: Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                const Icon(
-                                                  Icons.broken_image_outlined,
-                                                  color: Colors.redAccent,
-                                                  size: 40,
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  context.tr(
-                                                    vi: 'Khong the tai anh. Cham de thu lai.',
-                                                    en: 'Failed to load image. Tap to retry.',
-                                                  ),
-                                                  style: const TextStyle(color: Colors.redAccent, fontSize: 12),
-                                                ),
-                                              ],
+                            : (provider.profileData?.identityCardPhotoUrl !=
+                                      null &&
+                                  provider
+                                      .profileData!
+                                      .identityCardPhotoUrl!
+                                      .isNotEmpty)
+                            ? Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Image.network(
+                                    provider.profileData!.identityCardPhotoUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Center(
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(
+                                              Icons.broken_image_outlined,
+                                              color: Colors.redAccent,
+                                              size: 40,
                                             ),
-                                          );
-                                        },
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              context.tr(
+                                              vi: 'Không thể tải ảnh. Chạm để thử lại.',
+                                              en: 'Failed to load image. Tap to retry.',
+                                              ),
+                                              style: const TextStyle(
+                                                color: Colors.redAccent,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  Positioned(
+                                    right: 10,
+                                    bottom: 10,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF0D6B42),
+                                        shape: BoxShape.circle,
                                       ),
-                                      Positioned(
-                                        right: 10,
-                                        bottom: 10,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: const BoxDecoration(
-                                            color: Color(0xFF0D6B42),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.edit,
-                                            color: Colors.white,
-                                            size: 18,
-                                          ),
-                                        ),
+                                      child: const Icon(
+                                        Icons.edit,
+                                        color: Colors.white,
+                                        size: 18,
                                       ),
-                                    ],
-                                  )
-                                : Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.add_a_photo_outlined,
-                                          color: const Color(0xFF0D6B42).withOpacity(0.8),
-                                          size: 40,
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Text(
-                                          context.tr(
-                                            vi: 'Bam de chup hoac chon anh CCCD',
-                                            en: 'Tap to take or choose ID card photo',
-                                          ),
-                                          style: TextStyle(
-                                            color: const Color(0xFF0D6B42).withOpacity(0.8),
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          context.tr(
-                                            vi: 'Hinh anh can ro rang, khong bi mo',
-                                            en: 'Image must be clear and readable',
-                                          ),
-                                          style: TextStyle(
-                                            color: Colors.grey.shade500,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
                                     ),
                                   ),
+                                ],
+                              )
+                            : Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.add_a_photo_outlined,
+                                      color: const Color(
+                                        0xFF0D6B42,
+                                      ).withOpacity(0.8),
+                                      size: 40,
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      context.tr(
+                                      vi: 'Bấm để chụp hoặc chọn ảnh CCCD',
+                                        en: 'Tap to take or choose ID card photo',
+                                      ),
+                                      style: TextStyle(
+                                        color: const Color(
+                                          0xFF0D6B42,
+                                        ).withOpacity(0.8),
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      context.tr(
+                                        vi: 'Hình ảnh cần rõ ràng, không bị mờ',
+                                        en: 'Image must be clear and readable',
+                                      ),
+                                      style: TextStyle(
+                                        color: Colors.grey.shade500,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                       ),
                     ),
                   ],
@@ -351,7 +446,8 @@ class _EditProfileViewState extends State<EditProfileView> {
   }
 
   Future<void> _pickBirthDate() async {
-    final initialDate = _parseBirthDate(_birthDateController.text) ??
+    final initialDate =
+        _parseBirthDate(_birthDateController.text) ??
         DateTime(DateTime.now().year - 18, 1, 1);
 
     final selectedDate = await showDatePicker(
@@ -399,14 +495,14 @@ class _EditProfileViewState extends State<EditProfileView> {
         content: Text(
           success
               ? context.trRead(
-                  vi: 'Da cap nhat anh dai dien.',
+              vi: 'Đã cập nhật ảnh đại diện.',
                   en: 'Profile photo updated.',
                 )
               : (provider.error ??
-                  context.trRead(
-                    vi: 'Khong the tai anh len.',
-                    en: 'Unable to upload image.',
-                  )),
+                    context.trRead(
+                      vi: 'Không thể tải ảnh lên.',
+                      en: 'Unable to upload image.',
+                    )),
         ),
       ),
     );
@@ -424,7 +520,12 @@ class _EditProfileViewState extends State<EditProfileView> {
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
-                title: Text(context.trRead(vi: 'Chon tu thu vien', en: 'Choose from gallery')),
+                title: Text(
+                  context.trRead(
+                    vi: 'Chọn từ thư viện',
+                    en: 'Choose from gallery',
+                  ),
+                ),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _pickAndUploadImage(ImageSource.gallery);
@@ -432,7 +533,9 @@ class _EditProfileViewState extends State<EditProfileView> {
               ),
               ListTile(
                 leading: const Icon(Icons.camera_alt_outlined),
-                title: Text(context.trRead(vi: 'Chup anh moi', en: 'Take a new photo')),
+                title: Text(
+                  context.trRead(vi: 'Chụp ảnh mới', en: 'Take a new photo'),
+                ),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _pickAndUploadImage(ImageSource.camera);
@@ -468,14 +571,14 @@ class _EditProfileViewState extends State<EditProfileView> {
         content: Text(
           success
               ? context.trRead(
-                  vi: 'Da cap nhat anh CCCD / CMND.',
+              vi: 'Đã cập nhật ảnh CCCD / CMND.',
                   en: 'Identity card photo updated.',
                 )
               : (provider.error ??
-                  context.trRead(
-                    vi: 'Khong the tai anh len.',
-                    en: 'Unable to upload image.',
-                  )),
+                    context.trRead(
+                      vi: 'Không thể tải ảnh lên.',
+                      en: 'Unable to upload image.',
+                    )),
         ),
       ),
     );
@@ -493,7 +596,12 @@ class _EditProfileViewState extends State<EditProfileView> {
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
-                title: Text(context.trRead(vi: 'Chon tu thu vien', en: 'Choose from gallery')),
+                title: Text(
+                  context.trRead(
+                    vi: 'Chọn từ thư viện',
+                    en: 'Choose from gallery',
+                  ),
+                ),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _pickAndUploadIdentityCardPhoto(ImageSource.gallery);
@@ -501,7 +609,9 @@ class _EditProfileViewState extends State<EditProfileView> {
               ),
               ListTile(
                 leading: const Icon(Icons.camera_alt_outlined),
-                title: Text(context.trRead(vi: 'Chup anh moi', en: 'Take a new photo')),
+                title: Text(
+                  context.trRead(vi: 'Chụp ảnh mới', en: 'Take a new photo'),
+                ),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _pickAndUploadIdentityCardPhoto(ImageSource.camera);
@@ -545,14 +655,11 @@ class _EditProfileViewState extends State<EditProfileView> {
       builder: (dialogContext) {
         return AlertDialog(
           title: Text(
-            context.tr(
-              vi: 'Ban muon luu thay doi?',
-              en: 'Save your changes?',
-            ),
+            context.tr(vi: 'Bạn muốn lưu thay đổi?', en: 'Save your changes?'),
           ),
           content: Text(
             context.tr(
-              vi: 'Thong tin ho so cua ban da thay doi. Ban muon luu truoc khi thoat khong?',
+              vi: 'Thông tin hồ sơ của bạn đã thay đổi. Bạn muốn lưu trước khi thoát không?',
               en: 'Your profile has unsaved changes. Do you want to save before leaving?',
             ),
           ),
@@ -561,19 +668,19 @@ class _EditProfileViewState extends State<EditProfileView> {
               onPressed: () {
                 Navigator.of(dialogContext).pop(_LeaveAction.cancel);
               },
-              child: Text(context.trRead(vi: 'O lai', en: 'Stay')),
+              child: Text(context.trRead(vi: 'Ở lại', en: 'Stay')),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(dialogContext).pop(_LeaveAction.discard);
               },
-              child: Text(context.trRead(vi: 'Khong luu', en: 'Discard')),
+              child: Text(context.trRead(vi: 'Không lưu', en: 'Discard')),
             ),
             FilledButton(
               onPressed: () {
                 Navigator.of(dialogContext).pop(_LeaveAction.save);
               },
-              child: Text(context.trRead(vi: 'Luu', en: 'Save')),
+              child: Text(context.trRead(vi: 'Lưu', en: 'Save')),
             ),
           ],
         );
@@ -628,7 +735,7 @@ class _EditProfileViewState extends State<EditProfileView> {
           content: Text(
             provider.error ??
                 context.trRead(
-                  vi: 'Khong the cap nhat ho so.',
+                  vi: 'Không thể cập nhật hồ sơ.',
                   en: 'Unable to update profile.',
                 ),
           ),
@@ -640,7 +747,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          context.trRead(vi: 'Da cap nhat ho so.', en: 'Profile updated.'),
+          context.trRead(vi: 'Đã cập nhật hồ sơ.', en: 'Profile updated.'),
         ),
       ),
     );
