@@ -401,7 +401,7 @@ class ChatProvider with ChangeNotifier {
         lower.contains('handshake');
 
     if (looksLikeConnectionIssue || (statusCode != null && statusCode >= 500)) {
-      return 'Khong the ket noi toi tro ly luc nay. Ban thu lai sau it phut nhe.';
+      return 'Không thể kết nối tới trợ lý lúc này. Bạn thử lại sau ít phút nhé.';
     }
 
     return message;
