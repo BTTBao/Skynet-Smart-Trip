@@ -267,12 +267,12 @@ public class GrokAiService : IGrokAiService
     {
         return context.DetectedIntent switch
         {
-            "promotion_query" => "Minh dang chuyen sang che do tra loi tu du lieu he thong de goi y khuyen mai cho ban.",
-            "bus_query" => "Minh dang chuyen sang du lieu he thong de tim tuyen xe phu hop cho ban.",
-            "hotel_query" => "Minh dang lay nhanh danh sach khach san phu hop tu he thong.",
-            "itinerary_request" => "Minh dang dung du lieu san co de lap lich trinh tham khao cho ban.",
-            "budget_query" => "Minh dang tong hop chi phi tham khao tu du lieu he thong cho ban.",
-            _ => "Minh dang su dung du lieu san co cua he thong de ho tro ban ngay luc nay."
+            "promotion_query" => "De minh xem nhanh cac uu dai phu hop cho ban nhe.",
+            "bus_query" => "De minh tim nhanh cac tuyen di phu hop cho ban nhe.",
+            "hotel_query" => "De minh loc nhanh mot vai khach san phu hop cho ban nhe.",
+            "itinerary_request" => "De minh len nhanh mot lich trinh tham khao de ban de hinh dung hon nhe.",
+            "budget_query" => "De minh uoc tinh nhanh chi phi tham khao cho ban nhe.",
+            _ => "De minh xem nhanh thong tin phu hop cho ban nhe."
         };
     }
 

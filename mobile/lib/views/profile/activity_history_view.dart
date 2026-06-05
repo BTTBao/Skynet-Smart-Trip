@@ -20,10 +20,7 @@ import '../../services/trip_service.dart';
 enum _HistorySection { bookings, hotels, buses, payments }
 
 class ActivityHistoryView extends StatefulWidget {
-  const ActivityHistoryView({
-    super.key,
-    this.initialSectionIndex = 0,
-  });
+  const ActivityHistoryView({super.key, this.initialSectionIndex = 0});
 
   final int initialSectionIndex;
 
@@ -130,7 +127,11 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 40, color: Colors.redAccent),
+              const Icon(
+                Icons.error_outline,
+                size: 40,
+                color: Colors.redAccent,
+              ),
               const SizedBox(height: 12),
               Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 16),
@@ -331,7 +332,12 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       onDetailTap: () => _openBookingInvoice(item),
       actionLabel: item.status.toUpperCase() == 'PENDING' ? 'Thanh toán' : null,
       onActionTap: item.status.toUpperCase() == 'PENDING'
-          ? () => _showPaymentModal(item.tripId, item.totalAmount, 'Thanh toán ${item.tripId}', 'HOTEL')
+          ? () => _showPaymentModal(
+              item.tripId,
+              item.totalAmount,
+              'Thanh toán ${item.tripId}',
+              'HOTEL',
+            )
           : null,
       extraLines: [
         if ((item.invoiceNumber ?? '').isNotEmpty)
@@ -364,21 +370,26 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       actionLabel: isReviewed
           ? 'Đã đánh giá'
           : canReview
-              ? 'Đánh giá'
-              : (item.status.toUpperCase() == 'PENDING' ? 'Thanh toán' : null),
+          ? 'Đánh giá'
+          : (item.status.toUpperCase() == 'PENDING' ? 'Thanh toán' : null),
       onActionTap: isReviewed
           ? null
           : canReview
-              ? () => _showReviewSheet(
-                    tripId: item.tripId,
-                    targetType: 'Hotel',
-                    targetId: item.serviceId,
-                    serviceName: item.hotelName,
-                    serviceLabel: 'khách sạn',
+          ? () => _showReviewSheet(
+              tripId: item.tripId,
+              targetType: 'Hotel',
+              targetId: item.serviceId,
+              serviceName: item.hotelName,
+              serviceLabel: 'khách sạn',
+            )
+          : (item.status.toUpperCase() == 'PENDING'
+                ? () => _showPaymentModal(
+                    item.tripId,
+                    item.bookedPrice,
+                    'Thanh toán ${item.tripId}',
+                    'HOTEL',
                   )
-              : (item.status.toUpperCase() == 'PENDING'
-                  ? () => _showPaymentModal(item.tripId, item.bookedPrice, 'Thanh toán ${item.tripId}', 'HOTEL')
-                  : null),
+                : null),
       extraLines: [
         '${context.tr(vi: 'Chuyến đi', en: 'Trip')}: ${item.tripTitle}',
         '${context.tr(vi: 'Số lượng', en: 'Quantity')}: ${item.quantity}',
@@ -394,12 +405,13 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator(color: primaryColor)),
+      builder: (_) =>
+          const Center(child: CircularProgressIndicator(color: primaryColor)),
     );
 
     try {
       await _tripService.reLockSeats(item.tripId);
-      
+
       if (mounted) Navigator.pop(context);
 
       if (mounted) {
@@ -447,26 +459,26 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
           : null,
       detailLabel: 'Chi tiết hóa đơn',
       onDetailTap: () => _openBusInvoice(item),
-      actionLabel: isReviewed 
+      actionLabel: isReviewed
           ? 'Đã đánh giá'
-          : canReview 
-              ? 'Đánh giá'
-              : isPending
-                  ? 'Thanh toán'
-                  : null,
+          : canReview
+          ? 'Đánh giá'
+          : isPending
+          ? 'Thanh toán'
+          : null,
       onActionTap: isReviewed
           ? null
           : canReview
-              ? () => _showReviewSheet(
-                    tripId: item.tripId,
-                    targetType: 'BusCompany',
-                    targetId: item.companyId,
-                    serviceName: item.companyName,
-                    serviceLabel: 'nhà xe',
-                  )
-              : isPending
-                  ? () => _repayBusTicket(item)
-                  : null,
+          ? () => _showReviewSheet(
+              tripId: item.tripId,
+              targetType: 'BusCompany',
+              targetId: item.companyId,
+              serviceName: item.companyName,
+              serviceLabel: 'nhà xe',
+            )
+          : isPending
+          ? () => _repayBusTicket(item)
+          : null,
       extraLines: [
         '${context.tr(vi: 'Chuyến đi', en: 'Trip')}: ${item.tripTitle}',
         '${context.tr(vi: 'Số lượng', en: 'Quantity')}: ${item.quantity}',
@@ -581,10 +593,8 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
   void _openTrip(int tripId, String title) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => TripItineraryDetailView(
-          tripId: tripId,
-          tripTitle: title,
-        ),
+        builder: (_) =>
+            TripItineraryDetailView(tripId: tripId, tripTitle: title),
       ),
     );
   }
@@ -720,8 +730,8 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                               onPressed: isSubmitting
                                   ? null
                                   : () => setSheetState(() {
-                                        selectedRating = starRating;
-                                      }),
+                                      selectedRating = starRating;
+                                    }),
                             );
                           }),
                         ),
@@ -737,21 +747,26 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                                 'Chia sẻ điều bạn thích hoặc điều cần cải thiện...',
                             filled: true,
                             fillColor: const Color(0xFFF7F9FA),
-                            counterStyle: TextStyle(color: Colors.grey.shade500),
+                            counterStyle: TextStyle(
+                              color: Colors.grey.shade500,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide:
-                                  BorderSide(color: Colors.grey.shade200),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade200,
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide:
-                                  BorderSide(color: Colors.grey.shade200),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade200,
+                              ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide:
-                                  const BorderSide(color: Color(0xFF0D6B42)),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF0D6B42),
+                              ),
                             ),
                             contentPadding: const EdgeInsets.all(14),
                           ),
@@ -765,7 +780,9 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                                     ? null
                                     : () => Navigator.of(sheetContext).pop(),
                                 style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
                                   ),
@@ -789,8 +806,8 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                                             targetType: targetType,
                                             targetId: targetId,
                                             rating: selectedRating,
-                                            comment:
-                                                commentController.text.trim(),
+                                            comment: commentController.text
+                                                .trim(),
                                           );
 
                                           if (!mounted) {
@@ -798,13 +815,16 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                                           }
 
                                           Navigator.of(sheetContext).pop();
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             const SnackBar(
                                               content: Text(
                                                 'Cảm ơn bạn đã gửi đánh giá.',
                                               ),
-                                              backgroundColor: Color(0xFF0D6B42),
+                                              backgroundColor: Color(
+                                                0xFF0D6B42,
+                                              ),
                                             ),
                                           );
                                           await _fetchHistory();
@@ -818,9 +838,13 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                                           });
                                           final message = e is ApiException
                                               ? e.message
-                                              : e.toString().replaceFirst('Exception: ', '');
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
+                                              : e.toString().replaceFirst(
+                                                  'Exception: ',
+                                                  '',
+                                                );
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             SnackBar(
                                               content: Text(message),
                                               backgroundColor: Colors.redAccent,
@@ -832,7 +856,9 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                                   backgroundColor: const Color(0xFF0D6B42),
                                   foregroundColor: Colors.white,
                                   elevation: 0,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
                                   ),
@@ -848,7 +874,9 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                                       )
                                     : const Text(
                                         'Gửi đánh giá',
-                                        style: TextStyle(fontWeight: FontWeight.w800),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
                                       ),
                               ),
                             ),
@@ -876,7 +904,12 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
     };
   }
 
-  void _showReviewDialog(int tripId, String targetType, int targetId, String name) {
+  void _showReviewDialog(
+    int tripId,
+    String targetType,
+    int targetId,
+    String name,
+  ) {
     int selectedRating = 5;
     final TextEditingController commentController = TextEditingController();
     bool isSubmitting = false;
@@ -888,10 +921,15 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
               title: Text(
                 'Đánh giá $name',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -909,7 +947,9 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                         final starRating = index + 1;
                         return IconButton(
                           icon: Icon(
-                            starRating <= selectedRating ? Icons.star : Icons.star_border,
+                            starRating <= selectedRating
+                                ? Icons.star
+                                : Icons.star_border,
                             color: Colors.amber,
                             size: 36,
                           ),
@@ -930,14 +970,19 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                       enabled: !isSubmitting,
                       decoration: InputDecoration(
                         hintText: 'Nhập ý kiến đánh giá của bạn tại đây...',
-                        hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+                        hintStyle: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 14,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: Colors.grey.shade300),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF0D6B42)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0D6B42),
+                          ),
                         ),
                         contentPadding: const EdgeInsets.all(12),
                       ),
@@ -949,7 +994,13 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
               actions: [
                 TextButton(
                   onPressed: isSubmitting ? null : () => Navigator.pop(context),
-                  child: const Text('Hủy', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Hủy',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: isSubmitting
@@ -994,15 +1045,26 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0D6B42),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: isSubmitting
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
-                      : const Text('Gửi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      : const Text(
+                          'Gửi',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ],
             );
@@ -1064,7 +1126,12 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
     await showSessionExpiredDialog(context, message: message);
   }
 
-  Future<void> _showPaymentModal(int tripId, double amount, String description, String type) async {
+  Future<void> _showPaymentModal(
+    int tripId,
+    double amount,
+    String description,
+    String type,
+  ) async {
     double finalAmount = amount;
     if (finalAmount <= 0) {
       showDialog(
@@ -1084,7 +1151,11 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
     }
 
     if (finalAmount <= 0) {
-      _processInternalPayment(tripId, 0, 4); // Tự động duyệt đơn 0đ thông qua index 4 'Promotion'
+      _processInternalPayment(
+        tripId,
+        0,
+        5,
+      ); // Tự động duyệt đơn 0đ thông qua index 5 'Promotion'
       return;
     }
 
@@ -1100,7 +1171,10 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Chọn phương thức thanh toán', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Chọn phương thức thanh toán',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 16),
                 ListTile(
                   leading: const Icon(Icons.qr_code_2, color: Colors.blue),
@@ -1109,22 +1183,37 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                   onTap: () => Navigator.pop(context, 0),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.account_balance_wallet, color: Colors.pink),
-                  title: const Text('Ví MoMo'),
+                  leading: const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    color: Colors.blueAccent,
+                  ),
+                  title: const Text('VNPAY'),
                   subtitle: Text('Tổng tiền: ${_currency(finalAmount)}'),
                   onTap: () => Navigator.pop(context, 1),
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.account_balance_wallet,
+                    color: Colors.pink,
+                  ),
+                  title: const Text('Ví MoMo'),
+                  subtitle: Text('Tổng tiền: ${_currency(finalAmount)}'),
+                  onTap: () => Navigator.pop(context, 2),
                 ),
                 ListTile(
                   leading: const Icon(Icons.payment, color: Colors.blueAccent),
                   title: const Text('ZaloPay'),
                   subtitle: Text('Tổng tiền: ${_currency(finalAmount)}'),
-                  onTap: () => Navigator.pop(context, 2),
+                  onTap: () => Navigator.pop(context, 3),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.account_balance, color: Colors.green),
+                  leading: const Icon(
+                    Icons.account_balance,
+                    color: Colors.green,
+                  ),
                   title: const Text('Chuyển khoản ngân hàng'),
                   subtitle: Text('Tổng tiền: ${_currency(finalAmount)}'),
-                  onTap: () => Navigator.pop(context, 3),
+                  onTap: () => Navigator.pop(context, 4),
                 ),
               ],
             ),
@@ -1137,6 +1226,8 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
 
     if (method == 0) {
       _processPayOs(tripId, finalAmount, description, type);
+    } else if (method == 1) {
+      _processVnPay(tripId, finalAmount, description, type);
     } else {
       _processInternalPayment(tripId, finalAmount, method);
     }
@@ -1147,31 +1238,76 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
     return (timePart * 1000) + (tripId % 1000);
   }
 
-  Future<void> _processPayOs(int tripId, double amount, String description, String type) async {
+  Future<void> _checkHostedPaymentStatus(int orderCode, String provider) async {
     try {
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (_) => const Center(child: CircularProgressIndicator()),
       );
-      
+
+      final payment = await PaymentService().getPaymentByOrderCode(orderCode);
+      if (mounted) Navigator.pop(context);
+
+      if (payment.isPaid) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Thanh toán $provider thành công!')),
+          );
+        }
+        _fetchHistory();
+        return;
+      }
+
+      final message = payment.isFailed
+          ? '$provider đã trả về trạng thái ${payment.status}.'
+          : '$provider đang ở trạng thái ${payment.status}.';
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      }
+    }
+  }
+
+  Future<void> _processPayOs(
+    int tripId,
+    double amount,
+    String description,
+    String type,
+  ) async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
       final orderCode = _generateOrderCode(tripId);
       final payment = await PaymentService().createPayOsPayment(
         tripId: tripId,
         amount: amount,
         description: description,
         orderCode: orderCode,
-        metadata: {
-          'type': type,
-        },
+        metadata: {'type': type},
       );
 
       if (mounted) Navigator.pop(context); // close loading
 
       final checkoutUrl = payment.checkoutUrl;
       if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
-        await launchUrl(Uri.parse(checkoutUrl), mode: LaunchMode.externalApplication);
-        
+        await launchUrl(
+          Uri.parse(checkoutUrl),
+          mode: LaunchMode.externalApplication,
+        );
+
         if (mounted) {
           await showDialog<void>(
             context: context,
@@ -1199,12 +1335,19 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
     } catch (e) {
       if (mounted) {
         Navigator.pop(context); // close loading
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
     }
   }
 
-  Future<void> _processInternalPayment(int tripId, double amount, int methodIndex) async {
+  Future<void> _processVnPay(
+    int tripId,
+    double amount,
+    String description,
+    String type,
+  ) async {
     try {
       showDialog(
         context: context,
@@ -1212,33 +1355,114 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
         builder: (_) => const Center(child: CircularProgressIndicator()),
       );
 
-      final methods = ['PayOS', 'Momo', 'Zalopay', 'BankTransfer', 'Promotion'];
+      final payment = await PaymentService().createVnPayPayment(
+        tripId: tripId,
+        amount: amount,
+        description: description,
+        metadata: {'type': type},
+      );
+
+      if (mounted) Navigator.pop(context);
+
+      final checkoutUrl = payment.checkoutUrl;
+      final orderCode = payment.orderCode;
+      if (checkoutUrl != null && checkoutUrl.isNotEmpty && orderCode != null) {
+        await launchUrl(
+          Uri.parse(checkoutUrl),
+          mode: LaunchMode.externalApplication,
+        );
+
+        if (mounted) {
+          await showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (dialogContext) {
+              return AlertDialog(
+                title: const Text('Hoàn tất thanh toán VNPAY'),
+                content: const Text(
+                  'Trang VNPAY đã được mở. Sau khi thanh toán xong, quay lại app và bấm kiểm tra.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('Để sau'),
+                  ),
+                  FilledButton(
+                    onPressed: () async {
+                      Navigator.of(dialogContext).pop();
+                      await _checkHostedPaymentStatus(orderCode, 'VNPAY');
+                    },
+                    child: const Text('Kiểm tra thanh toán'),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      }
+    }
+  }
+
+  Future<void> _processInternalPayment(
+    int tripId,
+    double amount,
+    int methodIndex,
+  ) async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final methods = [
+        'PayOS',
+        'Vnpay',
+        'Momo',
+        'Zalopay',
+        'BankTransfer',
+        'Promotion',
+      ];
       final methodName = methods[methodIndex];
 
       final payService = BusService();
       final success = await payService.confirmPayment(
         tripId: tripId,
         paymentMethod: methodName,
-        transactionId: 'TXN-REPAY-$tripId-${DateTime.now().millisecondsSinceEpoch}',
+        transactionId:
+            'TXN-REPAY-$tripId-${DateTime.now().millisecondsSinceEpoch}',
         amount: amount,
       );
 
       if (mounted) Navigator.pop(context); // close loading
-      
+
       if (success) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Thanh toán thành công!')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Thanh toán thành công!')),
+          );
         }
         _fetchHistory();
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Thanh toán thất bại.')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Thanh toán thất bại.')));
         }
       }
     } catch (e) {
       if (mounted) {
         Navigator.pop(context); // close loading
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
     }
   }
@@ -1344,7 +1568,9 @@ class _HistoryCard extends StatelessWidget {
                   ),
                 ),
               ],
-              if (onTap != null || detailLabel != null || actionLabel != null) ...[
+              if (onTap != null ||
+                  detailLabel != null ||
+                  actionLabel != null) ...[
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
@@ -1388,7 +1614,10 @@ class _HistoryCard extends StatelessWidget {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green.shade600,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           minimumSize: const Size(0, 36),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
@@ -1411,10 +1640,7 @@ class _HistoryCard extends StatelessWidget {
 }
 
 class _MetaChip extends StatelessWidget {
-  const _MetaChip({
-    required this.icon,
-    required this.label,
-  });
+  const _MetaChip({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
@@ -1432,10 +1658,7 @@ class _MetaChip extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: Colors.grey.shade700),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -1490,4 +1713,3 @@ class _StatusChip extends StatelessWidget {
     }
   }
 }
-

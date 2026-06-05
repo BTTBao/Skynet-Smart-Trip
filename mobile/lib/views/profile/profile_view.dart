@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/user_profile.dart';
@@ -585,7 +585,10 @@ class _ProfileHero extends StatelessWidget {
       ),
       child: Column(
         children: [
-          ProfileAvatar(avatarUrl: user.avatarUrl),
+          ProfileAvatar(
+            avatarUrl: user.avatarUrl,
+            heroTag: 'profile_avatar_main',
+          ),
           const SizedBox(height: 16),
           Text(
             user.name,
@@ -723,3 +726,4 @@ class _ErrorState extends StatelessWidget {
     );
   }
 }
+

@@ -23,7 +23,7 @@ class PaymentSuccessScreen extends StatefulWidget {
   final DateTime paymentTime;
 
   const PaymentSuccessScreen({
-    Key? key,
+    super.key,
     required this.bookingId,
     this.itineraryId,
     this.destinationId,
@@ -37,7 +37,7 @@ class PaymentSuccessScreen extends StatefulWidget {
     required this.totalPrice,
     required this.paymentMethod,
     required this.paymentTime,
-  }) : super(key: key);
+  });
 
   @override
   State<PaymentSuccessScreen> createState() => _PaymentSuccessScreenState();
@@ -509,6 +509,26 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
     final hour = dt.hour.toString().padLeft(2, '0');
     final minute = dt.minute.toString().padLeft(2, '0');
     return '$hour:$minute, ${dt.day} Thg ${dt.month} ${dt.year}';
+  }
+
+  String _formatPaymentMethod(String method) {
+    switch (method) {
+      case 'Momo':
+        return 'Ví điện tử MoMo';
+      case 'Zalopay':
+        return 'Ví điện tử ZaloPay';
+      case 'BankTransfer':
+      case 'Chuyen khoan ngan hang':
+        return 'Chuyển khoản ngân hàng';
+      case 'Promotion':
+      case 'Khuyến mãi (0đ)':
+      case 'Khuyen mai (0d)':
+        return 'Khuyến mãi (0đ)';
+      case 'PayOS':
+        return 'PayOS';
+      default:
+        return method;
+    }
   }
 
   @override

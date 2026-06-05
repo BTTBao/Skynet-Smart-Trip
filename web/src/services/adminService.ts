@@ -586,10 +586,15 @@ export const adminService = {
   },
 
   uploadRoomImage: async (file: File): Promise<AdminImageUploadResult> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const response = await apiClient.post<AdminImageUploadResult>('/admin/uploads/room-images', formData);
-    return response.data;
+    return uploadAdminImage('/admin/uploads/room-images', file);
+  },
+
+  uploadDestinationCoverImage: async (file: File): Promise<AdminImageUploadResult> => {
+    return uploadAdminImage('/admin/uploads/destination-covers', file);
+  },
+
+  uploadTransportCompanyLogo: async (file: File): Promise<AdminImageUploadResult> => {
+    return uploadAdminImage('/admin/uploads/transport-company-logos', file);
   },
 
   deleteRoom: async (roomId: number) => {
@@ -645,12 +650,7 @@ export const adminService = {
   },
 
   uploadExplorePostImage: async (file: File): Promise<{ imageUrl: string; relativeUrl: string }> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const response = await apiClient.post<{ imageUrl: string; relativeUrl: string }>('/explore/posts/images', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data;
+    return uploadAdminImage('/explore/posts/images', file);
   },
 
   getNotifications: async (params?: { search?: string }): Promise<AdminNotificationStats> => {
@@ -666,3 +666,12 @@ export const adminService = {
     return response.data;
   },
 };
+
+async function uploadAdminImage(path: string, file: File): Promise<AdminImageUploadResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await apiClient.post<AdminImageUploadResult>(path, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}

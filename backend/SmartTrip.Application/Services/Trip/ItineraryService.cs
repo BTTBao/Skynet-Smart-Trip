@@ -180,6 +180,22 @@ public class ItineraryService : IItineraryService
             serviceName = "Ghi chú";
             serviceSubtitle = itinerary.ServiceAddress;
         }
+        if (normalizedServiceType == NoteServiceType)
+        {
+            var noteLines = (itinerary.ServiceAddress ?? string.Empty)
+                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(line => line.Trim())
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .ToList();
+
+            if (noteLines.Count > 0)
+            {
+                serviceName = noteLines[0];
+                serviceSubtitle = noteLines.Count > 1
+                    ? string.Join(" - ", noteLines.Skip(1))
+                    : null;
+            }
+        }
         else if (normalizedServiceType == BusServiceType && itinerary.ServiceId.HasValue)
         {
             var busSchedule = await _context.BusSchedules

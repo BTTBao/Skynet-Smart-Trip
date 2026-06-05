@@ -167,36 +167,25 @@ abstract class ApiService {
       request.headers.addAll(requestHeaders);
       request.headers.remove('content-type');
       request.headers.remove('Content-Type');
+      final resolvedContentType = _resolveImageContentType(file);
 
       if (kIsWeb) {
-        MediaType? contentType;
-        if (file.mimeType != null) {
-          try {
-            contentType = MediaType.parse(file.mimeType!);
-          } catch (_) {}
-        }
-        if (contentType == null) {
-          final nameLower = file.name.toLowerCase();
-          if (nameLower.endsWith('.png')) {
-            contentType = MediaType('image', 'png');
-          } else if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg')) {
-            contentType = MediaType('image', 'jpeg');
-          } else if (nameLower.endsWith('.webp')) {
-            contentType = MediaType('image', 'webp');
-          } else if (nameLower.endsWith('.gif')) {
-            contentType = MediaType('image', 'gif');
-          }
-        }
         request.files.add(
           http.MultipartFile.fromBytes(
             fileField,
             await file.readAsBytes(),
             filename: file.name,
-            contentType: contentType,
+            contentType: resolvedContentType,
           ),
         );
       } else {
-        request.files.add(await http.MultipartFile.fromPath(fileField, file.path));
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            fileField,
+            file.path,
+            contentType: resolvedContentType,
+          ),
+        );
       }
 
       final streamedResponse = await request.send().timeout(
@@ -268,5 +257,28 @@ abstract class ApiService {
     } catch (_) {}
 
     return 'Loi API: ${response.statusCode} - ${response.body}';
+  }
+
+  MediaType? _resolveImageContentType(XFile file) {
+    if (file.mimeType != null && file.mimeType!.trim().isNotEmpty) {
+      try {
+        return MediaType.parse(file.mimeType!);
+      } catch (_) {}
+    }
+
+    final nameLower = file.name.toLowerCase();
+    if (nameLower.endsWith('.png')) {
+      return MediaType('image', 'png');
+    }
+
+    if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg')) {
+      return MediaType('image', 'jpeg');
+    }
+
+    if (nameLower.endsWith('.webp')) {
+      return MediaType('image', 'webp');
+    }
+
+    return null;
   }
 }

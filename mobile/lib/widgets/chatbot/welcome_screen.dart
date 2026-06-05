@@ -47,7 +47,7 @@ class WelcomeScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             context.tr(
-              vi: 'Tro ly du lich thong minh cua ban',
+              vi: 'Trợ lý du lịch thông minh của bạn',
               en: 'Your smart travel assistant',
             ),
             style: TextStyle(
@@ -60,68 +60,68 @@ class WelcomeScreen extends StatelessWidget {
             icon: Icons.explore_outlined,
             color: const Color(0xFF667eea),
             title: context.tr(
-              vi: 'Goi y diem den',
+              vi: 'Gợi ý điểm đến',
               en: 'Discover destinations',
             ),
             subtitle: context.tr(
-              vi: 'Kham pha nhung noi tuyet voi nhat Viet Nam',
+              vi: 'Khám phá những nơi tuyệt vời nhất Việt Nam',
               en: 'Explore standout places across Vietnam',
             ),
             action: const QuickAction(
-              label: 'Goi y diem den',
+              label: 'Gợi ý điểm đến',
               icon: 'explore',
-              actionPayload: 'Goi y cho toi 3 diem den dep nhat o Viet Nam',
+              actionPayload: 'Gợi ý cho tôi 3 điểm đến đẹp nhất ở Việt Nam',
             ),
           ),
           _buildFeatureCard(
             icon: Icons.calendar_month_outlined,
             color: const Color(0xFF11998e),
             title: context.tr(
-              vi: 'Lap lich trinh',
+              vi: 'Lập lịch trình',
               en: 'Plan an itinerary',
             ),
             subtitle: context.tr(
-              vi: 'Tu dong tao ke hoach chi tiet theo ngay',
+              vi: 'Tự động tạo kế hoạch chi tiết theo ngày',
               en: 'Generate a day-by-day travel plan',
             ),
             action: const QuickAction(
-              label: 'Lap lich trinh',
+              label: 'Lập lịch trình',
               icon: 'calendar',
-              actionPayload: 'Lap lich trinh du lich Da Lat 3 ngay 2 dem',
+              actionPayload: 'Lập lịch trình du lịch Đà Lạt 3 ngày 2 đêm',
             ),
           ),
           _buildFeatureCard(
             icon: Icons.hotel_outlined,
             color: const Color(0xFF1a237e),
             title: context.tr(
-              vi: 'Tim khach san',
+              vi: 'Tìm khách sạn',
               en: 'Find hotels',
             ),
             subtitle: context.tr(
-              vi: 'So sanh va tim cho o phu hop nhat',
+              vi: 'So sánh và tìm chỗ ở phù hợp nhất',
               en: 'Compare stays that fit your trip',
             ),
             action: const QuickAction(
-              label: 'Tim khach san',
+              label: 'Tìm khách sạn',
               icon: 'hotel',
-              actionPayload: 'Tim khach san dep o Phu Quoc',
+              actionPayload: 'Tìm khách sạn đẹp ở Phú Quốc',
             ),
           ),
           _buildFeatureCard(
             icon: Icons.wb_sunny_outlined,
             color: const Color(0xFFFF9800),
             title: context.tr(
-              vi: 'Thoi tiet du lich',
+              vi: 'Thời tiết du lịch',
               en: 'Travel weather',
             ),
             subtitle: context.tr(
-              vi: 'Kiem tra thoi tiet truoc khi len duong',
+              vi: 'Kiểm tra thời tiết trước khi lên đường',
               en: 'Check the weather before you go',
             ),
             action: const QuickAction(
-              label: 'Xem thoi tiet',
+              label: 'Xem thời tiết',
               icon: 'weather',
-              actionPayload: 'Thoi tiet Da Nang hom nay the nao?',
+              actionPayload: 'Thời tiết Đà Nẵng hôm nay thế nào?',
             ),
           ),
           const SizedBox(height: 20),

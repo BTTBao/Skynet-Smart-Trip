@@ -94,7 +94,7 @@ class _ChatInputState extends State<ChatInput> {
                   enabled: true,
                   decoration: InputDecoration(
                     hintText: context.tr(
-                      vi: 'Hoi Sky bat ky dieu gi...',
+                      vi: 'Hỏi Sky bất kỳ điều gì...',
                       en: 'Ask Sky anything...',
                     ),
                     border: InputBorder.none,
