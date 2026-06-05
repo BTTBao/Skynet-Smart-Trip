@@ -1212,8 +1212,16 @@ class _SeatSelectionSheet extends StatelessWidget {
                       return GestureDetector(
                         onTap: seat.isBooked
                             ? null
-                            : () =>
-                                provider.toggleSeatSelection(seat.seatNumber),
+                            : () {
+                                final selected = provider.toggleSeatSelection(seat.seatNumber);
+                                if (!selected) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Moi lan chi duoc dat toi da 5 ve.'),
+                                    ),
+                                  );
+                                }
+                              },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
                           decoration: BoxDecoration(

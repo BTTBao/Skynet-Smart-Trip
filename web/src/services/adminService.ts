@@ -373,6 +373,7 @@ export interface AdminBooking {
   userCode: string;
   destination: string;
   totalAmount: string;
+  totalProfit: string;
   summary: string;
   paymentStatus: 'paid' | 'pending' | 'cancelled';
   tripStatus: 'paid' | 'pending' | 'cancelled';
@@ -410,6 +411,7 @@ export interface AdminUpdateBookingStatusRequest {
 
 export interface AdminBookingStats {
   totalRevenue: number;
+  totalProfit: number;
   totalBookings: number;
   newCustomers: number;
   paidBookings: number;

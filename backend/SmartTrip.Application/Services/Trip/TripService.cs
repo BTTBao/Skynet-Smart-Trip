@@ -296,6 +296,7 @@ public class TripService : ITripService
         payment.Amount = amount;
         payment.Status = PaymentStatus.Paid;
         payment.PaidAt = DateTime.UtcNow;
+        trip.TotalProfit = CalculateTripProfitFromPaidAmount(trip, amount);
         if (trip.Status != TripStatus.BookingOnly)
         {
             trip.Status = TripStatus.Pending;
@@ -356,6 +357,35 @@ public class TripService : ITripService
             CreatedAt = trip.CreatedAt,
             ItineraryCount = trip.ItineraryCount
         };
+    }
+
+    private static decimal CalculateTripProfitFromPaidAmount(TripEntity trip, decimal paidAmount)
+    {
+        if (paidAmount <= 0 || trip.TripItineraries.Count == 0)
+        {
+            return 0m;
+        }
+
+        var grossAmount = trip.TripItineraries.Sum(item =>
+            item.BookedPrice.GetValueOrDefault() * item.Quantity.GetValueOrDefault(1));
+
+        if (grossAmount <= 0)
+        {
+            return 0m;
+        }
+
+        return trip.TripItineraries.Sum(item =>
+        {
+            var lineGross = item.BookedPrice.GetValueOrDefault() * item.Quantity.GetValueOrDefault(1);
+            var paidLineAmount = paidAmount * lineGross / grossAmount;
+            return paidLineAmount * NormalizeCommissionRate(item.BookedCommissionRate);
+        });
+    }
+
+    private static decimal NormalizeCommissionRate(double? rate)
+    {
+        var value = (decimal)(rate ?? 0d);
+        return value > 1m ? value / 100m : value;
     }
 
     private async Task<Destination?> ResolveDestinationAsync(int? destinationId, string? destinationName)

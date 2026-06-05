@@ -78,7 +78,7 @@ public class ItineraryService : IItineraryService
             existingHotelItinerary.ServiceAddress = request.ServiceAddress ?? existingHotelItinerary.ServiceAddress;
 
             await _context.SaveChangesAsync();
-            await RecalculateTripTotalsAsync(tripId);
+            await RecalculateTripTotalsWithPaymentsAsync(tripId);
 
             return await MapItineraryAsync(existingHotelItinerary);
         }
@@ -104,7 +104,7 @@ public class ItineraryService : IItineraryService
         _context.TripItineraries.Add(itinerary);
         await _context.SaveChangesAsync();
 
-        await RecalculateTripTotalsAsync(tripId);
+        await RecalculateTripTotalsWithPaymentsAsync(tripId);
 
         return await MapItineraryAsync(itinerary);
     }
@@ -233,11 +233,74 @@ public class ItineraryService : IItineraryService
             throw new KeyNotFoundException($"Itinerary {itineraryId} was not found.");
         }
 
-        if (request.DayNumber.HasValue)
+        if (request.TripId.HasValue && request.TripId.Value != itinerary.TripId)
         {
-            var trip = await _context.Trips.FirstAsync(item => item.Id == itinerary.TripId);
-            ValidateDayNumber(trip, request.DayNumber.Value);
-            itinerary.DayNumber = request.DayNumber.Value;
+            var newTrip = await _context.Trips.FirstOrDefaultAsync(t => t.Id == request.TripId.Value);
+            if (newTrip == null)
+            {
+                throw new KeyNotFoundException($"Target Trip {request.TripId.Value} was not found.");
+            }
+
+            var oldTripId = itinerary.TripId;
+            itinerary.TripId = request.TripId.Value;
+
+            if (request.DayNumber.HasValue)
+            {
+                itinerary.DayNumber = request.DayNumber.Value;
+            }
+            else
+            {
+                itinerary.DayNumber = 1;
+            }
+
+            // Move payments and invoices associated with old trip to new trip
+            if (oldTripId.HasValue)
+            {
+                var payments = await _context.Payments
+                    .Where(p => p.TripId == oldTripId.Value)
+                    .ToListAsync();
+                foreach (var payment in payments)
+                {
+                    payment.TripId = request.TripId.Value;
+                }
+
+                var invoices = await _context.Invoices
+                    .Where(i => i.TripId == oldTripId.Value)
+                    .ToListAsync();
+                foreach (var invoice in invoices)
+                {
+                    invoice.TripId = request.TripId.Value;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Recalculate totals and profit for both trips
+            if (oldTripId.HasValue)
+            {
+                await RecalculateTripTotalsWithPaymentsAsync(oldTripId.Value);
+
+                // If old trip was BOOKING_ONLY and now has no itineraries, delete it
+                var oldTrip = await _context.Trips
+                    .Include(t => t.TripItineraries)
+                    .FirstOrDefaultAsync(t => t.Id == oldTripId.Value);
+                if (oldTrip != null && oldTrip.Status == TripStatus.BookingOnly && !oldTrip.TripItineraries.Any())
+                {
+                    _context.Trips.Remove(oldTrip);
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            await RecalculateTripTotalsWithPaymentsAsync(request.TripId.Value);
+        }
+        else
+        {
+            if (request.DayNumber.HasValue)
+            {
+                var trip = await _context.Trips.FirstAsync(item => item.Id == itinerary.TripId);
+                ValidateDayNumber(trip, request.DayNumber.Value);
+                itinerary.DayNumber = request.DayNumber.Value;
+            }
         }
 
         if (request.Quantity.HasValue)
@@ -271,9 +334,10 @@ public class ItineraryService : IItineraryService
         }
 
         await _context.SaveChangesAsync();
-        if (itinerary.TripId.HasValue)
+
+        if (itinerary.TripId.HasValue && (!request.TripId.HasValue || request.TripId.Value == itinerary.TripId))
         {
-            await RecalculateTripTotalsAsync(itinerary.TripId.Value);
+            await RecalculateTripTotalsWithPaymentsAsync(itinerary.TripId.Value);
         }
 
         return await MapItineraryAsync(itinerary);
@@ -293,7 +357,7 @@ public class ItineraryService : IItineraryService
 
         if (tripId.HasValue)
         {
-            await RecalculateTripTotalsAsync(tripId.Value);
+            await RecalculateTripTotalsWithPaymentsAsync(tripId.Value);
         }
 
         return true;
@@ -516,6 +580,50 @@ public class ItineraryService : IItineraryService
             (item.BookedPrice ?? 0) *
             (decimal)((item.BookedCommissionRate ?? 0) / 100d) *
             (item.Quantity ?? 1));
+
+        await _context.SaveChangesAsync();
+    }
+
+
+    private async Task RecalculateTripTotalsWithPaymentsAsync(int tripId)
+    {
+        var trip = await _context.Trips
+            .Include(item => item.TripItineraries)
+            .Include(item => item.Payments)
+            .FirstOrDefaultAsync(item => item.Id == tripId);
+
+        if (trip == null) return;
+
+        trip.TotalAmount = trip.TripItineraries.Sum(item =>
+            (item.BookedPrice ?? 0) * (item.Quantity ?? 1));
+
+        var totalPaidAmount = trip.Payments
+            .Where(p => p.Status == PaymentStatus.Paid)
+            .Sum(p => p.Amount ?? 0m);
+
+        if (totalPaidAmount <= 0)
+        {
+            trip.TotalProfit = 0m;
+        }
+        else
+        {
+            var grossAmount = trip.TripItineraries.Sum(item =>
+                (item.BookedPrice ?? 0) * (item.Quantity ?? 1));
+
+            if (grossAmount <= 0)
+            {
+                trip.TotalProfit = 0m;
+            }
+            else
+            {
+                trip.TotalProfit = trip.TripItineraries.Sum(item =>
+                {
+                    var lineGross = (item.BookedPrice ?? 0) * (item.Quantity ?? 1);
+                    var paidLineAmount = totalPaidAmount * lineGross / grossAmount;
+                    return paidLineAmount * (decimal)((item.BookedCommissionRate ?? 0) / 100d);
+                });
+            }
+        }
 
         await _context.SaveChangesAsync();
     }

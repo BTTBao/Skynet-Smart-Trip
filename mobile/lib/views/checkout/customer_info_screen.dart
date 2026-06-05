@@ -50,7 +50,6 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
   late final TextEditingController _fullNameController;
   late final TextEditingController _emailController;
   late final TextEditingController _phoneController;
-  late final TextEditingController _specialRequestController;
 
   @override
   void initState() {
@@ -58,7 +57,6 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
     _fullNameController = TextEditingController();
     _emailController = TextEditingController();
     _phoneController = TextEditingController();
-    _specialRequestController = TextEditingController();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadProfileInfo());
   }
 
@@ -67,7 +65,6 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
     _fullNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
-    _specialRequestController.dispose();
     super.dispose();
   }
 
@@ -188,7 +185,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           fullName: _fullNameController.text,
           email: _emailController.text,
           phone: _phoneController.text,
-          specialRequest: _specialRequestController.text,
+          specialRequest: '',
           existingTripId: widget.existingTripId,
           existingTripDayNumber: widget.existingTripDayNumber,
           existingTripStartDate: widget.existingTripStartDate,
@@ -641,48 +638,6 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextAreaField(TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Yêu cầu đặc biệt',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: controller,
-            maxLines: 4,
-            decoration: InputDecoration(
-              hintText: 'Ví dụ: Phòng không hút thuốc, check-in sớm...',
-              hintStyle: TextStyle(color: Colors.grey[400]),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 16,
-              ),
-            ),
           ),
         ],
       ),

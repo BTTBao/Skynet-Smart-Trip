@@ -446,7 +446,7 @@ class _ChatbotViewState extends State<ChatbotView> {
 
     final transport = itinerary.transportSuggestion;
     if (transport?.scheduleId != null) {
-      saveOk = await tripProvider.addItinerary(
+      final itineraryId = await tripProvider.addItinerary(
         createdTrip.tripId,
         CreateTripItineraryRequest(
           dayNumber: 1,
@@ -457,13 +457,14 @@ class _ChatbotViewState extends State<ChatbotView> {
           serviceDate: startDate,
         ),
       );
+      saveOk = itineraryId != null;
     }
 
     if (saveOk) {
       final hotel = itinerary.hotelSuggestion;
       if (hotel?.roomId != null) {
         final nights = endDate.difference(startDate).inDays.clamp(1, 30).toInt();
-        saveOk = await tripProvider.addItinerary(
+        final itineraryId = await tripProvider.addItinerary(
           createdTrip.tripId,
           CreateTripItineraryRequest(
             dayNumber: 1,
@@ -474,6 +475,7 @@ class _ChatbotViewState extends State<ChatbotView> {
             serviceDate: startDate,
           ),
         );
+        saveOk = itineraryId != null;
       }
     }
 

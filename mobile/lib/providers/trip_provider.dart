@@ -178,7 +178,7 @@ class TripProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> addItinerary(
+  Future<int?> addItinerary(
     int tripId,
     CreateTripItineraryRequest request,
   ) async {
@@ -187,15 +187,15 @@ class TripProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _tripService.addItinerary(tripId, request);
+      final entry = await _tripService.addItinerary(tripId, request);
       await fetchTripDetail(tripId);
       await fetchTrips(silent: true);
-      return true;
+      return entry.itineraryId;
     } catch (e) {
       _error = e.toString();
       _isSubmitting = false;
       notifyListeners();
-      return false;
+      return null;
     } finally {
       _isSubmitting = false;
       notifyListeners();

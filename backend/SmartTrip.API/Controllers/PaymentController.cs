@@ -75,7 +75,7 @@ public class PaymentController : ControllerBase
         var payment = await _paymentService.GetPaymentStatusAsync(orderCode, cancellationToken);
         return payment == null ? NotFound(new { message = $"Payment orderCode {orderCode} was not found." }) : Ok(payment);
     }
-
+    
     [AllowAnonymous]
     [HttpGet("payos/cancel")]
     public async Task<IActionResult> PayOsCancel([FromQuery] long orderCode, CancellationToken cancellationToken)

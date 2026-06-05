@@ -509,7 +509,7 @@ public partial class AdminService
             RoomType = room.RoomType ?? "Standard",
             Capacity = room.Capacity ?? 0,
             PricePerNight = room.PricePerNight ?? 0,
-            CommissionRate = room.CommissionRate ?? 0,
+            CommissionRate = (double)(NormalizeCommissionRate(room.CommissionRate) * 100m),
             AvailableQty = availableQty,
             IsSelling = availableQty > 0,
             ImageUrls = imageUrls ?? []

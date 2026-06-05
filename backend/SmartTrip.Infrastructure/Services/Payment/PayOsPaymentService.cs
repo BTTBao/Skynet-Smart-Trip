@@ -191,6 +191,8 @@ public class PayOsPaymentService : IPaymentService
         var payment = await _context.Payments
             .Include(item => item.Trip)
                 .ThenInclude(trip => trip!.User)
+            .Include(item => item.Trip)
+                .ThenInclude(trip => trip!.TripItineraries)
             .FirstOrDefaultAsync(item => item.OrderCode == orderCode.Value, cancellationToken);
 
         if (payment == null)
@@ -221,6 +223,7 @@ public class PayOsPaymentService : IPaymentService
                 if (trip != null && trip.Status != TripStatus.Cancelled)
                 {
                     trip.Status = TripStatus.Paid;
+                    trip.TotalProfit = CalculateTripProfitFromPaidAmount(trip, payment.Amount ?? 0m);
                 }
 
                 await MarkBusSeatsBookedAsync(payment, cancellationToken);
@@ -693,6 +696,35 @@ public class PayOsPaymentService : IPaymentService
         return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var parsed)
             ? parsed
             : null;
+    }
+
+    private static decimal CalculateTripProfitFromPaidAmount(SmartTrip.Domain.Entities.Trip trip, decimal paidAmount)
+    {
+        if (paidAmount <= 0 || trip.TripItineraries.Count == 0)
+        {
+            return 0m;
+        }
+
+        var grossAmount = trip.TripItineraries.Sum(item =>
+            item.BookedPrice.GetValueOrDefault() * item.Quantity.GetValueOrDefault(1));
+
+        if (grossAmount <= 0)
+        {
+            return 0m;
+        }
+
+        return trip.TripItineraries.Sum(item =>
+        {
+            var lineGross = item.BookedPrice.GetValueOrDefault() * item.Quantity.GetValueOrDefault(1);
+            var paidLineAmount = paidAmount * lineGross / grossAmount;
+            return paidLineAmount * NormalizeCommissionRate(item.BookedCommissionRate);
+        });
+    }
+
+    private static decimal NormalizeCommissionRate(double? rate)
+    {
+        var value = (decimal)(rate ?? 0d);
+        return value > 1m ? value / 100m : value;
     }
 }
 

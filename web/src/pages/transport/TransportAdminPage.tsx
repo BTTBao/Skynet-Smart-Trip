@@ -457,7 +457,7 @@ export default function TransportAdminPage() {
             <input value={scheduleForm.departureAt} onChange={(event) => setScheduleForm((current) => ({ ...current, departureAt: event.target.value }))} type="datetime-local" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
             <input value={scheduleForm.arrivalAt} onChange={(event) => setScheduleForm((current) => ({ ...current, arrivalAt: event.target.value }))} type="datetime-local" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
             <input value={scheduleForm.price} onChange={(event) => setScheduleForm((current) => ({ ...current, price: Number(event.target.value) }))} type="number" min={0} placeholder="Giá vé" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
-            <input value={scheduleForm.commissionRate} onChange={(event) => setScheduleForm((current) => ({ ...current, commissionRate: Number(event.target.value) }))} type="number" min={0} max={100} placeholder="% affiliate" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
+            <input value={scheduleForm.commissionRate} onChange={(event) => setScheduleForm((current) => ({ ...current, commissionRate: Number(event.target.value) }))} type="number" min={0} max={100} placeholder="Loi nhuan chot %" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
             <input value={scheduleForm.totalSeats} onChange={(event) => setScheduleForm((current) => ({ ...current, totalSeats: Number(event.target.value) }))} type="number" min={1} placeholder="Tổng ghế" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
           </div>
 

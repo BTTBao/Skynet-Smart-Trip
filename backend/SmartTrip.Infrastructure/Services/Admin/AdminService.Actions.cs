@@ -285,6 +285,7 @@ public partial class AdminService
             UserCode = booking.UserCode,
             Destination = booking.Destination,
             TotalAmount = booking.TotalAmount,
+            TotalProfit = booking.TotalProfit,
             Summary = booking.Summary,
             PaymentStatus = booking.PaymentStatus,
             TripStatus = booking.TripStatus,
@@ -346,6 +347,7 @@ public partial class AdminService
         if (nextPaymentStatus == PaymentStatus.Paid)
         {
             trip.Status = TripStatus.Paid;
+            trip.TotalProfit = CalculateTripProfitFromPaidAmount(trip, payment.Amount ?? trip.TotalAmount ?? 0m);
         }
 
         await _context.SaveChangesAsync();
@@ -430,6 +432,8 @@ public partial class AdminService
 
     private static AdminBookingDto MapBooking(Trip trip)
     {
+        var paidAmount = ResolvePaidBookingAmount(trip);
+
         return new AdminBookingDto
         {
             Id = trip.Id,
@@ -437,12 +441,51 @@ public partial class AdminService
             UserName = trip.User?.FullName ?? "Khách vãng lai",
             UserCode = trip.UserId.HasValue ? $"ID: SKY-{trip.UserId.Value:D4}" : "Khách chưa đăng nhập",
             Destination = trip.Destination?.Name ?? "Chưa xác định",
-            TotalAmount = $"{trip.TotalAmount.GetValueOrDefault():N0}đ",
+            TotalAmount = $"{paidAmount:N0}đ",
+            TotalProfit = $"{trip.TotalProfit.GetValueOrDefault():N0}đ",
             Summary = BuildTripSummary(trip),
             PaymentStatus = GetBookingPaymentStatus(trip),
             TripStatus = MapTripStatus(trip.Status),
             CreatedAt = trip.CreatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "--"
         };
+    }
+
+    private static decimal ResolvePaidBookingAmount(Trip trip)
+    {
+        var paidAmount = trip.Payments
+            .Where(payment => payment.Status == PaymentStatus.Paid)
+            .Sum(payment => payment.Amount.GetValueOrDefault());
+
+        return paidAmount > 0 ? paidAmount : trip.TotalAmount.GetValueOrDefault();
+    }
+
+    private static decimal CalculateTripProfitFromPaidAmount(Trip trip, decimal paidAmount)
+    {
+        if (paidAmount <= 0 || trip.TripItineraries.Count == 0)
+        {
+            return 0m;
+        }
+
+        var grossAmount = trip.TripItineraries.Sum(item =>
+            item.BookedPrice.GetValueOrDefault() * item.Quantity.GetValueOrDefault(1));
+
+        if (grossAmount <= 0)
+        {
+            return 0m;
+        }
+
+        return trip.TripItineraries.Sum(item =>
+        {
+            var lineGross = item.BookedPrice.GetValueOrDefault() * item.Quantity.GetValueOrDefault(1);
+            var paidLineAmount = paidAmount * lineGross / grossAmount;
+            return paidLineAmount * NormalizeCommissionRate(item.BookedCommissionRate);
+        });
+    }
+
+    private static decimal NormalizeCommissionRate(double? rate)
+    {
+        var value = (decimal)(rate ?? 0d);
+        return value > 1m ? value / 100m : value;
     }
 
     private static AdminTransportScheduleDto MapTransportSchedule(BusSchedule schedule, DateTime now)
@@ -469,7 +512,7 @@ public partial class AdminService
             TicketPrice = $"{ticketPrice:N0}đ",
             AffiliateProfit = $"{affiliateProfit:N0}đ",
             PriceValue = ticketPrice,
-            CommissionRate = schedule.CommissionRate ?? 0d,
+            CommissionRate = (double)(NormalizeCommissionRate(schedule.CommissionRate) * 100m),
             OccupiedSeats = occupiedSeats,
             TotalSeats = totalSeats,
             Seats = schedule.Seats

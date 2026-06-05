@@ -2,6 +2,8 @@ namespace SmartTrip.Application.DTOs.Trip;
 
 public class UpdateTripItineraryDto
 {
+    public int? TripId { get; set; }
+
     public int? DayNumber { get; set; }
 
     public int? Quantity { get; set; }

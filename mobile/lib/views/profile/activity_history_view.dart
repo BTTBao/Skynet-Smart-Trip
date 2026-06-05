@@ -1449,6 +1449,7 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final translatedLabel = _statusLabel(label);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -1456,13 +1457,37 @@ class _StatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        label,
+        translatedLabel,
         style: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
       ),
     );
+  }
+
+  String _statusLabel(String raw) {
+    switch (raw.trim().toUpperCase()) {
+      case 'PAID':
+        return 'Đã thanh toán';
+      case 'PENDING':
+        return 'Chờ thanh toán';
+      case 'DRAFT':
+        return 'Bản nháp';
+      case 'CANCELLED':
+      case 'CANCELED':
+        return 'Đã hủy';
+      case 'BOOKING_ONLY':
+        return 'Chỉ lưu booking';
+      case 'FAILED':
+        return 'Thất bại';
+      case 'EXPIRED':
+        return 'Hết hạn';
+      case 'REFUNDED':
+        return 'Đã hoàn tiền';
+      default:
+        return raw.isEmpty ? 'Không rõ' : raw;
+    }
   }
 }
 

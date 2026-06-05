@@ -32,6 +32,10 @@ function formatCurrency(value: number) {
   return `${value.toLocaleString('vi-VN')} VND`;
 }
 
+function calculateRoomProfitPerNight(room: AdminRoom) {
+  return room.pricePerNight * (room.commissionRate / 100);
+}
+
 export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -446,7 +450,7 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
               />
             </label>
             <label className="rounded-[1.4rem] bg-white px-5 py-4 ring-1 ring-black/5">
-              <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Commission %</span>
+              <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Loi nhuan chot (%)</span>
               <input
                 value={roomForm.commissionRate}
                 onChange={(event) => setRoomForm((current) => ({ ...current, commissionRate: Number(event.target.value) }))}
@@ -555,7 +559,8 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
                   <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Loại phòng</th>
                   <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Sức chứa</th>
                   <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Giá / Đêm</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Commission</th>
+                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Hoa hong</th>
+                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Loi nhuan / dem</th>
                   <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Available Qty</th>
                   <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Album</th>
                   <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Trạng thái</th>
@@ -572,6 +577,7 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
                     <td className="px-8 py-6 text-sm font-medium text-on-surface">{room.capacity} người</td>
                     <td className="px-8 py-6 text-sm font-medium text-on-surface">{formatCurrency(room.pricePerNight)}</td>
                     <td className="px-8 py-6 text-sm text-on-surface-variant">{room.commissionRate}%</td>
+                    <td className="px-8 py-6 text-sm font-bold text-[#10B981]">{formatCurrency(calculateRoomProfitPerNight(room))}</td>
                     <td className="px-8 py-6 text-sm font-bold text-on-surface">{room.availableQty}</td>
                     <td className="px-8 py-6">
                       {room.imageUrls.length > 0 ? (
