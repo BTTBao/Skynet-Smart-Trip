@@ -29,14 +29,43 @@ const regionOptions = [
   { value: 'south', label: 'Miền Nam' },
 ] as const;
 
+function Field({
+  label,
+  required,
+  children,
+  className = '',
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`flex flex-col gap-1.5 min-w-0 ${className}`}>
+      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider select-none">
+        {label}
+        {required && <span className="text-red-400 ml-0.5">*</span>}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+const inputCls =
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 min-w-0';
+const selectCls =
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer min-w-0';
+
 function StatCard({ label, value, icon }: { label: string; value: string; icon: string }) {
   return (
-    <div className="rounded-[2rem] bg-white p-8 shadow-[0px_20px_40px_rgba(21,28,39,0.04)]">
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-black uppercase tracking-wider text-on-surface-variant">{label}</p>
-        <span className="material-symbols-outlined rounded-2xl bg-primary-container/10 p-3 text-primary-container">{icon}</span>
+        <span className="material-symbols-outlined rounded-xl bg-primary/10 p-2.5 text-primary text-xl">{icon}</span>
       </div>
-      <h2 className="mt-4 text-4xl font-black text-on-surface">{value}</h2>
+      <div>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+        <h2 className="mt-1 text-3xl font-black text-on-surface">{value}</h2>
+      </div>
     </div>
   );
 }
@@ -53,6 +82,7 @@ export default function ExploreAdminPage() {
   const [tagDraft, setTagDraft] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   const loadPosts = async (search = query) => {
     const data = await adminService.getExplorePosts({ search: search.trim() || undefined });
@@ -250,159 +280,227 @@ export default function ExploreAdminPage() {
 
   if (error) {
     return (
-      <div className="rounded-[2rem] bg-white p-10 text-center shadow-[0px_20px_40px_rgba(21,28,39,0.04)]">
+      <div className="rounded-2xl bg-white p-10 text-center shadow-sm border border-slate-100">
         <span className="material-symbols-outlined text-5xl text-error">error</span>
         <h1 className="mt-4 text-2xl font-black text-on-surface">Không thể tải Explore</h1>
-        <p className="mt-2 text-sm text-on-surface-variant">{error}</p>
-        <button onClick={() => { setLoading(true); loadPosts().finally(() => setLoading(false)); }} className="mt-6 rounded-full bg-primary-container px-6 py-3 text-sm font-bold text-white">Tải lại</button>
+        <p className="mt-2 text-sm text-slate-500">{error}</p>
+        <button onClick={() => { setLoading(true); loadPosts().finally(() => setLoading(false)); }} className="mt-6 rounded-full bg-primary px-6 py-2.5 text-sm font-bold text-white">Tải lại</button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Nội dung cộng đồng</p>
-          <h1 className="mt-3 text-4xl font-black text-on-surface">Quản lý Explore</h1>
-          <p className="mt-3 max-w-3xl text-sm text-on-surface-variant">Quản trị bài viết, ảnh, vị trí, tag và trạng thái hiển thị trong Explore.</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-primary mb-1">Nội dung cộng đồng</p>
+          <h1 className="text-3xl font-black text-on-surface">Quản lý Explore</h1>
+          <p className="text-sm text-slate-500 mt-1 max-w-xl">Quản trị bài viết, ảnh, vị trí, tag và trạng thái hiển thị trong Explore.</p>
         </div>
-        <button onClick={exportPosts} className="rounded-full bg-primary-container px-6 py-3 text-sm font-bold text-white">Xuất CSV</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => setShowGuide(true)} className="rounded-full bg-amber-500 hover:bg-amber-600 px-5 py-2.5 text-sm font-bold text-white transition-all shadow-sm">
+            💡 Hướng dẫn
+          </button>
+          <button onClick={exportPosts} className="rounded-full bg-slate-100 text-slate-700 px-5 py-2.5 text-sm font-bold hover:bg-slate-200 transition">Xuất CSV</button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Tổng bài" value={posts.length.toLocaleString()} icon="travel_explore" />
         <StatCard label="Đang hiển thị" value={visibleCount.toLocaleString()} icon="visibility" />
         <StatCard label="Đang ẩn" value={hiddenCount.toLocaleString()} icon="visibility_off" />
-        <StatCard label="Tương tác" value={totalInteractions.toLocaleString()} icon="forum" />
+        <StatCard label="Tổng tương tác" value={totalInteractions.toLocaleString()} icon="forum" />
       </div>
 
-      <form onSubmit={handleSubmit} className="rounded-[2rem] bg-white p-8 shadow-[0px_20px_40px_rgba(21,28,39,0.04)] ring-1 ring-outline-variant/10">
-        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           <div>
-            <h2 className="text-xl font-black text-on-surface">{editingPost ? 'Cập nhật bài Explore' : 'Tạo bài Explore'}</h2>
-            {validationErrors.length > 0 ? <p className="mt-1 text-sm font-semibold text-error">{validationErrors[0]}</p> : null}
+            <h2 className="text-lg font-black text-on-surface">{editingPost ? 'Cập nhật bài Explore' : 'Tạo bài Explore mới'}</h2>
+            {validationErrors.length > 0 ? (
+              <p className="mt-0.5 text-sm font-semibold text-red-500">{validationErrors[0]}</p>
+            ) : (
+              <p className="mt-0.5 text-sm text-slate-400">Điền đầy đủ thông tin địa điểm, nội dung và ảnh.</p>
+            )}
           </div>
-          {editingPost ? <button type="button" onClick={resetForm} className="rounded-full bg-surface-container-low px-5 py-2.5 text-sm font-bold text-on-surface">Hủy sửa</button> : null}
+          {editingPost ? (
+            <button type="button" onClick={resetForm} className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 transition">Hủy sửa</button>
+          ) : null}
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-          <input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Tiêu đề" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none lg:col-span-2" required />
-          <input value={form.location} onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))} placeholder="Vị trí" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
-          <input value={form.province ?? ''} onChange={(event) => setForm((current) => ({ ...current, province: event.target.value }))} placeholder="Tỉnh/TP" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
-          <input value={form.city ?? ''} onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))} placeholder="Slug thành phố" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
-          <select value={form.region} onChange={(event) => setForm((current) => ({ ...current, region: event.target.value as AdminExplorePostRequest['region'] }))} className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none">
-            {regionOptions.map((region) => <option key={region.value} value={region.value}>{region.label}</option>)}
-          </select>
-          <input value={form.latitude ?? ''} onChange={(event) => setForm((current) => ({ ...current, latitude: event.target.value === '' ? null : Number(event.target.value) }))} type="number" step="any" placeholder="Vĩ độ" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
-          <input value={form.longitude ?? ''} onChange={(event) => setForm((current) => ({ ...current, longitude: event.target.value === '' ? null : Number(event.target.value) }))} type="number" step="any" placeholder="Kinh độ" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
-          <select value={form.costLevel} onChange={(event) => setForm((current) => ({ ...current, costLevel: Number(event.target.value) }))} className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none">
-            <option value={1}>Tiết kiệm</option>
-            <option value={2}>Trung bình</option>
-            <option value={3}>Cao cấp</option>
-            <option value={4}>Sang trọng</option>
-          </select>
-          <label className="flex items-center justify-between rounded-2xl bg-surface-container-low px-5 py-3">
-            <span className="text-sm font-bold text-on-surface">Hiển thị</span>
-            <input checked={form.isVisible} onChange={(event) => setForm((current) => ({ ...current, isVisible: event.target.checked }))} type="checkbox" className="h-4 w-4 accent-[#10B981]" />
+        {/* Main fields */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Field label="Tiêu đề bài viết" required className="sm:col-span-2">
+            <input value={form.title} onChange={(e) => setForm((c) => ({ ...c, title: e.target.value }))} placeholder="Nhập tiêu đề..." className={inputCls} required />
+          </Field>
+          <Field label="Địa điểm" required>
+            <input value={form.location} onChange={(e) => setForm((c) => ({ ...c, location: e.target.value }))} placeholder="Hồ Gươm, Hà Nội" className={inputCls} required />
+          </Field>
+          <Field label="Tỉnh / Thành phố">
+            <input value={form.province ?? ''} onChange={(e) => setForm((c) => ({ ...c, province: e.target.value }))} placeholder="Hà Nội" className={inputCls} />
+          </Field>
+          <Field label="Slug thành phố">
+            <input value={form.city ?? ''} onChange={(e) => setForm((c) => ({ ...c, city: e.target.value }))} placeholder="ha-noi" className={inputCls} />
+          </Field>
+          <Field label="Vùng miền" required>
+            <select value={form.region} onChange={(e) => setForm((c) => ({ ...c, region: e.target.value as AdminExplorePostRequest['region'] }))} className={selectCls}>
+              {regionOptions.map((region) => <option key={region.value} value={region.value}>{region.label}</option>)}
+            </select>
+          </Field>
+          <Field label="Vĩ độ (Latitude)">
+            <input value={form.latitude ?? ''} onChange={(e) => setForm((c) => ({ ...c, latitude: e.target.value === '' ? null : Number(e.target.value) }))} type="number" step="any" placeholder="21.0285" className={inputCls} />
+          </Field>
+          <Field label="Kinh độ (Longitude)">
+            <input value={form.longitude ?? ''} onChange={(e) => setForm((c) => ({ ...c, longitude: e.target.value === '' ? null : Number(e.target.value) }))} type="number" step="any" placeholder="105.8542" className={inputCls} />
+          </Field>
+          <Field label="Mức chi phí" required>
+            <select value={form.costLevel} onChange={(e) => setForm((c) => ({ ...c, costLevel: Number(e.target.value) }))} className={selectCls}>
+              <option value={1}>$ · Tiết kiệm</option>
+              <option value={2}>$$ · Trung bình</option>
+              <option value={3}>$$$ · Cao cấp</option>
+              <option value={4}>$$$$ · Sang trọng</option>
+            </select>
+          </Field>
+        </div>
+
+        {/* Content */}
+        <div className="mt-4">
+          <Field label="Nội dung bài viết" required>
+            <textarea value={form.content} onChange={(e) => setForm((c) => ({ ...c, content: e.target.value }))} placeholder="Nhập nội dung bài viết..." rows={4} className={`${inputCls} resize-none`} required />
+          </Field>
+        </div>
+
+        {/* Visibility toggle */}
+        <div className="mt-4">
+          <label className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 cursor-pointer hover:bg-slate-50 transition">
+            <input checked={form.isVisible} onChange={(e) => setForm((c) => ({ ...c, isVisible: e.target.checked }))} type="checkbox" className="h-4 w-4 accent-emerald-500" />
+            <span className="text-sm font-medium text-on-surface">Cho phép hiển thị trên Explore</span>
           </label>
         </div>
 
-        <textarea value={form.content} onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))} placeholder="Nội dung" rows={6} className="mt-4 w-full rounded-2xl bg-surface-container-low px-5 py-4 outline-none" required />
-
+        {/* Images & Tags */}
         <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <div className="rounded-2xl bg-surface-container-low p-5">
-            <div className="flex gap-3">
-              <input value={imageDraft} onChange={(event) => setImageDraft(event.target.value)} placeholder="URL ảnh" className="min-w-0 flex-1 rounded-full bg-white px-5 py-3 text-sm outline-none" />
-              <button type="button" onClick={addImageUrl} className="rounded-full bg-primary-container px-5 py-3 text-sm font-bold text-white">Thêm</button>
-              <label className="rounded-full bg-white px-5 py-3 text-sm font-bold text-on-surface">
-                {uploading ? 'Đang tải' : 'Upload'}
+          {/* Images */}
+          <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Thư viện ảnh (tối đa 10)</p>
+            <div className="flex gap-2">
+              <input
+                value={imageDraft}
+                onChange={(e) => setImageDraft(e.target.value)}
+                placeholder="Nhập URL ảnh..."
+                className={`${inputCls} flex-1`}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addImageUrl(); } }}
+              />
+              <button type="button" onClick={addImageUrl} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shrink-0">Thêm</button>
+              <label className="rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 cursor-pointer hover:bg-slate-50 transition shrink-0">
+                {uploading ? 'Đang tải...' : 'Upload'}
                 <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleUploadImage} className="hidden" disabled={uploading} />
               </label>
             </div>
-            <div className="mt-4 flex flex-wrap gap-3">
+            <div className="mt-3 flex flex-wrap gap-2">
               {form.imageUrls.map((url) => (
-                <button key={url} type="button" onClick={() => setForm((current) => ({ ...current, imageUrls: current.imageUrls.filter((item) => item !== url) }))} className="group flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold text-on-surface">
-                  <span className="max-w-[220px] truncate">{url}</span>
-                  <span className="material-symbols-outlined text-sm text-error">close</span>
+                <button key={url} type="button" onClick={() => setForm((c) => ({ ...c, imageUrls: c.imageUrls.filter((item) => item !== url) }))} className="flex items-center gap-1.5 rounded-full bg-white border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-red-300 hover:text-red-500 transition group">
+                  <span className="max-w-[180px] truncate">{url}</span>
+                  <span className="material-symbols-outlined text-sm text-slate-400 group-hover:text-red-400">close</span>
                 </button>
               ))}
-              {form.imageUrls.length === 0 ? <span className="text-sm text-on-surface-variant">Chưa có ảnh</span> : null}
+              {form.imageUrls.length === 0 ? <span className="text-xs text-slate-400">Chưa có ảnh nào được thêm</span> : null}
             </div>
           </div>
 
-          <div className="rounded-2xl bg-surface-container-low p-5">
-            <div className="flex gap-3">
-              <input value={tagDraft} onChange={(event) => setTagDraft(event.target.value)} placeholder="Tag" className="min-w-0 flex-1 rounded-full bg-white px-5 py-3 text-sm outline-none" />
-              <button type="button" onClick={addTag} className="rounded-full bg-primary-container px-5 py-3 text-sm font-bold text-white">Thêm</button>
+          {/* Tags */}
+          <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Thẻ từ khóa (tối đa 20)</p>
+            <div className="flex gap-2">
+              <input
+                value={tagDraft}
+                onChange={(e) => setTagDraft(e.target.value)}
+                placeholder="bien, nui, resort..."
+                className={`${inputCls} flex-1`}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
+              />
+              <button type="button" onClick={addTag} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shrink-0">Thêm</button>
             </div>
-            <div className="mt-4 flex flex-wrap gap-3">
+            <div className="mt-3 flex flex-wrap gap-2">
               {form.tags.map((tag) => (
-                <button key={tag} type="button" onClick={() => setForm((current) => ({ ...current, tags: current.tags.filter((item) => item !== tag) }))} className="rounded-full bg-white px-4 py-2 text-xs font-bold text-on-surface">
-                  #{tag} <span className="text-error">×</span>
+                <button key={tag} type="button" onClick={() => setForm((c) => ({ ...c, tags: c.tags.filter((item) => item !== tag) }))} className="flex items-center gap-1 rounded-full bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 text-xs font-semibold hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition">
+                  #{tag} <span className="ml-0.5">×</span>
                 </button>
               ))}
-              {form.tags.length === 0 ? <span className="text-sm text-on-surface-variant">Chưa có tag</span> : null}
+              {form.tags.length === 0 ? <span className="text-xs text-slate-400">Chưa có thẻ từ khóa nào</span> : null}
             </div>
           </div>
         </div>
 
-        <div className="mt-6">
-          <button type="submit" disabled={submitting || validationErrors.length > 0} className="rounded-full bg-primary-container px-8 py-3 text-sm font-bold text-white disabled:opacity-50">
-            {submitting ? 'Đang lưu...' : editingPost ? 'Lưu thay đổi' : 'Tạo bài Explore'}
+        <div className="mt-5">
+          <button type="submit" disabled={submitting || validationErrors.length > 0} className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-full disabled:opacity-50 hover:brightness-110 transition">
+            {submitting ? 'Đang lưu...' : editingPost ? 'Lưu thay đổi' : 'Tạo bài viết'}
           </button>
         </div>
       </form>
 
-      <div className="overflow-hidden rounded-[2rem] bg-white shadow-[0px_20px_40px_rgba(21,28,39,0.04)]">
+      {/* Post Table */}
+      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
         {filteredPosts.length === 0 ? (
           <div className="p-12 text-center">
-            <span className="material-symbols-outlined text-5xl text-on-surface-variant">travel_explore</span>
-            <p className="mt-4 text-lg font-black text-on-surface">Chưa có bài Explore</p>
-            <p className="mt-2 text-sm text-on-surface-variant">{query.trim() ? 'Không có kết quả phù hợp.' : 'Danh sách hiện đang trống.'}</p>
+            <span className="material-symbols-outlined text-4xl text-slate-300">travel_explore</span>
+            <p className="mt-3 text-slate-500 font-medium">Chưa có bài Explore</p>
+            <p className="mt-1 text-sm text-slate-400">{query.trim() ? 'Không có kết quả phù hợp.' : 'Danh sách hiện đang trống.'}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="bg-surface-container-low/50">
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Bài viết</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Vị trí</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Tương tác</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Trạng thái</th>
-                  <th className="px-8 py-5 text-right text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Hành động</th>
+              <thead className="bg-slate-50 border-b border-slate-100">
+                <tr>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Bài viết</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Vị trí</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Tương tác</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Trạng thái</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">Hành động</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant/10">
+              <tbody className="divide-y divide-slate-50">
                 {filteredPosts.map((post) => (
-                  <tr key={post.id}>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="h-16 w-20 overflow-hidden rounded-2xl bg-surface-container-low">
+                  <tr key={post.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-14 w-18 overflow-hidden rounded-xl bg-slate-100 shrink-0">
                           {post.thumbnailUrl ? <img src={post.thumbnailUrl} alt="" className="h-full w-full object-cover" /> : null}
                         </div>
-                        <div>
-                          <p className="font-bold text-on-surface">{post.title}</p>
-                          <p className="mt-1 text-xs text-on-surface-variant">{post.authorName} • {post.createdAt}</p>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {post.tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-surface-container-low px-3 py-1 text-[11px] font-bold text-on-surface-variant">#{tag}</span>)}
+                        <div className="min-w-0">
+                          <p className="font-semibold text-on-surface text-sm truncate max-w-[200px]">{post.title}</p>
+                          <p className="mt-0.5 text-xs text-slate-400 truncate max-w-[200px]">{post.authorName} · {post.createdAt}</p>
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {post.tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">#{tag}</span>)}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-8 py-6">
-                      <p className="text-sm font-bold text-on-surface">{post.location}</p>
-                      <p className="mt-1 text-xs text-on-surface-variant">{post.province} • {post.region}</p>
+                    <td className="px-6 py-4">
+                      <p className="text-sm font-semibold text-on-surface">{post.location}</p>
+                      <p className="mt-0.5 text-xs text-slate-400">{post.province} · {post.region}</p>
                     </td>
-                    <td className="px-8 py-6 text-sm text-on-surface-variant">{post.views} xem • {post.likes} thích • {post.commentCount} bình luận</td>
-                    <td className="px-8 py-6">
-                      <span className={`rounded-full px-4 py-1.5 text-xs font-bold ${post.isVisible ? 'bg-primary-container/10 text-primary-container' : 'bg-error-container text-error'}`}>{post.isVisible ? 'Đang hiển thị' : 'Đang ẩn'}</span>
+                    <td className="px-6 py-4 text-xs text-slate-500">
+                      <div className="flex flex-col gap-0.5">
+                        <span>{post.views.toLocaleString()} lượt xem</span>
+                        <span>{post.likes.toLocaleString()} thích</span>
+                        <span>{post.commentCount.toLocaleString()} bình luận</span>
+                      </div>
                     </td>
-                    <td className="px-8 py-6 text-right">
+                    <td className="px-6 py-4">
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${post.isVisible ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                        {post.isVisible ? 'Đang hiển thị' : 'Đang ẩn'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
-                        <button onClick={() => handleToggleVisibility(post)} className="rounded-full bg-surface-container-low px-4 py-2 text-xs font-bold text-on-surface">{post.isVisible ? 'Ẩn' : 'Hiện'}</button>
-                        <button onClick={() => startEdit(post)} className="rounded-full bg-surface-container-low px-4 py-2 text-xs font-bold text-on-surface">Sửa</button>
-                        <button onClick={() => handleDelete(post)} className="rounded-full bg-error-container px-4 py-2 text-xs font-bold text-error">Xóa</button>
+                        <button onClick={() => handleToggleVisibility(post)} className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 transition">
+                          {post.isVisible ? 'Ẩn' : 'Hiện'}
+                        </button>
+                        <button onClick={() => startEdit(post)} className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 transition">Sửa</button>
+                        <button onClick={() => handleDelete(post)} className="rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 transition">Xóa</button>
                       </div>
                     </td>
                   </tr>
@@ -412,6 +510,39 @@ export default function ExploreAdminPage() {
           </div>
         )}
       </div>
+
+      {/* Guide Modal */}
+      {showGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-2xl ring-1 ring-black/5">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-amber-600">Hướng dẫn sử dụng</p>
+                <h3 className="mt-1 text-xl font-black text-slate-900">Vận hành Khám phá (Explore)</h3>
+              </div>
+              <button type="button" onClick={() => setShowGuide(false)} className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-2 text-xs font-bold text-slate-900 transition-colors">Đóng</button>
+            </div>
+            <div className="mt-6 space-y-5 text-sm text-slate-600 leading-relaxed max-h-[55vh] overflow-y-auto pr-1">
+              <div className="rounded-2xl bg-amber-50 p-5 border border-amber-100">
+                <h4 className="font-bold text-amber-800 text-base">📍 Phân vùng địa lý &amp; Tọa độ</h4>
+                <ul className="mt-3 list-disc list-inside space-y-2 text-amber-900 font-medium">
+                  <li><strong>Vùng miền (Region):</strong> Bắc - Trung - Nam giúp định tuyến tab lọc bài viết trên Mobile App.</li>
+                  <li><strong>Tọa độ (Lat/Long):</strong> Định vị chính xác địa điểm viết bài trên bản đồ ứng dụng, cho phép điều hướng trực tiếp bằng Google Maps.</li>
+                  <li><strong>Slug thành phố (City):</strong> Nhãn định danh không dấu viết liền để liên kết với catalog hệ thống (ví dụ: <code>ha-noi</code>).</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-black text-slate-900 text-base">🖼️ Chi phí, Media &amp; Tags</h4>
+                <ul className="mt-2 list-disc list-inside space-y-2">
+                  <li><strong>Mức chi phí (Cost Level):</strong> Chọn từ 1 ($) đến 4 ($$$$) để hiển thị nhãn tài chính trên bài viết.</li>
+                  <li><strong>Quản lý ảnh:</strong> Hỗ trợ tối đa 10 ảnh. Bấm Upload để tải lên Cloud, hoặc chèn URL thủ công. Ảnh đầu tiên làm ảnh bìa.</li>
+                  <li><strong>Tags từ khóa:</strong> Nhấn Enter hoặc nút "Thêm" để gắn thẻ phân loại bài viết. Click vào tag để xóa.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

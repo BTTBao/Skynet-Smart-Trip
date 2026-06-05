@@ -166,6 +166,8 @@ export interface AdminHotel {
   availableRoomQty: number;
   lowestPrice: number;
   totalRevenue: number;
+  totalProfit: number;
+  commissionRate: number;
 }
 
 export interface AdminHotelRequest {
@@ -175,6 +177,7 @@ export interface AdminHotelRequest {
   starRating: number;
   description: string;
   isAvailable: boolean;
+  commissionRate: number;
 }
 
 export interface AdminRoom {

@@ -102,6 +102,19 @@ class CatalogService extends ApiService {
     return http.get(uri, headers: requestHeaders);
   }
 
+  Future<Map<String, dynamic>?> validatePromotion(String code) async {
+    try {
+      final response = await _get('/catalog/promotions/validate/$code');
+      if (response.statusCode != 200) {
+        return null;
+      }
+      final data = Map<String, dynamic>.from(handleResponse(response));
+      return data;
+    } catch (e) {
+      return null;
+    }
+  }
+
   String _formatDate(DateTime date) =>
       DateTime(date.year, date.month, date.day).toIso8601String().split('T').first;
 }

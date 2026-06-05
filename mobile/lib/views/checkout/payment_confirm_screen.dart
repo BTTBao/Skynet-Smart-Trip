@@ -9,6 +9,7 @@ import '../../providers/trip_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../services/bus_service.dart';
 import '../../services/payment_service.dart';
+import '../../services/catalog_service.dart';
 import '../../widgets/checkout/checkout_stepper.dart';
 import '../../widgets/checkout/resort_summary_card.dart';
 import 'payment_success_screen.dart';
@@ -144,7 +145,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     return null;
   }
 
-  void _applyPromoCode() {
+  Future<void> _applyPromoCode() async {
     final code = _promoController.text.trim().toUpperCase();
     if (code.isEmpty) {
       setState(() {
@@ -154,27 +155,50 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       return;
     }
 
-    double discount = 0.0;
-    if (code == 'SUMMER15') {
-      discount = widget.totalPrice * 0.15;
+    setState(() {
+      _promoError = null;
+      _promoSuccessMessage = null;
+    });
+
+    try {
+      final promoData = await CatalogService().validatePromotion(code);
+      if (promoData != null) {
+        final double discountPercent = (promoData['discountPercent'] as num?)?.toDouble() ?? 0.0;
+        final double maxDiscountAmount = (promoData['maxDiscountAmount'] as num?)?.toDouble() ?? 0.0;
+        
+        double discount = 0.0;
+        String successMsg = '';
+        if (discountPercent > 0) {
+          discount = widget.totalPrice * (discountPercent / 100.0);
+          if (maxDiscountAmount > 0 && discount > maxDiscountAmount) {
+            discount = maxDiscountAmount;
+          }
+          successMsg = 'Áp dụng mã $code thành công! Giảm ${discountPercent.toStringAsFixed(0)}% phòng khách sạn${maxDiscountAmount > 0 ? ' (Tối đa ${_formatPriceFull(maxDiscountAmount)})' : ''}.';
+        } else if (maxDiscountAmount > 0) {
+          discount = widget.totalPrice > maxDiscountAmount ? maxDiscountAmount : widget.totalPrice;
+          successMsg = 'Áp dụng mã $code thành công! Giảm ${_formatPriceFull(maxDiscountAmount)}.';
+        } else {
+          discount = 0.0;
+          successMsg = 'Áp dụng mã $code thành công!';
+        }
+
+        setState(() {
+          _discountAmount = discount;
+          _appliedPromoCode = code;
+          _promoError = null;
+          _promoSuccessMessage = successMsg;
+        });
+      } else {
+        setState(() {
+          _promoError = 'Mã giảm giá không hợp lệ hoặc đã hết hạn.';
+          _promoSuccessMessage = null;
+          _discountAmount = 0.0;
+          _appliedPromoCode = null;
+        });
+      }
+    } catch (e) {
       setState(() {
-        _discountAmount = discount;
-        _appliedPromoCode = code;
-        _promoError = null;
-        _promoSuccessMessage =
-            'Áp dụng mã SUMMER15 thành công! Giảm 15% phòng khách sạn.';
-      });
-    } else if (code == 'LIMOSMART') {
-      discount = widget.totalPrice > 30000 ? 30000.0 : widget.totalPrice;
-      setState(() {
-        _discountAmount = discount;
-        _appliedPromoCode = code;
-        _promoError = null;
-        _promoSuccessMessage = 'Áp dụng mã LIMOSMART thành công! Giảm 30.000đ.';
-      });
-    } else {
-      setState(() {
-        _promoError = 'Mã giảm giá không hợp lệ hoặc đã hết hạn.';
+        _promoError = 'Lỗi kết nối khi áp dụng mã giảm giá.';
         _promoSuccessMessage = null;
         _discountAmount = 0.0;
         _appliedPromoCode = null;

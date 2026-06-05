@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -508,10 +508,10 @@ public async Task<AdminTransportStatsDto> GetTransportStatsAsync()
     private static decimal CalculateAffiliateProfit(BusSchedule schedule)
     {
         var ticketPrice = schedule.Price.GetValueOrDefault();
-        var totalSeats = GetTotalSeatCount(schedule);
+        var occupiedSeats = GetOccupiedSeatCount(schedule);
         var commissionRate = NormalizeCommissionRate(schedule.CommissionRate);
 
-        return ticketPrice * totalSeats * commissionRate;
+        return ticketPrice * occupiedSeats * commissionRate;
     }
 
     private static string GetTransportStatus(BusSchedule schedule, DateTime now)

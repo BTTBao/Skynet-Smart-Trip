@@ -23,4 +23,5 @@ public interface ICatalogService
         decimal? maxPrice,
         string? sort);
     Task<CatalogBusDetailDto?> GetBusDetailAsync(int scheduleId);
+    Task<CatalogPromotionDto?> ValidatePromotionAsync(string code);
 }

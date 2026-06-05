@@ -127,3 +127,10 @@ public class CatalogReviewDto
     public string Comment { get; set; } = string.Empty;
     public DateTime? CreatedAt { get; set; }
 }
+
+public class CatalogPromotionDto
+{
+    public string Code { get; set; } = string.Empty;
+    public double DiscountPercent { get; set; }
+    public decimal MaxDiscountAmount { get; set; }
+}

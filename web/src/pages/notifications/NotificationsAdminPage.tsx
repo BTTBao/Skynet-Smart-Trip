@@ -32,17 +32,46 @@ const roleOptions: Array<{ value: AdminUser['role']; label: string }> = [
 const channelOptions: Array<{ value: AdminSendNotificationRequest['channels'][number]; label: string; icon: string }> = [
   { value: 'in_app', label: 'In-app', icon: 'notifications' },
   { value: 'email', label: 'Email', icon: 'mail' },
-  { value: 'fcm', label: 'FCM', icon: 'send_to_mobile' },
+  { value: 'fcm', label: 'FCM (Push)', icon: 'send_to_mobile' },
 ];
+
+function Field({
+  label,
+  required,
+  children,
+  className = '',
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`flex flex-col gap-1.5 min-w-0 ${className}`}>
+      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider select-none">
+        {label}
+        {required && <span className="text-red-400 ml-0.5">*</span>}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+const inputCls =
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 min-w-0';
+const selectCls =
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer min-w-0';
 
 function StatCard({ label, value, icon }: { label: string; value: string; icon: string }) {
   return (
-    <div className="rounded-[2rem] bg-white p-8 shadow-[0px_20px_40px_rgba(21,28,39,0.04)]">
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-black uppercase tracking-wider text-on-surface-variant">{label}</p>
-        <span className="material-symbols-outlined rounded-2xl bg-primary-container/10 p-3 text-primary-container">{icon}</span>
+        <span className="material-symbols-outlined rounded-xl bg-primary/10 p-2.5 text-primary text-xl">{icon}</span>
       </div>
-      <h2 className="mt-4 text-4xl font-black text-on-surface">{value}</h2>
+      <div>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+        <h2 className="mt-1 text-3xl font-black text-on-surface">{value}</h2>
+      </div>
     </div>
   );
 }
@@ -56,6 +85,7 @@ export default function NotificationsAdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<AdminSendNotificationRequest>(initialForm);
   const [submitting, setSubmitting] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   const loadNotifications = async (search = query) => {
     const data = await adminService.getNotifications({ search: search.trim() || undefined });
@@ -184,136 +214,234 @@ export default function NotificationsAdminPage() {
 
   if (error || !stats) {
     return (
-      <div className="rounded-[2rem] bg-white p-10 text-center shadow-[0px_20px_40px_rgba(21,28,39,0.04)]">
+      <div className="rounded-2xl bg-white p-10 text-center shadow-sm border border-slate-100">
         <span className="material-symbols-outlined text-5xl text-error">error</span>
         <h1 className="mt-4 text-2xl font-black text-on-surface">Không thể tải thông báo</h1>
-        <p className="mt-2 text-sm text-on-surface-variant">{error ?? 'Dữ liệu chưa sẵn sàng.'}</p>
-        <button onClick={() => { setLoading(true); loadNotifications().finally(() => setLoading(false)); }} className="mt-6 rounded-full bg-primary-container px-6 py-3 text-sm font-bold text-white">Tải lại</button>
+        <p className="mt-2 text-sm text-slate-500">{error ?? 'Dữ liệu chưa sẵn sàng.'}</p>
+        <button onClick={() => { setLoading(true); loadNotifications().finally(() => setLoading(false)); }} className="mt-6 rounded-full bg-primary px-6 py-2.5 text-sm font-bold text-white">Tải lại</button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Trung tâm thông báo</p>
-          <h1 className="mt-3 text-4xl font-black text-on-surface">Quản lý Notification</h1>
-          <p className="mt-3 max-w-3xl text-sm text-on-surface-variant">Tạo và theo dõi thông báo hệ thống gửi tới người dùng SmartTrip.</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-primary mb-1">Trung tâm thông báo</p>
+          <h1 className="text-3xl font-black text-on-surface">Quản lý Thông báo</h1>
+          <p className="text-sm text-slate-500 mt-1 max-w-xl">Tạo và theo dõi thông báo hệ thống gửi tới người dùng SmartTrip.</p>
         </div>
-        <button onClick={exportNotifications} className="rounded-full bg-primary-container px-6 py-3 text-sm font-bold text-white">Xuất CSV</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => setShowGuide(true)} className="rounded-full bg-amber-500 hover:bg-amber-600 px-5 py-2.5 text-sm font-bold text-white transition-all shadow-sm">
+            💡 Hướng dẫn
+          </button>
+          <button onClick={exportNotifications} className="rounded-full bg-slate-100 text-slate-700 px-5 py-2.5 text-sm font-bold hover:bg-slate-200 transition">Xuất CSV</button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-        <StatCard label="Thông báo" value={stats.totalNotifications.toLocaleString()} icon="notifications_active" />
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Tổng thông báo" value={stats.totalNotifications.toLocaleString()} icon="notifications_active" />
         <StatCard label="Chưa đọc" value={stats.unreadNotifications.toLocaleString()} icon="mark_email_unread" />
         <StatCard label="Đã đọc" value={stats.readNotifications.toLocaleString()} icon="drafts" />
-        <StatCard label="Người nhận" value={stats.targetableUsers.toLocaleString()} icon="group" />
+        <StatCard label="Người nhận khả dụng" value={stats.targetableUsers.toLocaleString()} icon="group" />
       </div>
 
-      <form onSubmit={handleSubmit} className="rounded-[2rem] bg-white p-8 shadow-[0px_20px_40px_rgba(21,28,39,0.04)] ring-1 ring-outline-variant/10">
-        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      {/* Compose Form */}
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           <div>
-            <h2 className="text-xl font-black text-on-surface">Tạo thông báo mới</h2>
-            {validationErrors.length > 0 ? <p className="mt-1 text-sm font-semibold text-error">{validationErrors[0]}</p> : null}
+            <h2 className="text-lg font-black text-on-surface">Tạo thông báo mới</h2>
+            {validationErrors.length > 0 ? (
+              <p className="mt-0.5 text-sm font-semibold text-red-500">{validationErrors[0]}</p>
+            ) : (
+              <p className="mt-0.5 text-sm text-slate-400">Sẽ gửi tới <strong className="text-on-surface">{recipientCount.toLocaleString()}</strong> người nhận</p>
+            )}
           </div>
-          <div className="rounded-full bg-surface-container-low px-5 py-2 text-sm font-bold text-on-surface">{recipientCount.toLocaleString()} người nhận</div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-          <input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Tiêu đề" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none xl:col-span-2" required />
-          <input value={form.type} onChange={(event) => setForm((current) => ({ ...current, type: event.target.value }))} placeholder="Loại thông báo" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
-          <select value={form.recipientMode} onChange={(event) => setForm((current) => ({ ...current, recipientMode: event.target.value as AdminSendNotificationRequest['recipientMode'] }))} className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none">
-            <option value="all">Tất cả người dùng</option>
-            <option value="active">Người dùng đang hoạt động</option>
-            <option value="role">Theo nhóm quyền</option>
-            <option value="users">Chọn từng người</option>
-          </select>
-          {form.recipientMode === 'role' ? (
-            <select value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as AdminUser['role'] }))} className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none">
-              {roleOptions.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Field label="Tiêu đề thông báo" required className="lg:col-span-2">
+            <input
+              value={form.title}
+              onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))}
+              placeholder="Nhập tiêu đề thông báo"
+              className={inputCls}
+              required
+            />
+          </Field>
+          <Field label="Loại thông báo" required>
+            <input
+              value={form.type}
+              onChange={(e) => setForm((current) => ({ ...current, type: e.target.value }))}
+              placeholder="system, promo, update..."
+              className={inputCls}
+              required
+            />
+          </Field>
+          <Field label="Chế độ người nhận" required>
+            <select
+              value={form.recipientMode}
+              onChange={(e) => setForm((current) => ({ ...current, recipientMode: e.target.value as AdminSendNotificationRequest['recipientMode'] }))}
+              className={selectCls}
+            >
+              <option value="all">Tất cả người dùng</option>
+              <option value="active">Người dùng đang hoạt động</option>
+              <option value="role">Theo nhóm quyền</option>
+              <option value="users">Chọn từng người</option>
             </select>
+          </Field>
+          {form.recipientMode === 'role' ? (
+            <Field label="Nhóm quyền người nhận" required>
+              <select
+                value={form.role}
+                onChange={(e) => setForm((current) => ({ ...current, role: e.target.value as AdminUser['role'] }))}
+                className={selectCls}
+              >
+                {roleOptions.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
+              </select>
+            </Field>
           ) : null}
-          <input value={form.referenceType ?? ''} onChange={(event) => setForm((current) => ({ ...current, referenceType: event.target.value }))} placeholder="Reference type" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
-          <input value={form.referenceId ?? ''} onChange={(event) => setForm((current) => ({ ...current, referenceId: event.target.value === '' ? null : Number(event.target.value) }))} type="number" min={1} placeholder="Reference ID" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
-          <input value={form.actionUrl ?? ''} onChange={(event) => setForm((current) => ({ ...current, actionUrl: event.target.value }))} placeholder="Action URL" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none xl:col-span-2" />
+          <Field label="Loại tham chiếu (tùy chọn)">
+            <input
+              value={form.referenceType ?? ''}
+              onChange={(e) => setForm((current) => ({ ...current, referenceType: e.target.value }))}
+              placeholder="Booking, Hotel, Trip..."
+              className={inputCls}
+            />
+          </Field>
+          <Field label="ID tham chiếu (tùy chọn)">
+            <input
+              value={form.referenceId ?? ''}
+              onChange={(e) => setForm((current) => ({ ...current, referenceId: e.target.value === '' ? null : Number(e.target.value) }))}
+              type="number"
+              min={1}
+              placeholder="Nhập ID số"
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Action URL (tùy chọn)" className="sm:col-span-2 lg:col-span-3">
+            <input
+              value={form.actionUrl ?? ''}
+              onChange={(e) => setForm((current) => ({ ...current, actionUrl: e.target.value }))}
+              placeholder="Ví dụ: /hotels/1"
+              className={inputCls}
+            />
+          </Field>
         </div>
 
-        <textarea value={form.message} onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))} placeholder="Nội dung" rows={5} className="mt-4 w-full rounded-2xl bg-surface-container-low px-5 py-4 outline-none" required />
-
-        <div className="mt-4 flex flex-wrap gap-3">
-          {channelOptions.map((channel) => {
-            const active = form.channels.includes(channel.value);
-            return (
-              <button key={channel.value} type="button" onClick={() => toggleChannel(channel.value)} className={`flex items-center gap-2 rounded-full px-5 py-3 text-sm font-bold transition-all ${active ? 'bg-primary-container text-white' : 'bg-surface-container-low text-on-surface'}`}>
-                <span className="material-symbols-outlined text-base">{channel.icon}</span>
-                {channel.label}
-              </button>
-            );
-          })}
+        <div className="mt-4">
+          <Field label="Nội dung thông báo" required>
+            <textarea
+              value={form.message}
+              onChange={(e) => setForm((current) => ({ ...current, message: e.target.value }))}
+              placeholder="Nhập nội dung thông báo..."
+              rows={3}
+              className={`${inputCls} resize-none`}
+              required
+            />
+          </Field>
         </div>
 
+        {/* Channels */}
+        <div className="mt-4">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Kênh gửi thông báo *</p>
+          <div className="flex flex-wrap gap-2">
+            {channelOptions.map((channel) => {
+              const active = form.channels.includes(channel.value);
+              return (
+                <button
+                  key={channel.value}
+                  type="button"
+                  onClick={() => toggleChannel(channel.value)}
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all border ${active ? 'bg-primary text-white border-primary shadow-sm shadow-primary/20' : 'bg-white text-slate-600 border-slate-200 hover:border-primary/30'}`}
+                >
+                  <span className="material-symbols-outlined text-base">{channel.icon}</span>
+                  {channel.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* User picker */}
         {form.recipientMode === 'users' ? (
-          <div className="mt-5 max-h-72 overflow-y-auto rounded-2xl bg-surface-container-low p-4">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {users.map((user) => (
-                <label key={user.id} className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3">
-                  <input checked={form.userIds.includes(user.id)} onChange={() => toggleUser(user.id)} type="checkbox" className="h-4 w-4 accent-[#10B981]" />
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-bold text-on-surface">{user.name}</span>
-                    <span className="block truncate text-xs text-on-surface-variant">{user.email}</span>
-                  </span>
-                </label>
-              ))}
-              {users.length === 0 ? <p className="text-sm text-on-surface-variant">Chưa có người dùng khả dụng.</p> : null}
+          <div className="mt-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Chọn người nhận *</p>
+            <div className="max-h-64 overflow-y-auto rounded-xl bg-slate-50 border border-slate-200 p-3">
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {users.map((user) => (
+                  <label key={user.id} className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 border border-slate-100 cursor-pointer hover:border-primary/30 transition">
+                    <input
+                      checked={form.userIds.includes(user.id)}
+                      onChange={() => toggleUser(user.id)}
+                      type="checkbox"
+                      className="h-4 w-4 accent-emerald-500 shrink-0"
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-on-surface">{user.name}</span>
+                      <span className="block truncate text-xs text-slate-400">{user.email}</span>
+                    </span>
+                  </label>
+                ))}
+                {users.length === 0 ? <p className="text-sm text-slate-400 col-span-full">Chưa có người dùng khả dụng.</p> : null}
+              </div>
             </div>
           </div>
         ) : null}
 
-        <div className="mt-6">
-          <button type="submit" disabled={submitting || validationErrors.length > 0} className="rounded-full bg-primary-container px-8 py-3 text-sm font-bold text-white disabled:opacity-50">
+        <div className="mt-5">
+          <button
+            type="submit"
+            disabled={submitting || validationErrors.length > 0}
+            className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-full disabled:opacity-50 hover:brightness-110 transition"
+          >
             {submitting ? 'Đang gửi...' : 'Gửi thông báo'}
           </button>
         </div>
       </form>
 
-      <div className="overflow-hidden rounded-[2rem] bg-white shadow-[0px_20px_40px_rgba(21,28,39,0.04)]">
+      {/* Notification List */}
+      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
         {filteredNotifications.length === 0 ? (
           <div className="p-12 text-center">
-            <span className="material-symbols-outlined text-5xl text-on-surface-variant">notifications_off</span>
-            <p className="mt-4 text-lg font-black text-on-surface">Chưa có thông báo</p>
-            <p className="mt-2 text-sm text-on-surface-variant">{query.trim() ? 'Không có kết quả phù hợp.' : 'Danh sách hiện đang trống.'}</p>
+            <span className="material-symbols-outlined text-4xl text-slate-300">notifications_off</span>
+            <p className="mt-3 text-slate-500 font-medium">Chưa có thông báo</p>
+            <p className="mt-1 text-sm text-slate-400">{query.trim() ? 'Không có kết quả phù hợp.' : 'Danh sách hiện đang trống.'}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="bg-surface-container-low/50">
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Thông báo</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Người nhận</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Loại</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Trạng thái</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Ngày tạo</th>
+              <thead className="bg-slate-50 border-b border-slate-100">
+                <tr>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Thông báo</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Người nhận</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Loại</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Trạng thái</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Ngày tạo</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant/10">
+              <tbody className="divide-y divide-slate-50">
                 {filteredNotifications.map((notification) => (
-                  <tr key={notification.id}>
-                    <td className="px-8 py-6">
-                      <p className="font-bold text-on-surface">{notification.title}</p>
-                      <p className="mt-1 max-w-xl text-sm text-on-surface-variant">{notification.message}</p>
+                  <tr key={notification.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-6 py-4">
+                      <p className="font-semibold text-on-surface text-sm">{notification.title}</p>
+                      <p className="mt-0.5 max-w-sm text-xs text-slate-400 line-clamp-2">{notification.message}</p>
                     </td>
-                    <td className="px-8 py-6">
-                      <p className="text-sm font-bold text-on-surface">{notification.userName}</p>
-                      <p className="mt-1 text-xs text-on-surface-variant">{notification.userEmail || 'Không có email'}</p>
+                    <td className="px-6 py-4 min-w-0">
+                      <p className="text-sm font-semibold text-on-surface truncate max-w-[160px]">{notification.userName}</p>
+                      <p className="mt-0.5 text-xs text-slate-400 truncate max-w-[160px]">{notification.userEmail || '—'}</p>
                     </td>
-                    <td className="px-8 py-6">
-                      <span className="rounded-full bg-surface-container-low px-4 py-1.5 text-xs font-bold text-on-surface">{notification.type}</span>
+                    <td className="px-6 py-4">
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{notification.type}</span>
                     </td>
-                    <td className="px-8 py-6">
-                      <span className={`rounded-full px-4 py-1.5 text-xs font-bold ${notification.isRead ? 'bg-primary-container/10 text-primary-container' : 'bg-error-container text-error'}`}>{notification.isRead ? 'Đã đọc' : 'Chưa đọc'}</span>
+                    <td className="px-6 py-4">
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${notification.isRead ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-600'}`}>
+                        {notification.isRead ? 'Đã đọc' : 'Chưa đọc'}
+                      </span>
                     </td>
-                    <td className="px-8 py-6 text-sm font-medium text-on-surface-variant">{notification.createdAt}</td>
+                    <td className="px-6 py-4 text-xs text-slate-400">{notification.createdAt}</td>
                   </tr>
                 ))}
               </tbody>
@@ -321,6 +449,38 @@ export default function NotificationsAdminPage() {
           </div>
         )}
       </div>
+
+      {/* Guide Modal */}
+      {showGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-2xl ring-1 ring-black/5">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-amber-600">Hướng dẫn sử dụng</p>
+                <h3 className="mt-1 text-xl font-black text-slate-900">Vận hành Gửi thông báo</h3>
+              </div>
+              <button type="button" onClick={() => setShowGuide(false)} className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-2 text-xs font-bold text-slate-900 transition-colors">Đóng</button>
+            </div>
+            <div className="mt-6 space-y-5 text-sm text-slate-600 leading-relaxed max-h-[55vh] overflow-y-auto pr-1">
+              <div className="rounded-2xl bg-amber-50 p-5 border border-amber-100">
+                <h4 className="font-bold text-amber-800 text-base">📲 Đa kênh truyền tải (Channels)</h4>
+                <ul className="mt-3 list-disc list-inside space-y-2 text-amber-900 font-medium">
+                  <li><strong>In-app:</strong> Hiển thị trong danh sách thông báo trên ứng dụng và giao diện web của người dùng.</li>
+                  <li><strong>Email:</strong> Kích hoạt email thông báo gửi tự động đến hộp thư đăng ký của người nhận.</li>
+                  <li><strong>FCM:</strong> Gửi Push Notification trực tiếp đến điện thoại người dùng qua dịch vụ Firebase Cloud Messaging.</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-black text-slate-900 text-base">🔗 Điều hướng hành động (Deep Link)</h4>
+                <ul className="mt-2 list-disc list-inside space-y-2">
+                  <li><strong>Loại tham chiếu &amp; ID:</strong> Điền tên Model (ví dụ: <code>Booking</code>, <code>Hotel</code>) và ID số tương ứng để app liên kết dữ liệu.</li>
+                  <li><strong>Action URL:</strong> Nhập đường dẫn nội bộ (ví dụ: <code>/hotels/15</code>) để khi người dùng click vào thông báo sẽ tự động chuyển hướng màn hình đến đúng dịch vụ.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

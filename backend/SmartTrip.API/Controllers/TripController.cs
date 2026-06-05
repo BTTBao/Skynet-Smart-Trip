@@ -203,7 +203,7 @@ public class TripController : ControllerBase
                     ChildCount = request.ChildCount,
                     InfantCount = request.InfantCount,
                     BookedPrice = totalRoomPrice / request.Quantity,
-                    BookedCommissionRate = room.CommissionRate,
+                    BookedCommissionRate = room.Hotel?.CommissionRate ?? room.CommissionRate,
                     ServiceDate = request.CheckInDate
                 });
 

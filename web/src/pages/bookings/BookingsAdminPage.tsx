@@ -18,17 +18,17 @@ const paymentStatusConfig: Record<
   { label: string; className: string; dotClass: string }
 > = {
   paid: {
-    label: 'Da thanh toan',
+    label: 'Đã thanh toán',
     className: 'bg-[#10B981]/10 text-[#10B981]',
     dotClass: 'bg-[#10B981]',
   },
   pending: {
-    label: 'Cho xu ly',
+    label: 'Chờ xử lý',
     className: 'bg-[#F97316]/10 text-[#F97316]',
     dotClass: 'bg-[#F97316]',
   },
   cancelled: {
-    label: 'Da huy',
+    label: 'Đã hủy',
     className: 'bg-[#6B7280]/10 text-[#6B7280]',
     dotClass: 'bg-[#6B7280]',
   },
@@ -79,6 +79,7 @@ export default function BookingsAdminPage() {
   const [detail, setDetail] = useState<AdminBookingDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   const loadBookings = async () => {
     const data = await adminService.getBookingStats();
@@ -230,31 +231,39 @@ export default function BookingsAdminPage() {
             Tìm kiếm theo mã booking từ ô search trên top bar, đổi trạng thái thanh toán, hoàn tiền và xem sâu lịch trình, dịch vụ, lịch sử gateway.
           </p>
         </div>
-        <div className="flex items-center gap-3 bg-surface-container-low p-1.5 rounded-full flex-wrap">
-          {[
-            { value: 'all', label: `Tất cả (${stats.totalBookings})` },
-            { value: 'paid', label: `Đã thanh toán (${stats.paidBookings})` },
-            { value: 'pending', label: `Chờ xử lý (${stats.pendingBookings})` },
-            { value: 'cancelled', label: `Đã hủy (${stats.cancelledBookings})` },
-          ].map((item) => (
-            <button
-              key={item.value}
-              onClick={() => setStatusTab(item.value as 'all' | AdminBooking['paymentStatus'])}
-              className={`px-6 py-2.5 rounded-full text-sm transition-all ${
-                statusTab === item.value
-                  ? 'bg-white shadow-sm font-bold text-on-surface'
-                  : 'hover:bg-white/50 font-medium text-on-surface-variant'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setShowGuide(true)}
+            className="rounded-full bg-amber-500 hover:bg-amber-600 px-6 py-3 text-sm font-bold text-white transition-all shadow-sm"
+          >
+            💡 Hướng dẫn vận hành
+          </button>
+          <div className="flex items-center gap-3 bg-surface-container-low p-1.5 rounded-full flex-wrap">
+            {[
+              { value: 'all', label: `Tất cả (${stats.totalBookings})` },
+              { value: 'paid', label: `Đã thanh toán (${stats.paidBookings})` },
+              { value: 'pending', label: `Chờ xử lý (${stats.pendingBookings})` },
+              { value: 'cancelled', label: `Đã hủy (${stats.cancelledBookings})` },
+            ].map((item) => (
+              <button
+                key={item.value}
+                onClick={() => setStatusTab(item.value as 'all' | AdminBooking['paymentStatus'])}
+                className={`px-6 py-2.5 rounded-full text-sm transition-all ${
+                  statusTab === item.value
+                    ? 'bg-white shadow-sm font-bold text-on-surface'
+                    : 'hover:bg-white/50 font-medium text-on-surface-variant'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <SummaryCard icon="payments" iconClass="bg-primary/10 text-primary" trend={`${paidRatio}%`} label="Tổng doanh thu" value={formatCompactCurrency(stats.totalRevenue)} />
-        <SummaryCard icon="account_balance_wallet" iconClass="bg-secondary-container/10 text-secondary-container" trend="Net" label="Tong loi nhuan" value={formatCompactCurrency(stats.totalProfit)} />
+        <SummaryCard icon="account_balance_wallet" iconClass="bg-secondary-container/10 text-secondary-container" trend="Net" label="Tổng lợi nhuận" value={formatCompactCurrency(stats.totalProfit)} />
         <SummaryCard icon="confirmation_number" iconClass="bg-tertiary/10 text-tertiary" trend={`${stats.pendingBookings} chờ`} label="Tổng lượt đặt" value={`${stats.totalBookings.toLocaleString()} Booking`} />
       </div>
 
@@ -319,7 +328,7 @@ export default function BookingsAdminPage() {
                     </td>
                     <td className="px-10 py-6 text-right">
                       <p className="font-bold text-[#10B981]">{booking.totalProfit}</p>
-                      <p className="text-[10px] text-on-surface-variant">Da chot luc booking</p>
+                      <p className="text-[10px] text-on-surface-variant">Đã chốt lúc đặt</p>
                     </td>
                     <td className="px-10 py-6 text-center">
                       <span className={`inline-flex items-center px-4 py-1.5 rounded-full text-[11px] font-bold tracking-wide ${status.className}`}>
@@ -399,7 +408,7 @@ export default function BookingsAdminPage() {
                 <div className="bg-surface-container-low rounded-2xl p-5">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Giá trị</p>
                   <p className="text-sm font-bold text-on-surface mt-2">{detail.totalAmount}</p>
-                  <p className="text-xs text-on-surface-variant mt-1">Loi nhuan: {detail.totalProfit}</p>
+                  <p className="text-xs text-on-surface-variant mt-1">Lợi nhuận: {detail.totalProfit}</p>
                 </div>
               </div>
 
@@ -483,6 +492,43 @@ export default function BookingsAdminPage() {
           </div>
         </div>
       </div>
+
+      {showGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl rounded-[2.5rem] bg-white p-8 shadow-2xl ring-1 ring-black/5 animate-in slide-in-from-bottom-8 duration-350">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-600">Hướng dẫn sử dụng</p>
+                <h3 className="mt-1 text-2xl font-black text-slate-900">Vận hành Quản lý đặt chỗ (Bookings)</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGuide(false)}
+                className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-2 text-xs font-bold text-slate-900 transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+            <div className="mt-6 space-y-6 text-sm text-slate-600 leading-relaxed max-h-[50vh] overflow-y-auto pr-2">
+              <div className="rounded-[1.4rem] bg-amber-500/5 p-5 border border-amber-500/10">
+                <h4 className="font-bold text-amber-800 text-base">💰 Phê duyệt & Can thiệp thủ công</h4>
+                <ul className="mt-3 list-disc list-inside space-y-2 text-amber-950 font-medium">
+                  <li><strong>Đánh dấu Paid:</strong> Phê duyệt thanh toán cho các đơn chuyển khoản ngân hàng trực tiếp hoặc đối soát thủ công thành công.</li>
+                  <li><strong>Hoàn tiền (Refunded):</strong> Chuyển đơn sang trạng thái đã trả lại tiền, giải phóng công suất phòng/ghế xe và cập nhật lợi nhuận về 0.</li>
+                  <li><strong>Hủy đơn (Cancelled):</strong> Hủy bỏ đặt dịch vụ, giải phóng phòng/chuyến xe bị giữ chỗ.</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-black text-slate-900 text-base">🔍 Xem chi tiết & Lịch sử Gateway</h4>
+                <ul className="mt-2 list-disc list-inside space-y-2">
+                  <li><strong>Chi tiết Itinerary:</strong> Kiểm tra các dịch vụ cụ thể khách đã đặt (phòng khách sạn, phương tiện vận chuyển, số lượng và giá tiền).</li>
+                  <li><strong>Lịch sử thanh toán:</strong> Xem danh sách các giao dịch được hệ thống ghi nhận từ Stripe, VNPay kèm mã tham chiếu cổng thanh toán phục vụ đối soát.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

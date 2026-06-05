@@ -155,7 +155,7 @@ public class TripServiceOptionService : ITripServiceOptionService
                     room.Hotel.Address
                 }.Where(value => !string.IsNullOrWhiteSpace(value))),
                 DefaultPrice = room.PricePerNight,
-                DefaultCommissionRate = room.CommissionRate
+                DefaultCommissionRate = room.Hotel?.CommissionRate ?? room.CommissionRate
             };
         }
 

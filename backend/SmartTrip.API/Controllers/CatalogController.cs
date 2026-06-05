@@ -81,4 +81,15 @@ public class CatalogController : ControllerBase
         var schedule = await _catalogService.GetBusDetailAsync(scheduleId);
         return schedule is null ? NotFound() : Ok(schedule);
     }
+
+    [HttpGet("promotions/validate/{code}")]
+    public async Task<IActionResult> ValidatePromotion(string code)
+    {
+        var result = await _catalogService.ValidatePromotionAsync(code);
+        if (result == null)
+        {
+            return NotFound(new { message = "Mã khuyến mãi không hợp lệ hoặc đã hết hạn." });
+        }
+        return Ok(result);
+    }
 }

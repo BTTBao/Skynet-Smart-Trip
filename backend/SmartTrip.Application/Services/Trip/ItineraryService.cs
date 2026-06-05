@@ -616,12 +616,13 @@ public class ItineraryService : IItineraryService
             }
             else
             {
-                trip.TotalProfit = trip.TripItineraries.Sum(item =>
+                var originalCommission = trip.TripItineraries.Sum(item =>
                 {
                     var lineGross = (item.BookedPrice ?? 0) * (item.Quantity ?? 1);
-                    var paidLineAmount = totalPaidAmount * lineGross / grossAmount;
-                    return paidLineAmount * (decimal)((item.BookedCommissionRate ?? 0) / 100d);
+                    return lineGross * (decimal)((item.BookedCommissionRate ?? 0) / 100d);
                 });
+                var discount = Math.Max(0m, grossAmount - totalPaidAmount);
+                trip.TotalProfit = originalCommission - discount;
             }
         }
 

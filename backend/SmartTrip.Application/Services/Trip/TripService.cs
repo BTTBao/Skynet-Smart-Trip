@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using SmartTrip.Application.DTOs.Notifications;
@@ -374,12 +374,14 @@ public class TripService : ITripService
             return 0m;
         }
 
-        return trip.TripItineraries.Sum(item =>
+        var originalCommission = trip.TripItineraries.Sum(item =>
         {
             var lineGross = item.BookedPrice.GetValueOrDefault() * item.Quantity.GetValueOrDefault(1);
-            var paidLineAmount = paidAmount * lineGross / grossAmount;
-            return paidLineAmount * NormalizeCommissionRate(item.BookedCommissionRate);
+            return lineGross * NormalizeCommissionRate(item.BookedCommissionRate);
         });
+
+        var discount = Math.Max(0m, grossAmount - paidAmount);
+        return originalCommission - discount;
     }
 
     private static decimal NormalizeCommissionRate(double? rate)

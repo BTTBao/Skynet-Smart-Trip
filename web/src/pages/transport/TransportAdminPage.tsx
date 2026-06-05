@@ -116,6 +116,7 @@ export default function TransportAdminPage() {
   const [editingCompanyId, setEditingCompanyId] = useState<number | null>(null);
   const [seatDraft, setSeatDraft] = useState<AdminTransportSeat[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   const loadTransport = async () => {
     const [transportStats, transportCompanies, allDestinations] = await Promise.all([
@@ -390,14 +391,20 @@ export default function TransportAdminPage() {
     <div className="space-y-12">
       <section className="flex flex-col lg:flex-row justify-between gap-6">
         <div>
-          <span className="text-[11px] font-bold text-primary-container tracking-[0.2em] uppercase">Báo cáo hệ thống</span>
+          <span className="text-[11px] font-bold text-primary tracking-[0.25em] uppercase">Báo cáo hệ thống</span>
           <h1 className="text-4xl font-black text-on-surface tracking-tight mt-1">Lịch trình chuyến xe</h1>
           <p className="text-on-surface-variant mt-3 max-w-2xl">
-            Trang này đã hỗ trợ tạo lịch mới, chỉnh giờ khởi hành, cập nhật ghế, hủy lịch trình và quản lý các nhà xe đối tác.
+            Quản lý kế hoạch chạy xe, biểu đồ giờ xuất bến, giá vé và điều phối sơ đồ ghế cho các đối tác nhà xe.
           </p>
         </div>
-        <div className="flex gap-3">
-          <button onClick={exportSchedules} className="px-6 py-2.5 bg-primary-container text-white font-bold rounded-full shadow-lg shadow-primary-container/20 flex items-center gap-2">
+        <div className="flex gap-3 items-center flex-wrap">
+          <button
+            onClick={() => setShowGuide(true)}
+            className="rounded-full bg-amber-500 hover:bg-amber-600 px-6 py-3 text-sm font-bold text-white transition-all shadow-sm"
+          >
+            💡 Hướng dẫn vận hành
+          </button>
+          <button onClick={exportSchedules} className="px-6 py-2.5 bg-primary text-white font-bold rounded-full shadow-lg shadow-primary-container/20 flex items-center gap-2">
             <span className="material-symbols-outlined text-lg">download</span>
             <span>Xuất CSV</span>
           </button>
@@ -442,27 +449,51 @@ export default function TransportAdminPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <select value={scheduleForm.companyId} onChange={(event) => setScheduleForm((current) => ({ ...current, companyId: Number(event.target.value) }))} className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required>
-              <option value={0}>Chọn nhà xe</option>
-              {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
-            </select>
-            <select value={scheduleForm.fromDestinationId} onChange={(event) => setScheduleForm((current) => ({ ...current, fromDestinationId: Number(event.target.value) }))} className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required>
-              <option value={0}>Điểm đi</option>
-              {destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
-            </select>
-            <select value={scheduleForm.toDestinationId} onChange={(event) => setScheduleForm((current) => ({ ...current, toDestinationId: Number(event.target.value) }))} className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required>
-              <option value={0}>Điểm đến</option>
-              {destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
-            </select>
-            <input value={scheduleForm.departureAt} onChange={(event) => setScheduleForm((current) => ({ ...current, departureAt: event.target.value }))} type="datetime-local" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
-            <input value={scheduleForm.arrivalAt} onChange={(event) => setScheduleForm((current) => ({ ...current, arrivalAt: event.target.value }))} type="datetime-local" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
-            <input value={scheduleForm.price} onChange={(event) => setScheduleForm((current) => ({ ...current, price: Number(event.target.value) }))} type="number" min={0} placeholder="Giá vé" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
-            <input value={scheduleForm.commissionRate} onChange={(event) => setScheduleForm((current) => ({ ...current, commissionRate: Number(event.target.value) }))} type="number" min={0} max={100} placeholder="Loi nhuan chot %" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
-            <input value={scheduleForm.totalSeats} onChange={(event) => setScheduleForm((current) => ({ ...current, totalSeats: Number(event.target.value) }))} type="number" min={1} placeholder="Tổng ghế" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
+            <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Chọn nhà xe</span>
+              <select value={scheduleForm.companyId} onChange={(event) => setScheduleForm((current) => ({ ...current, companyId: Number(event.target.value) }))} className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none cursor-pointer" required>
+                <option value={0}>Chọn nhà xe đối tác</option>
+                {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Điểm khởi hành</span>
+              <select value={scheduleForm.fromDestinationId} onChange={(event) => setScheduleForm((current) => ({ ...current, fromDestinationId: Number(event.target.value) }))} className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none cursor-pointer" required>
+                <option value={0}>Chọn điểm đi</option>
+                {destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Điểm đến</span>
+              <select value={scheduleForm.toDestinationId} onChange={(event) => setScheduleForm((current) => ({ ...current, toDestinationId: Number(event.target.value) }))} className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none cursor-pointer" required>
+                <option value={0}>Chọn điểm đến</option>
+                {destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Giờ khởi hành</span>
+              <input value={scheduleForm.departureAt} onChange={(event) => setScheduleForm((current) => ({ ...current, departureAt: event.target.value }))} type="datetime-local" className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none cursor-pointer" required />
+            </label>
+            <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Giờ đến nơi</span>
+              <input value={scheduleForm.arrivalAt} onChange={(event) => setScheduleForm((current) => ({ ...current, arrivalAt: event.target.value }))} type="datetime-local" className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none cursor-pointer" required />
+            </label>
+            <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Giá vé (VND)</span>
+              <input value={scheduleForm.price} onChange={(event) => setScheduleForm((current) => ({ ...current, price: Number(event.target.value) }))} type="number" min={0} placeholder="Nhập giá vé" className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none" required />
+            </label>
+            <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Tỉ lệ hoa hồng (%)</span>
+              <input value={scheduleForm.commissionRate} onChange={(event) => setScheduleForm((current) => ({ ...current, commissionRate: Number(event.target.value) }))} type="number" min={0} max={100} placeholder="Tỉ lệ hoa hồng chốt" className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none" required />
+            </label>
+            <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Tổng số ghế</span>
+              <input value={scheduleForm.totalSeats} onChange={(event) => setScheduleForm((current) => ({ ...current, totalSeats: Number(event.target.value) }))} type="number" min={1} placeholder="Số lượng ghế thiết kế" className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none" required />
+            </label>
           </div>
 
           <div className="mt-6">
-            <button type="submit" disabled={submitting} className="rounded-full bg-primary-container px-8 py-3 text-sm font-bold text-white disabled:opacity-50">
+            <button type="submit" disabled={submitting} className="rounded-full bg-primary px-8 py-3 text-sm font-bold text-white disabled:opacity-50">
               {submitting ? 'Đang lưu...' : editingScheduleId ? 'Lưu thay đổi' : 'Tạo lịch trình'}
             </button>
           </div>
@@ -478,13 +509,22 @@ export default function TransportAdminPage() {
           </div>
 
           <div className="space-y-3">
-            <input value={companyForm.name} onChange={(event) => setCompanyForm((current) => ({ ...current, name: event.target.value }))} placeholder="Tên nhà xe" className="w-full rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
-            <input value={companyForm.hotline} onChange={(event) => setCompanyForm((current) => ({ ...current, hotline: event.target.value }))} placeholder="Hotline" className="w-full rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
-            <input value={companyForm.logoUrl} onChange={(event) => setCompanyForm((current) => ({ ...current, logoUrl: event.target.value }))} placeholder="Logo URL" className="w-full rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
+            <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Tên nhà xe</span>
+              <input value={companyForm.name} onChange={(event) => setCompanyForm((current) => ({ ...current, name: event.target.value }))} placeholder="Nhập tên đối tác nhà xe" className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none" required />
+            </label>
+            <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Hotline liên hệ</span>
+              <input value={companyForm.hotline} onChange={(event) => setCompanyForm((current) => ({ ...current, hotline: event.target.value }))} placeholder="Nhập số tổng đài hotline" className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none" />
+            </label>
+            <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Logo URL</span>
+              <input value={companyForm.logoUrl} onChange={(event) => setCompanyForm((current) => ({ ...current, logoUrl: event.target.value }))} placeholder="Nhập liên kết ảnh logo nhà xe" className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none" />
+            </label>
           </div>
 
           <div className="mt-5">
-            <button type="submit" disabled={submitting} className="rounded-full bg-primary-container px-6 py-3 text-sm font-bold text-white disabled:opacity-50">
+            <button type="submit" disabled={submitting} className="rounded-full bg-primary px-6 py-3 text-sm font-bold text-white disabled:opacity-50">
               {editingCompanyId ? 'Lưu nhà xe' : 'Thêm nhà xe'}
             </button>
           </div>
@@ -655,7 +695,7 @@ export default function TransportAdminPage() {
               {seatDraft.map((seat) => (
                 <button key={seat.id} onClick={() => handleSeatToggle(seat)} className={`rounded-2xl px-3 py-4 text-xs font-black transition-all ${seat.status === 'available' ? 'bg-surface-container-low text-on-surface' : seat.status === 'locked' ? 'bg-secondary-container/15 text-secondary-container' : 'bg-primary-container/15 text-primary-container'}`}>
                   <div>{seat.seatNumber}</div>
-                  <div className="mt-1 uppercase tracking-widest text-[9px]">{seat.status}</div>
+                  <div className="mt-1 uppercase tracking-widest text-[9px]">{seat.status === 'available' ? 'Trống' : seat.status === 'locked' ? 'Giữ chỗ' : 'Đã đặt'}</div>
                 </button>
               ))}
             </div>
@@ -703,6 +743,42 @@ export default function TransportAdminPage() {
           </div>
         </div>
       </section>
+
+      {showGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl rounded-[2.5rem] bg-white p-8 shadow-2xl ring-1 ring-black/5 animate-in slide-in-from-bottom-8 duration-350">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-600">Hướng dẫn sử dụng</p>
+                <h3 className="mt-1 text-2xl font-black text-slate-900">Vận hành Lịch trình chuyến xe</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGuide(false)}
+                className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-2 text-xs font-bold text-slate-900 transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+            <div className="mt-6 space-y-6 text-sm text-slate-600 leading-relaxed max-h-[50vh] overflow-y-auto pr-2">
+              <div className="rounded-[1.4rem] bg-amber-500/5 p-5 border border-amber-500/10">
+                <h4 className="font-bold text-amber-800 text-base">📌 Nghiệp vụ sơ đồ ghế & Hoa hồng</h4>
+                <ul className="mt-3 list-disc list-inside space-y-2 text-amber-950 font-medium">
+                  <li><strong>Sơ đồ ghế (Seat Map):</strong> Có thể điều phối thủ công bằng cách nhấn vào nút "Seat map" của từng chuyến, rồi nhấp vào từng ghế để đổi trạng thái (Trống, Giữ chỗ, Đã đặt) và lưu.</li>
+                  <li><strong>Lợi nhuận Affiliate:</strong> Được tính toán tự động bằng công thức: <code>Giá vé × Tỉ lệ hoa hồng % × Số ghế đã được đặt hoặc khóa</code>.</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-black text-slate-900 text-base">🚍 Quản lý Lịch trình & Nhà xe</h4>
+                <ul className="mt-2 list-disc list-inside space-y-2">
+                  <li><strong>Hủy chuyến xe:</strong> Hủy chuyến sẽ đưa trạng thái lịch trình về trạng thái hủy. Hãy liên hệ khách hàng đã đặt vé trên chuyến này trước khi hủy.</li>
+                  <li><strong>Tạo chuyến mới:</strong> Phải chọn đầy đủ nhà xe đối tác, điểm xuất phát và điểm đến hợp lệ. Tỉ lệ hoa hồng chốt nên nằm trong khoảng 5% đến 25%.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import '../../models/create_trip_request.dart';
 import '../../models/create_trip_itinerary_request.dart';
 import '../../models/bus_schedule_model.dart';
 import '../../services/payment_service.dart';
+import '../../services/catalog_service.dart';
 import 'transport_ticket_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -823,7 +824,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
     );
   }
 
-  void _applyPromoCode() {
+  Future<void> _applyPromoCode() async {
     final code = _promoController.text.trim().toUpperCase();
     if (code.isEmpty) {
       setState(() {
@@ -840,27 +841,50 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
 
     final totalPrice = schedule.price * seats.length;
 
-    double discount = 0.0;
-    if (code == 'SUMMER15') {
-      discount = totalPrice * 0.15;
+    setState(() {
+      _promoError = null;
+      _promoSuccessMessage = null;
+    });
+
+    try {
+      final promoData = await CatalogService().validatePromotion(code);
+      if (promoData != null) {
+        final double discountPercent = (promoData['discountPercent'] as num?)?.toDouble() ?? 0.0;
+        final double maxDiscountAmount = (promoData['maxDiscountAmount'] as num?)?.toDouble() ?? 0.0;
+        
+        double discount = 0.0;
+        String successMsg = '';
+        if (discountPercent > 0) {
+          discount = totalPrice * (discountPercent / 100.0);
+          if (maxDiscountAmount > 0 && discount > maxDiscountAmount) {
+            discount = maxDiscountAmount;
+          }
+          successMsg = 'Áp dụng mã $code thành công! Giảm ${discountPercent.toStringAsFixed(0)}% tổng tiền vé${maxDiscountAmount > 0 ? ' (Tối đa ${_formatPrice(maxDiscountAmount)})' : ''}.';
+        } else if (maxDiscountAmount > 0) {
+          discount = totalPrice > maxDiscountAmount ? maxDiscountAmount : totalPrice.toDouble();
+          successMsg = 'Áp dụng mã $code thành công! Giảm ${_formatPrice(maxDiscountAmount)}.';
+        } else {
+          discount = 0.0;
+          successMsg = 'Áp dụng mã $code thành công!';
+        }
+
+        setState(() {
+          _discountAmount = discount;
+          _appliedPromoCode = code;
+          _promoError = null;
+          _promoSuccessMessage = successMsg;
+        });
+      } else {
+        setState(() {
+          _promoError = 'Mã giảm giá không hợp lệ hoặc đã hết hạn.';
+          _promoSuccessMessage = null;
+          _discountAmount = 0.0;
+          _appliedPromoCode = null;
+        });
+      }
+    } catch (e) {
       setState(() {
-        _discountAmount = discount;
-        _appliedPromoCode = code;
-        _promoError = null;
-        _promoSuccessMessage =
-            'Áp dụng mã SUMMER15 thành công! Giảm 15% tổng tiền vé.';
-      });
-    } else if (code == 'LIMOSMART') {
-      discount = totalPrice > 30000 ? 30000.0 : totalPrice.toDouble();
-      setState(() {
-        _discountAmount = discount;
-        _appliedPromoCode = code;
-        _promoError = null;
-        _promoSuccessMessage = 'Áp dụng mã LIMOSMART thành công! Giảm 30.000đ.';
-      });
-    } else {
-      setState(() {
-        _promoError = 'Mã giảm giá không hợp lệ hoặc đã hết hạn.';
+        _promoError = 'Lỗi kết nối khi áp dụng mã giảm giá.';
         _promoSuccessMessage = null;
         _discountAmount = 0.0;
         _appliedPromoCode = null;

@@ -566,4 +566,40 @@ public class CatalogService : ICatalogService
     private static double BuildLatitude(int id) => 11.9404 + (id * 0.0035);
 
     private static double BuildLongitude(int id) => 108.4583 + (id * 0.0041);
+
+    public async Task<CatalogPromotionDto?> ValidatePromotionAsync(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return null;
+        }
+
+        var normalizedCode = code.Trim().ToUpperInvariant();
+        var promotion = await _context.Promotions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Code == normalizedCode);
+
+        if (promotion == null)
+        {
+            return null;
+        }
+
+        var now = DateTime.UtcNow;
+        if (promotion.ValidUntil.HasValue && promotion.ValidUntil.Value < now)
+        {
+            return null;
+        }
+
+        if (promotion.UsageLimit.HasValue && promotion.UsedCount.HasValue && promotion.UsedCount.Value >= promotion.UsageLimit.Value)
+        {
+            return null;
+        }
+
+        return new CatalogPromotionDto
+        {
+            Code = promotion.Code ?? string.Empty,
+            DiscountPercent = promotion.DiscountPercent ?? 0,
+            MaxDiscountAmount = promotion.MaxDiscountAmount ?? 0
+        };
+    }
 }
