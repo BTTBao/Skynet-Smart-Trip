@@ -61,8 +61,10 @@ class TripTimelineEntry {
 
     final descriptionParts = serviceType == 'NOTE'
         ? <String>[
-            if ((serviceAddress ?? '').isNotEmpty) serviceAddress!,
-            if (subtitle.isNotEmpty && subtitle != serviceAddress) subtitle,
+            if (subtitle.isNotEmpty)
+              subtitle
+            else if ((serviceAddress ?? '').isNotEmpty)
+              serviceAddress!,
           ]
         : <String>[
             if (subtitle.isNotEmpty) subtitle,

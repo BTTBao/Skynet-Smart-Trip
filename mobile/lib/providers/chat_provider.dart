@@ -65,10 +65,10 @@ class ChatProvider with ChangeNotifier {
     }
 
     await _loadSuggestions();
-    await Future.wait([
-      loadSessions(notify: false),
-      loadHistory(notify: false),
-    ]);
+    await loadSessions(notify: false);
+    _messages.clear();
+    _currentSessionId = null;
+    _isViewingHistorySession = false;
     notifyListeners();
   }
 

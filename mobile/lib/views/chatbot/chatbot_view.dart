@@ -403,9 +403,19 @@ class _ChatbotViewState extends State<ChatbotView> {
     );
   }
 
-  void _handleBookPlannedTransport(TransportPlanSuggestion transport) {
-    _showToastMessage(
-      'Nut dat xe trong plan da them xong. Logic mo man dat xe minh se noi tiep o buoc sau.',
+  Future<void> _handleBookPlannedTransport(
+    TransportPlanSuggestion transport,
+  ) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TransportSearchScreen(
+          toDestId: transport.toDestinationId,
+          toDestName: transport.toDestinationName ?? itineraryDestinationFallback,
+          initialDate:
+              transport.departureTime ?? _resolveLatestChatBookingDates().checkIn,
+          initialScheduleId: transport.scheduleId,
+        ),
+      ),
     );
   }
 
@@ -442,45 +452,15 @@ class _ChatbotViewState extends State<ChatbotView> {
       return;
     }
 
-    var saveOk = true;
-
-    final transport = itinerary.transportSuggestion;
-    if (transport?.scheduleId != null) {
-      saveOk = await tripProvider.addItinerary(
-        createdTrip.tripId,
-        CreateTripItineraryRequest(
-          dayNumber: 1,
-          serviceType: 'BUS',
-          serviceId: transport!.scheduleId!,
-          quantity: 1,
-          bookedPrice: transport.price,
-          serviceDate: startDate,
-        ),
-      );
-    }
-
-    if (saveOk) {
-      final hotel = itinerary.hotelSuggestion;
-      if (hotel?.roomId != null) {
-        final nights = endDate.difference(startDate).inDays.clamp(1, 30).toInt();
-        saveOk = await tripProvider.addItinerary(
-          createdTrip.tripId,
-          CreateTripItineraryRequest(
-            dayNumber: 1,
-            serviceType: 'HOTEL',
-            serviceId: hotel!.roomId!,
-            quantity: 1,
-            bookedPrice: (hotel.pricePerNight ?? 0) * nights,
-            serviceDate: startDate,
-          ),
-        );
-      }
-    }
+    final saveOk = await _saveItineraryPlanEntries(
+      tripProvider: tripProvider,
+      tripId: createdTrip.tripId,
+      itinerary: itinerary,
+      startDate: startDate,
+    );
 
     if (!saveOk) {
-      _showToastMessage(
-        tripProvider.error ?? 'Da tao chuyen di nhung chua luu du dich vu.',
-      );
+      _showToastMessage(tripProvider.error ?? 'Da tao chuyen di nhung chua luu duoc plan.');
       return;
     }
 
@@ -499,6 +479,85 @@ class _ChatbotViewState extends State<ChatbotView> {
         ),
       ),
     );
+  }
+
+  String get itineraryDestinationFallback => 'Diem den';
+
+  Future<bool> _saveItineraryPlanEntries({
+    required TripProvider tripProvider,
+    required int tripId,
+    required SuggestedItinerary itinerary,
+    required DateTime startDate,
+  }) async {
+    for (final day in itinerary.days) {
+      final serviceDate = startDate.add(Duration(days: day.dayNumber - 1));
+      for (final activity in day.activities) {
+        final noteRequest = CreateTripItineraryRequest(
+          dayNumber: day.dayNumber,
+          serviceType: 'NOTE',
+          serviceId: 1,
+          quantity: 1,
+          bookedPrice: _parseEstimatedCost(activity.estimatedCost),
+          bookedCommissionRate: 0,
+          serviceDate: serviceDate,
+          departureTime: _normalizeActivityTime(activity.time),
+          serviceAddress: _buildTripPlanNoteContent(activity),
+        );
+
+        final success = await tripProvider.addItinerary(tripId, noteRequest);
+        if (!success) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  String _buildTripPlanNoteContent(ItineraryActivity activity) {
+    final lines = <String>[
+      activity.title.trim(),
+      if ((activity.description ?? '').trim().isNotEmpty)
+        activity.description!.trim(),
+      if ((activity.estimatedCost ?? '').trim().isNotEmpty)
+        'Chi phi du kien: ${activity.estimatedCost!.trim()}',
+    ];
+
+    return lines.join('\n');
+  }
+
+  double? _parseEstimatedCost(String? rawValue) {
+    final text = rawValue?.trim();
+    if (text == null || text.isEmpty) {
+      return null;
+    }
+
+    final normalized = text
+        .replaceAll(RegExp(r'[^0-9,\.]'), '')
+        .replaceAll('.', '')
+        .replaceAll(',', '.');
+    return double.tryParse(normalized);
+  }
+
+  String? _normalizeActivityTime(String rawTime) {
+    final text = rawTime.trim();
+    final match = RegExp(r'^(\d{1,2}):(\d{2})$').firstMatch(text);
+    if (match == null) {
+      return null;
+    }
+
+    final hour = int.tryParse(match.group(1)!);
+    final minute = int.tryParse(match.group(2)!);
+    if (hour == null ||
+        minute == null ||
+        hour < 0 ||
+        hour > 23 ||
+        minute < 0 ||
+        minute > 59) {
+      return null;
+    }
+
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}:00';
   }
     /*
     if (card.rooms == null || card.rooms!.isEmpty) {

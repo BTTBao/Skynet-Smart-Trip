@@ -43,6 +43,20 @@ class _TransportSearchScreenState extends State<TransportSearchScreen> {
   @override
   void initState() {
     super.initState();
+    final today = DateTime.now();
+    final normalizedToday = DateTime(today.year, today.month, today.day);
+    final requestedDate = widget.initialDate != null
+        ? DateTime(
+            widget.initialDate!.year,
+            widget.initialDate!.month,
+            widget.initialDate!.day,
+          )
+        : null;
+    _selectedDate = requestedDate == null
+        ? normalizedToday.add(const Duration(days: 2))
+        : (requestedDate.isBefore(normalizedToday)
+              ? normalizedToday
+              : requestedDate);
     _toDestId = widget.toDestId;
     if (widget.toDestName != null) {
       _toDestName = widget.toDestName!;
@@ -1413,11 +1427,11 @@ class _DestinationSelectorSheet extends StatefulWidget {
   final Function(int id, String name) onSelect;
 
   const _DestinationSelectorSheet({
-    Key? key,
+    super.key,
     required this.destinations,
     required this.isFrom,
     required this.onSelect,
-  }) : super(key: key);
+  });
 
   @override
   State<_DestinationSelectorSheet> createState() => _DestinationSelectorSheetState();
