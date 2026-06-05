@@ -585,7 +585,10 @@ class _ProfileHero extends StatelessWidget {
       ),
       child: Column(
         children: [
-          ProfileAvatar(avatarUrl: user.avatarUrl),
+          ProfileAvatar(
+            avatarUrl: user.avatarUrl,
+            heroTag: 'profile_avatar_main',
+          ),
           const SizedBox(height: 16),
           Text(
             user.name,

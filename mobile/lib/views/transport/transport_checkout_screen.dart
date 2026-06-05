@@ -34,7 +34,8 @@ class TransportCheckoutScreen extends StatefulWidget {
 }
 
 class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
-  int selectedPaymentMethod = 0; // 0: MoMo, 1: ZaloPay, 2: ATM, 3: Visa
+  int selectedPaymentMethod =
+      0; // 0: MoMo, 1: ZaloPay, 2: ATM, 3: Visa, 4: VNPAY
   bool _isProcessing = false;
   int? _pendingOrderCode;
   int? _pendingTripId;
@@ -161,6 +162,14 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
     if (!opened) throw Exception('Khong the mo trang thanh toan PayOS.');
   }
 
+  Future<void> _openVnPayCheckout(String checkoutUrl) async {
+    final opened = await launchUrl(
+      Uri.parse(checkoutUrl),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened) throw Exception('Khong the mo trang thanh toan VNPAY.');
+  }
+
   Future<void> _checkPayOsStatus(
     BusScheduleModel schedule,
     List<String> seats,
@@ -237,6 +246,95 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
               },
               style: FilledButton.styleFrom(backgroundColor: _kPrimary),
               child: const Text('Kiểm tra thanh toán'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _checkVnPayStatus(
+    BusScheduleModel schedule,
+    List<String> seats,
+  ) async {
+    final orderCode = _pendingOrderCode;
+    final tripId = _pendingTripId;
+    if (orderCode == null || tripId == null) return;
+
+    setState(() => _isProcessing = true);
+    try {
+      final payment = await PaymentService().getPaymentByOrderCode(orderCode);
+      if (!mounted) return;
+
+      if (!payment.isPaid) {
+        final status = payment.status.toUpperCase();
+        final message = payment.isFailed
+            ? (payment.message?.trim().isNotEmpty == true
+                  ? payment.message!
+                  : 'VNPAY da tra ve trang thai $status.')
+            : 'VNPAY dang o trang thai ${payment.status}.';
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
+        return;
+      }
+
+      if (_appliedPromoCode != null) {
+        context.read<ProfileProvider>().useVoucher(_appliedPromoCode!);
+      }
+
+      context.read<TripProvider>().fetchTrips(silent: true);
+      if (widget.existingTripId != null) {
+        context.read<TripProvider>().fetchTripDetail(widget.existingTripId!);
+      }
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TransportTicketScreen(
+            bookingId: tripId,
+            schedule: schedule,
+            seats: seats,
+          ),
+        ),
+        (route) => route.isFirst,
+      );
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _showVnPayPendingDialog(
+    BusScheduleModel schedule,
+    List<String> seats,
+  ) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Hoan tat thanh toan',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'Trang VNPAY da duoc mo. Sau khi thanh toan xong, quay lai app va bam kiem tra.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('De sau'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                await _checkVnPayStatus(schedule, seats);
+              },
+              style: FilledButton.styleFrom(backgroundColor: _kPrimary),
+              child: const Text('Kiem tra thanh toan'),
             ),
           ],
         );
@@ -844,6 +942,34 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
         return;
       }
 
+      if (selectedPaymentMethod == 4) {
+        final payment = await PaymentService().createVnPayPayment(
+          tripId: currentTripId,
+          amount: finalPayPrice < 0 ? 0 : finalPayPrice,
+          description: 'Ve xe $currentTripId',
+          metadata: {
+            'type': 'BUS',
+            'scheduleId': schedule.id,
+            'selectedSeats': seats,
+            'passengerName': _passengerNameController.text.trim(),
+            'passengerPhone': _passengerPhoneController.text.trim(),
+            'passengerEmail': _passengerEmailController.text.trim(),
+            'passengerNotes': _passengerNotesController.text.trim(),
+          },
+        );
+
+        final checkoutUrl = payment.checkoutUrl;
+        if (checkoutUrl == null || checkoutUrl.isEmpty) {
+          throw Exception('VNPAY khong tra ve link thanh toan.');
+        }
+
+        _pendingOrderCode = payment.orderCode;
+        await _openVnPayCheckout(checkoutUrl);
+        if (mounted) setState(() => _isProcessing = false);
+        await _showVnPayPendingDialog(schedule, seats);
+        return;
+      }
+
       final paymentMethodStr = selectedPaymentMethod == 0 ? 'Momo' : 'Zalopay';
 
       final paymentSuccess = await busProvider.confirmCheckoutPayment(
@@ -1006,6 +1132,18 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                             subtitle: 'Visa, Mastercard, JCB',
                             onTap: () =>
                                 setState(() => selectedPaymentMethod = 3),
+                          ),
+                          const SizedBox(height: 12),
+                          _PaymentMethodCard(
+                            index: 4,
+                            selectedIndex: selectedPaymentMethod,
+                            icon: Icons.account_balance_wallet_outlined,
+                            iconColor: const Color(0xFF0068FF),
+                            bgColor: const Color(0xFFEAF1FF),
+                            title: 'VNPAY',
+                            subtitle: 'Cong thanh toan VNPAY',
+                            onTap: () =>
+                                setState(() => selectedPaymentMethod = 4),
                           ),
                         ],
                         const SizedBox(height: 28),

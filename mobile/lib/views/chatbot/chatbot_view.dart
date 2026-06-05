@@ -60,10 +60,20 @@ class _ChatbotViewState extends State<ChatbotView> {
           _handledSessionExpired = false;
         }
 
-        _handleSessionExpired(chatProvider);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          _handleSessionExpired(chatProvider);
+        });
 
         if (chatProvider.messages.isNotEmpty) {
-          _scrollToBottom();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) {
+              return;
+            }
+            _scrollToBottom();
+          });
         }
 
         return Scaffold(
@@ -371,9 +381,7 @@ class _ChatbotViewState extends State<ChatbotView> {
     }
 
     await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => HotelDetailView(hotelId: hotelId),
-      ),
+      MaterialPageRoute(builder: (_) => HotelDetailView(hotelId: hotelId)),
     );
   }
 
@@ -383,7 +391,8 @@ class _ChatbotViewState extends State<ChatbotView> {
         builder: (_) => TransportSearchScreen(
           toDestId: card.toDestinationId,
           toDestName: card.toDestinationName,
-          initialDate: card.departureTime ?? _resolveLatestChatBookingDates().checkIn,
+          initialDate:
+              card.departureTime ?? _resolveLatestChatBookingDates().checkIn,
         ),
       ),
     );
@@ -397,9 +406,7 @@ class _ChatbotViewState extends State<ChatbotView> {
     }
 
     await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => HotelDetailView(hotelId: hotelId),
-      ),
+      MaterialPageRoute(builder: (_) => HotelDetailView(hotelId: hotelId)),
     );
   }
 
@@ -421,8 +428,8 @@ class _ChatbotViewState extends State<ChatbotView> {
     final today = _dateOnly(DateTime.now());
     final startDate = prefill.checkIn ?? today.add(const Duration(days: 1));
     final totalDays = itinerary.totalDays.clamp(1, 30).toInt();
-    final endDate = prefill.checkOut ??
-        startDate.add(Duration(days: totalDays - 1));
+    final endDate =
+        prefill.checkOut ?? startDate.add(Duration(days: totalDays - 1));
     final tripTitle = _buildTripTitle(itinerary, startDate, endDate);
 
     final createdTrip = await tripProvider.createTrip(
@@ -462,7 +469,11 @@ class _ChatbotViewState extends State<ChatbotView> {
     if (saveOk) {
       final hotel = itinerary.hotelSuggestion;
       if (hotel?.roomId != null) {
-        final nights = endDate.difference(startDate).inDays.clamp(1, 30).toInt();
+        final nights = endDate
+            .difference(startDate)
+            .inDays
+            .clamp(1, 30)
+            .toInt();
         saveOk = await tripProvider.addItinerary(
           createdTrip.tripId,
           CreateTripItineraryRequest(
@@ -500,7 +511,8 @@ class _ChatbotViewState extends State<ChatbotView> {
       ),
     );
   }
-    /*
+
+  /*
     if (card.rooms == null || card.rooms!.isEmpty) {
       _showToastMessage('Khách sạn hiện không có phòng trống.');
       return;
@@ -850,13 +862,13 @@ class _ChatbotViewState extends State<ChatbotView> {
     return (timePart * 1000) + (tripId % 1000);
   }
 
-  Future<void> _openPayOsCheckout(String checkoutUrl) async {
+  Future<void> _openPaymentGateway(String checkoutUrl, String provider) async {
     final opened = await launchUrl(
       Uri.parse(checkoutUrl),
       mode: LaunchMode.externalApplication,
     );
     if (!opened) {
-      throw Exception('Khong the mo trang thanh toan PayOS.');
+      throw Exception('Khong the mo trang thanh toan $provider.');
     }
   }
 
@@ -897,6 +909,8 @@ class _ChatbotViewState extends State<ChatbotView> {
               setSheetState(() => isSubmitting = true);
 
               try {
+                final providerLabel =
+                    paymentMethod == 'Vnpay' ? 'VNPAY' : 'PayOS';
                 if (pendingOrderCode != null) {
                   final isPaid = await _checkChatHotelPaymentStatus(
                     pendingOrderCode!,
@@ -908,7 +922,7 @@ class _ChatbotViewState extends State<ChatbotView> {
                   setSheetState(() => isSubmitting = false);
                   if (!isPaid) {
                     _showToastMessage(
-                      'PayOS chưa ghi nhận thanh toán. Bạn thử kiểm tra lại sau ít phút.',
+                      '$providerLabel chưa ghi nhận thanh toán. Bạn thử kiểm tra lại sau ít phút.',
                     );
                     return;
                   }
@@ -922,35 +936,49 @@ class _ChatbotViewState extends State<ChatbotView> {
                 }
 
                 final orderCode = _generateOrderCode(tripId);
-                final payment = await PaymentService().createPayOsPayment(
-                  tripId: tripId,
-                  amount: amount,
-                  description: 'Dat phong $tripId',
-                  orderCode: orderCode,
-                  metadata: {
-                    'type': 'HOTEL',
-                    'hotelName': hotelName,
-                    'roomType': roomType,
-                    'selectedPaymentMethod': _chatPaymentMethodLabel(
-                      paymentMethod,
-                    ),
-                  },
-                );
+                final payment = paymentMethod == 'Vnpay'
+                    ? await PaymentService().createVnPayPayment(
+                        tripId: tripId,
+                        amount: amount,
+                        description: 'Dat phong $tripId',
+                        metadata: {
+                          'type': 'HOTEL',
+                          'hotelName': hotelName,
+                          'roomType': roomType,
+                          'selectedPaymentMethod': _chatPaymentMethodLabel(
+                            paymentMethod,
+                          ),
+                        },
+                      )
+                    : await PaymentService().createPayOsPayment(
+                        tripId: tripId,
+                        amount: amount,
+                        description: 'Dat phong $tripId',
+                        orderCode: orderCode,
+                        metadata: {
+                          'type': 'HOTEL',
+                          'hotelName': hotelName,
+                          'roomType': roomType,
+                          'selectedPaymentMethod': _chatPaymentMethodLabel(
+                            paymentMethod,
+                          ),
+                        },
+                      );
 
                 final checkoutUrl = payment.checkoutUrl;
                 if (checkoutUrl == null || checkoutUrl.isEmpty) {
-                  throw Exception('PayOS khong tra ve link thanh toan.');
+                  throw Exception('$providerLabel khong tra ve link thanh toan.');
                 }
 
-                pendingOrderCode = orderCode;
-                await _openPayOsCheckout(checkoutUrl);
+                pendingOrderCode = payment.orderCode ?? orderCode;
+                await _openPaymentGateway(checkoutUrl, providerLabel);
                 if (!mounted || !sheetContext.mounted) {
                   return;
                 }
 
                 setSheetState(() => isSubmitting = false);
                 _showToastMessage(
-                  'Đã mở PayOS. Sau khi thanh toán xong, quay lại đây và bấm xác nhận.',
+                  'Đã mở $providerLabel. Sau khi thanh toán xong, quay lại đây và bấm xác nhận.',
                 );
               } catch (error) {
                 if (!mounted || !sheetContext.mounted) {
@@ -993,9 +1021,11 @@ class _ChatbotViewState extends State<ChatbotView> {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    const Text(
-                      'Thanh toán PayOS',
-                      style: TextStyle(
+                    Text(
+                      paymentMethod == 'Vnpay'
+                          ? 'Thanh toán VNPAY'
+                          : 'Thanh toán PayOS',
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textHeading,
@@ -1079,9 +1109,11 @@ class _ChatbotViewState extends State<ChatbotView> {
                     ),
                     if (pendingOrderCode != null) ...[
                       const SizedBox(height: 14),
-                      const Text(
-                        'PayOS đã được mở. Sau khi thanh toán xong, quay lại app và bấm xác nhận.',
-                        style: TextStyle(color: AppColors.textMuted),
+                      Text(
+                        paymentMethod == 'Vnpay'
+                            ? 'VNPAY đã được mở. Sau khi thanh toán xong, quay lại app và bấm xác nhận.'
+                            : 'PayOS đã được mở. Sau khi thanh toán xong, quay lại app và bấm xác nhận.',
+                        style: const TextStyle(color: AppColors.textMuted),
                       ),
                     ],
                     const SizedBox(height: 20),
@@ -1108,7 +1140,9 @@ class _ChatbotViewState extends State<ChatbotView> {
                               )
                             : Text(
                                 pendingOrderCode == null
-                                    ? 'Mở PayOS'
+                                    ? (paymentMethod == 'Vnpay'
+                                        ? 'Mở VNPAY'
+                                        : 'Mở PayOS')
                                     : 'Tôi đã thanh toán',
                                 style: const TextStyle(
                                   fontSize: 17,
@@ -1166,8 +1200,9 @@ class _ChatbotViewState extends State<ChatbotView> {
       }
     }
 
-    for (final match in RegExp(r'\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{4}))?\b')
-        .allMatches(normalizedText)) {
+    for (final match in RegExp(
+      r'\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{4}))?\b',
+    ).allMatches(normalizedText)) {
       final day = int.tryParse(match.group(1)!);
       final month = int.tryParse(match.group(2)!);
       final year = int.tryParse(match.group(3) ?? '') ?? today.year;
@@ -1177,8 +1212,9 @@ class _ChatbotViewState extends State<ChatbotView> {
       }
     }
 
-    for (final match in RegExp(r'\b(\d{4})-(\d{1,2})-(\d{1,2})\b')
-        .allMatches(normalizedText)) {
+    for (final match in RegExp(
+      r'\b(\d{4})-(\d{1,2})-(\d{1,2})\b',
+    ).allMatches(normalizedText)) {
       final year = int.tryParse(match.group(1)!);
       final month = int.tryParse(match.group(2)!);
       final day = int.tryParse(match.group(3)!);

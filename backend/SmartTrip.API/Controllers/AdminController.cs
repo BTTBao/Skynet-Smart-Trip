@@ -28,12 +28,12 @@ public class AdminController : ControllerBase
     [HttpPost("uploads/room-images")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(10 * 1024 * 1024)]
-    public async Task<IActionResult> UploadRoomImage([FromForm] IFormFile file)
+    public async Task<IActionResult> UploadRoomImage([FromForm] AdminImageUploadRequest request)
     {
-        var validationError = ValidateImageFile(file, "anh phong");
+        var validationError = ValidateImageFile(request.File, "anh phong");
         if (validationError != null) return validationError;
 
-        var upload = await UploadImageAsync(file!, "admin/rooms");
+        var upload = await UploadImageAsync(request.File!, "admin/rooms");
 
         return Ok(new
         {
@@ -47,12 +47,12 @@ public class AdminController : ControllerBase
     [HttpPost("uploads/destination-covers")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(10 * 1024 * 1024)]
-    public async Task<IActionResult> UploadDestinationCover([FromForm] IFormFile file)
+    public async Task<IActionResult> UploadDestinationCover([FromForm] AdminImageUploadRequest request)
     {
-        var validationError = ValidateImageFile(file, "anh cover diem den");
+        var validationError = ValidateImageFile(request.File, "anh cover diem den");
         if (validationError != null) return validationError;
 
-        var upload = await UploadImageAsync(file!, "destinations/covers");
+        var upload = await UploadImageAsync(request.File!, "destinations/covers");
         return Ok(new
         {
             imageUrl = upload.ImageUrl,
@@ -65,12 +65,12 @@ public class AdminController : ControllerBase
     [HttpPost("uploads/transport-company-logos")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(10 * 1024 * 1024)]
-    public async Task<IActionResult> UploadTransportCompanyLogo([FromForm] IFormFile file)
+    public async Task<IActionResult> UploadTransportCompanyLogo([FromForm] AdminImageUploadRequest request)
     {
-        var validationError = ValidateImageFile(file, "logo nha xe");
+        var validationError = ValidateImageFile(request.File, "logo nha xe");
         if (validationError != null) return validationError;
 
-        var upload = await UploadImageAsync(file!, "transport/companies/logos");
+        var upload = await UploadImageAsync(request.File!, "transport/companies/logos");
         return Ok(new
         {
             imageUrl = upload.ImageUrl,

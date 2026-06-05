@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartTrip.Application.DTOs.Payment;
 using SmartTrip.Application.Interfaces.Payment;
+using System.Net;
 
 namespace SmartTrip.API.Controllers;
 
@@ -45,6 +46,13 @@ public class PaymentController : ControllerBase
         return payment == null ? NotFound(new { message = $"Payment {paymentId} was not found." }) : Ok(payment);
     }
 
+    [HttpGet("{paymentId:int}/status")]
+    public async Task<IActionResult> GetPaymentStatusById(int paymentId, CancellationToken cancellationToken)
+    {
+        var payment = await _paymentService.GetPaymentStatusByIdAsync(paymentId, cancellationToken);
+        return payment == null ? NotFound(new { message = $"Payment {paymentId} was not found." }) : Ok(payment);
+    }
+
     [HttpGet("order/{orderCode:long}")]
     public async Task<IActionResult> GetPaymentByOrderCode(long orderCode, CancellationToken cancellationToken)
     {
@@ -82,5 +90,335 @@ public class PaymentController : ControllerBase
     {
         var payment = await _paymentService.GetPaymentStatusAsync(orderCode, cancellationToken);
         return payment == null ? NotFound(new { message = $"Payment orderCode {orderCode} was not found." }) : Ok(payment);
+    }
+
+    [HttpPost("vnpay/create")]
+    public async Task<IActionResult> CreateVnPayPayment(
+        [FromBody] CreateVnPayPaymentRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var payment = await _paymentService.CreateVnPayPaymentAsync(
+                request,
+                ResolveClientIpAddress(),
+                cancellationToken);
+            return Ok(payment);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Unable to create VNPAY payment.");
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = ex.Message });
+        }
+    }
+
+    [AllowAnonymous]
+    [HttpGet("vnpay/ipn")]
+    public async Task<IActionResult> VnPayIpn(CancellationToken cancellationToken)
+    {
+        var response = await _paymentService.HandleVnPayIpnAsync(ToQueryDictionary(), cancellationToken);
+        return Ok(response);
+    }
+
+    [AllowAnonymous]
+    [HttpGet("vnpay/return")]
+    public async Task<IActionResult> VnPayReturn(CancellationToken cancellationToken)
+    {
+        var result = await _paymentService.HandleVnPayReturnAsync(ToQueryDictionary(), cancellationToken);
+        return Content(BuildVnPayReturnHtml(result), "text/html");
+    }
+
+    private IReadOnlyDictionary<string, string> ToQueryDictionary()
+    {
+        return Request.Query.ToDictionary(
+            item => item.Key,
+            item => item.Value.ToString(),
+            StringComparer.Ordinal);
+    }
+
+    private string ResolveClientIpAddress()
+    {
+        var forwardedFor = Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(forwardedFor))
+        {
+            var ip = forwardedFor.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(ip))
+            {
+                return ip;
+            }
+        }
+
+        return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+    }
+
+    private static string BuildVnPayReturnHtml(VnPayReturnResultDto result)
+    {
+        var title = result.IsSuccess ? "Thanh toán VNPAY thành công" : "Kết quả thanh toán VNPAY";
+        var subtitle = result.IsSuccess
+            ? "Giao dịch đã được ghi nhận"
+            : "SmartTrip đã nhận phản hồi từ VNPAY";
+        var nextAction = result.IsSuccess
+            ? "Quay lại ứng dụng SmartTrip và bấm kiểm tra thanh toán để đồng bộ đơn đặt chỗ."
+            : "Nếu giao dịch chưa hoàn tất, bạn có thể quay lại ứng dụng SmartTrip để thử lại hoặc kiểm tra trạng thái.";
+        var heading = WebUtility.HtmlEncode(title);
+        var eyebrow = WebUtility.HtmlEncode(subtitle);
+        var message = WebUtility.HtmlEncode(result.Message);
+        var instruction = WebUtility.HtmlEncode(nextAction);
+        var status = WebUtility.HtmlEncode(result.Status);
+        var orderCode = WebUtility.HtmlEncode(result.OrderCode?.ToString() ?? "-");
+        var responseCode = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(result.ResponseCode) ? "-" : result.ResponseCode);
+        var transactionStatus = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(result.TransactionStatus) ? "-" : result.TransactionStatus);
+        var stateClass = result.IsSuccess ? "success" : "warning";
+        var icon = result.IsSuccess ? "✓" : "!";
+
+        return $$"""
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{heading}}</title>
+  <style>
+    :root {
+      --ink: #07162f;
+      --muted: #657188;
+      --line: #e4ebf5;
+      --surface: rgba(255, 255, 255, .86);
+      --success: #16a05d;
+      --success-soft: #ddffeb;
+      --warning: #d86b1d;
+      --warning-soft: #fff1dc;
+      --blue: #0a57c8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 28px;
+      color: var(--ink);
+      font-family: "Libre Franklin", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 12% 14%, rgba(22, 160, 93, .22), transparent 28%),
+        radial-gradient(circle at 82% 12%, rgba(10, 87, 200, .20), transparent 30%),
+        linear-gradient(135deg, #f8fbff 0%, #eef4fb 48%, #f8fbff 100%);
+    }
+
+    .shell {
+      width: min(760px, 100%);
+      margin: 34px auto;
+      position: relative;
+    }
+
+    .shell::before {
+      content: "";
+      position: absolute;
+      inset: -24px 34px auto auto;
+      width: 138px;
+      height: 138px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(10, 87, 200, .18), rgba(22, 160, 93, .24));
+      filter: blur(8px);
+      z-index: 0;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, .82);
+      border-radius: 32px;
+      background: var(--surface);
+      box-shadow: 0 30px 80px rgba(7, 22, 47, .14);
+      backdrop-filter: blur(18px);
+    }
+
+    .hero {
+      padding: 34px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 22px;
+      align-items: center;
+      background:
+        linear-gradient(120deg, rgba(255,255,255,.96), rgba(255,255,255,.70)),
+        radial-gradient(circle at 88% 20%, rgba(22,160,93,.18), transparent 28%);
+    }
+
+    .mark {
+      width: 76px;
+      height: 76px;
+      display: grid;
+      place-items: center;
+      border-radius: 24px;
+      font-size: 42px;
+      font-weight: 900;
+      color: #fff;
+      box-shadow: 0 18px 35px rgba(22, 160, 93, .25);
+    }
+
+    .success .mark { background: linear-gradient(135deg, #10b96e, #087746); }
+    .warning .mark { background: linear-gradient(135deg, #f18936, #b94b19); }
+
+    .badge {
+      width: fit-content;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 13px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .success .badge { color: var(--success); background: var(--success-soft); }
+    .warning .badge { color: var(--warning); background: var(--warning-soft); }
+
+    h1 {
+      margin: 14px 0 8px;
+      font-size: clamp(28px, 5vw, 42px);
+      line-height: 1.08;
+      letter-spacing: -.04em;
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--blue);
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .content {
+      padding: 0 34px 34px;
+    }
+
+    .message {
+      margin: 0;
+      padding: 24px 0;
+      color: #23314f;
+      font-size: 17px;
+      line-height: 1.7;
+      border-top: 1px solid var(--line);
+    }
+
+    .guide {
+      margin: 0 0 22px;
+      padding: 16px 18px;
+      border-radius: 20px;
+      color: #33415f;
+      background: #f4f8ff;
+      line-height: 1.6;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .meta-item {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .78);
+    }
+
+    .label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+    }
+
+    .value {
+      overflow-wrap: anywhere;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 22px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .brand {
+      font-weight: 900;
+      color: var(--ink);
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 16px; }
+      .shell { margin: 12px auto; }
+      .hero {
+        grid-template-columns: 1fr;
+        padding: 26px;
+      }
+      .mark {
+        width: 68px;
+        height: 68px;
+        border-radius: 22px;
+      }
+      .content { padding: 0 24px 26px; }
+      .meta { grid-template-columns: 1fr; }
+      .footer {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell {{stateClass}}">
+    <section class="card">
+      <div class="hero">
+        <div class="mark" aria-hidden="true">{{icon}}</div>
+        <div>
+          <div class="badge">{{status}}</div>
+          <h1>{{heading}}</h1>
+          <p class="eyebrow">{{eyebrow}}</p>
+        </div>
+      </div>
+      <div class="content">
+        <p class="message">{{message}}</p>
+        <p class="guide">{{instruction}}</p>
+        <div class="meta" aria-label="Thông tin giao dịch">
+          <div class="meta-item">
+            <span class="label">Mã giao dịch</span>
+            <span class="value">{{orderCode}}</span>
+          </div>
+          <div class="meta-item">
+            <span class="label">Mã phản hồi</span>
+            <span class="value">{{responseCode}}</span>
+          </div>
+          <div class="meta-item">
+            <span class="label">Trạng thái VNPAY</span>
+            <span class="value">{{transactionStatus}}</span>
+          </div>
+        </div>
+        <div class="footer">
+          <span><span class="brand">SmartTrip</span> sẽ đồng bộ đơn sau khi bạn kiểm tra trong ứng dụng.</span>
+          <span>Powered by VNPAY</span>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
+""";
     }
 }

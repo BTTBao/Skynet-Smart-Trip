@@ -15,6 +15,13 @@ LoadEnvFile(builder.Environment.ContentRootPath);
 
 // Yêu cầu Configuration đọc thêm từ Environment Variables
 builder.Configuration.AddEnvironmentVariables();
+var apiPort = Environment.GetEnvironmentVariable("API_PORT");
+if (int.TryParse(apiPort, out var parsedApiPort) && parsedApiPort > 0)
+{
+    var apiUrl = $"http://localhost:{parsedApiPort}";
+    builder.WebHost.UseUrls(apiUrl);
+    builder.Configuration["Urls"] = apiUrl;
+}
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
@@ -104,17 +111,40 @@ app.Run();
 static void LoadEnvFile(string contentRootPath)
 {
     var directory = new DirectoryInfo(contentRootPath);
+    var envFiles = new Stack<string>();
 
     while (directory is not null)
     {
         var envPath = Path.Combine(directory.FullName, ".env");
-        if (!File.Exists(envPath))
+        if (File.Exists(envPath))
         {
-            directory = directory.Parent;
+            envFiles.Push(envPath);
+        }
+
+        directory = directory.Parent;
+    }
+
+    if (envFiles.Count == 0)
+    {
+        return;
+    }
+
+    var mergedValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    while (envFiles.Count > 0)
+    {
+        foreach (var pair in DotNetEnv.Env.LoadContents(File.ReadAllText(envFiles.Pop())))
+        {
+            mergedValues[pair.Key] = pair.Value;
+        }
+    }
+
+    foreach (var pair in mergedValues)
+    {
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(pair.Key)))
+        {
             continue;
         }
 
-        DotNetEnv.Env.NoClobber().Load(envPath);
-        return;
+        Environment.SetEnvironmentVariable(pair.Key, pair.Value);
     }
 }

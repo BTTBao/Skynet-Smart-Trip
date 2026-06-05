@@ -56,13 +56,69 @@ public static class ServiceExtensions
         services.Configure<GoogleAuthSettings>(configuration.GetSection("GoogleAuthSettings"));
         services.Configure<PayOsSettings>(options =>
         {
-            options.ClientId = configuration["PayOs:ClientId"] ?? configuration["PAYOS_CLIENT_ID"] ?? string.Empty;
-            options.ApiKey = configuration["PayOs:ApiKey"] ?? configuration["PAYOS_API_KEY"] ?? string.Empty;
-            options.ChecksumKey = configuration["PayOs:ChecksumKey"] ?? configuration["PAYOS_CHECKSUM_KEY"] ?? string.Empty;
-            options.BaseUrl = configuration["PayOs:BaseUrl"] ?? "https://api-merchant.payos.vn";
+            options.ClientId = FirstNonEmpty(
+                configuration["PayOs:ClientId"],
+                configuration["PAYOS_CLIENT_ID"],
+                Environment.GetEnvironmentVariable("PAYOS_CLIENT_ID"));
+            options.ApiKey = FirstNonEmpty(
+                configuration["PayOs:ApiKey"],
+                configuration["PAYOS_API_KEY"],
+                Environment.GetEnvironmentVariable("PAYOS_API_KEY"));
+            options.ChecksumKey = FirstNonEmpty(
+                configuration["PayOs:ChecksumKey"],
+                configuration["PAYOS_CHECKSUM_KEY"],
+                Environment.GetEnvironmentVariable("PAYOS_CHECKSUM_KEY"));
+            options.BaseUrl = FirstNonEmpty(
+                configuration["PayOs:BaseUrl"],
+                "https://api-merchant.payos.vn");
+        });
+        services.Configure<VnPaySettings>(options =>
+        {
+            options.TmnCode = FirstNonEmpty(
+                configuration["VnPay:TmnCode"],
+                configuration["VNPAY_TMN_CODE"],
+                Environment.GetEnvironmentVariable("VNPAY_TMN_CODE"));
+            options.HashSecret = FirstNonEmpty(
+                configuration["VnPay:HashSecret"],
+                configuration["VNPAY_HASH_SECRET"],
+                Environment.GetEnvironmentVariable("VNPAY_HASH_SECRET"));
+            options.PaymentUrl = FirstNonEmpty(
+                configuration["VnPay:PaymentUrl"],
+                configuration["VNPAY_PAYMENT_URL"],
+                Environment.GetEnvironmentVariable("VNPAY_PAYMENT_URL"),
+                "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html");
+            options.ReturnUrl = FirstNonEmpty(
+                configuration["VnPay:ReturnUrl"],
+                configuration["VNPAY_RETURN_URL"],
+                Environment.GetEnvironmentVariable("VNPAY_RETURN_URL"));
+            options.IpnUrl = FirstNonEmpty(
+                configuration["VnPay:IpnUrl"],
+                configuration["VNPAY_IPN_URL"],
+                Environment.GetEnvironmentVariable("VNPAY_IPN_URL"));
+            options.Version = FirstNonEmpty(configuration["VnPay:Version"], "2.1.0");
+            options.Command = FirstNonEmpty(configuration["VnPay:Command"], "pay");
+            options.CurrCode = FirstNonEmpty(configuration["VnPay:CurrCode"], "VND");
+            options.Locale = FirstNonEmpty(configuration["VnPay:Locale"], "vn");
+            options.OrderType = FirstNonEmpty(configuration["VnPay:OrderType"], "other");
+            options.ExpireMinutes = int.TryParse(FirstNonEmpty(configuration["VnPay:ExpireMinutes"], "15"), out var expireMinutes)
+                ? expireMinutes
+                : 15;
         });
 
         return services;
+    }
+
+    private static string FirstNonEmpty(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value.Trim().Trim('"', '\'');
+            }
+        }
+
+        return string.Empty;
     }
 
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)

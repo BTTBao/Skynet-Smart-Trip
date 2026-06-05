@@ -60,7 +60,7 @@ class PaymentConfirmScreen extends StatefulWidget {
 }
 
 class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
-  int selectedPaymentMethod = 0; // 0: PayOS
+  int selectedPaymentMethod = 0; // 0: PayOS, 1: VNPAY
   bool _isProcessing = false;
   int? _pendingOrderCode;
   int? _pendingTripId;
@@ -416,6 +416,16 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     }
   }
 
+  Future<void> _openVnPayCheckout(String checkoutUrl) async {
+    final opened = await launchUrl(
+      Uri.parse(checkoutUrl),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened) {
+      throw Exception('Khong the mo trang thanh toan VNPAY.');
+    }
+  }
+
   Future<void> _checkPayOsStatus() async {
     final orderCode = _pendingOrderCode;
     final tripId = _pendingTripId;
@@ -503,6 +513,109 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
               onPressed: () async {
                 Navigator.of(dialogContext).pop();
                 await _checkPayOsStatus();
+              },
+              child: const Text('Kiem tra thanh toan'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _checkVnPayStatus() async {
+    final orderCode = _pendingOrderCode;
+    final tripId = _pendingTripId;
+    if (orderCode == null || tripId == null) return;
+
+    setState(() => _isProcessing = true);
+    try {
+      final payment = await PaymentService().getPaymentByOrderCode(orderCode);
+      if (!mounted) return;
+
+      if (!payment.isPaid) {
+        final status = payment.status.toUpperCase();
+        if (payment.isFailed) {
+          final finalPayPrice = (widget.totalPrice - _discountAmount)
+              .clamp(0, double.infinity)
+              .toDouble();
+          final failureMessage =
+              payment.message?.trim().isNotEmpty == true
+                  ? payment.message!
+                  : 'VNPAY da tra ve trang thai $status. Chua co khoan tien nao duoc ghi nhan.';
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PaymentFailedScreen(
+                totalPrice: finalPayPrice,
+                status: status,
+                message: failureMessage,
+                onRetry: _handlePayment,
+              ),
+            ),
+          );
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              payment.message?.trim().isNotEmpty == true
+                  ? payment.message!
+                  : 'VNPAY dang o trang thai ${payment.status}.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      if (_appliedPromoCode != null) {
+        context.read<ProfileProvider>().useVoucher(_appliedPromoCode!);
+      }
+
+      final double finalPayPrice = widget.totalPrice - _discountAmount;
+
+      await _syncAfterConfirmedPayment();
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentSuccessScreen(
+            bookingId: tripId,
+            hotelName: widget.hotel.name,
+            dateRange: _formatDateRange(),
+            roomInfo:
+                '${widget.adultCount} Nguoi lon, ${widget.selectedRoom?.roomType ?? "Phong Standard"}',
+            imageUrl: widget.hotel.coverImageUrl,
+            totalPrice: finalPayPrice < 0 ? 0 : finalPayPrice,
+            paymentMethod: 'VNPAY',
+            paymentTime: payment.paidAt ?? DateTime.now(),
+          ),
+        ),
+        (route) => false,
+      );
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _showVnPayPendingDialog() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Hoan tat thanh toan VNPAY'),
+          content: const Text(
+            'Trang VNPAY da duoc mo. Sau khi thanh toan xong, quay lai app va bam kiem tra.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('De sau'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                await _checkVnPayStatus();
               },
               child: const Text('Kiem tra thanh toan'),
             ),
@@ -1179,7 +1292,32 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         return;
       }
 
-      final paymentMethodStr = selectedPaymentMethod == 1
+      if (selectedPaymentMethod == 1) {
+        final payment = await PaymentService().createVnPayPayment(
+          tripId: currentTripId,
+          amount: finalPayPrice,
+          description: 'Dat phong $currentTripId',
+          metadata: {
+            'type': 'HOTEL',
+            'hotelId': widget.hotel.id,
+            if (widget.selectedRoom != null) 'roomId': widget.selectedRoom!.id,
+            'quantity': widget.roomQuantity,
+          },
+        );
+
+        final checkoutUrl = payment.checkoutUrl;
+        if (checkoutUrl == null || checkoutUrl.isEmpty) {
+          throw Exception('VNPAY khong tra ve link thanh toan.');
+        }
+
+        _pendingOrderCode = payment.orderCode;
+        await _openVnPayCheckout(checkoutUrl);
+        if (mounted) setState(() => _isProcessing = false);
+        await _showVnPayPendingDialog();
+        return;
+      }
+
+      final paymentMethodStr = selectedPaymentMethod == 2
           ? 'Momo'
           : 'BankTransfer';
 
@@ -1340,13 +1478,20 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                     ),
                     _buildPaymentMethodOption(
                       index: 1,
+                      icon: Icons.account_balance_wallet_outlined,
+                      iconColor: const Color(0xFF0068FF),
+                      title: 'VNPAY',
+                      subtitle: 'Thanh toan qua cong VNPAY',
+                    ),
+                    _buildPaymentMethodOption(
+                      index: 2,
                       icon: Icons.account_balance_wallet,
                       iconColor: Colors.pink,
                       title: 'Ví MoMo',
                       subtitle: 'Thanh toán nhanh qua ứng dụng',
                     ),
                     _buildPaymentMethodOption(
-                      index: 2,
+                      index: 3,
                       icon: Icons.account_balance,
                       iconColor: Colors.green,
                       title: 'Chuyển khoản ngân hàng',
