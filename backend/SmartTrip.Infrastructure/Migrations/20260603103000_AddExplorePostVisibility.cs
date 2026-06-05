@@ -1,13 +1,10 @@
 using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 
 #nullable disable
 
 namespace SmartTrip.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260603103000_AddExplorePostVisibility")]
     public partial class AddExplorePostVisibility : Migration
     {
         /// <inheritdoc />

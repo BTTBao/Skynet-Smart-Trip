@@ -16,7 +16,7 @@ import '../../widgets/chatbot/message_bubble.dart';
 import '../../widgets/chatbot/quick_action_chips.dart';
 import '../../widgets/chatbot/typing_indicator.dart';
 import '../../widgets/chatbot/welcome_screen.dart';
-import '../catalog/hotel_detail_view.dart';
+import '../resort_detail/resort_detail_screen.dart';
 import '../profile/profile_session_helper.dart';
 import '../transport/transport_search_screen.dart';
 import '../trip/trip_itinerary_detail_view.dart';
@@ -372,7 +372,7 @@ class _ChatbotViewState extends State<ChatbotView> {
 
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => HotelDetailView(hotelId: hotelId),
+        builder: (_) => ResortDetailScreen(hotelId: hotelId),
       ),
     );
   }
@@ -398,7 +398,7 @@ class _ChatbotViewState extends State<ChatbotView> {
 
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => HotelDetailView(hotelId: hotelId),
+        builder: (_) => ResortDetailScreen(hotelId: hotelId),
       ),
     );
   }
