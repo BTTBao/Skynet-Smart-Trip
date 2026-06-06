@@ -1231,7 +1231,7 @@ class _SeatSelectionSheet extends StatelessWidget {
                                 if (!selected) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Moi lan chi duoc dat toi da 5 ve.'),
+                                      content: Text('Mỗi lần chỉ được đặt tối đa 5 vé.'),
                                     ),
                                   );
                                 }

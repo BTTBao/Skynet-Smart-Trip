@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../utils/app_storage.dart';
 
 import 'secure_storage_service.dart';
 
@@ -8,7 +7,16 @@ abstract class ApiService {
   // URL Backend .NET — đổi thành IP/domain thực khi deploy
   // Android emulator dùng 10.0.2.2 để trỏ tới localhost của máy host
   // iOS simulator dùng localhost hoặc 127.0.0.1
-  final String baseUrl = "http://10.0.2.2:5110/api";
+  static const String _configuredBaseUrlFromEnv = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: '',
+  );
+  static const String _defaultBaseUrl =
+      'https://5qqxj86m-5110.asse.devtunnels.ms/api';
+
+  final String baseUrl = _configuredBaseUrlFromEnv.isNotEmpty
+      ? _configuredBaseUrlFromEnv
+      : _defaultBaseUrl;
 
   /// Trả về headers chuẩn. Tự động đính kèm Bearer token nếu đã đăng nhập.
   Future<Map<String, String>> getHeaders({bool requireAuth = false}) async {
@@ -39,7 +47,8 @@ abstract class ApiService {
     try {
       final body = jsonDecode(response.body);
       if (body is Map) {
-        errorMessage = body['message'] as String? ??
+        errorMessage =
+            body['message'] as String? ??
             body['error'] as String? ??
             errorMessage;
       }

@@ -516,7 +516,9 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         MaterialPageRoute(
           builder: (_) => PaymentSuccessScreen(
             bookingId: tripId,
-            itineraryId: widget.existingTripId == null ? _pendingItineraryId : null,
+            itineraryId: widget.existingTripId == null
+                ? _pendingItineraryId
+                : null,
             destinationId: widget.hotel.destinationId,
             destinationName: _hotelDestinationName,
             checkIn: widget.checkIn,
@@ -583,10 +585,9 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
           final finalPayPrice = (widget.totalPrice - _discountAmount)
               .clamp(0, double.infinity)
               .toDouble();
-          final failureMessage =
-              payment.message?.trim().isNotEmpty == true
-                  ? payment.message!
-                  : 'VNPAY da tra ve trang thai $status. Chua co khoan tien nao duoc ghi nhan.';
+          final failureMessage = payment.message?.trim().isNotEmpty == true
+              ? payment.message!
+              : 'VNPAY da tra ve trang thai $status. Chua co khoan tien nao duoc ghi nhan.';
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -624,6 +625,13 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         MaterialPageRoute(
           builder: (_) => PaymentSuccessScreen(
             bookingId: tripId,
+            itineraryId: widget.existingTripId == null
+                ? _pendingItineraryId
+                : null,
+            destinationId: widget.hotel.destinationId,
+            destinationName: _hotelDestinationName,
+            checkIn: widget.checkIn,
+            checkOut: widget.checkOut,
             hotelName: widget.hotel.name,
             dateRange: _formatDateRange(),
             roomInfo:
@@ -669,6 +677,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       },
     );
   }
+
   String _paymentStatusLabel(String raw) {
     switch (raw.trim().toUpperCase()) {
       case 'PAID':
@@ -686,6 +695,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         return raw;
     }
   }
+
   Future<void> _refreshHotelAvailability() async {
     final hotelProvider = context.read<HotelProvider>();
     await hotelProvider.fetchHotelDetail(widget.hotel.id, forceRefresh: true);
@@ -723,8 +733,6 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       // a failed-payment experience; data will synchronize on the next load.
     }
   }
-
-
 
   int _dayNumberForTrip(MyTripSummary trip) {
     return _dateOnly(
@@ -782,7 +790,6 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     return null;
   }
 
-
   Future<_SelectedCheckoutTrip?> _createBookingOnlyTrip({
     required int userId,
     required int? destinationId,
@@ -794,7 +801,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         userId: userId,
         destinationId: destinationId,
         destinationName: destinationName,
-        title: 'Hóa đơn đặt phòng - ${widget.hotel.name}',
+        title: 'Đặt phòng - ${widget.hotel.name}',
         startDate: widget.checkIn,
         endDate: widget.checkOut,
         status: 'BOOKING_ONLY',
@@ -802,7 +809,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     );
 
     if (createdTrip == null) {
-      throw Exception(tripProvider.error ?? 'Không thể tạo hóa đơn đặt phòng.');
+      throw Exception(tripProvider.error ?? 'Không thể tạo đơn đặt phòng.');
     }
 
     return _SelectedCheckoutTrip(tripId: createdTrip.tripId, dayNumber: 1);
@@ -963,7 +970,9 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
             MaterialPageRoute(
               builder: (_) => PaymentSuccessScreen(
                 bookingId: currentTripId,
-                itineraryId: widget.existingTripId == null ? _pendingItineraryId : null,
+                itineraryId: widget.existingTripId == null
+                    ? _pendingItineraryId
+                    : null,
                 destinationId: widget.hotel.destinationId,
                 destinationName: _hotelDestinationName,
                 checkIn: widget.checkIn,
@@ -1065,7 +1074,9 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
           MaterialPageRoute(
             builder: (_) => PaymentSuccessScreen(
               bookingId: currentTripId,
-              itineraryId: widget.existingTripId == null ? _pendingItineraryId : null,
+              itineraryId: widget.existingTripId == null
+                  ? _pendingItineraryId
+                  : null,
               destinationId: widget.hotel.destinationId,
               destinationName: _hotelDestinationName,
               checkIn: widget.checkIn,
