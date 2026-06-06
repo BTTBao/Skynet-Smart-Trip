@@ -159,7 +159,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
       Uri.parse(checkoutUrl),
       mode: LaunchMode.externalApplication,
     );
-    if (!opened) throw Exception('Khong the mo trang thanh toan PayOS.');
+    if (!opened) throw Exception('Không thể mở trang thanh toán PayOS.');
   }
 
   Future<void> _openVnPayCheckout(String checkoutUrl) async {
@@ -167,7 +167,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
       Uri.parse(checkoutUrl),
       mode: LaunchMode.externalApplication,
     );
-    if (!opened) throw Exception('Khong the mo trang thanh toan VNPAY.');
+    if (!opened) throw Exception('Không thể mở trang thanh toán VNPAY.');
   }
 
   Future<void> _checkPayOsStatus(
@@ -185,7 +185,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
 
       if (!payment.isPaid) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PayOS dang o trang thai ${payment.status}.')),
+          SnackBar(content: Text('PayOS đang ở trạng thái ${payment.status}.')),
         );
         return;
       }
@@ -203,7 +203,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
         MaterialPageRoute(
           builder: (_) => TransportTicketScreen(
             bookingId: tripId,
-            itineraryId: widget.existingTripId == null ? _pendingItineraryId : null,
+            itineraryId: widget.existingTripId == null
+                ? _pendingItineraryId
+                : null,
             destinationId: schedule.toDestId,
             destinationName: schedule.toDestName,
             schedule: schedule,
@@ -274,8 +276,8 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
         final message = payment.isFailed
             ? (payment.message?.trim().isNotEmpty == true
                   ? payment.message!
-                  : 'VNPAY da tra ve trang thai $status.')
-            : 'VNPAY dang o trang thai ${payment.status}.';
+                  : 'VNPAY đã trả về trạng thái $status.')
+            : 'VNPAY đang ở trạng thái ${payment.status}.';
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(message)));
@@ -320,16 +322,16 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
             borderRadius: BorderRadius.circular(20),
           ),
           title: const Text(
-            'Hoan tat thanh toan',
+            'Hoàn tất thanh toán',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           content: const Text(
-            'Trang VNPAY da duoc mo. Sau khi thanh toan xong, quay lai app va bam kiem tra.',
+            'Trang VNPAY đã được mở. Sau khi thanh toán xong, quay lại ứng dụng và bấm kiểm tra.',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('De sau'),
+              child: const Text('Để sau'),
             ),
             FilledButton(
               onPressed: () async {
@@ -337,7 +339,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                 await _checkVnPayStatus(schedule, seats);
               },
               style: FilledButton.styleFrom(backgroundColor: _kPrimary),
-              child: const Text('Kiem tra thanh toan'),
+              child: const Text('Kiểm tra thanh toán'),
             ),
           ],
         );
@@ -356,7 +358,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
         destinationId: schedule.toDestId,
         destinationName: schedule.toDestName,
         title:
-            'Hóa đơn vé xe - ${schedule.fromDestName} đến ${schedule.toDestName}',
+            'Đặt vé xe - ${schedule.fromDestName} đến ${schedule.toDestName}',
         startDate: schedule.departureTime,
         endDate: schedule.arrivalTime,
         status: 'BOOKING_ONLY',
@@ -364,7 +366,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
     );
 
     if (createdTrip == null) {
-      throw Exception(tripProvider.error ?? 'Không thể tạo hóa đơn vé xe.');
+      throw Exception(tripProvider.error ?? 'Không thể tạo đơn vé xe.');
     }
 
     return _SelectedTransportTrip(tripId: createdTrip.tripId, dayNumber: 1);
@@ -443,7 +445,10 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
         _pendingTripId = currentTripId;
       } else {
         // Luôn tạo chuyến đi tạm BOOKING_ONLY trước thanh toán
-        final selectedTrip = await _createBookingOnlyTrip(userId: userId, schedule: schedule);
+        final selectedTrip = await _createBookingOnlyTrip(
+          userId: userId,
+          schedule: schedule,
+        );
         currentTripId = selectedTrip.tripId;
 
         final itineraryRequest = CreateTripItineraryRequest(
@@ -505,7 +510,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
             MaterialPageRoute(
               builder: (_) => TransportTicketScreen(
                 bookingId: currentTripId,
-                itineraryId: widget.existingTripId == null ? _pendingItineraryId : null,
+                itineraryId: widget.existingTripId == null
+                    ? _pendingItineraryId
+                    : null,
                 destinationId: schedule.toDestId,
                 destinationName: schedule.toDestName,
                 schedule: schedule,
@@ -538,7 +545,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
 
         final checkoutUrl = payment.checkoutUrl;
         if (checkoutUrl == null || checkoutUrl.isEmpty) {
-          throw Exception('PayOS khong tra ve link thanh toan.');
+          throw Exception('PayOS không trả về link thanh toán.');
         }
 
         _pendingOrderCode = orderCode;
@@ -566,7 +573,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
 
         final checkoutUrl = payment.checkoutUrl;
         if (checkoutUrl == null || checkoutUrl.isEmpty) {
-          throw Exception('VNPAY khong tra ve link thanh toan.');
+          throw Exception('VNPAY không trả về link thanh toán.');
         }
 
         _pendingOrderCode = payment.orderCode;
@@ -589,7 +596,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
 
       if (!paymentSuccess) {
         throw Exception(
-          busProvider.error ?? 'Khong the xac nhan thanh toan chuyen xe.',
+          busProvider.error ?? 'Không thể xác nhận thanh toán chuyến xe.',
         );
       }
 
@@ -608,7 +615,9 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
           MaterialPageRoute(
             builder: (_) => TransportTicketScreen(
               bookingId: currentTripId,
-              itineraryId: widget.existingTripId == null ? _pendingItineraryId : null,
+              itineraryId: widget.existingTripId == null
+                  ? _pendingItineraryId
+                  : null,
               destinationId: schedule.toDestId,
               destinationName: schedule.toDestName,
               schedule: schedule,
@@ -750,7 +759,7 @@ class _TransportCheckoutScreenState extends State<TransportCheckoutScreen> {
                             iconColor: const Color(0xFF0068FF),
                             bgColor: const Color(0xFFEAF1FF),
                             title: 'VNPAY',
-                            subtitle: 'Cong thanh toan VNPAY',
+                            subtitle: 'Cổng thanh toán VNPAY',
                             onTap: () =>
                                 setState(() => selectedPaymentMethod = 4),
                           ),

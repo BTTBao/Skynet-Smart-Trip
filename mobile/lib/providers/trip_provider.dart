@@ -13,6 +13,7 @@ import '../services/trip_service.dart';
 
 class TripProvider with ChangeNotifier {
   final TripService _tripService = TripService();
+  static const String _bookingOnlyStatus = 'BOOKING_ONLY';
 
   List<MyTripSummary> _trips = [];
   TripDetail? _currentTrip;
@@ -28,7 +29,7 @@ class TripProvider with ChangeNotifier {
   bool get isLoadingTrips => _isLoadingTrips;
   bool get isLoadingTripDetail => _isLoadingTripDetail;
   bool get isSubmitting => _isSubmitting;
-  String? get error => _error; 
+  String? get error => _error;
 
   List<MyTripSummary> get upcomingTrips {
     final now = DateTime.now();
@@ -36,6 +37,7 @@ class TripProvider with ChangeNotifier {
     return _trips
         .where(
           (trip) =>
+              trip.status != _bookingOnlyStatus &&
               !DateTime(
                 trip.endDate.year,
                 trip.endDate.month,
@@ -52,12 +54,13 @@ class TripProvider with ChangeNotifier {
     return _trips
         .where(
           (trip) =>
-              DateTime(
-                trip.endDate.year,
-                trip.endDate.month,
-                trip.endDate.day,
-              ).isBefore(today) ||
-              trip.status == 'CANCELLED',
+              trip.status != _bookingOnlyStatus &&
+              (DateTime(
+                    trip.endDate.year,
+                    trip.endDate.month,
+                    trip.endDate.day,
+                  ).isBefore(today) ||
+                  trip.status == 'CANCELLED'),
         )
         .toList();
   }
