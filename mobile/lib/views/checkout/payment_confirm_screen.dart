@@ -917,6 +917,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
           quantity: widget.roomQuantity,
           bookedPrice: widget.totalPrice / widget.roomQuantity,
           serviceDate: widget.checkIn,
+          hotelCheckOutDate: widget.checkOut,
           adultCount: widget.adultCount,
           childCount: widget.childCount,
           infantCount: widget.infantCount,

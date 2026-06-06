@@ -786,7 +786,9 @@ public static class DevelopmentDataSeeder
                             ServiceId = hotels[0].Id,
                             Quantity = 2,
                             BookedPrice = 1600000m,
-                            BookedCommissionRate = 0.1
+                            BookedCommissionRate = 0.1,
+                            ServiceDate = trips[0].StartDate,
+                            HotelCheckOutDate = trips[0].EndDate
                         },
                         new TripItinerary
                         {
@@ -796,7 +798,9 @@ public static class DevelopmentDataSeeder
                             ServiceId = hotels[1].Id,
                             Quantity = 3,
                             BookedPrice = 4200000m,
-                            BookedCommissionRate = 0.12
+                            BookedCommissionRate = 0.12,
+                            ServiceDate = trips[1].StartDate,
+                            HotelCheckOutDate = trips[1].EndDate
                         });
                 }
 

@@ -225,7 +225,9 @@ public class TripService : ITripService
                     Quantity = request.Quantity,
                     AdultCount = request.AdultCount,
                     ChildCount = request.ChildCount,
-                    InfantCount = request.InfantCount
+                    InfantCount = request.InfantCount,
+                    ServiceDate = request.CheckInDate,
+                    HotelCheckOutDate = request.CheckOutDate
                 });
 
                 await transaction.CommitAsync();

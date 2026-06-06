@@ -30,6 +30,8 @@ public class TripItinerary
 
     public DateOnly? ServiceDate { get; set; }
 
+    public DateOnly? HotelCheckOutDate { get; set; }
+
     public TimeOnly? DepartureTime { get; set; }
 
     public string? ServiceAddress { get; set; }

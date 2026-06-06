@@ -1016,6 +1016,9 @@ namespace SmartTrip.Infrastructure.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<DateOnly?>("HotelCheckOutDate")
+                        .HasColumnType("date");
+
                     b.Property<int?>("Quantity")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")

@@ -293,9 +293,7 @@ public class CatalogService : ICatalogService
                 StartDate: item.ServiceDate ?? item.Trip!.StartDate!.Value,
                 EndDate: ResolveHotelBookingEndDate(
                     item.ServiceDate ?? item.Trip!.StartDate!.Value,
-                    item.Trip!.EndDate!.Value,
-                    item.BookedPrice,
-                    room.PricePerNight),
+                    item.HotelCheckOutDate ?? item.Trip!.EndDate!.Value),
                 Quantity: item.Quantity ?? 1)));
 
         var remainingQty = Math.Max(totalQty - bookedQty, 0);
@@ -545,22 +543,9 @@ public class CatalogService : ICatalogService
 
     private static DateOnly ResolveHotelBookingEndDate(
         DateOnly checkInDate,
-        DateOnly fallbackCheckOutDate,
-        decimal? bookedPrice,
-        decimal? pricePerNight)
+        DateOnly fallbackCheckOutDate)
     {
-        if (bookedPrice.HasValue && pricePerNight.HasValue && pricePerNight.Value > 0)
-        {
-            var nightsValue = bookedPrice.Value / pricePerNight.Value;
-            var roundedNights = (int)Math.Round(nightsValue, MidpointRounding.AwayFromZero);
-
-            if (roundedNights > 0 && Math.Abs(nightsValue - roundedNights) < 0.01m)
-            {
-                return checkInDate.AddDays(roundedNights);
-            }
-        }
-
-        return fallbackCheckOutDate;
+        return fallbackCheckOutDate > checkInDate ? fallbackCheckOutDate : checkInDate.AddDays(1);
     }
 
     private static double BuildLatitude(int id) => 11.9404 + (id * 0.0035);
