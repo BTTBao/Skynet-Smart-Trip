@@ -194,7 +194,7 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   const SizedBox(height: 28),
                   _SectionHeader(
-                    title: 'Tuyen xe hom nay',
+                    title: 'Tuyến xe nổi bật',
                     actionLabel: 'Xem tuyến',
                     onTap: () => _openSearch(mode: SearchMode.bus),
                   ),
