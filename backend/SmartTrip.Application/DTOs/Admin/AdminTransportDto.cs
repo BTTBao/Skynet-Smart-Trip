@@ -53,6 +53,7 @@ public class AdminTransportCompanyDto
     public string Name { get; set; } = string.Empty;
     public string Hotline { get; set; } = string.Empty;
     public string LogoUrl { get; set; } = string.Empty;
+    public double CommissionRate { get; set; }
     public int ScheduleCount { get; set; }
     public double AverageCommissionRate { get; set; }
 }
@@ -78,6 +79,7 @@ public class AdminCreateTransportCompanyRequest
     public string Name { get; set; } = string.Empty;
     public string Hotline { get; set; } = string.Empty;
     public string LogoUrl { get; set; } = string.Empty;
+    public double CommissionRate { get; set; }
 }
 
 public class AdminUpdateTransportCompanyRequest : AdminCreateTransportCompanyRequest

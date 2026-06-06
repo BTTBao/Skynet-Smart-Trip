@@ -2,7 +2,7 @@ import axios from 'axios';
 import { authStorage } from './authStorage';
 
 // Lấy URL từ file .env (hoặc mặc định là 5110 theo launchSettings.json)
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5110/api';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5555/api';
 
 const apiClient = axios.create({
   baseURL: BASE_URL,

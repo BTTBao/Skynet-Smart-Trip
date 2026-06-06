@@ -10,6 +10,8 @@ public static class DevelopmentDataSeeder
 
     public static async Task SeedAsync(ApplicationDbContext context)
     {
+        await EnsureLegacySchemaCompatibilityAsync(context);
+
         var adminUser = await context.Users.FirstOrDefaultAsync(user => user.Email == "admin@smarttrip.vn");
         if (adminUser is null)
         {
@@ -1185,6 +1187,18 @@ public static class DevelopmentDataSeeder
         }
 
         await context.SaveChangesAsync();
+    }
+
+    private static async Task EnsureLegacySchemaCompatibilityAsync(ApplicationDbContext context)
+    {
+        await context.Database.ExecuteSqlRawAsync(
+            """
+            IF OBJECT_ID(N'[dbo].[BusCompanies]', N'U') IS NOT NULL
+               AND COL_LENGTH(N'dbo.BusCompanies', N'CommissionRate') IS NULL
+            BEGIN
+                ALTER TABLE [dbo].[BusCompanies] ADD [CommissionRate] float NULL;
+            END
+            """);
     }
 
     private sealed record ExploreSeedPost(

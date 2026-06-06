@@ -16,6 +16,7 @@ import { downloadCsv, getPageNumbers } from '../../utils/adminActions';
 import { getErrorMessage } from '../../utils/http';
 
 const PAGE_SIZE = 5;
+const DEFAULT_TRIP_DURATION_HOURS = 6;
 
 const emptyScheduleForm: AdminCreateTransportScheduleRequest = {
   companyId: 0,
@@ -32,6 +33,7 @@ const emptyCompanyForm: AdminCreateTransportCompanyRequest = {
   name: '',
   hotline: '',
   logoUrl: '',
+  commissionRate: 8,
 };
 
 const transportStatusConfig: Record<AdminTransportSchedule['status'], { label: string; badgeClass: string; icon: string; iconClass: string }> = {
@@ -48,6 +50,39 @@ const toDateTimeLocal = (value: string) => {
   return local.toISOString().slice(0, 16);
 };
 
+const addHoursToDateTimeLocal = (value: string, hours: number) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const adjusted = new Date(date.getTime() + Math.max(hours, 0) * 60 * 60 * 1000);
+  return toDateTimeLocal(adjusted.toISOString());
+};
+
+const getDurationHoursBetween = (departureAt: string, arrivalAt: string) => {
+  if (!departureAt || !arrivalAt) return DEFAULT_TRIP_DURATION_HOURS;
+  const departure = new Date(departureAt);
+  const arrival = new Date(arrivalAt);
+  if (Number.isNaN(departure.getTime()) || Number.isNaN(arrival.getTime())) {
+    return DEFAULT_TRIP_DURATION_HOURS;
+  }
+
+  const diffHours = (arrival.getTime() - departure.getTime()) / (60 * 60 * 1000);
+  return diffHours > 0 ? Math.round(diffHours * 10) / 10 : DEFAULT_TRIP_DURATION_HOURS;
+};
+
+const formatDateTimePreview = (value: string) => {
+  if (!value) return '--';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '--';
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+};
+
 const formatCompactCurrency = (value: number) =>
   `${new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value)}d`;
 
@@ -62,6 +97,7 @@ export default function TransportAdminPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedSchedule, setSelectedSchedule] = useState<AdminTransportSchedule | null>(null);
   const [scheduleForm, setScheduleForm] = useState<AdminUpdateTransportScheduleRequest>(emptyScheduleForm);
+  const [estimatedDurationHours, setEstimatedDurationHours] = useState(DEFAULT_TRIP_DURATION_HOURS);
   const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null);
   const [companyForm, setCompanyForm] = useState<AdminCreateTransportCompanyRequest>(emptyCompanyForm);
   const [editingCompanyId, setEditingCompanyId] = useState<number | null>(null);
@@ -112,6 +148,11 @@ export default function TransportAdminPage() {
     }
   }, [stats, selectedSchedule?.id]);
 
+  useEffect(() => {
+    const nextArrivalAt = addHoursToDateTimeLocal(scheduleForm.departureAt, estimatedDurationHours);
+    setScheduleForm((current) => (current.arrivalAt === nextArrivalAt ? current : { ...current, arrivalAt: nextArrivalAt }));
+  }, [estimatedDurationHours, scheduleForm.departureAt]);
+
   const filteredSchedules = useMemo(() => {
     if (!stats) return [];
     const keyword = query.trim().toLowerCase();
@@ -150,6 +191,7 @@ export default function TransportAdminPage() {
   const resetScheduleForm = () => {
     setEditingScheduleId(null);
     setScheduleForm(emptyScheduleForm);
+    setEstimatedDurationHours(DEFAULT_TRIP_DURATION_HOURS);
   };
 
   const resetCompanyForm = () => {
@@ -178,6 +220,7 @@ export default function TransportAdminPage() {
 
   const handleEditSchedule = (schedule: AdminTransportSchedule) => {
     setEditingScheduleId(schedule.id);
+    setEstimatedDurationHours(getDurationHoursBetween(schedule.departureAt, schedule.arrivalAt));
     setScheduleForm({
       companyId: schedule.companyId,
       fromDestinationId: schedule.fromDestinationId,
@@ -228,7 +271,17 @@ export default function TransportAdminPage() {
       name: company.name,
       hotline: company.hotline === '--' ? '' : company.hotline,
       logoUrl: company.logoUrl,
+      commissionRate: company.commissionRate,
     });
+  };
+
+  const handleScheduleCompanyChange = (companyId: number) => {
+    const company = companies.find((item) => item.id === companyId);
+    setScheduleForm((current) => ({
+      ...current,
+      companyId,
+      commissionRate: company ? company.commissionRate : current.commissionRate,
+    }));
   };
 
   const handleDeleteCompany = async (company: AdminTransportCompany) => {
@@ -328,23 +381,52 @@ export default function TransportAdminPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <select value={scheduleForm.companyId} onChange={(event) => setScheduleForm((current) => ({ ...current, companyId: Number(event.target.value) }))} className={inputCls} required>
-              <option value={0}>Chon nha xe</option>
-              {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
-            </select>
-            <select value={scheduleForm.fromDestinationId} onChange={(event) => setScheduleForm((current) => ({ ...current, fromDestinationId: Number(event.target.value) }))} className={inputCls} required>
-              <option value={0}>Diem di</option>
-              {destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
-            </select>
-            <select value={scheduleForm.toDestinationId} onChange={(event) => setScheduleForm((current) => ({ ...current, toDestinationId: Number(event.target.value) }))} className={inputCls} required>
-              <option value={0}>Diem den</option>
-              {destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
-            </select>
-            <input value={scheduleForm.departureAt} onChange={(event) => setScheduleForm((current) => ({ ...current, departureAt: event.target.value }))} type="datetime-local" className={inputCls} required />
-            <input value={scheduleForm.arrivalAt} onChange={(event) => setScheduleForm((current) => ({ ...current, arrivalAt: event.target.value }))} type="datetime-local" className={inputCls} required />
-            <input value={scheduleForm.price} onChange={(event) => setScheduleForm((current) => ({ ...current, price: Number(event.target.value) }))} type="number" min={0} placeholder="Gia ve" className={inputCls} required />
-            <input value={scheduleForm.commissionRate} onChange={(event) => setScheduleForm((current) => ({ ...current, commissionRate: Number(event.target.value) }))} type="number" min={0} max={100} placeholder="Loi nhuan chot %" className={inputCls} required />
-            <input value={scheduleForm.totalSeats} onChange={(event) => setScheduleForm((current) => ({ ...current, totalSeats: Number(event.target.value) }))} type="number" min={1} placeholder="Tong ghe" className={inputCls} required />
+            <div className="space-y-2">
+              <FieldLabel htmlFor="transport-company">Nha xe</FieldLabel>
+              <select id="transport-company" value={scheduleForm.companyId} onChange={(event) => handleScheduleCompanyChange(Number(event.target.value))} className={inputCls} required>
+                <option value={0}>Chon nha xe</option>
+                {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <FieldLabel htmlFor="transport-from">Diem di</FieldLabel>
+              <select id="transport-from" value={scheduleForm.fromDestinationId} onChange={(event) => setScheduleForm((current) => ({ ...current, fromDestinationId: Number(event.target.value) }))} className={inputCls} required>
+                <option value={0}>Chon diem di</option>
+                {destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <FieldLabel htmlFor="transport-to">Diem den</FieldLabel>
+              <select id="transport-to" value={scheduleForm.toDestinationId} onChange={(event) => setScheduleForm((current) => ({ ...current, toDestinationId: Number(event.target.value) }))} className={inputCls} required>
+                <option value={0}>Chon diem den</option>
+                {destinations.map((destination) => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <FieldLabel htmlFor="transport-departure">Khoi hanh luc</FieldLabel>
+              <input id="transport-departure" value={scheduleForm.departureAt} onChange={(event) => setScheduleForm((current) => ({ ...current, departureAt: event.target.value }))} type="datetime-local" className={inputCls} required />
+            </div>
+            <div className="space-y-2">
+              <FieldLabel htmlFor="transport-duration">Thoi gian du kien (gio)</FieldLabel>
+              <input id="transport-duration" value={estimatedDurationHours} onChange={(event) => setEstimatedDurationHours(Number(event.target.value))} type="number" min={0.5} step={0.5} className={inputCls} required />
+            </div>
+            <div className="space-y-2">
+              <FieldLabel htmlFor="transport-price">Gia ve (VND)</FieldLabel>
+              <input id="transport-price" value={scheduleForm.price} onChange={(event) => setScheduleForm((current) => ({ ...current, price: Number(event.target.value) }))} type="number" min={0} placeholder="Nhap gia ve" className={inputCls} required />
+            </div>
+            <div className="space-y-2">
+              <FieldLabel htmlFor="transport-commission">Loi nhuan chot (%)</FieldLabel>
+              <input id="transport-commission" value={scheduleForm.commissionRate} onChange={(event) => setScheduleForm((current) => ({ ...current, commissionRate: Number(event.target.value) }))} type="number" min={0} max={100} placeholder="Vi du 8" className={inputCls} required />
+            </div>
+            <div className="space-y-2">
+              <FieldLabel htmlFor="transport-seats">Tong so ghe</FieldLabel>
+              <input id="transport-seats" value={scheduleForm.totalSeats} onChange={(event) => setScheduleForm((current) => ({ ...current, totalSeats: Number(event.target.value) }))} type="number" min={1} placeholder="Vi du 36" className={inputCls} required />
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-[1.5rem] bg-surface-container-low px-5 py-4 text-sm text-on-surface-variant">
+            <p className="font-bold text-on-surface">Gio den du kien</p>
+            <p className="mt-1">{formatDateTimePreview(scheduleForm.arrivalAt)}</p>
           </div>
 
           <button type="submit" disabled={submitting} className="mt-6 rounded-full bg-primary px-8 py-3 text-sm font-bold text-white disabled:opacity-50">
@@ -362,14 +444,27 @@ export default function TransportAdminPage() {
           </div>
 
           <div className="space-y-3">
-            <input value={companyForm.name} onChange={(event) => setCompanyForm((current) => ({ ...current, name: event.target.value }))} placeholder="Ten nha xe" className={inputCls} required />
-            <input value={companyForm.hotline} onChange={(event) => setCompanyForm((current) => ({ ...current, hotline: event.target.value }))} placeholder="Hotline" className={inputCls} />
-            <div className="flex gap-2">
-              <input value={companyForm.logoUrl} onChange={(event) => setCompanyForm((current) => ({ ...current, logoUrl: event.target.value }))} placeholder="Logo URL" className={`${inputCls} min-w-0 flex-1`} />
-              <label className="cursor-pointer rounded-2xl bg-surface-container-low px-4 py-3 text-sm font-bold text-on-surface">
+            <div className="space-y-2">
+              <FieldLabel htmlFor="company-name">Ten nha xe</FieldLabel>
+              <input id="company-name" value={companyForm.name} onChange={(event) => setCompanyForm((current) => ({ ...current, name: event.target.value }))} placeholder="Nhap ten nha xe" className={inputCls} required />
+            </div>
+            <div className="space-y-2">
+              <FieldLabel htmlFor="company-hotline">Hotline</FieldLabel>
+              <input id="company-hotline" value={companyForm.hotline} onChange={(event) => setCompanyForm((current) => ({ ...current, hotline: event.target.value }))} placeholder="Nhap hotline" className={inputCls} />
+            </div>
+            <div className="space-y-2">
+              <FieldLabel htmlFor="company-commission">Affiliate mac dinh (%)</FieldLabel>
+              <input id="company-commission" value={companyForm.commissionRate} onChange={(event) => setCompanyForm((current) => ({ ...current, commissionRate: Number(event.target.value) }))} type="number" min={0} max={100} placeholder="Vi du 8" className={inputCls} required />
+            </div>
+            <div className="space-y-2">
+              <FieldLabel htmlFor="company-logo">Logo nha xe</FieldLabel>
+              <div className="flex gap-2">
+                <input id="company-logo" value={companyForm.logoUrl} onChange={(event) => setCompanyForm((current) => ({ ...current, logoUrl: event.target.value }))} placeholder="Duong dan logo sau khi tai len" className={`${inputCls} min-w-0 flex-1`} />
+                <label className="cursor-pointer rounded-2xl bg-surface-container-low px-4 py-3 text-sm font-bold text-on-surface">
                 {uploadingCompanyLogo ? 'Dang tai' : 'Upload'}
                 <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingCompanyLogo} onChange={handleCompanyLogoUpload} className="hidden" />
-              </label>
+                </label>
+              </div>
             </div>
             {hasCompanyLogoPreview ? (
               <div className="overflow-hidden rounded-[1.5rem] border border-outline-variant/10 bg-surface-container-low">
@@ -400,7 +495,7 @@ export default function TransportAdminPage() {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-on-surface">{company.name}</p>
-                      <p className="mt-1 text-xs text-on-surface-variant">{company.hotline} . {company.scheduleCount} lich . Avg {company.averageCommissionRate}%</p>
+                      <p className="mt-1 text-xs text-on-surface-variant">{company.hotline} . {company.scheduleCount} lich . Mac dinh {company.commissionRate}% . Avg {company.averageCommissionRate}%</p>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -571,7 +666,7 @@ export default function TransportAdminPage() {
                 <ul className="mt-3 list-inside list-disc space-y-2 font-medium text-amber-950">
                   <li>Seat map doi theo vong: trong, giu cho, da dat.</li>
                   <li>Loi nhuan affiliate tinh theo gia ve va ty le hoa hong da chot.</li>
-                  <li>Khi tao chuyen moi, can chon dung nha xe, diem di, diem den va gio chay.</li>
+                  <li>Khi tao chuyen moi, can chon dung nha xe, diem di, diem den, gio chay va thoi gian du kien.</li>
                 </ul>
               </div>
             </div>
@@ -583,6 +678,10 @@ export default function TransportAdminPage() {
 }
 
 const inputCls = 'w-full rounded-2xl bg-surface-container-low px-5 py-3 outline-none';
+
+function FieldLabel({ htmlFor, children }: { htmlFor: string; children: string }) {
+  return <label htmlFor={htmlFor} className="block text-xs font-bold uppercase tracking-wider text-outline">{children}</label>;
+}
 
 function MetricCard({ label, value, helper, icon }: { label: string; value: string; helper: string; icon: string }) {
   return (

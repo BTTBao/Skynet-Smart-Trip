@@ -106,6 +106,7 @@ export interface AdminTransportCompany {
   name: string;
   hotline: string;
   logoUrl: string;
+  commissionRate: number;
   scheduleCount: number;
   averageCommissionRate: number;
 }
@@ -127,6 +128,7 @@ export interface AdminCreateTransportCompanyRequest {
   name: string;
   hotline: string;
   logoUrl: string;
+  commissionRate: number;
 }
 
 export interface AdminUpdateTransportCompanyRequest extends AdminCreateTransportCompanyRequest {}
