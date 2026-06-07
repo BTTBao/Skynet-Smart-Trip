@@ -1117,30 +1117,37 @@ public static class DevelopmentDataSeeder
 
         foreach (var seed in posts)
         {
+            var galleryUrls = GetExploreGalleryUrls(seed.CitySlug, seed.ImageUrl);
+            var (latitude, longitude) = GetExploreCoordinates(seed.CitySlug);
             var post = new ExplorePost
             {
                 AuthorId = seed.CreatedAt.Day % 2 == 0 ? demoUserId : adminUserId,
                 Title = seed.Title,
                 Excerpt = seed.Excerpt,
-                Content = $"{seed.Content}\n\n[image:{seed.ImageUrl}]",
-                ThumbnailUrl = seed.ImageUrl,
+                Content = $"{seed.Content}\n\n{string.Join("\n", galleryUrls.Select(url => $"[image:{url}]"))}",
+                ThumbnailUrl = galleryUrls[0],
                 Location = seed.Location,
                 CitySlug = seed.CitySlug,
                 Province = seed.Province,
                 Region = seed.Region,
+                Latitude = latitude,
+                Longitude = longitude,
                 CostLevel = seed.CostLevel,
                 AverageRating = seed.Rating,
-                RatingCount = 3,
+                RatingCount = 2,
                 ViewCount = seed.ViewCount,
                 Tags = seed.Tags,
                 CreatedAt = seed.CreatedAt
             };
 
-            post.Images.Add(new ExplorePostImage
+            for (var imageIndex = 0; imageIndex < galleryUrls.Length; imageIndex++)
             {
-                ImageUrl = seed.ImageUrl,
-                SortOrder = 0
-            });
+                post.Images.Add(new ExplorePostImage
+                {
+                    ImageUrl = galleryUrls[imageIndex],
+                    SortOrder = imageIndex
+                });
+            }
 
             context.ExplorePosts.Add(post);
         }
@@ -1152,7 +1159,7 @@ public static class DevelopmentDataSeeder
         {
             context.ExplorePostRatings.AddRange(
                 new ExplorePostRating { ExplorePostId = post.Id, UserId = demoUserId, Rating = post.AverageRating, CreatedAt = post.CreatedAt.AddHours(2) },
-                new ExplorePostRating { ExplorePostId = post.Id, UserId = adminUserId, Rating = Math.Min(5m, post.AverageRating + 0.2m), CreatedAt = post.CreatedAt.AddHours(3) });
+                new ExplorePostRating { ExplorePostId = post.Id, UserId = adminUserId, Rating = post.AverageRating, CreatedAt = post.CreatedAt.AddHours(3) });
 
             context.ExplorePostLikes.Add(new ExplorePostLike
             {
@@ -1203,6 +1210,78 @@ public static class DevelopmentDataSeeder
                 ALTER TABLE [dbo].[BusCompanies] ADD [CommissionRate] float NULL;
             END
             """);
+    }
+
+    private static string[] GetExploreGalleryUrls(string citySlug, string primaryImageUrl)
+    {
+        return citySlug switch
+        {
+            "ha-long" => new[]
+            {
+                primaryImageUrl,
+                "https://images.unsplash.com/photo-1573270689103-d7a4e42b609c?auto=format&fit=crop&w=1200&q=80",
+                "https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80"
+            },
+            "sapa" => new[]
+            {
+                primaryImageUrl,
+                "https://images.unsplash.com/photo-1521295121783-8a321d551ad2?auto=format&fit=crop&w=1200&q=80",
+                "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80"
+            },
+            "hoi-an" => new[]
+            {
+                primaryImageUrl,
+                "https://images.unsplash.com/photo-1522542550221-31fd19575a2d?auto=format&fit=crop&w=1200&q=80",
+                "https://images.unsplash.com/photo-1516483638261-f4dbaf036963?auto=format&fit=crop&w=1200&q=80"
+            },
+            "phu-quoc" => new[]
+            {
+                primaryImageUrl,
+                "https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1200&q=80",
+                "https://images.unsplash.com/photo-1519046904884-53103b34b206?auto=format&fit=crop&w=1200&q=80"
+            },
+            "ninh-binh" => new[]
+            {
+                primaryImageUrl,
+                "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=80",
+                "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1200&q=80"
+            },
+            "da-nang" => new[]
+            {
+                primaryImageUrl,
+                "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+                "https://images.unsplash.com/photo-1493558103817-58b2924bce98?auto=format&fit=crop&w=1200&q=80"
+            },
+            "ha-giang" => new[]
+            {
+                primaryImageUrl,
+                "https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=1200&q=80",
+                "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&q=80"
+            },
+            "quy-nhon" => new[]
+            {
+                primaryImageUrl,
+                "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+                "https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=1200&q=80"
+            },
+            _ => new[] { primaryImageUrl }
+        };
+    }
+
+    private static (double? Latitude, double? Longitude) GetExploreCoordinates(string citySlug)
+    {
+        return citySlug switch
+        {
+            "ha-long" => (20.9101, 107.1839),
+            "sapa" => (22.3364, 103.8438),
+            "hoi-an" => (15.8801, 108.3380),
+            "phu-quoc" => (10.2899, 103.9840),
+            "ninh-binh" => (20.2506, 105.9745),
+            "da-nang" => (16.0544, 108.2022),
+            "ha-giang" => (22.8233, 104.9836),
+            "quy-nhon" => (13.7820, 109.2197),
+            _ => (null, null)
+        };
     }
 
     private sealed record ExploreSeedPost(
