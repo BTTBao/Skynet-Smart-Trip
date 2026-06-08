@@ -298,7 +298,10 @@ public class PayOsPaymentService : IPaymentService
                     .FirstOrDefaultAsync(item => item.Id == payment.TripId.Value, cancellationToken);
                 if (trip != null && trip.Status != TripStatus.Cancelled)
                 {
-                    trip.Status = TripStatus.Paid;
+                    if (trip.Status != TripStatus.BookingOnly)
+                    {
+                        trip.Status = TripStatus.Paid;
+                    }
                     trip.TotalProfit = CalculateTripProfitFromPaidAmount(trip, payment.Amount ?? 0m);
                 }
 
@@ -517,7 +520,11 @@ public class PayOsPaymentService : IPaymentService
                     .FirstOrDefaultAsync(item => item.Id == payment.TripId.Value, cancellationToken);
                 if (trip != null && trip.Status != TripStatus.Cancelled)
                 {
-                    trip.Status = TripStatus.Paid;
+                    if (trip.Status != TripStatus.BookingOnly)
+                    {
+                        trip.Status = TripStatus.Paid;
+                    }
+                    trip.TotalProfit = CalculateTripProfitFromPaidAmount(trip, payment.Amount ?? 0m);
                 }
 
                 await MarkBusSeatsBookedAsync(payment, cancellationToken);
