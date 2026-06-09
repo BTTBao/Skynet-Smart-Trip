@@ -23,6 +23,9 @@ class ApiException implements Exception {
 }
 
 abstract class ApiService {
+  static const String _defaultBaseUrl =
+      'https://5qqxj86m-5110.asse.devtunnels.ms/api';
+
   static const String _configuredBaseUrlFromEnv = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: '',
@@ -34,18 +37,17 @@ abstract class ApiService {
     }
 
     if (kIsWeb) {
-      return 'http://localhost:5110/api';
+      return _defaultBaseUrl;
     }
 
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return 'http://10.0.2.2:5110/api';
       case TargetPlatform.iOS:
       case TargetPlatform.macOS:
       case TargetPlatform.windows:
       case TargetPlatform.linux:
       case TargetPlatform.fuchsia:
-        return 'http://localhost:5110/api';
+        return _defaultBaseUrl;
     }
   }
 
@@ -205,15 +207,15 @@ abstract class ApiService {
       return await send(baseUrl);
     } on TimeoutException catch (e) {
       throw Exception(
-        'Ket noi toi backend bi timeout sau 10 giay ($baseUrl). '
-        'Android emulator dung 10.0.2.2, iOS simulator/Desktop dung localhost, '
-        'thiet bi that can cau hinh --dart-define=API_BASE_URL=http://<LAN-IP>:5110/api. $e',
+        'Ket noi toi backend bi timeout sau 30 giay ($baseUrl). '
+        'Mac dinh app dang dung dev tunnel. '
+        'Neu can doi endpoint, hay cau hinh --dart-define=API_BASE_URL=https://<your-host>/api. $e',
       );
     } on SocketException catch (e) {
       throw Exception(
         'Khong the ket noi toi backend o $baseUrl. '
-        'Android emulator dung 10.0.2.2, iOS simulator/Desktop dung localhost, '
-        'thiet bi that can cau hinh --dart-define=API_BASE_URL=http://<LAN-IP>:5110/api. $e',
+        'Mac dinh app dang dung dev tunnel. '
+        'Neu can doi endpoint, hay cau hinh --dart-define=API_BASE_URL=https://<your-host>/api. $e',
       );
     } on HttpException catch (e) {
       throw Exception('Backend tra ve loi ket noi o $baseUrl: $e');

@@ -132,7 +132,7 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
       _isLoadingPoints = false;
       if (points.isEmpty) {
         _mapError =
-            'Chua tim thay toa do nao. Vui long bo sung dia chi day du cho cac dich vu.';
+            'Chưa tìm thấy tọa độ nào. Vui lòng bổ sung địa chỉ đầy đủ cho các dịch vụ.';
       }
     });
 
@@ -254,7 +254,7 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
 
   String _formatDate(DateTime? date) {
     if (date == null) {
-      return 'Chua chon ngay';
+      return 'Chưa chọn ngày';
     }
 
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
@@ -267,7 +267,7 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
     return Scaffold(
       backgroundColor: TripUiColors.background,
       appBar: AppBar(
-        title: const Text('Lo trinh tren map'),
+        title: const Text('Lộ trình trên bản đồ'),
         backgroundColor: Colors.white,
         foregroundColor: TripUiColors.textPrimary,
       ),
@@ -388,7 +388,7 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
                       child: Text(
-                        '${widget.tripTitle} - Danh sach dich vu',
+                        '${widget.tripTitle} - Danh sách dịch vụ',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
@@ -434,7 +434,7 @@ class _TripItineraryMapViewState extends State<TripItineraryMapView> {
                               ),
                             ),
                             subtitle: Text(
-                              '${_formatDate(entry.serviceDate)} - ${entry.departureTime ?? 'Chua chon gio'}\n${isChecked ? 'Khong noi vao tuyen - ' : ''}${hasAddress ? (entry.serviceAddress ?? '') : 'Chua nhap dia chi'}${hasAddress && !resolvedOnMap ? ' (khong tim thay toa do)' : ''}',
+                              '${_formatDate(entry.serviceDate)} - ${entry.departureTime ?? 'Chưa chọn giờ'}\n${isChecked ? 'Không nối vào tuyến - ' : ''}${hasAddress ? (entry.serviceAddress ?? '') : 'Chưa nhập địa chỉ'}${hasAddress && !resolvedOnMap ? ' (không tìm thấy tọa độ)' : ''}',
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -523,21 +523,21 @@ class _MapInfoCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Ngay: $dateText',
+            'Ngày: $dateText',
             style: const TextStyle(
               fontSize: 12,
               color: TripUiColors.textSecondary,
             ),
           ),
           Text(
-            'Gio: ${entry.departureTime ?? 'Chua chon gio'}',
+            'Giờ: ${entry.departureTime ?? 'Chưa chọn giờ'}',
             style: const TextStyle(
               fontSize: 12,
               color: TripUiColors.textSecondary,
             ),
           ),
           Text(
-            'Dia chi: ${entry.serviceAddress ?? 'Chua nhap'}',
+            'Địa chỉ: ${entry.serviceAddress ?? 'Chưa nhập'}',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(

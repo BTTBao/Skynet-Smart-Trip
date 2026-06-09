@@ -13,6 +13,13 @@ import '../services/trip_service.dart';
 
 class TripProvider with ChangeNotifier {
   final TripService _tripService = TripService();
+  static const String _bookingOnlyStatus = 'BOOKING_ONLY';
+  static const List<String> _bookingOnlyTitlePrefixes = [
+    'Hóa đơn đặt phòng - ',
+    'Hóa đơn vé xe - ',
+    'Đặt phòng - ',
+    'Đặt vé xe - ',
+  ];
 
   List<MyTripSummary> _trips = [];
   TripDetail? _currentTrip;
@@ -28,7 +35,18 @@ class TripProvider with ChangeNotifier {
   bool get isLoadingTrips => _isLoadingTrips;
   bool get isLoadingTripDetail => _isLoadingTripDetail;
   bool get isSubmitting => _isSubmitting;
-  String? get error => _error; 
+  String? get error => _error;
+
+  bool _isBookingOnlyPlaceholder(MyTripSummary trip) {
+    if (trip.status == _bookingOnlyStatus) {
+      return true;
+    }
+
+    final normalizedTitle = trip.title.trim();
+    return _bookingOnlyTitlePrefixes.any(
+      (prefix) => normalizedTitle.startsWith(prefix),
+    );
+  }
 
   List<MyTripSummary> get upcomingTrips {
     final now = DateTime.now();
@@ -36,6 +54,7 @@ class TripProvider with ChangeNotifier {
     return _trips
         .where(
           (trip) =>
+              !_isBookingOnlyPlaceholder(trip) &&
               !DateTime(
                 trip.endDate.year,
                 trip.endDate.month,
@@ -52,12 +71,13 @@ class TripProvider with ChangeNotifier {
     return _trips
         .where(
           (trip) =>
-              DateTime(
-                trip.endDate.year,
-                trip.endDate.month,
-                trip.endDate.day,
-              ).isBefore(today) ||
-              trip.status == 'CANCELLED',
+              !_isBookingOnlyPlaceholder(trip) &&
+              (DateTime(
+                    trip.endDate.year,
+                    trip.endDate.month,
+                    trip.endDate.day,
+                  ).isBefore(today) ||
+                  trip.status == 'CANCELLED'),
         )
         .toList();
   }
