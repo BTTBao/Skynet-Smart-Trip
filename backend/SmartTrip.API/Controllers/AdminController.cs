@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SmartTrip.API.Utilities;
 using SmartTrip.Application.DTOs.Admin;
 using SmartTrip.Application.Interfaces.Admin;
+using SmartTrip.Application.Interfaces.Storage;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -12,64 +14,70 @@ namespace SmartTrip.API.Controllers;
 [Authorize(Roles = "Admin,Staff")]
 public class AdminController : ControllerBase
 {
-    private readonly IAdminService _adminService;
-    private readonly IWebHostEnvironment _environment;
+    private const long MaxImageSizeBytes = 5 * 1024 * 1024;
 
-    public AdminController(IAdminService adminService, IWebHostEnvironment environment)
+    private readonly IAdminService _adminService;
+    private readonly IImageStorageService _imageStorageService;
+
+    public AdminController(IAdminService adminService, IImageStorageService imageStorageService)
     {
         _adminService = adminService;
-        _environment = environment;
+        _imageStorageService = imageStorageService;
     }
 
     [HttpPost("uploads/room-images")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(10 * 1024 * 1024)]
-    public async Task<IActionResult> UploadRoomImage([FromForm] IFormFile file)
+    public async Task<IActionResult> UploadRoomImage([FromForm] AdminImageUploadRequest request)
     {
-        if (file == null || file.Length == 0)
+        var validationError = ValidateImageFile(request.File, "anh phong");
+        if (validationError != null) return validationError;
+
+        var upload = await UploadImageAsync(request.File!, "admin/rooms");
+
+        return Ok(new
         {
-            return BadRequest(new { message = "Vui long chon anh phong." });
-        }
+            imageUrl = upload.ImageUrl,
+            imagePath = upload.ImagePath,
+            fileName = upload.FileName,
+            relativeUrl = upload.ImagePath
+        });
+    }
 
-        if (file.Length > 5 * 1024 * 1024)
+    [HttpPost("uploads/destination-covers")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> UploadDestinationCover([FromForm] AdminImageUploadRequest request)
+    {
+        var validationError = ValidateImageFile(request.File, "anh cover diem den");
+        if (validationError != null) return validationError;
+
+        var upload = await UploadImageAsync(request.File!, "destinations/covers");
+        return Ok(new
         {
-            return BadRequest(new { message = "Anh phong khong duoc vuot qua 5MB." });
-        }
+            imageUrl = upload.ImageUrl,
+            imagePath = upload.ImagePath,
+            fileName = upload.FileName,
+            relativeUrl = upload.ImagePath
+        });
+    }
 
-        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    [HttpPost("uploads/transport-company-logos")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> UploadTransportCompanyLogo([FromForm] AdminImageUploadRequest request)
+    {
+        var validationError = ValidateImageFile(request.File, "logo nha xe");
+        if (validationError != null) return validationError;
+
+        var upload = await UploadImageAsync(request.File!, "transport/companies/logos");
+        return Ok(new
         {
-            ".jpg",
-            ".jpeg",
-            ".png",
-            ".webp"
-        };
-        if (!allowedExtensions.Contains(extension))
-        {
-            return BadRequest(new { message = "Chi ho tro anh JPG, PNG, hoac WEBP." });
-        }
-
-        var webRoot = _environment.WebRootPath;
-        if (string.IsNullOrWhiteSpace(webRoot))
-        {
-            webRoot = Path.Combine(_environment.ContentRootPath, "wwwroot");
-        }
-
-        var uploadDirectory = Path.Combine(webRoot, "uploads", "rooms");
-        Directory.CreateDirectory(uploadDirectory);
-
-        var fileName = $"room-{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}{extension}";
-        var filePath = Path.Combine(uploadDirectory, fileName);
-
-        await using (var stream = System.IO.File.Create(filePath))
-        {
-            await file.CopyToAsync(stream);
-        }
-
-        var relativeUrl = $"/uploads/rooms/{fileName}";
-        var absoluteUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}{relativeUrl}";
-
-        return Ok(new { imageUrl = absoluteUrl, relativeUrl });
+            imageUrl = upload.ImageUrl,
+            imagePath = upload.ImagePath,
+            fileName = upload.FileName,
+            relativeUrl = upload.ImagePath
+        });
     }
 
     [HttpGet("dashboard")]
@@ -371,6 +379,42 @@ public class AdminController : ControllerBase
     {
         var result = await _adminService.SendNotificationAsync(request);
         return Ok(result);
+    }
+
+    private async Task<ImageStorageUploadResult> UploadImageAsync(IFormFile file, string folder)
+    {
+        await using var stream = file.OpenReadStream();
+        if (!ImageUploadValidation.TryValidateImageStream(stream, file.FileName, out var errorMessage, out var resolvedContentType))
+        {
+            throw new ArgumentException(errorMessage ?? "Chi ho tro anh JPG, PNG hoac WEBP.");
+        }
+
+        return await _imageStorageService.UploadImageAsync(
+            stream,
+            file.FileName,
+            resolvedContentType ?? file.ContentType,
+            folder,
+            HttpContext.RequestAborted);
+    }
+
+    private IActionResult? ValidateImageFile(IFormFile? file, string displayName)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { message = $"Vui long chon {displayName}." });
+        }
+
+        if (file.Length > MaxImageSizeBytes)
+        {
+            return BadRequest(new { message = $"{displayName} khong duoc vuot qua 5MB." });
+        }
+
+        if (!ImageUploadValidation.TryValidateImageFile(file, out var errorMessage, out _))
+        {
+            return BadRequest(new { message = errorMessage ?? "Chi ho tro anh JPG, PNG hoac WEBP." });
+        }
+
+        return null;
     }
 
     private int GetCurrentUserId()
