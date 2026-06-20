@@ -119,6 +119,49 @@ public static class DevelopmentDataSeeder
             await context.SaveChangesAsync();
         }
 
+        var destinationSeedPool = new[]
+        {
+            new Destination
+            {
+                Name = "Hà Nội",
+                Description = "Thủ đô với phố cổ, hồ Hoàn Kiếm và nhiều trải nghiệm văn hóa ẩm thực.",
+                CoverImageUrl = "https://images.unsplash.com/photo-1509030450996-dd1a26dda07a",
+                IsHot = true
+            },
+            new Destination
+            {
+                Name = "TP. Hồ Chí Minh",
+                Description = "Thành phố năng động với ẩm thực phong phú, nhịp sống sôi động và nhiều điểm vui chơi.",
+                CoverImageUrl = "https://images.unsplash.com/photo-1528127269322-539801943592",
+                IsHot = true
+            },
+            new Destination
+            {
+                Name = "Phú Quý",
+                Description = "Hòn đảo yên bình với biển xanh, hải sản tươi và nhịp sống thư thả.",
+                CoverImageUrl = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+                IsHot = true
+            },
+            new Destination
+            {
+                Name = "Hội An",
+                Description = "Phố cổ lãng mạn nổi bật với đèn lồng, ẩm thực địa phương và không khí chậm rãi.",
+                CoverImageUrl = "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b",
+                IsHot = true
+            }
+        };
+
+        foreach (var destination in destinationSeedPool)
+        {
+            var exists = await context.Destinations.AnyAsync(item => item.Name == destination.Name);
+            if (!exists)
+            {
+                context.Destinations.Add(destination);
+            }
+        }
+
+        await context.SaveChangesAsync();
+
         if (!await context.BusCompanies.AnyAsync())
         {
             context.BusCompanies.AddRange(
@@ -137,6 +180,33 @@ public static class DevelopmentDataSeeder
 
             await context.SaveChangesAsync();
         }
+
+        var busCompanySeedPool = new[]
+        {
+            new BusCompany
+            {
+                Name = "Phuong Trang FUTA",
+                Hotline = "19006067",
+                LogoUrl = "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957"
+            },
+            new BusCompany
+            {
+                Name = "Thanh Buoi Express",
+                Hotline = "19006079",
+                LogoUrl = "https://images.unsplash.com/photo-1517142089942-ba376ce32a2e"
+            }
+        };
+
+        foreach (var company in busCompanySeedPool)
+        {
+            var exists = await context.BusCompanies.AnyAsync(item => item.Name == company.Name);
+            if (!exists)
+            {
+                context.BusCompanies.Add(company);
+            }
+        }
+
+        await context.SaveChangesAsync();
 
         if (!await context.Promotions.AnyAsync())
         {
@@ -228,6 +298,61 @@ public static class DevelopmentDataSeeder
             }
         }
 
+        var allDestinations = await context.Destinations.ToListAsync();
+        int? FindDestinationId(string destinationName)
+            => allDestinations.FirstOrDefault(item => item.Name == destinationName)?.Id;
+
+        var hotelSeedPool = new List<Hotel>
+        {
+            new()
+            {
+                DestinationId = FindDestinationId("Hà Nội") ?? 0,
+                Name = "Old Quarter Garden Hotel",
+                Address = "18 Hàng Bạc, Hoàn Kiếm, Hà Nội",
+                StarRating = 4,
+                Description = "Khách sạn ấm cúng ngay khu phố cổ, thuận tiện đi bộ hồ Hoàn Kiếm và khám phá ẩm thực đêm.",
+                IsAvailable = true
+            },
+            new()
+            {
+                DestinationId = FindDestinationId("TP. Hồ Chí Minh") ?? 0,
+                Name = "Saigon Central Stay",
+                Address = "92 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh",
+                StarRating = 4,
+                Description = "Khách sạn trung tâm phù hợp cho du lịch tự túc, gần phố đi bộ và nhiều quán ăn nổi tiếng.",
+                IsAvailable = true
+            },
+            new()
+            {
+                DestinationId = FindDestinationId("Phú Quý") ?? 0,
+                Name = "Phu Quy Sea View",
+                Address = "Lô 5 Tam Thanh, Phú Quý, Bình Thuận",
+                StarRating = 3,
+                Description = "Chỗ nghỉ gần biển với không gian giản dị, phù hợp cho nhóm bạn và khách thích khám phá đảo.",
+                IsAvailable = true
+            },
+            new()
+            {
+                DestinationId = FindDestinationId("Hội An") ?? 0,
+                Name = "Lantern Riverside Hotel",
+                Address = "21 Bạch Đằng, Hội An, Quảng Nam",
+                StarRating = 4,
+                Description = "Khách sạn sát sông, thuận tiện dạo phố cổ, ngắm đèn lồng và thưởng thức cà phê ven sông.",
+                IsAvailable = true
+            }
+        };
+
+        foreach (var hotel in hotelSeedPool.Where(item => item.DestinationId > 0))
+        {
+            var exists = await context.Hotels.AnyAsync(item => item.Name == hotel.Name);
+            if (!exists)
+            {
+                context.Hotels.Add(hotel);
+            }
+        }
+
+        await context.SaveChangesAsync();
+
         if (!await context.Amenities.AnyAsync())
         {
             context.Amenities.AddRange(
@@ -318,6 +443,51 @@ public static class DevelopmentDataSeeder
                 await context.SaveChangesAsync();
             }
         }
+
+        var allHotels = await context.Hotels.ToListAsync();
+        Hotel? FindHotel(string hotelName)
+            => allHotels.FirstOrDefault(item => item.Name == hotelName);
+
+        var roomSeedPool = new List<Room>();
+        void AddRoomSeed(string hotelName, string roomType, int capacity, decimal price, double commissionRate, int qty)
+        {
+            var hotel = FindHotel(hotelName);
+            if (hotel == null)
+            {
+                return;
+            }
+
+            roomSeedPool.Add(new Room
+            {
+                HotelId = hotel.Id,
+                RoomType = roomType,
+                Capacity = capacity,
+                PricePerNight = price,
+                CommissionRate = commissionRate,
+                AvailableQty = qty
+            });
+        }
+
+        AddRoomSeed("Old Quarter Garden Hotel", "Phòng Standard", 2, 920000m, 0.10, 8);
+        AddRoomSeed("Old Quarter Garden Hotel", "Phòng Family", 4, 1650000m, 0.12, 4);
+        AddRoomSeed("Saigon Central Stay", "Phòng City View", 2, 980000m, 0.10, 10);
+        AddRoomSeed("Saigon Central Stay", "Suite Gia Đình", 4, 1850000m, 0.12, 4);
+        AddRoomSeed("Phu Quy Sea View", "Phòng Tiêu Chuẩn", 2, 650000m, 0.08, 6);
+        AddRoomSeed("Phu Quy Sea View", "Phòng Nhìn Biển", 4, 1200000m, 0.10, 3);
+        AddRoomSeed("Lantern Riverside Hotel", "Phòng Deluxe", 2, 1100000m, 0.10, 7);
+        AddRoomSeed("Lantern Riverside Hotel", "Phòng Balcony", 3, 1450000m, 0.12, 4);
+
+        foreach (var room in roomSeedPool)
+        {
+            var exists = await context.Rooms.AnyAsync(item =>
+                item.HotelId == room.HotelId && item.RoomType == room.RoomType);
+            if (!exists)
+            {
+                context.Rooms.Add(room);
+            }
+        }
+
+        await context.SaveChangesAsync();
 
         if (!await context.Reviews.AnyAsync())
         {
@@ -451,6 +621,83 @@ public static class DevelopmentDataSeeder
             }
         }
 
+        var allCompanies = await context.BusCompanies.OrderBy(item => item.Id).ToListAsync();
+        var allDestinationsForRoutes = await context.Destinations.OrderBy(item => item.Id).ToListAsync();
+        int? FindRouteDestinationId(string destinationName)
+            => allDestinationsForRoutes.FirstOrDefault(item => item.Name == destinationName)?.Id;
+        int ResolveCompanyId(string preferredName)
+            => allCompanies.FirstOrDefault(item => item.Name == preferredName)?.Id
+                ?? allCompanies.First().Id;
+
+        if (allCompanies.Count > 0 && allDestinationsForRoutes.Count > 0)
+        {
+            var routeSeedPool = new List<BusSchedule>();
+            var baseDate = DateTime.UtcNow.AddDays(2).Date;
+
+            void AddDailyRoute(
+                string companyName,
+                string fromName,
+                string toName,
+                int departureHour,
+                int durationHours,
+                decimal price,
+                int totalSeats,
+                int totalDays = 10)
+            {
+                var fromId = FindRouteDestinationId(fromName);
+                var toId = FindRouteDestinationId(toName);
+                if (!fromId.HasValue || !toId.HasValue)
+                {
+                    return;
+                }
+
+                for (var dayOffset = 0; dayOffset < totalDays; dayOffset++)
+                {
+                    var departure = baseDate.AddDays(dayOffset).AddHours(departureHour);
+                    routeSeedPool.Add(new BusSchedule
+                    {
+                        CompanyId = ResolveCompanyId(companyName),
+                        FromDestId = fromId.Value,
+                        ToDestId = toId.Value,
+                        DepartureTime = departure,
+                        ArrivalTime = departure.AddHours(durationHours),
+                        Price = price,
+                        CommissionRate = 0.08,
+                        TotalSeats = totalSeats
+                    });
+                }
+            }
+
+            AddDailyRoute("Phuong Trang FUTA", "TP. Hồ Chí Minh", "Đà Lạt", 22, 7, 320000m, 36);
+            AddDailyRoute("Thanh Buoi Express", "TP. Hồ Chí Minh", "Đà Lạt", 23, 7, 340000m, 34);
+            AddDailyRoute("Phuong Trang FUTA", "Đà Lạt", "TP. Hồ Chí Minh", 22, 7, 320000m, 36);
+            AddDailyRoute("Thanh Buoi Express", "Đà Lạt", "TP. Hồ Chí Minh", 23, 7, 340000m, 34);
+            AddDailyRoute("Phuong Trang FUTA", "TP. Hồ Chí Minh", "Nha Trang", 21, 8, 360000m, 40);
+            AddDailyRoute("Phuong Trang FUTA", "Nha Trang", "TP. Hồ Chí Minh", 21, 8, 360000m, 40);
+            AddDailyRoute("Skynet Express", "Đà Nẵng", "Hội An", 8, 1, 180000m, 20);
+            AddDailyRoute("Viet Travel Bus", "Đà Nẵng", "Hội An", 15, 1, 150000m, 24);
+            AddDailyRoute("Skynet Express", "Hội An", "Đà Nẵng", 9, 1, 180000m, 20);
+            AddDailyRoute("Viet Travel Bus", "Hội An", "Đà Nẵng", 16, 1, 150000m, 24);
+            AddDailyRoute("Phuong Trang FUTA", "Hà Nội", "Hạ Long", 7, 3, 220000m, 29);
+            AddDailyRoute("Phuong Trang FUTA", "Hạ Long", "Hà Nội", 15, 3, 220000m, 29);
+
+            foreach (var schedule in routeSeedPool)
+            {
+                var exists = await context.BusSchedules.AnyAsync(item =>
+                    item.CompanyId == schedule.CompanyId &&
+                    item.FromDestId == schedule.FromDestId &&
+                    item.ToDestId == schedule.ToDestId &&
+                    item.DepartureTime == schedule.DepartureTime);
+
+                if (!exists)
+                {
+                    context.BusSchedules.Add(schedule);
+                }
+            }
+
+            await context.SaveChangesAsync();
+        }
+
         if (!await context.Seats.AnyAsync())
         {
             var schedules = await context.BusSchedules.ToListAsync();
@@ -537,7 +784,9 @@ public static class DevelopmentDataSeeder
                             ServiceId = hotels[0].Id,
                             Quantity = 2,
                             BookedPrice = 1600000m,
-                            BookedCommissionRate = 0.1
+                            BookedCommissionRate = 0.1,
+                            ServiceDate = trips[0].StartDate,
+                            HotelCheckOutDate = trips[0].EndDate
                         },
                         new TripItinerary
                         {
@@ -547,7 +796,9 @@ public static class DevelopmentDataSeeder
                             ServiceId = hotels[1].Id,
                             Quantity = 3,
                             BookedPrice = 4200000m,
-                            BookedCommissionRate = 0.12
+                            BookedCommissionRate = 0.12,
+                            ServiceDate = trips[1].StartDate,
+                            HotelCheckOutDate = trips[1].EndDate
                         });
                 }
 

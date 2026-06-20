@@ -13,6 +13,13 @@ import '../services/trip_service.dart';
 
 class TripProvider with ChangeNotifier {
   final TripService _tripService = TripService();
+  static const String _bookingOnlyStatus = 'BOOKING_ONLY';
+  static const List<String> _bookingOnlyTitlePrefixes = [
+    'Hóa đơn đặt phòng - ',
+    'Hóa đơn vé xe - ',
+    'Đặt phòng - ',
+    'Đặt vé xe - ',
+  ];
 
   List<MyTripSummary> _trips = [];
   TripDetail? _currentTrip;
@@ -21,7 +28,7 @@ class TripProvider with ChangeNotifier {
   bool _isLoadingTripDetail = false;
   bool _isSubmitting = false;
   String? _error;
-  
+
   List<MyTripSummary> get trips => List.unmodifiable(_trips);
   TripDetail? get currentTrip => _currentTrip;
   int? get currentTripId => _currentTripId;
@@ -30,12 +37,24 @@ class TripProvider with ChangeNotifier {
   bool get isSubmitting => _isSubmitting;
   String? get error => _error;
 
+  bool _isBookingOnlyPlaceholder(MyTripSummary trip) {
+    if (trip.status == _bookingOnlyStatus) {
+      return true;
+    }
+
+    final normalizedTitle = trip.title.trim();
+    return _bookingOnlyTitlePrefixes.any(
+      (prefix) => normalizedTitle.startsWith(prefix),
+    );
+  }
+
   List<MyTripSummary> get upcomingTrips {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     return _trips
         .where(
           (trip) =>
+              !_isBookingOnlyPlaceholder(trip) &&
               !DateTime(
                 trip.endDate.year,
                 trip.endDate.month,
@@ -52,12 +71,13 @@ class TripProvider with ChangeNotifier {
     return _trips
         .where(
           (trip) =>
-              DateTime(
-                trip.endDate.year,
-                trip.endDate.month,
-                trip.endDate.day,
-              ).isBefore(today) ||
-              trip.status == 'CANCELLED',
+              !_isBookingOnlyPlaceholder(trip) &&
+              (DateTime(
+                    trip.endDate.year,
+                    trip.endDate.month,
+                    trip.endDate.day,
+                  ).isBefore(today) ||
+                  trip.status == 'CANCELLED'),
         )
         .toList();
   }
@@ -178,7 +198,7 @@ class TripProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> addItinerary(
+  Future<int?> addItinerary(
     int tripId,
     CreateTripItineraryRequest request,
   ) async {
@@ -187,15 +207,15 @@ class TripProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await _tripService.addItinerary(tripId, request);
+      final entry = await _tripService.addItinerary(tripId, request);
       await fetchTripDetail(tripId);
       await fetchTrips(silent: true);
-      return true;
+      return entry.itineraryId;
     } catch (e) {
       _error = e.toString();
       _isSubmitting = false;
       notifyListeners();
-      return false;
+      return null;
     } finally {
       _isSubmitting = false;
       notifyListeners();

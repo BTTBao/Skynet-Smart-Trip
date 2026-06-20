@@ -95,7 +95,7 @@ class _InvoiceLookupViewState extends State<InvoiceLookupView> {
 
     if (hotel != null) {
       return InvoiceDetailView(
-        title: hotel.tripTitle,
+        title: _hotelServiceTitle(hotel),
         serviceType: 'Khách sạn',
         providerName: hotel.hotelName,
         routeOrAddress: '${hotel.destinationName} - ${hotel.address}',
@@ -111,7 +111,7 @@ class _InvoiceLookupViewState extends State<InvoiceLookupView> {
 
     if (bus != null) {
       return InvoiceDetailView(
-        title: bus.tripTitle,
+        title: _busServiceTitle(bus),
         serviceType: 'Vé xe',
         providerName: bus.companyName,
         routeOrAddress: '${bus.fromDestination} -> ${bus.toDestination}',
@@ -214,5 +214,24 @@ class _InvoiceLookupViewState extends State<InvoiceLookupView> {
     }
     final local = parsed.toLocal();
     return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _hotelServiceTitle(HotelHistoryItem item) {
+    final roomType = item.roomType.trim();
+    if (roomType.isEmpty) {
+      return item.hotelName;
+    }
+
+    return '${item.hotelName} - $roomType';
+  }
+
+  String _busServiceTitle(BusHistoryItem item) {
+    final from = item.fromDestination.trim();
+    final to = item.toDestination.trim();
+    if (from.isEmpty || to.isEmpty) {
+      return item.companyName;
+    }
+
+    return '${item.companyName} - $from -> $to';
   }
 }

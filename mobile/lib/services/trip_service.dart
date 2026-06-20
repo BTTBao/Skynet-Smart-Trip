@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:http/http.dart' as http;
-
 import '../models/create_trip_itinerary_request.dart';
 import '../models/create_fake_payment_request.dart';
 import '../models/create_hotel_booking_request.dart';
@@ -87,16 +85,13 @@ class TripService extends ApiService {
     required String serviceType,
     int? destinationId,
   }) async {
-    final uri = buildUri(configuredBaseUrl, '/trips/service-options').replace(
+    final response = await getWithFallback(
+      '/trips/service-options',
+      requireAuth: true,
       queryParameters: {
         'serviceType': serviceType,
         if (destinationId != null) 'destinationId': '$destinationId',
       },
-    );
-
-    final response = await http.get(
-      uri,
-      headers: await getHeaders(requireAuth: true),
     );
 
     final data = handleResponse(response) as List<dynamic>? ?? [];

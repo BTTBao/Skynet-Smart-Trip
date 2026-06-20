@@ -5,6 +5,7 @@ namespace SmartTrip.Application.DTOs.Admin;
 public class AdminBookingStatsDto
 {
     public decimal TotalRevenue { get; set; }
+    public decimal TotalProfit { get; set; }
     public int TotalBookings { get; set; }
     public int NewCustomers { get; set; }
     public int PaidBookings { get; set; }
@@ -21,6 +22,7 @@ public class AdminBookingDto
     public string UserCode { get; set; } = string.Empty;
     public string Destination { get; set; } = string.Empty;
     public string TotalAmount { get; set; } = string.Empty;
+    public string TotalProfit { get; set; } = string.Empty;
     public string Summary { get; set; } = string.Empty;
     public string PaymentStatus { get; set; } = string.Empty;
     public string TripStatus { get; set; } = string.Empty;

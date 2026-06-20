@@ -3,8 +3,6 @@ using SmartTrip.Application.Interfaces.User;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using SmartTrip.Application.DTOs.Notifications;
@@ -23,23 +21,17 @@ public class UserService : IUserService
     private const string CurrencyKey = "currency";
 
     private readonly ApplicationDbContext _context;
-    private readonly IWebHostEnvironment _environment;
-    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IEmailService _emailService;
     private readonly INotificationService _notificationService;
     private readonly ILogger<UserService> _logger;
 
     public UserService(
         ApplicationDbContext context,
-        IWebHostEnvironment environment,
-        IHttpContextAccessor httpContextAccessor,
         IEmailService emailService,
         INotificationService notificationService,
         ILogger<UserService> logger)
     {
         _context = context;
-        _environment = environment;
-        _httpContextAccessor = httpContextAccessor;
         _emailService = emailService;
         _notificationService = notificationService;
         _logger = logger;
@@ -115,9 +107,26 @@ public class UserService : IUserService
         static string ResolveHistoryTripStatus(Trip t)
         {
             var hasPaidPayment = t.Payments.Any(p => p.Status == PaymentStatus.Paid);
-            return t.Status == TripStatus.BookingOnly && hasPaidPayment
-                ? TripStatus.Paid.ToString()
-                : t.Status?.ToString() ?? TripStatus.Draft.ToString();
+            var hasInvoice = t.Invoices.Any();
+
+            if (t.Status == TripStatus.Cancelled)
+            {
+                return TripStatus.Cancelled.ToString();
+            }
+
+            if (hasPaidPayment || hasInvoice)
+            {
+                return TripStatus.Paid.ToString();
+            }
+
+            return t.Status?.ToString() ?? TripStatus.Draft.ToString();
+        }
+
+        static decimal ResolvePaidTripAmount(Trip t)
+        {
+            return t.Payments
+                .Where(p => p.Status == PaymentStatus.Paid)
+                .Sum(p => p.Amount ?? 0m);
         }
 
         var bookings = trips.Select(t => new BookingHistoryItemDto
@@ -127,7 +136,7 @@ public class UserService : IUserService
             DestinationName = t.Destination?.Name ?? string.Empty,
             StartDate = t.StartDate?.ToString("yyyy-MM-dd"),
             EndDate = t.EndDate?.ToString("yyyy-MM-dd"),
-            TotalAmount = t.TotalAmount ?? 0,
+            TotalAmount = ResolvePaidTripAmount(t) > 0 ? ResolvePaidTripAmount(t) : t.TotalAmount ?? 0,
             Status = ResolveHistoryTripStatus(t),
             CreatedAt = t.CreatedAt?.ToString("O"),
             InvoiceNumber = t.Invoices
@@ -142,17 +151,37 @@ public class UserService : IUserService
             .Where(i => i.Trip != null && i.Trip.UserId == userId && i.ServiceType == TripServiceType.Hotel)
             .ToListAsync();
 
-        var hotelIds = hotelItineraries
+        var itineraryCountsByTrip = await _context.TripItineraries
+            .AsNoTracking()
+            .Where(i => i.Trip != null && i.Trip.UserId == userId)
+            .GroupBy(i => i.TripId)
+            .Select(group => new { TripId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(item => item.TripId ?? 0, item => item.Count);
+
+        decimal ResolveItineraryHistoryAmount(TripItinerary itinerary, Trip? trip)
+        {
+            var rawAmount = (itinerary.BookedPrice ?? 0m) * (itinerary.Quantity ?? 1);
+            if (trip == null || itineraryCountsByTrip.GetValueOrDefault(trip.Id) != 1)
+            {
+                return rawAmount;
+            }
+
+            var paidAmount = ResolvePaidTripAmount(trip);
+            return paidAmount > 0 ? paidAmount : rawAmount;
+        }
+
+        var roomIds = hotelItineraries
             .Where(i => i.ServiceId.HasValue)
             .Select(i => i.ServiceId!.Value)
             .Distinct()
             .ToList();
 
-        var hotelsById = await _context.Hotels
+        var roomsById = await _context.Rooms
             .AsNoTracking()
-            .Include(h => h.Destination)
-            .Where(h => hotelIds.Contains(h.Id))
-            .ToDictionaryAsync(h => h.Id);
+            .Include(r => r.Hotel)
+                .ThenInclude(h => h!.Destination)
+            .Where(r => roomIds.Contains(r.Id))
+            .ToDictionaryAsync(r => r.Id);
 
         var tripsById = trips.ToDictionary(t => t.Id);
 
@@ -160,9 +189,9 @@ public class UserService : IUserService
             .OrderByDescending(i => tripsById.TryGetValue(i.TripId ?? 0, out var trip) ? trip.CreatedAt : null)
             .Select(i =>
             {
-                hotelsById.TryGetValue(i.ServiceId ?? 0, out var hotel);
+                roomsById.TryGetValue(i.ServiceId ?? 0, out var room);
                 tripsById.TryGetValue(i.TripId ?? 0, out var trip);
-                var targetHotelId = hotel?.Id ?? i.ServiceId ?? 0;
+                var targetHotelId = room?.HotelId ?? 0;
                 var isReviewed = reviews.Any(r => 
                     r.TripId == i.TripId && 
                     r.TargetType == ReviewTargetType.Hotel && 
@@ -174,13 +203,14 @@ public class UserService : IUserService
                     ItineraryId = i.Id,
                     ServiceId = targetHotelId,
                     TripTitle = trip?.Title ?? "Chuyen di",
-                    HotelName = hotel?.Name ?? "Khach san",
-                    Address = hotel?.Address ?? string.Empty,
-                    DestinationName = hotel?.Destination?.Name ?? string.Empty,
-                    CheckInDate = trip?.StartDate?.ToString("yyyy-MM-dd"),
-                    CheckOutDate = trip?.EndDate?.ToString("yyyy-MM-dd"),
+                    HotelName = room?.Hotel?.Name ?? "Khach san",
+                    RoomType = room?.RoomType ?? string.Empty,
+                    Address = room?.Hotel?.Address ?? string.Empty,
+                    DestinationName = room?.Hotel?.Destination?.Name ?? string.Empty,
+                    CheckInDate = (i.ServiceDate ?? trip?.StartDate)?.ToString("yyyy-MM-dd"),
+                    CheckOutDate = (i.HotelCheckOutDate ?? trip?.EndDate)?.ToString("yyyy-MM-dd"),
                     Quantity = i.Quantity ?? 0,
-                    BookedPrice = i.BookedPrice ?? 0,
+                    BookedPrice = ResolveItineraryHistoryAmount(i, trip),
                     Status = trip != null ? ResolveHistoryTripStatus(trip) : TripStatus.Draft.ToString(),
                     IsReviewed = isReviewed,
                     IsBookingOnly = trip?.Status == TripStatus.BookingOnly,
@@ -236,7 +266,7 @@ public class UserService : IUserService
                     DepartureTime = schedule?.DepartureTime?.ToString("O"),
                     ArrivalTime = schedule?.ArrivalTime?.ToString("O"),
                     Quantity = i.Quantity ?? 0,
-                    BookedPrice = i.BookedPrice ?? 0,
+                    BookedPrice = ResolveItineraryHistoryAmount(i, trip),
                     Status = trip != null ? ResolveHistoryTripStatus(trip) : TripStatus.Draft.ToString(),
                     IsReviewed = isReviewed,
                     SelectedSeats = i.SelectedSeats,
@@ -317,70 +347,24 @@ public class UserService : IUserService
         return true;
     }
 
-    public async Task<string?> UploadAvatarAsync(int userId, IFormFile file)
+    public async Task<string?> UpdateAvatarUrlAsync(int userId, string imageUrl)
     {
         var user = await _context.Users.FindAsync(userId);
         if (user == null) return null;
 
-        string wwwRootPath = _environment.WebRootPath;
-        if (string.IsNullOrEmpty(wwwRootPath))
-        {
-            wwwRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-        }
-
-        string fileName = $"avatar_{userId}_{DateTime.UtcNow.Ticks}{Path.GetExtension(file.FileName)}";
-        string filePath = Path.Combine(wwwRootPath, "uploads", "avatars", fileName);
-
-        // Đảm bảo thư mục tồn tại
-        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
-        DeletePreviousAvatarIfOwnedByApp(user.AvatarUrl, wwwRootPath);
-
-        using (var fileStream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(fileStream);
-        }
-
-        // Tạo URL đầy đủ
-        var request = _httpContextAccessor.HttpContext?.Request;
-        string baseUrl = $"{request?.Scheme}://{request?.Host}{request?.PathBase}";
-        string avatarUrl = $"{baseUrl}/uploads/avatars/{fileName}";
-
-        // Cập nhật DB
+        var avatarUrl = NormalizeImageUrl(imageUrl);
         user.AvatarUrl = avatarUrl;
         await _context.SaveChangesAsync();
 
         return avatarUrl;
     }
 
-    public async Task<string?> UploadIdentityCardPhotoAsync(int userId, IFormFile file)
+    public async Task<string?> UpdateIdentityCardPhotoUrlAsync(int userId, string imageUrl)
     {
         var user = await _context.Users.FindAsync(userId);
         if (user == null) return null;
 
-        string wwwRootPath = _environment.WebRootPath;
-        if (string.IsNullOrEmpty(wwwRootPath))
-        {
-            wwwRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-        }
-
-        string fileName = $"identity_{userId}_{DateTime.UtcNow.Ticks}{Path.GetExtension(file.FileName)}";
-        string filePath = Path.Combine(wwwRootPath, "uploads", "identity_cards", fileName);
-
-        // Đảm bảo thư mục tồn tại
-        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
-        DeletePreviousIdentityCardPhotoIfOwnedByApp(user.IdentityCardPhotoUrl, wwwRootPath);
-
-        using (var fileStream = new FileStream(filePath, FileMode.Create))
-        {
-            await file.CopyToAsync(fileStream);
-        }
-
-        // Tạo URL đầy đủ
-        var request = _httpContextAccessor.HttpContext?.Request;
-        string baseUrl = $"{request?.Scheme}://{request?.Host}{request?.PathBase}";
-        string identityCardPhotoUrl = $"{baseUrl}/uploads/identity_cards/{fileName}";
-
-        // Cập nhật DB
+        var identityCardPhotoUrl = NormalizeImageUrl(imageUrl);
         user.IdentityCardPhotoUrl = identityCardPhotoUrl;
         await _context.SaveChangesAsync();
 
@@ -589,60 +573,16 @@ public class UserService : IUserService
         throw new InvalidOperationException("Ngay sinh khong hop le");
     }
 
-    private void DeletePreviousAvatarIfOwnedByApp(string? avatarUrl, string wwwRootPath)
+    private static string NormalizeImageUrl(string imageUrl)
     {
-        if (string.IsNullOrWhiteSpace(avatarUrl))
+        var normalized = imageUrl.Trim();
+        if (!Uri.TryCreate(normalized, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
-            return;
+            throw new ArgumentException("Duong dan anh khong hop le.");
         }
 
-        if (!Uri.TryCreate(avatarUrl, UriKind.Absolute, out var uri))
-        {
-            return;
-        }
-
-        var relativePath = uri.AbsolutePath
-            .Replace('/', Path.DirectorySeparatorChar)
-            .TrimStart(Path.DirectorySeparatorChar);
-
-        if (!relativePath.StartsWith($"uploads{Path.DirectorySeparatorChar}avatars", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        var fullPath = Path.Combine(wwwRootPath, relativePath);
-        if (File.Exists(fullPath))
-        {
-            File.Delete(fullPath);
-        }
-    }
-
-    private void DeletePreviousIdentityCardPhotoIfOwnedByApp(string? photoUrl, string wwwRootPath)
-    {
-        if (string.IsNullOrWhiteSpace(photoUrl))
-        {
-            return;
-        }
-
-        if (!Uri.TryCreate(photoUrl, UriKind.Absolute, out var uri))
-        {
-            return;
-        }
-
-        var relativePath = uri.AbsolutePath
-            .Replace('/', Path.DirectorySeparatorChar)
-            .TrimStart(Path.DirectorySeparatorChar);
-
-        if (!relativePath.StartsWith($"uploads{Path.DirectorySeparatorChar}identity_cards", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        var fullPath = Path.Combine(wwwRootPath, relativePath);
-        if (File.Exists(fullPath))
-        {
-            File.Delete(fullPath);
-        }
+        return normalized;
     }
 
     private async Task<List<UserFavoriteDto>> MapFavoritesAsync(List<Wishlist> favorites)

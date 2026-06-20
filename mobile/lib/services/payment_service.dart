@@ -33,6 +33,28 @@ class PaymentService extends ApiService {
     return PaymentResult.fromJson(data);
   }
 
+  Future<PaymentResult> createVnPayPayment({
+    required int tripId,
+    required double amount,
+    required String description,
+    String locale = 'vn',
+    Map<String, dynamic>? metadata,
+  }) async {
+    final response = await postWithFallback(
+      '/payments/vnpay/create',
+      requireAuth: true,
+      body: jsonEncode({
+        'amount': amount.round(),
+        'description': description,
+        'locale': locale,
+        'metadata': {'tripId': tripId, if (metadata != null) ...metadata},
+      }),
+    );
+
+    final data = Map<String, dynamic>.from(handleResponse(response));
+    return PaymentResult.fromJson(data);
+  }
+
   Future<PaymentResult> getPaymentByOrderCode(int orderCode) async {
     final response = await getWithFallback(
       '/payments/order/$orderCode',

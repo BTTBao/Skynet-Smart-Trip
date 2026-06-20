@@ -56,7 +56,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
     return List.generate(totalDays, (index) {
       final date = startDate.add(Duration(days: index));
       return TripDayItem(
-        label: 'NGAY ${index + 1}',
+        label: 'NGÀY ${index + 1}',
         dayNumber: '${index + 1}'.padLeft(2, '0'),
         date:
             '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}',
@@ -305,8 +305,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
       return;
     }
 
-    final request = result;
-    final success = await provider.addItinerary(widget.tripId, request);
+    final itineraryId = await provider.addItinerary(widget.tripId, result);
     if (!mounted) {
       return;
     }
@@ -314,7 +313,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          success ? 'Đã thêm dịch vụ vào lịch trình.' : (provider.error ?? 'Thêm dịch vụ thất bại.'),
+          itineraryId != null ? 'Đã thêm dịch vụ vào lịch trình.' : (provider.error ?? 'Thêm dịch vụ thất bại.'),
         ),
       ),
     );
@@ -333,7 +332,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
     return Consumer<TripProvider>(
       builder: (context, tripProvider, _) {
         final detail = _detailFrom(tripProvider);
-        final resolvedTitle = detail?.title ?? widget.tripTitle ?? 'Chi tiet chuyen di';
+        final resolvedTitle = detail?.title ?? widget.tripTitle ?? 'Chi tiết chuyến đi';
         final resolvedStartDate = detail?.startDate ?? widget.startDate;
         final resolvedEndDate = detail?.endDate ?? widget.endDate;
         final canRenderDays = resolvedStartDate != null && resolvedEndDate != null;
@@ -389,7 +388,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
                     const SizedBox(height: 12),
                     ElevatedButton(
                       onPressed: () => tripProvider.fetchTripDetail(widget.tripId),
-                      child: const Text('Thu lai'),
+                      child: const Text('Thử lại'),
                     ),
                   ],
                 ),
@@ -414,7 +413,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
                       const SizedBox(width: 12),
                       const Expanded(
                         child: Text(
-                          'Lich trinh chi tiet',
+                          'Lịch trình chi tiết',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
@@ -452,7 +451,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
                           title: resolvedTitle,
                           dateRangeLabel: canRenderDays
                               ? _dateRangeLabel(resolvedStartDate, resolvedEndDate)
-                              : 'Dang cap nhat',
+                              : 'Đang cập nhật',
                         ),
                         const SizedBox(height: 14),
                         Container(
@@ -465,14 +464,14 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
                             children: [
                               Expanded(
                                 child: ItinerarySegmentButton(
-                                  label: 'Lich trinh',
+                                  label: 'Lịch trình',
                                   isSelected: true,
                                   onTap: () {},
                                 ),
                               ),
                               Expanded(
                                 child: ItinerarySegmentButton(
-                                  label: 'Ban do',
+                                  label: 'Bản đồ',
                                   isSelected: false,
                                   onTap: () => _openMapView(detail, resolvedTitle),
                                 ),
@@ -517,7 +516,7 @@ class _TripItineraryDetailViewState extends State<TripItineraryDetailView> {
                                 const SizedBox(width: 6),
                                 Text(
                                   tripProvider.isSubmitting
-                                      ? 'Dang xu ly...'
+                                      ? 'Đang xử lý...'
                                       : 'Thêm dịch vụ',
                                   style: const TextStyle(
                                     fontSize: 12,

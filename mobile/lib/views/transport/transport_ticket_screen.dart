@@ -3,7 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
 import '../../models/bus_schedule_model.dart';
+import '../../models/my_trip_summary.dart';
+import '../../models/create_trip_request.dart';
+import '../../models/update_trip_itinerary_request.dart';
+import '../../providers/trip_provider.dart';
 import '../../utils/file_saver.dart';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -16,12 +21,18 @@ class TransportTicketScreen extends StatefulWidget {
   final int bookingId;
   final BusScheduleModel schedule;
   final List<String> seats;
+  final int? itineraryId;
+  final int? destinationId;
+  final String? destinationName;
 
   const TransportTicketScreen({
     super.key,
     required this.bookingId,
     required this.schedule,
     required this.seats,
+    this.itineraryId,
+    this.destinationId,
+    this.destinationName,
   });
 
   @override
@@ -55,6 +66,442 @@ String _getDefaultOriginForCity(String cityName) {
 class _TransportTicketScreenState extends State<TransportTicketScreen> {
   final GlobalKey _boundaryKey = GlobalKey();
   bool _isDownloading = false;
+  bool _hasPrompted = false;
+  bool _isAssociating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.itineraryId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkAndPromptTripCreation();
+      });
+    }
+  }
+
+  Future<void> _checkAndPromptTripCreation() async {
+    if (_hasPrompted) return;
+    _hasPrompted = true;
+
+    final wantsTrip = await _askTripCreationPreference();
+    if (wantsTrip == true) {
+      final selectedTrip = await _selectOrCreateTripForBooking(
+        destinationId: widget.destinationId,
+        destinationName: (widget.destinationName != null && widget.destinationName!.isNotEmpty)
+            ? widget.destinationName!
+            : 'Hành trình',
+      );
+
+      if (selectedTrip != null) {
+        setState(() => _isAssociating = true);
+        try {
+          final tripProvider = context.read<TripProvider>();
+          final success = await tripProvider.updateItinerary(
+            widget.itineraryId!,
+            UpdateTripItineraryRequest(
+              tripId: selectedTrip.tripId,
+              dayNumber: selectedTrip.dayNumber,
+            ),
+          );
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(success
+                    ? 'Đã thêm lịch trình vé xe vào chuyến đi thành công!'
+                    : 'Không thể di chuyển lịch trình vào chuyến đi.'),
+                backgroundColor: success ? const Color(0xFF0D6B42) : Colors.red,
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Lỗi: ${e.toString()}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        } finally {
+          if (mounted) {
+            setState(() => _isAssociating = false);
+          }
+        }
+      }
+    }
+  }
+
+  DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+
+  bool _tripDestinationMatchesSchedule(
+    MyTripSummary trip,
+  ) {
+    if (widget.destinationId != null && trip.destinationId != null) {
+      return trip.destinationId == widget.destinationId;
+    }
+    final destName = widget.destinationName ?? widget.schedule.toDestName;
+    return trip.destination.trim().toLowerCase() ==
+        destName.trim().toLowerCase();
+  }
+
+  String? _bookingTripBlockReason(
+    MyTripSummary trip,
+  ) {
+    final departureDate = _dateOnly(widget.schedule.departureTime);
+    final tripStart = _dateOnly(trip.startDate);
+    final tripEnd = _dateOnly(trip.endDate);
+
+    if (!_tripDestinationMatchesSchedule(trip)) {
+      return 'Khác điểm đến với tuyến xe.';
+    }
+
+    if (tripStart.isAfter(departureDate) || tripEnd.isBefore(departureDate)) {
+      return 'Ngày đi của chuyến xe không nằm trong chuyến đi này.';
+    }
+
+    return null;
+  }
+
+  int _dayNumberForTrip(MyTripSummary trip) {
+    return _dateOnly(widget.schedule.departureTime)
+            .difference(_dateOnly(trip.startDate))
+            .inDays +
+        1;
+  }
+
+  Future<bool?> _askTripCreationPreference() {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Bạn có muốn tạo chuyến đi không?'),
+        content: const Text(
+          'Nếu tạo chuyến đi, vé xe này sẽ được thêm vào lịch trình để bạn dễ dàng quản lý cùng chuyến đi của mình.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Không tạo'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: _kPrimary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Tạo/chọn chuyến đi'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<_SelectedCheckoutTrip?> _selectOrCreateTripForBooking({
+    required int? destinationId,
+    required String destinationName,
+  }) async {
+    final tripProvider = context.read<TripProvider>();
+    await tripProvider.fetchTrips(silent: true);
+
+    if (!mounted) {
+      return null;
+    }
+
+    final trips = tripProvider.upcomingTrips
+        .where(
+          (trip) =>
+              trip.status != 'CANCELLED' &&
+              _bookingTripBlockReason(trip) == null,
+        )
+        .toList(growable: false)
+      ..sort((left, right) => left.startDate.compareTo(right.startDate));
+
+    return showModalBottomSheet<_SelectedCheckoutTrip>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        var isCreating = false;
+        var title = 'Chuyến đi $destinationName';
+        var query = '';
+
+        Future<void> createTrip(StateSetter setSheetState) async {
+          final normalizedTitle = title.trim();
+          if (normalizedTitle.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Vui lòng nhập tên chuyến đi.')),
+            );
+            return;
+          }
+
+          setSheetState(() => isCreating = true);
+          final tripProvider = context.read<TripProvider>();
+          final createdTrip = await tripProvider.createTrip(
+            CreateTripRequest(
+              userId: 1, // Default user ID, will be resolved by backend
+              destinationId: destinationId,
+              destinationName: destinationName,
+              title: normalizedTitle,
+              startDate: widget.schedule.departureTime,
+              endDate: widget.schedule.arrivalTime,
+              status: 'PENDING',
+            ),
+          );
+
+          if (!sheetContext.mounted) {
+            return;
+          }
+
+          setSheetState(() => isCreating = false);
+          if (createdTrip == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(tripProvider.error ?? 'Không thể tạo chuyến đi.'),
+              ),
+            );
+            return;
+          }
+
+          Navigator.of(sheetContext).pop(
+            _SelectedCheckoutTrip(tripId: createdTrip.tripId, dayNumber: 1),
+          );
+        }
+
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final normalizedQuery = query.trim().toLowerCase();
+            final visibleTrips = normalizedQuery.isEmpty
+                ? trips
+                : trips
+                    .where(
+                      (trip) =>
+                          trip.title.toLowerCase().contains(
+                            normalizedQuery,
+                          ) ||
+                          trip.destination.toLowerCase().contains(
+                            normalizedQuery,
+                          ) ||
+                          trip.dateRange.toLowerCase().contains(
+                            normalizedQuery,
+                          ),
+                    )
+                    .toList(growable: false);
+
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                16,
+                20,
+                20 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: SafeArea(
+                top: false,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.88,
+                  ),
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 56,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE2E8F0),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Thêm vào chuyến đi',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Chọn chuyến đi phù hợp với tuyến ${widget.schedule.fromDestName} → ${widget.schedule.toDestName}, hoặc tạo chuyến đi mới.',
+                        style: const TextStyle(color: Colors.grey, height: 1.45),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        enabled: !isCreating,
+                        onChanged: (value) =>
+                            setSheetState(() => query = value),
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.search),
+                          labelText: 'Tìm chuyến đi',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (visibleTrips.isEmpty) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: const Text(
+                            'Không tìm thấy chuyến đi phù hợp. Hãy tạo chuyến đi mới để tiếp tục đặt vé.',
+                            style: TextStyle(color: Colors.grey, height: 1.45),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      ...visibleTrips.map((trip) {
+                        final blockedReason = _bookingTripBlockReason(trip);
+                        final canSelect = blockedReason == null;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: InkWell(
+                            onTap: isCreating || !canSelect
+                                ? null
+                                : () => Navigator.of(sheetContext).pop(
+                                    _SelectedCheckoutTrip(
+                                      tripId: trip.tripId,
+                                      dayNumber: _dayNumberForTrip(trip),
+                                    ),
+                                  ),
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: canSelect
+                                    ? Colors.white
+                                    : const Color(0xFFF8FAFC),
+                                border: Border.all(
+                                  color: const Color(0xFFE2E8F0),
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.map_rounded,
+                                    color: Color(0xFF0D6B42),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          trip.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${trip.destination} • ${trip.dateRange}',
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        if (blockedReason != null) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            blockedReason,
+                                            style: const TextStyle(
+                                              color: Color(0xFFB42318),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    canSelect
+                                        ? Icons.chevron_right_rounded
+                                        : Icons.lock_outline_rounded,
+                                    color: canSelect
+                                        ? Colors.black87
+                                        : Colors.grey,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 8),
+                      TextField(
+                        enabled: !isCreating,
+                        controller: TextEditingController(text: title)
+                          ..selection = TextSelection.collapsed(
+                            offset: title.length,
+                          ),
+                        onChanged: (value) => title = value,
+                        decoration: InputDecoration(
+                          labelText: 'Tên chuyến đi mới',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: isCreating
+                              ? null
+                              : () => createTrip(setSheetState),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _kPrimary,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                          child: isCreating
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Tạo chuyến đi mới',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   String _time(DateTime dt) =>
       '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
@@ -177,74 +624,100 @@ class _TransportTicketScreenState extends State<TransportTicketScreen> {
 
     return Scaffold(
       backgroundColor: _kBg,
-      body: CustomScrollView(
-        slivers: [
-          // ── Gradient Success Header ────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: _SuccessHeader(code: code, context: context),
-          ),
+      body: Stack(
+        children: [
+          CustomScrollView(
+            slivers: [
+              // ── Gradient Success Header ────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: _SuccessHeader(code: code, context: context),
+              ),
 
-          // ── Boarding Pass Ticket ───────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              child: RepaintBoundary(
-                key: _boundaryKey,
-                child: _BoardingPassTicket(
-                  bookingId: widget.bookingId,
-                  schedule: widget.schedule,
-                  seats: widget.seats,
-                  formatTime: _time,
-                  formatDate: _date,
+              // ── Boarding Pass Ticket ───────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                  child: RepaintBoundary(
+                    key: _boundaryKey,
+                    child: _BoardingPassTicket(
+                      bookingId: widget.bookingId,
+                      schedule: widget.schedule,
+                      seats: widget.seats,
+                      formatTime: _time,
+                      formatDate: _date,
+                    ),
+                  ),
+                ),
+              ),
+
+              // ── Action Buttons ─────────────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _ActionButtons(
+                    schedule: widget.schedule,
+                    context: context,
+                    onDownload: _downloadTicket,
+                  ),
+                ),
+              ),
+
+              // ── Hotline note ───────────────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.headset_mic_rounded,
+                        color: Colors.grey[400],
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      RichText(
+                        text: TextSpan(
+                          text: 'Hỗ trợ: ',
+                          style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                          children: [
+                            TextSpan(
+                              text: widget.schedule.companyHotline,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: _kPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_isAssociating)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(_kPrimary),
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Đang xử lý chuyến đi...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
-
-          // ── Action Buttons ─────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _ActionButtons(
-                schedule: widget.schedule,
-                context: context,
-                onDownload: _downloadTicket,
-              ),
-            ),
-          ),
-
-          // ── Hotline note ───────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.headset_mic_rounded,
-                    color: Colors.grey[400],
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  RichText(
-                    text: TextSpan(
-                      text: 'Hỗ trợ: ',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                      children: [
-                        TextSpan(
-                          text: widget.schedule.companyHotline,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: _kPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -946,4 +1419,11 @@ class _ActionButtons extends StatelessWidget {
       ],
     );
   }
+}
+
+class _SelectedCheckoutTrip {
+  final int tripId;
+  final int dayNumber;
+
+  _SelectedCheckoutTrip({required this.tripId, required this.dayNumber});
 }

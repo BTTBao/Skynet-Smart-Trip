@@ -1,8 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/explore_post.dart';
@@ -46,7 +43,8 @@ class ExploreService extends ApiService {
     int page = 1,
     int pageSize = 20,
   }) async {
-    final uri = buildUri(configuredBaseUrl, '/explore/posts').replace(
+    final response = await getWithFallback(
+      '/explore/posts',
       queryParameters: {
         'page': '$page',
         'pageSize': '$pageSize',
@@ -58,8 +56,6 @@ class ExploreService extends ApiService {
         if (costLevels.isNotEmpty) 'costLevels': costLevels.join(','),
       },
     );
-
-    final response = await http.get(uri, headers: await getHeaders());
     final data = Map<String, dynamic>.from(handleResponse(response));
     return ExplorePageResult.fromJson(data);
   }
@@ -127,8 +123,16 @@ class ExploreService extends ApiService {
     );
   }
 
-  Future<ExploreComment> addComment(int postId, String content, {String? imageUrl}) async {
-    return addCommentReply(postId: postId, content: content, imageUrl: imageUrl);
+  Future<ExploreComment> addComment(
+    int postId,
+    String content, {
+    String? imageUrl,
+  }) async {
+    return addCommentReply(
+      postId: postId,
+      content: content,
+      imageUrl: imageUrl,
+    );
   }
 
   Future<ExploreComment> addCommentReply({
@@ -155,51 +159,16 @@ class ExploreService extends ApiService {
   }
 
   Future<String> uploadPostImage(XFile image) async {
-    final request = http.MultipartRequest(
-      'POST',
-      buildUri(configuredBaseUrl, '/explore/posts/images'),
+    final response = await multipartPostWithFallback(
+      '/explore/posts/images',
+      fileField: 'file',
+      file: image,
+      requireAuth: true,
     );
-    final requestHeaders = await getHeaders(requireAuth: true);
-    request.headers.addAll(requestHeaders);
-    request.headers.remove('content-type');
-    request.headers.remove('Content-Type');
-    if (kIsWeb) {
-      MediaType? contentType;
-      if (image.mimeType != null) {
-        try {
-          contentType = MediaType.parse(image.mimeType!);
-        } catch (_) {}
-      }
-      if (contentType == null) {
-        final nameLower = image.name.toLowerCase();
-        if (nameLower.endsWith('.png')) {
-          contentType = MediaType('image', 'png');
-        } else if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg')) {
-          contentType = MediaType('image', 'jpeg');
-        } else if (nameLower.endsWith('.webp')) {
-          contentType = MediaType('image', 'webp');
-        } else if (nameLower.endsWith('.gif')) {
-          contentType = MediaType('image', 'gif');
-        }
-      }
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          await image.readAsBytes(),
-          filename: image.name,
-          contentType: contentType,
-        ),
-      );
-    } else {
-      request.files.add(await http.MultipartFile.fromPath('file', image.path));
-    }
-
-    final streamed = await request.send().timeout(const Duration(seconds: 40));
-    final response = await http.Response.fromStream(streamed);
     final data = Map<String, dynamic>.from(handleResponse(response));
     final imageUrl = data['imageUrl']?.toString();
     if (imageUrl == null || imageUrl.isEmpty) {
-      throw Exception('Upload ảnh không trả về đường dẫn.');
+      throw Exception('Upload anh khong tra ve duong dan.');
     }
 
     return imageUrl;

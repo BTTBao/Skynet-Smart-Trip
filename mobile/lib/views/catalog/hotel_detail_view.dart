@@ -15,15 +15,26 @@ import '../../services/catalog_service.dart';
 import '../../utils/app_currency_formatter.dart';
 
 class HotelDetailView extends StatefulWidget {
-  const HotelDetailView({super.key, required this.hotelId});
+  const HotelDetailView({
+    super.key,
+    required this.hotelId,
+    this.initialCheckIn,
+    this.initialCheckOut,
+    this.autoOpenBookingSheet = false,
+  });
 
   final int hotelId;
+  final DateTime? initialCheckIn;
+  final DateTime? initialCheckOut;
+  final bool autoOpenBookingSheet;
 
   @override
   State<HotelDetailView> createState() => _HotelDetailViewState();
 }
 
 class _HotelDetailViewState extends State<HotelDetailView> {
+  bool _didAutoOpenBookingSheet = false;
+
   @override
   void initState() {
     super.initState();
@@ -54,6 +65,7 @@ class _HotelDetailViewState extends State<HotelDetailView> {
             );
           }
 
+          _maybeAutoOpenBookingSheet(detail);
           return Column(
             children: [
               Expanded(
@@ -270,6 +282,50 @@ class _HotelDetailViewState extends State<HotelDetailView> {
         },
       ),
     );
+  }
+
+  void _maybeAutoOpenBookingSheet(CatalogHotelDetail detail) {
+    if (!widget.autoOpenBookingSheet || _didAutoOpenBookingSheet) {
+      return;
+    }
+
+    _didAutoOpenBookingSheet = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      _openBookingSheetSmart(
+        detail,
+        initialCheckIn: widget.initialCheckIn,
+        initialCheckOut: widget.initialCheckOut,
+      );
+    });
+  }
+
+  DateTime _normalizeDate(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
+  }
+
+  DateTime _resolveInitialCheckIn(DateTime? date) {
+    final today = _normalizeDate(DateTime.now());
+    final fallback = today.add(const Duration(days: 1));
+    if (date == null) {
+      return fallback;
+    }
+
+    final normalized = _normalizeDate(date);
+    return normalized.isBefore(today) ? today : normalized;
+  }
+
+  DateTime _resolveInitialCheckOut(DateTime checkIn, DateTime? date) {
+    final fallback = checkIn.add(const Duration(days: 1));
+    if (date == null) {
+      return fallback;
+    }
+
+    final normalized = _normalizeDate(date);
+    return normalized.isAfter(checkIn) ? normalized : fallback;
   }
 
   Future<void> _openBookingSheet(CatalogHotelDetail detail) async {
@@ -616,7 +672,11 @@ class _HotelDetailViewState extends State<HotelDetailView> {
     );
   }
 
-  Future<void> _openBookingSheetSmart(CatalogHotelDetail detail) async {
+  Future<void> _openBookingSheetSmart(
+    CatalogHotelDetail detail, {
+    DateTime? initialCheckIn,
+    DateTime? initialCheckOut,
+  }) async {
     final availableRooms = detail.rooms
         .where((room) => room.availableQty > 0)
         .toList(growable: false);
@@ -628,10 +688,8 @@ class _HotelDetailViewState extends State<HotelDetailView> {
     }
 
     final now = DateTime.now();
-    var checkIn = DateTime(now.year, now.month, now.day).add(
-      const Duration(days: 1),
-    );
-    var checkOut = checkIn.add(const Duration(days: 1));
+    var checkIn = _resolveInitialCheckIn(initialCheckIn);
+    var checkOut = _resolveInitialCheckOut(checkIn, initialCheckOut);
     var selectedRoom = availableRooms.first;
     var roomQuantity = 1;
     var isSubmitting = false;
@@ -793,7 +851,7 @@ class _HotelDetailViewState extends State<HotelDetailView> {
               }
 
               setSheetState(() => isSubmitting = true);
-              final itineraryAdded = await tripProvider.addItinerary(
+              final itineraryId = await tripProvider.addItinerary(
                 selectedTrip.tripId,
                 CreateTripItineraryRequest(
                   dayNumber: selectedTrip.dayNumber,
@@ -806,7 +864,7 @@ class _HotelDetailViewState extends State<HotelDetailView> {
                 ),
               );
 
-              if (!itineraryAdded) {
+              if (itineraryId == null) {
                 if (sheetContext.mounted) {
                   setSheetState(() => isSubmitting = false);
                 }

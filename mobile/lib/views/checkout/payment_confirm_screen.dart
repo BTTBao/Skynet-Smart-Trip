@@ -35,7 +35,7 @@ class PaymentConfirmScreen extends StatefulWidget {
   final DateTime? existingTripEndDate;
 
   const PaymentConfirmScreen({
-    Key? key,
+    super.key,
     required this.hotel,
     this.selectedRoom,
     required this.checkIn,
@@ -53,17 +53,18 @@ class PaymentConfirmScreen extends StatefulWidget {
     this.existingTripDayNumber,
     this.existingTripStartDate,
     this.existingTripEndDate,
-  }) : super(key: key);
+  });
 
   @override
   State<PaymentConfirmScreen> createState() => _PaymentConfirmScreenState();
 }
 
 class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
-  int selectedPaymentMethod = 0; // 0: PayOS
+  int selectedPaymentMethod = 0; // 0: PayOS, 1: VNPAY
   bool _isProcessing = false;
   int? _pendingOrderCode;
   int? _pendingTripId;
+  int? _pendingItineraryId;
 
   double _discountAmount = 0.0;
   String? _appliedPromoCode;
@@ -239,7 +240,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                           )
                         : ListView.separated(
                             itemCount: activeVouchers.length,
-                            separatorBuilder: (_, __) =>
+                            separatorBuilder: (_, _) =>
                                 const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final voucher = activeVouchers[index];
@@ -406,6 +407,17 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     return (timePart * 1000) + (tripId % 1000);
   }
 
+  String _selectedPaymentLabel() {
+    switch (selectedPaymentMethod) {
+      case 1:
+        return 'MoMo';
+      case 2:
+        return 'Chuyen khoan ngan hang';
+      default:
+        return 'PayOS';
+    }
+  }
+
   Future<void> _openPayOsCheckout(String checkoutUrl) async {
     final opened = await launchUrl(
       Uri.parse(checkoutUrl),
@@ -413,6 +425,16 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     );
     if (!opened) {
       throw Exception('Khong the mo trang thanh toan PayOS.');
+    }
+  }
+
+  Future<void> _openVnPayCheckout(String checkoutUrl) async {
+    final opened = await launchUrl(
+      Uri.parse(checkoutUrl),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened) {
+      throw Exception('Khong the mo trang thanh toan VNPAY.');
     }
   }
 
@@ -441,7 +463,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                 totalPrice: finalPayPrice,
                 status: status,
                 message:
-                    'PayOS da tra ve trang thai $status. Chua co khoan tien nao duoc ghi nhan.',
+                    'PayOS da tra ve trang thai ${_paymentStatusLabel(status)}. Chua co khoan tien nao duoc ghi nhan.',
                 onRetry: _handlePayment,
               ),
             ),
@@ -449,7 +471,11 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
           return;
         }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PayOS dang o trang thai ${payment.status}.')),
+          SnackBar(
+            content: Text(
+              'PayOS dang o trang thai ${_paymentStatusLabel(payment.status)}.',
+            ),
+          ),
         );
         return;
       }
@@ -466,6 +492,13 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         MaterialPageRoute(
           builder: (_) => PaymentSuccessScreen(
             bookingId: tripId,
+            itineraryId: widget.existingTripId == null
+                ? _pendingItineraryId
+                : null,
+            destinationId: widget.hotel.destinationId,
+            destinationName: _hotelDestinationName,
+            checkIn: widget.checkIn,
+            checkOut: widget.checkOut,
             hotelName: widget.hotel.name,
             dateRange: _formatDateRange(),
             roomInfo:
@@ -512,6 +545,133 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     );
   }
 
+  Future<void> _checkVnPayStatus() async {
+    final orderCode = _pendingOrderCode;
+    final tripId = _pendingTripId;
+    if (orderCode == null || tripId == null) return;
+
+    setState(() => _isProcessing = true);
+    try {
+      final payment = await PaymentService().getPaymentByOrderCode(orderCode);
+      if (!mounted) return;
+
+      if (!payment.isPaid) {
+        final status = payment.status.toUpperCase();
+        if (payment.isFailed) {
+          final finalPayPrice = (widget.totalPrice - _discountAmount)
+              .clamp(0, double.infinity)
+              .toDouble();
+          final failureMessage = payment.message?.trim().isNotEmpty == true
+              ? payment.message!
+              : 'VNPAY da tra ve trang thai $status. Chua co khoan tien nao duoc ghi nhan.';
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PaymentFailedScreen(
+                totalPrice: finalPayPrice,
+                status: status,
+                message: failureMessage,
+                onRetry: _handlePayment,
+              ),
+            ),
+          );
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              payment.message?.trim().isNotEmpty == true
+                  ? payment.message!
+                  : 'VNPAY dang o trang thai ${payment.status}.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      if (_appliedPromoCode != null) {
+        context.read<ProfileProvider>().useVoucher(_appliedPromoCode!);
+      }
+
+      final double finalPayPrice = widget.totalPrice - _discountAmount;
+
+      await _syncAfterConfirmedPayment();
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentSuccessScreen(
+            bookingId: tripId,
+            itineraryId: widget.existingTripId == null
+                ? _pendingItineraryId
+                : null,
+            destinationId: widget.hotel.destinationId,
+            destinationName: _hotelDestinationName,
+            checkIn: widget.checkIn,
+            checkOut: widget.checkOut,
+            hotelName: widget.hotel.name,
+            dateRange: _formatDateRange(),
+            roomInfo:
+                '${widget.adultCount} Nguoi lon, ${widget.selectedRoom?.roomType ?? "Phong Standard"}',
+            imageUrl: widget.hotel.coverImageUrl,
+            totalPrice: finalPayPrice < 0 ? 0 : finalPayPrice,
+            paymentMethod: 'VNPAY',
+            paymentTime: payment.paidAt ?? DateTime.now(),
+          ),
+        ),
+        (route) => false,
+      );
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _showVnPayPendingDialog() async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Hoan tat thanh toan VNPAY'),
+          content: const Text(
+            'Trang VNPAY da duoc mo. Sau khi thanh toan xong, quay lai app va bam kiem tra.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('De sau'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                await _checkVnPayStatus();
+              },
+              child: const Text('Kiem tra thanh toan'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _paymentStatusLabel(String raw) {
+    switch (raw.trim().toUpperCase()) {
+      case 'PAID':
+        return 'da thanh toan';
+      case 'PENDING':
+        return 'cho thanh toan';
+      case 'FAILED':
+        return 'that bai';
+      case 'CANCELLED':
+      case 'CANCELED':
+        return 'da huy';
+      case 'EXPIRED':
+        return 'het han';
+      default:
+        return raw;
+    }
+  }
+
   Future<void> _refreshHotelAvailability() async {
     final hotelProvider = context.read<HotelProvider>();
     await hotelProvider.fetchHotelDetail(widget.hotel.id, forceRefresh: true);
@@ -548,310 +708,6 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       // Payment is already confirmed. A refresh failure must not turn it into
       // a failed-payment experience; data will synchronize on the next load.
     }
-  }
-
-  Future<_SelectedCheckoutTrip?> _selectOrCreateTripForBooking({
-    required int userId,
-    required int? destinationId,
-    required String destinationName,
-  }) async {
-    final tripProvider = context.read<TripProvider>();
-    await tripProvider.fetchTrips(silent: true);
-
-    if (!mounted) {
-      return null;
-    }
-
-    final trips =
-        tripProvider.upcomingTrips
-            .where(
-              (trip) =>
-                  trip.status != 'CANCELLED' &&
-                  _bookingTripBlockReason(
-                        trip,
-                        destinationId: destinationId,
-                        destinationName: destinationName,
-                      ) ==
-                      null,
-            )
-            .toList(growable: false)
-          ..sort((left, right) => left.startDate.compareTo(right.startDate));
-
-    return showModalBottomSheet<_SelectedCheckoutTrip>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        var isCreating = false;
-        var title = 'Chuyến đi $destinationName';
-        var query = '';
-
-        Future<void> createTrip(StateSetter setSheetState) async {
-          final normalizedTitle = title.trim();
-          if (normalizedTitle.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Vui lòng nhập tên chuyến đi.')),
-            );
-            return;
-          }
-
-          setSheetState(() => isCreating = true);
-          final createdTrip = await tripProvider.createTrip(
-            CreateTripRequest(
-              userId: userId,
-              destinationId: destinationId,
-              destinationName: destinationName,
-              title: normalizedTitle,
-              startDate: widget.checkIn,
-              endDate: widget.checkOut,
-              status: 'PENDING',
-            ),
-          );
-
-          if (!sheetContext.mounted) {
-            return;
-          }
-
-          setSheetState(() => isCreating = false);
-          if (createdTrip == null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(tripProvider.error ?? 'Không thể tạo chuyến đi.'),
-              ),
-            );
-            return;
-          }
-
-          Navigator.of(sheetContext).pop(
-            _SelectedCheckoutTrip(tripId: createdTrip.tripId, dayNumber: 1),
-          );
-        }
-
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            final normalizedQuery = query.trim().toLowerCase();
-            final visibleTrips = normalizedQuery.isEmpty
-                ? trips
-                : trips
-                      .where(
-                        (trip) =>
-                            trip.title.toLowerCase().contains(
-                              normalizedQuery,
-                            ) ||
-                            trip.destination.toLowerCase().contains(
-                              normalizedQuery,
-                            ) ||
-                            trip.dateRange.toLowerCase().contains(
-                              normalizedQuery,
-                            ),
-                      )
-                      .toList(growable: false);
-
-            return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: EdgeInsets.fromLTRB(
-                20,
-                16,
-                20,
-                20 + MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: SafeArea(
-                top: false,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.88,
-                  ),
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    shrinkWrap: true,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 56,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE2E8F0),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Thêm vào chuyến đi',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Chọn chuyến đi có ngày bao trọn ngày nhận/trả phòng, hoặc tạo chuyến đi mới.',
-                        style: TextStyle(color: Colors.grey, height: 1.4),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        enabled: !isCreating,
-                        onChanged: (value) =>
-                            setSheetState(() => query = value),
-                        decoration: InputDecoration(
-                          prefixIcon: const Icon(Icons.search),
-                          labelText: 'Tìm chuyến đi',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (visibleTrips.isEmpty) ...[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: const Text(
-                            'Không có chuyến đi phù hợp với điểm đến khách sạn. Hãy tạo chuyến đi mới để tiếp tục đặt phòng.',
-                            style: TextStyle(color: Colors.grey, height: 1.45),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      ...visibleTrips.map((trip) {
-                        final blockedReason = _bookingTripBlockReason(trip);
-                        final canSelect = blockedReason == null;
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: InkWell(
-                            onTap: isCreating || !canSelect
-                                ? null
-                                : () => Navigator.of(sheetContext).pop(
-                                    _SelectedCheckoutTrip(
-                                      tripId: trip.tripId,
-                                      dayNumber: _dayNumberForTrip(trip),
-                                    ),
-                                  ),
-                            borderRadius: BorderRadius.circular(14),
-                            child: Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: canSelect
-                                    ? Colors.white
-                                    : const Color(0xFFF8FAFC),
-                                border: Border.all(
-                                  color: const Color(0xFFE2E8F0),
-                                ),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.map_rounded,
-                                    color: Color(0xFF0D6B42),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          trip.title,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${trip.destination} • ${trip.dateRange}',
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        if (blockedReason != null) ...[
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            blockedReason,
-                                            style: const TextStyle(
-                                              color: Color(0xFFB42318),
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(
-                                    canSelect
-                                        ? Icons.chevron_right_rounded
-                                        : Icons.lock_outline,
-                                    color: Colors.grey,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                      const SizedBox(height: 8),
-                      TextField(
-                        enabled: !isCreating,
-                        controller: TextEditingController(text: title)
-                          ..selection = TextSelection.collapsed(
-                            offset: title.length,
-                          ),
-                        onChanged: (value) => title = value,
-                        decoration: InputDecoration(
-                          labelText: 'Tên chuyến đi mới',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: isCreating
-                              ? null
-                              : () => createTrip(setSheetState),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF6DE899),
-                            foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: isCreating
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text(
-                                  'Tạo chuyến đi mới',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
   int _dayNumberForTrip(MyTripSummary trip) {
@@ -910,36 +766,6 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     return null;
   }
 
-  Future<bool?> _askTripCreationPreference() {
-    return showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Bạn có muốn tạo chuyến đi không?'),
-        content: const Text(
-          'Nếu tạo chuyến đi, booking này sẽ được thêm vào lịch trình để bạn quản lý cùng chuyến đi. Nếu không tạo, hệ thống vẫn lưu hóa đơn trong lịch sử hoạt động.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(null),
-            child: const Text('Quay lại'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Không tạo'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF6DE899),
-              foregroundColor: Colors.black,
-            ),
-            child: const Text('Tạo/chọn chuyến đi'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<_SelectedCheckoutTrip?> _createBookingOnlyTrip({
     required int userId,
     required int? destinationId,
@@ -951,7 +777,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         userId: userId,
         destinationId: destinationId,
         destinationName: destinationName,
-        title: 'Hóa đơn đặt phòng - ${widget.hotel.name}',
+        title: 'Đặt phòng - ${widget.hotel.name}',
         startDate: widget.checkIn,
         endDate: widget.checkOut,
         status: 'BOOKING_ONLY',
@@ -959,7 +785,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     );
 
     if (createdTrip == null) {
-      throw Exception(tripProvider.error ?? 'Không thể tạo hóa đơn đặt phòng.');
+      throw Exception(tripProvider.error ?? 'Không thể tạo đơn đặt phòng.');
     }
 
     return _SelectedCheckoutTrip(tripId: createdTrip.tripId, dayNumber: 1);
@@ -1054,28 +880,11 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
             dayNumber: _resolveExistingTripDayNumber(),
           );
         } else {
-          if (mounted) {
-            setState(() => _isProcessing = false);
-          }
-          final wantsTrip = await _askTripCreationPreference();
-          if (wantsTrip == null) {
-            return;
-          }
-          if (mounted) {
-            setState(() => _isProcessing = true);
-          }
-
-          selectedTrip = wantsTrip
-              ? await _selectOrCreateTripForBooking(
-                  userId: userId,
-                  destinationId: widget.hotel.destinationId,
-                  destinationName: hotelDestName,
-                )
-              : await _createBookingOnlyTrip(
-                  userId: userId,
-                  destinationId: widget.hotel.destinationId,
-                  destinationName: hotelDestName,
-                );
+          selectedTrip = await _createBookingOnlyTrip(
+            userId: userId,
+            destinationId: widget.hotel.destinationId,
+            destinationName: hotelDestName,
+          );
         }
         if (selectedTrip == null) {
           if (mounted) {
@@ -1091,21 +900,23 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
           quantity: widget.roomQuantity,
           bookedPrice: widget.totalPrice / widget.roomQuantity,
           serviceDate: widget.checkIn,
+          hotelCheckOutDate: widget.checkOut,
           adultCount: widget.adultCount,
           childCount: widget.childCount,
           infantCount: widget.infantCount,
         );
 
-        final itinerarySuccess = await tripProvider.addItinerary(
+        final itineraryId = await tripProvider.addItinerary(
           currentTripId,
           itineraryRequest,
         );
-        if (!itinerarySuccess) {
+        if (itineraryId == null) {
           throw Exception(
             tripProvider.error ??
                 'Không thể thêm thông tin phòng vào lịch trình.',
           );
         }
+        _pendingItineraryId = itineraryId;
         await _refreshHotelAvailability();
         _pendingTripId = currentTripId;
       }
@@ -1135,6 +946,13 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
             MaterialPageRoute(
               builder: (_) => PaymentSuccessScreen(
                 bookingId: currentTripId,
+                itineraryId: widget.existingTripId == null
+                    ? _pendingItineraryId
+                    : null,
+                destinationId: widget.hotel.destinationId,
+                destinationName: _hotelDestinationName,
+                checkIn: widget.checkIn,
+                checkOut: widget.checkOut,
                 hotelName: widget.hotel.name,
                 dateRange: _formatDateRange(),
                 roomInfo:
@@ -1179,7 +997,32 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         return;
       }
 
-      final paymentMethodStr = selectedPaymentMethod == 1
+      if (selectedPaymentMethod == 1) {
+        final payment = await PaymentService().createVnPayPayment(
+          tripId: currentTripId,
+          amount: finalPayPrice,
+          description: 'Dat phong $currentTripId',
+          metadata: {
+            'type': 'HOTEL',
+            'hotelId': widget.hotel.id,
+            if (widget.selectedRoom != null) 'roomId': widget.selectedRoom!.id,
+            'quantity': widget.roomQuantity,
+          },
+        );
+
+        final checkoutUrl = payment.checkoutUrl;
+        if (checkoutUrl == null || checkoutUrl.isEmpty) {
+          throw Exception('VNPAY khong tra ve link thanh toan.');
+        }
+
+        _pendingOrderCode = payment.orderCode;
+        await _openVnPayCheckout(checkoutUrl);
+        if (mounted) setState(() => _isProcessing = false);
+        await _showVnPayPendingDialog();
+        return;
+      }
+
+      final paymentMethodStr = selectedPaymentMethod == 2
           ? 'Momo'
           : 'BankTransfer';
 
@@ -1188,12 +1031,12 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         tripId: currentTripId,
         paymentMethod: paymentMethodStr,
         transactionId:
-            'TXN-$currentTripId-${DateTime.now().millisecondsSinceEpoch}',
+            'TXN-HOTEL-$currentTripId-${DateTime.now().millisecondsSinceEpoch}',
         amount: finalPayPrice,
       );
 
       if (!paymentSuccess) {
-        throw Exception('Thanh toán thất bại từ cổng thanh toán.');
+        throw Exception('Khong the xac nhan thanh toan dat phong.');
       }
 
       if (_appliedPromoCode != null) {
@@ -1207,6 +1050,13 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
           MaterialPageRoute(
             builder: (_) => PaymentSuccessScreen(
               bookingId: currentTripId,
+              itineraryId: widget.existingTripId == null
+                  ? _pendingItineraryId
+                  : null,
+              destinationId: widget.hotel.destinationId,
+              destinationName: _hotelDestinationName,
+              checkIn: widget.checkIn,
+              checkOut: widget.checkOut,
               hotelName: widget.hotel.name,
               dateRange: _formatDateRange(),
               roomInfo:
@@ -1252,10 +1102,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
   @override
   Widget build(BuildContext context) {
     final guestsText =
-        '${widget.adultCount} Người lớn' +
-        (widget.childCount > 0 ? ', ${widget.childCount} Trẻ em' : '') +
-        (widget.infantCount > 0 ? ', ${widget.infantCount} Em bé' : '') +
-        ', ${widget.roomQuantity} phòng';
+        '${widget.adultCount} Người lớn${widget.childCount > 0 ? ', ${widget.childCount} Trẻ em' : ''}${widget.infantCount > 0 ? ', ${widget.infantCount} Em bé' : ''}, ${widget.roomQuantity} phòng';
 
     final double finalPayPrice = widget.totalPrice - _discountAmount;
 
@@ -1340,13 +1187,20 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                     ),
                     _buildPaymentMethodOption(
                       index: 1,
+                      icon: Icons.account_balance_wallet_outlined,
+                      iconColor: const Color(0xFF0068FF),
+                      title: 'VNPAY',
+                      subtitle: 'Thanh toan qua cong VNPAY',
+                    ),
+                    _buildPaymentMethodOption(
+                      index: 2,
                       icon: Icons.account_balance_wallet,
                       iconColor: Colors.pink,
                       title: 'Ví MoMo',
                       subtitle: 'Thanh toán nhanh qua ứng dụng',
                     ),
                     _buildPaymentMethodOption(
-                      index: 2,
+                      index: 3,
                       icon: Icons.account_balance,
                       iconColor: Colors.green,
                       title: 'Chuyển khoản ngân hàng',

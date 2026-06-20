@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartTrip.Application.DTOs.Explore;
 using SmartTrip.Application.Interfaces.Explore;
+using SmartTrip.Application.Interfaces.Storage;
+using SmartTrip.API.Utilities;
 using System.Security.Claims;
 
 namespace SmartTrip.API.Controllers;
@@ -11,12 +13,12 @@ namespace SmartTrip.API.Controllers;
 public class ExploreController : ControllerBase
 {
     private readonly IExploreService _exploreService;
-    private readonly IWebHostEnvironment _environment;
+    private readonly IImageStorageService _imageStorageService;
 
-    public ExploreController(IExploreService exploreService, IWebHostEnvironment environment)
+    public ExploreController(IExploreService exploreService, IImageStorageService imageStorageService)
     {
         _exploreService = exploreService;
-        _environment = environment;
+        _imageStorageService = imageStorageService;
     }
 
     [HttpGet("posts")]
@@ -90,40 +92,26 @@ public class ExploreController : ControllerBase
             return BadRequest(new { message = "Image file must be 5MB or smaller." });
         }
 
-        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        await using var stream = file.OpenReadStream();
+        if (!ImageUploadValidation.TryValidateImageStream(stream, file.FileName, out var errorMessage, out var resolvedContentType))
         {
-            ".jpg",
-            ".jpeg",
-            ".png",
-            ".webp"
-        };
-        if (!allowedExtensions.Contains(extension))
-        {
-            return BadRequest(new { message = "Only JPG, PNG, or WEBP images are supported." });
+            return BadRequest(new { message = errorMessage ?? ImageUploadValidation.GetAllowedFormatsMessage() });
         }
 
-        var webRoot = _environment.WebRootPath;
-        if (string.IsNullOrWhiteSpace(webRoot))
+        var upload = await _imageStorageService.UploadImageAsync(
+            stream,
+            file.FileName,
+            resolvedContentType ?? file.ContentType,
+            $"explore/posts/{userId.Value}",
+            HttpContext.RequestAborted);
+
+        return Ok(new
         {
-            webRoot = Path.Combine(_environment.ContentRootPath, "wwwroot");
-        }
-
-        var uploadDirectory = Path.Combine(webRoot, "uploads", "explore");
-        Directory.CreateDirectory(uploadDirectory);
-
-        var fileName = $"{userId.Value}-{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}{extension}";
-        var filePath = Path.Combine(uploadDirectory, fileName);
-
-        await using (var stream = System.IO.File.Create(filePath))
-        {
-            await file.CopyToAsync(stream);
-        }
-
-        var relativeUrl = $"/uploads/explore/{fileName}";
-        var absoluteUrl = $"{Request.Scheme}://{Request.Host}{relativeUrl}";
-
-        return Ok(new { imageUrl = absoluteUrl, relativeUrl });
+            imageUrl = upload.ImageUrl,
+            imagePath = upload.ImagePath,
+            fileName = upload.FileName,
+            relativeUrl = upload.ImagePath
+        });
     }
 
     [Authorize]

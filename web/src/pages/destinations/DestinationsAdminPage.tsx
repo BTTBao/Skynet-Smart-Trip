@@ -23,6 +23,7 @@ export default function DestinationsAdminPage() {
   const [editingDestination, setEditingDestination] = useState<AdminDestination | null>(null);
   const [form, setForm] = useState<AdminDestinationRequest>(initialForm);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   const loadDestinations = async () => {
     const data = await adminService.getDestinations();
@@ -53,6 +54,7 @@ export default function DestinationsAdminPage() {
   }, [destinations, query]);
 
   const hotCount = destinations.filter((destination) => destination.isHot).length;
+  const hasCoverPreview = form.coverImageUrl.trim().length > 0;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -100,6 +102,23 @@ export default function DestinationsAdminPage() {
         title: 'Không thể xóa điểm đến',
         message: getErrorMessage(error),
       });
+    }
+  };
+
+  const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingCover(true);
+    try {
+      const result = await adminService.uploadDestinationCoverImage(file);
+      setForm((current) => ({ ...current, coverImageUrl: result.imageUrl }));
+      showToast({ type: 'success', title: 'Đã tải ảnh cover' });
+    } catch (error) {
+      showToast({ type: 'error', title: 'Không thể tải ảnh cover', message: getErrorMessage(error) });
+    } finally {
+      setUploadingCover(false);
+      event.target.value = '';
     }
   };
 
@@ -154,8 +173,40 @@ export default function DestinationsAdminPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Tên điểm đến" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
-          <input value={form.coverImageUrl} onChange={(event) => setForm((current) => ({ ...current, coverImageUrl: event.target.value }))} placeholder="Ảnh cover URL" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
+          <div className="flex gap-2">
+            <input value={form.coverImageUrl} onChange={(event) => setForm((current) => ({ ...current, coverImageUrl: event.target.value }))} placeholder="Ảnh cover URL" className="min-w-0 flex-1 rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
+            <label className="cursor-pointer rounded-2xl bg-surface-container-low px-4 py-3 text-sm font-bold text-on-surface">
+              {uploadingCover ? 'Đang tải' : 'Upload'}
+              <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingCover} onChange={handleCoverUpload} className="hidden" />
+            </label>
+          </div>
           <input value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="Mô tả ngắn" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none md:col-span-2" />
+        </div>
+        <div className="mt-4">
+          {hasCoverPreview ? (
+            <div className="overflow-hidden rounded-[1.5rem] border border-outline-variant/15 bg-surface-container-low">
+              <div className="flex items-center justify-between border-b border-outline-variant/10 px-5 py-3">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Preview cover</p>
+                  <p className="mt-1 text-xs text-on-surface-variant">Ảnh sẽ hiện ngay trên thẻ điểm đến sau khi lưu.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForm((current) => ({ ...current, coverImageUrl: '' }))}
+                  className="rounded-full bg-white px-4 py-2 text-xs font-bold text-on-surface"
+                >
+                  Xóa ảnh
+                </button>
+              </div>
+              <div className="aspect-[21/9] w-full bg-surface-container">
+                <img src={form.coverImageUrl} alt="Destination cover preview" className="h-full w-full object-cover" />
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-[1.5rem] border border-dashed border-outline-variant/20 bg-surface-container-low px-5 py-8 text-center text-sm font-bold text-on-surface-variant">
+              Upload ảnh cover để xem preview tại đây
+            </div>
+          )}
         </div>
         <label className="mt-4 inline-flex items-center gap-3 rounded-full bg-surface-container-low px-5 py-3">
           <input checked={form.isHot} onChange={(event) => setForm((current) => ({ ...current, isHot: event.target.checked }))} type="checkbox" className="h-4 w-4 accent-[#10B981]" />
@@ -184,8 +235,15 @@ export default function DestinationsAdminPage() {
               {filteredDestinations.map((destination) => (
                 <tr key={destination.id}>
                   <td className="px-8 py-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-16 w-24 overflow-hidden rounded-2xl bg-surface-container-low">
+                        {destination.coverImageUrl ? <img src={destination.coverImageUrl} alt="" className="h-full w-full object-cover" /> : null}
+                      </div>
+                      <div>
                     <p className="text-sm font-bold text-on-surface">{destination.name}</p>
                     <p className="text-xs text-on-surface-variant mt-1">{destination.coverImageUrl || 'Chưa có ảnh cover'}</p>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-8 py-6 text-sm text-on-surface-variant">{destination.description || 'Chưa có mô tả'}</td>
                   <td className="px-8 py-6 text-sm font-medium text-on-surface">{destination.hotelCount} hotel • {destination.tripCount} trip</td>

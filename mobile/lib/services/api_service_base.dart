@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
@@ -23,37 +24,49 @@ class ApiException implements Exception {
 }
 
 abstract class ApiService {
-  static const String _configuredBaseUrlFromEnv = String.fromEnvironment(
+  static const String _defaultDevTunnelBaseUrl =
+      'https://5qqxj86m-5110.asse.devtunnels.ms/api';
+  static const int _defaultLocalApiPort = 5110;
+
+  static const String _configuredBaseUrlFromDefine = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: '',
   );
+  static const String _configuredBaseUrlsFromDefine = String.fromEnvironment(
+    'API_BASE_URLS',
+    defaultValue: '',
+  );
+  static const String _configuredTunnelBaseUrlFromDefine =
+      String.fromEnvironment('API_TUNNEL_BASE_URL', defaultValue: '');
+  static const String _configuredApiPortFromDefine = String.fromEnvironment(
+    'API_PORT',
+    defaultValue: '',
+  );
 
-  String get configuredBaseUrl {
-    if (_configuredBaseUrlFromEnv.isNotEmpty) {
-      return _configuredBaseUrlFromEnv;
+  String get configuredBaseUrl => configuredBaseUrls.first;
+
+  List<String> get configuredBaseUrls {
+    final explicitList = _readConfigValue('API_BASE_URLS');
+    if (explicitList != null && explicitList.trim().isNotEmpty) {
+      return _dedupe(
+        _splitBaseUrls(
+          explicitList,
+        ).map(_normalizeBaseUrl).where((value) => value.isNotEmpty),
+      );
     }
 
-    if (kIsWeb) {
-      return 'http://localhost:5110/api';
+    final explicitSingle = _readConfigValue('API_BASE_URL');
+    if (explicitSingle != null && explicitSingle.trim().isNotEmpty) {
+      return _dedupe([
+        _normalizeBaseUrl(explicitSingle),
+        ..._buildDefaultBaseUrls(),
+      ]);
     }
 
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return 'http://10.0.2.2:5110/api';
-      case TargetPlatform.iOS:
-      case TargetPlatform.macOS:
-      case TargetPlatform.windows:
-      case TargetPlatform.linux:
-      case TargetPlatform.fuchsia:
-        return 'http://localhost:5110/api';
-    }
+    return _dedupe(_buildDefaultBaseUrls());
   }
 
-  Map<String, String> get headers => const {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
-
+  /// Standard headers. Adds Bearer token automatically when available.
   Future<Map<String, String>> getHeaders({
     bool requireAuth = false,
     Map<String, String>? extraHeaders,
@@ -77,12 +90,24 @@ abstract class ApiService {
     return headers;
   }
 
-  Uri buildUri(String baseUrl, String path) => Uri.parse('$baseUrl$path');
+  Uri buildUri(
+    String baseUrl,
+    String path, {
+    Map<String, String>? queryParameters,
+  }) {
+    final uri = Uri.parse('$baseUrl$path');
+    if (queryParameters == null || queryParameters.isEmpty) {
+      return uri;
+    }
+
+    return uri.replace(queryParameters: queryParameters);
+  }
 
   Future<http.Response> getWithFallback(
     String path, {
     bool requireAuth = false,
     Map<String, String>? extraHeaders,
+    Map<String, String>? queryParameters,
   }) async {
     final requestHeaders = await getHeaders(
       requireAuth: requireAuth,
@@ -91,7 +116,10 @@ abstract class ApiService {
 
     return _sendWithFallback((baseUrl) {
       return http
-          .get(buildUri(baseUrl, path), headers: requestHeaders)
+          .get(
+            buildUri(baseUrl, path, queryParameters: queryParameters),
+            headers: requestHeaders,
+          )
           .timeout(const Duration(seconds: 30));
     });
   }
@@ -168,35 +196,24 @@ abstract class ApiService {
       request.headers.remove('content-type');
       request.headers.remove('Content-Type');
 
+      final resolvedContentType = _resolveImageContentType(file);
       if (kIsWeb) {
-        MediaType? contentType;
-        if (file.mimeType != null) {
-          try {
-            contentType = MediaType.parse(file.mimeType!);
-          } catch (_) {}
-        }
-        if (contentType == null) {
-          final nameLower = file.name.toLowerCase();
-          if (nameLower.endsWith('.png')) {
-            contentType = MediaType('image', 'png');
-          } else if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg')) {
-            contentType = MediaType('image', 'jpeg');
-          } else if (nameLower.endsWith('.webp')) {
-            contentType = MediaType('image', 'webp');
-          } else if (nameLower.endsWith('.gif')) {
-            contentType = MediaType('image', 'gif');
-          }
-        }
         request.files.add(
           http.MultipartFile.fromBytes(
             fileField,
             await file.readAsBytes(),
             filename: file.name,
-            contentType: contentType,
+            contentType: resolvedContentType,
           ),
         );
       } else {
-        request.files.add(await http.MultipartFile.fromPath(fileField, file.path));
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            fileField,
+            file.path,
+            contentType: resolvedContentType,
+          ),
+        );
       }
 
       final streamedResponse = await request.send().timeout(
@@ -210,29 +227,45 @@ abstract class ApiService {
   Future<http.Response> _sendWithFallback(
     Future<http.Response> Function(String baseUrl) send,
   ) async {
-    final baseUrl = configuredBaseUrl;
+    final candidates = configuredBaseUrls;
+    Object? lastError;
 
-    try {
-      return await send(baseUrl);
-    } on TimeoutException catch (e) {
-      throw Exception(
-        'Ket noi toi backend bi timeout sau 10 giay ($baseUrl). '
-        'Android emulator dung 10.0.2.2, iOS simulator/Desktop dung localhost, '
-        'thiet bi that can cau hinh --dart-define=API_BASE_URL=http://<LAN-IP>:5110/api. $e',
-      );
-    } on SocketException catch (e) {
-      throw Exception(
-        'Khong the ket noi toi backend o $baseUrl. '
-        'Android emulator dung 10.0.2.2, iOS simulator/Desktop dung localhost, '
-        'thiet bi that can cau hinh --dart-define=API_BASE_URL=http://<LAN-IP>:5110/api. $e',
-      );
-    } on HttpException catch (e) {
-      throw Exception('Backend tra ve loi ket noi o $baseUrl: $e');
-    } on http.ClientException catch (e) {
-      throw Exception('Loi client khi goi backend o $baseUrl: $e');
-    } on HandshakeException catch (e) {
-      throw Exception('Loi SSL/handshake khi goi backend o $baseUrl: $e');
+    for (var i = 0; i < candidates.length; i++) {
+      final baseUrl = candidates[i];
+      try {
+        return await send(baseUrl);
+      } on TimeoutException catch (e) {
+        lastError = e;
+        if (i < candidates.length - 1) {
+          continue;
+        }
+      } on SocketException catch (e) {
+        lastError = e;
+        if (i < candidates.length - 1) {
+          continue;
+        }
+      } on HttpException catch (e) {
+        lastError = e;
+        if (i < candidates.length - 1) {
+          continue;
+        }
+      } on http.ClientException catch (e) {
+        lastError = e;
+        if (i < candidates.length - 1) {
+          continue;
+        }
+      } on HandshakeException catch (e) {
+        lastError = e;
+        if (i < candidates.length - 1) {
+          continue;
+        }
+      }
     }
+
+    final tried = candidates.join(' -> ');
+    throw Exception(
+      'Khong the ket noi backend qua cac endpoint: $tried. $lastError',
+    );
   }
 
   dynamic handleResponse(http.Response response) {
@@ -249,6 +282,123 @@ abstract class ApiService {
       _extractErrorMessage(response),
       rawBody: response.body,
     );
+  }
+
+  String? _readConfigValue(String key) {
+    switch (key) {
+      case 'API_BASE_URL':
+        if (_configuredBaseUrlFromDefine.trim().isNotEmpty) {
+          return _configuredBaseUrlFromDefine.trim();
+        }
+        break;
+      case 'API_BASE_URLS':
+        if (_configuredBaseUrlsFromDefine.trim().isNotEmpty) {
+          return _configuredBaseUrlsFromDefine.trim();
+        }
+        break;
+      case 'API_TUNNEL_BASE_URL':
+        if (_configuredTunnelBaseUrlFromDefine.trim().isNotEmpty) {
+          return _configuredTunnelBaseUrlFromDefine.trim();
+        }
+        break;
+      case 'API_PORT':
+        if (_configuredApiPortFromDefine.trim().isNotEmpty) {
+          return _configuredApiPortFromDefine.trim();
+        }
+        break;
+    }
+
+    final value = dotenv.env[key];
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+
+    return value.trim();
+  }
+
+  List<String> _buildDefaultBaseUrls() {
+    final port = _readApiPort();
+    final localCandidates = <String>[
+      if (kIsWeb) ...[
+        'http://localhost:$port/api',
+        'http://127.0.0.1:$port/api',
+      ] else
+        ..._localBaseUrlsForPlatform(port),
+    ];
+
+    final tunnelBaseUrl =
+        _readConfigValue('API_TUNNEL_BASE_URL') ?? _defaultDevTunnelBaseUrl;
+    final tunnel = _normalizeBaseUrl(tunnelBaseUrl);
+    if (tunnel.isNotEmpty) {
+      localCandidates.add(tunnel);
+    }
+
+    return localCandidates;
+  }
+
+  List<String> _localBaseUrlsForPlatform(int port) {
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return [
+          'http://10.0.2.2:$port/api',
+          'http://localhost:$port/api',
+          'http://127.0.0.1:$port/api',
+        ];
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+      case TargetPlatform.windows:
+      case TargetPlatform.linux:
+      case TargetPlatform.fuchsia:
+        return ['http://localhost:$port/api', 'http://127.0.0.1:$port/api'];
+    }
+  }
+
+  int _readApiPort() {
+    final raw = _readConfigValue('API_PORT');
+    if (raw == null) {
+      return _defaultLocalApiPort;
+    }
+
+    return int.tryParse(raw) ?? _defaultLocalApiPort;
+  }
+
+  String _normalizeBaseUrl(String value) {
+    var normalized = value.trim();
+    if (normalized.isEmpty) {
+      return normalized;
+    }
+
+    normalized = normalized.replaceFirst(RegExp(r'/+$'), '');
+    if (!normalized.endsWith('/api')) {
+      normalized = '$normalized/api';
+    }
+
+    return normalized;
+  }
+
+  List<String> _splitBaseUrls(String raw) {
+    return raw
+        .split(RegExp(r'[\n,;|]'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+  }
+
+  List<String> _dedupe(Iterable<String> values) {
+    final result = <String>[];
+    final seen = <String>{};
+
+    for (final value in values) {
+      final normalized = _normalizeBaseUrl(value);
+      if (normalized.isEmpty || seen.contains(normalized)) {
+        continue;
+      }
+
+      seen.add(normalized);
+      result.add(normalized);
+    }
+
+    return result;
   }
 
   String _extractErrorMessage(http.Response response) {
@@ -268,5 +418,28 @@ abstract class ApiService {
     } catch (_) {}
 
     return 'Loi API: ${response.statusCode} - ${response.body}';
+  }
+
+  MediaType? _resolveImageContentType(XFile file) {
+    if (file.mimeType != null && file.mimeType!.trim().isNotEmpty) {
+      try {
+        return MediaType.parse(file.mimeType!);
+      } catch (_) {}
+    }
+
+    final nameLower = file.name.toLowerCase();
+    if (nameLower.endsWith('.png')) {
+      return MediaType('image', 'png');
+    }
+
+    if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg')) {
+      return MediaType('image', 'jpeg');
+    }
+
+    if (nameLower.endsWith('.webp')) {
+      return MediaType('image', 'webp');
+    }
+
+    return null;
   }
 }

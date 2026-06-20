@@ -147,7 +147,22 @@ class _MyTripsViewState extends State<MyTripsView> {
       return false;
     }
 
-    return parsed.toLocal().isBefore(DateTime.now());
+    final now = DateTime.now();
+    final raw = (completedAt ?? '').trim();
+    final completedLocal = parsed.toLocal();
+    final hasExplicitTime = raw.contains('T') || raw.contains(':');
+
+    if (hasExplicitTime) {
+      return !completedLocal.isAfter(now);
+    }
+
+    final today = DateTime(now.year, now.month, now.day);
+    final completedDate = DateTime(
+      completedLocal.year,
+      completedLocal.month,
+      completedLocal.day,
+    );
+    return today.isAfter(completedDate);
   }
 
   void _showBlockingLoader() {
