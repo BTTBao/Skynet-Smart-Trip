@@ -94,14 +94,12 @@ class CatalogService extends ApiService {
     String path, {
     Map<String, String>? queryParameters,
   }) async {
-    final uri = buildUri(
-      configuredBaseUrl,
-      path,
-    ).replace(queryParameters: queryParameters);
-    final requestHeaders = await getHeaders();
-    return http.get(uri, headers: requestHeaders);
+    return getWithFallback(path, queryParameters: queryParameters);
   }
 
-  String _formatDate(DateTime date) =>
-      DateTime(date.year, date.month, date.day).toIso8601String().split('T').first;
+  String _formatDate(DateTime date) => DateTime(
+    date.year,
+    date.month,
+    date.day,
+  ).toIso8601String().split('T').first;
 }

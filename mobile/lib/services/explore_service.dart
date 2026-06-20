@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 import '../models/explore_post.dart';
@@ -44,7 +43,8 @@ class ExploreService extends ApiService {
     int page = 1,
     int pageSize = 20,
   }) async {
-    final uri = buildUri(configuredBaseUrl, '/explore/posts').replace(
+    final response = await getWithFallback(
+      '/explore/posts',
       queryParameters: {
         'page': '$page',
         'pageSize': '$pageSize',
@@ -56,8 +56,6 @@ class ExploreService extends ApiService {
         if (costLevels.isNotEmpty) 'costLevels': costLevels.join(','),
       },
     );
-
-    final response = await http.get(uri, headers: await getHeaders());
     final data = Map<String, dynamic>.from(handleResponse(response));
     return ExplorePageResult.fromJson(data);
   }
@@ -125,8 +123,16 @@ class ExploreService extends ApiService {
     );
   }
 
-  Future<ExploreComment> addComment(int postId, String content, {String? imageUrl}) async {
-    return addCommentReply(postId: postId, content: content, imageUrl: imageUrl);
+  Future<ExploreComment> addComment(
+    int postId,
+    String content, {
+    String? imageUrl,
+  }) async {
+    return addCommentReply(
+      postId: postId,
+      content: content,
+      imageUrl: imageUrl,
+    );
   }
 
   Future<ExploreComment> addCommentReply({
