@@ -80,6 +80,18 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+if (args.Contains("--eval-chatbot"))
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var chatService = scope.ServiceProvider.GetRequiredService<IChatService>();
+        var aiService = scope.ServiceProvider.GetRequiredService<IGrokAiService>();
+        var runner = new SmartTrip.API.Utilities.ChatbotEvalRunner(chatService, aiService);
+        await runner.RunEvaluationAsync();
+    }
+    return;
+}
+
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

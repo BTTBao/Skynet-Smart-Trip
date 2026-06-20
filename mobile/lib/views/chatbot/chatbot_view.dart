@@ -521,6 +521,7 @@ class _ChatbotViewState extends State<ChatbotView> {
       ),
     );
   }
+<<<<<<< Updated upstream
     /*
     if (card.rooms == null || card.rooms!.isEmpty) {
       _showToastMessage('KhÃ¡ch sáº¡n hiá»‡n khÃ´ng cÃ³ phÃ²ng trá»‘ng.');
@@ -1171,6 +1172,8 @@ class _ChatbotViewState extends State<ChatbotView> {
   }
 
   */
+=======
+>>>>>>> Stashed changes
   _ChatBookingPrefill _resolveLatestChatBookingDates() {
     final messages = context.read<ChatProvider>().messages.reversed;
 

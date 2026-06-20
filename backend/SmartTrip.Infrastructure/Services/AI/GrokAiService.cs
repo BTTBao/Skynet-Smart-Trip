@@ -71,7 +71,199 @@ public class GrokAiService : IGrokAiService
         }
     }
 
-    private object BuildRequestBody(ChatContextDto context)
+    public async Task<ChatResponseDto> GenerateResponseWithJsonModeAsync(ChatContextDto context)
+    {
+        if (string.IsNullOrWhiteSpace(_apiKey)
+            || _apiKey == "YOUR_GROK_API_KEY"
+            || _apiKey == "YOUR_GROQ_API_KEY")
+        {
+            return BuildFallbackResponse(context);
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/chat/completions");
+            request.Headers.Authorization = new("Bearer", _apiKey);
+            request.Headers.Accept.ParseAdd("application/json");
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(BuildRequestBody(context, forceJsonMode: true), JsonOptions),
+                Encoding.UTF8,
+                "application/json");
+
+            var response = await _httpClient.SendAsync(request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Groq API error (JSON Mode): {StatusCode} - {Body}", response.StatusCode, responseBody);
+                return BuildFallbackResponse(context);
+            }
+
+            return ParseGrokResponse(responseBody, context);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calling Groq API in JSON Mode");
+            return BuildFallbackResponse(context);
+        }
+    }
+
+    public async Task<ChatIntentResultDto> ClassifyIntentAsync(string message, List<ChatHistoryItemDto> history)
+    {
+        if (string.IsNullOrWhiteSpace(_apiKey)
+            || _apiKey == "YOUR_GROK_API_KEY"
+            || _apiKey == "YOUR_GROQ_API_KEY")
+        {
+            return new ChatIntentResultDto { Intent = "general" };
+        }
+
+        try
+        {
+            var systemPrompt = @"Phân tích tin nhắn của người dùng và lịch sử chat để xác định ý định (intent) của họ và trích xuất các thông tin tham số (entities).
+Hãy chọn MỘT intent phù hợp nhất từ danh sách sau:
+- package_query (nếu muốn hỏi tour du lịch trọn gói, combo)
+- budget_query (hỏi về chi phí, ngân sách du lịch, giá rẻ, bao nhiêu tiền)
+- promotion_query (tìm mã giảm giá, voucher, ưu đãi)
+- bus_query (tìm vé xe khách, xe limousine, lịch xe chạy)
+- hotel_query (tìm chỗ nghỉ, phòng khách sạn, homestay, resort)
+- weather_query (hỏi thời tiết nắng mưa nhiệt độ)
+- itinerary_request (yêu cầu lập kế hoạch/lịch trình chi tiết)
+- destination_query (hỏi gợi ý đi đâu chơi, địa điểm hot nhất, cảnh đẹp)
+- nearby_query (tìm địa điểm ăn uống, vui chơi xung quanh vị trí hiện tại)
+- booking_request (yêu cầu đặt phòng khách sạn hoặc vé xe cụ thể)
+- food_query (hỏi ăn gì ở đâu, nhà hàng, quán ăn ngon)
+- general (các tin nhắn chào hỏi, cảm ơn, nói chuyện phiếm thông thường)
+
+Trích xuất các thực thể sau nếu có nhắc đến trong câu chat hoặc ngữ cảnh gần nhất:
+- destination: Điểm đến (thành phố, địa danh du lịch, ví dụ: Đà Nẵng, Nha Trang, Phú Quốc)
+- origin: Điểm xuất phát (ví dụ: Hà Nội, Sài Gòn, Hải Phòng)
+- days: Số ngày đi chơi (kiểu số nguyên, ví dụ: 3)
+- budget: Ngân sách tối đa của người dùng (kiểu số, ví dụ: 5000000)
+- passengerCount: Số lượng người đi (kiểu số nguyên, ví dụ: 2)
+- hotelName: Tên khách sạn cụ thể mà họ nhắc tới
+- departureDate: Ngày khởi hành (định dạng yyyy-MM-dd nếu trích xuất được)
+
+Trả về kết quả dưới dạng một đối tượng JSON duy nhất theo schema sau, không kèm bất kỳ thẻ markdown hay giải thích nào khác:
+{
+  ""intent"": ""hotel_query|bus_query|weather_query|itinerary_request|promotion_query|budget_query|destination_query|general"",
+  ""entities"": {
+    ""destination"": null,
+    ""origin"": null,
+    ""days"": null,
+    ""budget"": null,
+    ""passengerCount"": null,
+    ""hotelName"": null,
+    ""departureDate"": null
+  }
+}";
+
+            var messages = new List<object>
+            {
+                new { role = "system", content = systemPrompt }
+            };
+
+            foreach (var item in history.TakeLast(5))
+            {
+                messages.Add(new
+                {
+                    role = item.Role == "user" ? "user" : "assistant",
+                    content = item.Content
+                });
+            }
+
+            messages.Add(new { role = "user", content = message });
+
+            var requestBody = new
+            {
+                model = _model,
+                messages,
+                temperature = 0.1,
+                max_tokens = 500,
+                response_format = new { type = "json_object" }
+            };
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/chat/completions");
+            request.Headers.Authorization = new("Bearer", _apiKey);
+            request.Headers.Accept.ParseAdd("application/json");
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(requestBody, JsonOptions),
+                Encoding.UTF8,
+                "application/json");
+
+            var response = await _httpClient.SendAsync(request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Groq API error in ClassifyIntentAsync: {StatusCode} - {Body}", response.StatusCode, responseBody);
+                return new ChatIntentResultDto { Intent = "general" };
+            }
+
+            return ParseIntentResponse(responseBody);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in ClassifyIntentAsync");
+            return new ChatIntentResultDto { Intent = "general" };
+        }
+    }
+
+    private ChatIntentResultDto ParseIntentResponse(string responseBody)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(responseBody);
+            var content = doc.RootElement
+                .GetProperty("choices")[0]
+                .GetProperty("message")
+                .GetProperty("content")
+                .GetString() ?? string.Empty;
+
+            var normalizedContent = NormalizeModelContent(content);
+            var parsed = JsonSerializer.Deserialize<ChatIntentResultDto>(normalizedContent, JsonOptions);
+            return parsed ?? new ChatIntentResultDto { Intent = "general" };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error parsing intent classification response");
+            return new ChatIntentResultDto { Intent = "general" };
+        }
+    }
+
+    private string LoadSkillFile()
+    {
+        try
+        {
+            var assemblyPath = Path.GetDirectoryName(typeof(GrokAiService).Assembly.Location);
+            var skillPath = Path.Combine(assemblyPath ?? string.Empty, "Services", "AI", "skill.md");
+            if (File.Exists(skillPath))
+            {
+                return File.ReadAllText(skillPath, Encoding.UTF8);
+            }
+
+            var currentDir = AppContext.BaseDirectory;
+            while (!string.IsNullOrEmpty(currentDir))
+            {
+                var checkPath = Path.Combine(currentDir, "Services", "AI", "skill.md");
+                if (File.Exists(checkPath))
+                {
+                    return File.ReadAllText(checkPath, Encoding.UTF8);
+                }
+
+                var parent = Directory.GetParent(currentDir);
+                if (parent == null || parent.FullName == currentDir) break;
+                currentDir = parent.FullName;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to read skill.md");
+        }
+
+        return "Ban la Sky, tro ly du lich AI cua Skynet Smart Trip. Luon tra loi bang tieng Viet co dau.";
+    }
+
+    private object BuildRequestBody(ChatContextDto context, bool forceJsonMode = false)
     {
         var messages = new List<object>
         {
@@ -97,6 +289,18 @@ public class GrokAiService : IGrokAiService
             content = BuildUserPrompt(context)
         });
 
+        if (forceJsonMode)
+        {
+            return new
+            {
+                model = _model,
+                messages,
+                temperature = 0.2,
+                max_tokens = _maxTokens,
+                response_format = new { type = "json_object" }
+            };
+        }
+
         return new
         {
             model = _model,
@@ -108,52 +312,21 @@ public class GrokAiService : IGrokAiService
 
     private string BuildSystemPrompt(ChatContextDto context)
     {
+        var basePrompt = LoadSkillFile();
         var sb = new StringBuilder();
-        sb.AppendLine("Ban la Sky, tro ly du lich AI cua Skynet Smart Trip.");
+        sb.AppendLine(basePrompt);
+
         if (string.Equals(context.PreferredLanguage, "en", StringComparison.OrdinalIgnoreCase))
         {
-            sb.AppendLine("Nguoi dung uu tien tieng Anh. Hay uu tien tra loi bang tieng Anh, tru khi nguoi dung chu dong viet tieng Viet.");
-        }
-        else
-        {
-            sb.AppendLine("Nguoi dung uu tien tieng Viet. Hay tra loi bang tieng Viet, tru khi nguoi dung ro rang muon tieng Anh.");
+            sb.AppendLine("User preferred language is English. However, adhere to the language rules: only reply in English if the user messaged in English. Default is accented Vietnamese.");
         }
 
-        sb.AppendLine($"Tien te uu tien cua nguoi dung: {context.PreferredCurrency}.");
-        sb.AppendLine("Tra loi bang JSON hop le theo schema sau, khong them markdown:");
-        sb.AppendLine(@"{
-  ""text"": ""Noi dung tra loi chinh"",
-  ""responseType"": ""text|destination_card|itinerary|hotel_list|transport_list|weather"",
-  ""destinationCards"": [{ ""name"": """", ""description"": """", ""rating"": 4.5, ""bestSeason"": """", ""estimatedBudget"": """", ""isHot"": false }],
-  ""suggestedItinerary"": {
-    ""title"": """",
-    ""destination"": """",
-    ""totalDays"": 3,
-    ""estimatedBudget"": """",
-    ""costBreakdown"": { ""transportCost"": 0, ""hotelCost"": 0, ""foodCost"": 0, ""activityCost"": 0, ""totalCost"": 0, ""currency"": ""VND"" },
-    ""days"": [{ ""dayNumber"": 1, ""theme"": """", ""activities"": [{ ""time"": ""08:00"", ""title"": """", ""description"": """", ""icon"": ""restaurant|attraction|transport|hotel|shopping|entertainment"", ""estimatedCost"": """" }] }]
-  },
-  ""hotelCards"": [{ ""name"": """", ""address"": """", ""starRating"": 4, ""description"": """", ""pricePerNight"": 500000, ""destinationName"": """", ""amenities"": [""WiFi"", ""Pool""] }],
-  ""transportCards"": [{ ""companyName"": """", ""fromDestinationName"": """", ""toDestinationName"": """", ""price"": 180000, ""departureTime"": ""2026-06-03T08:00:00Z"" }],
-  ""quickActions"": [{ ""label"": ""Goi y text"", ""icon"": ""explore|hotel|restaurant|calendar|weather|map"", ""actionPayload"": ""Cau gui khi user tap"" }]
-}");
-        sb.AppendLine("Lua chon responseType dung voi ngu canh va luon kem 2-4 quickActions.");
-        sb.AppendLine("Nhan quick action co the ngan gon, nhung actionPayload phai la cau tieng Viet tu nhien ma nguoi dung thuc su se gui.");
-        sb.AppendLine("Tuyet doi khong tra ve ma ky thuat, token noi bo, hay chuoi dang SHOW_DETAILS_HOIAN, OPEN_HOTEL, DETAIL_ID_123.");
-        sb.AppendLine("Ngu gon, huu ich, mang goc nhin local guide Viet Nam.");
-        sb.AppendLine("Neu nguoi dung muon lap ke hoach/lich trinh ma chua du thong tin bat buoc, KHONG duoc len plan ngay.");
-        sb.AppendLine("Thong tin bat buoc truoc khi len plan: diem den, diem xuat phat, so nguoi, ngan sach.");
-        sb.AppendLine("Neu thieu thong tin, chi hoi lai nhung muc con thieu bang mot cau ngan gon va de responseType='text'.");
-        sb.AppendLine("Chi tao suggestedItinerary khi da co du thong tin o tin nhan hien tai hoac lich su chat.");
-        sb.AppendLine("Khi tao plan, phai dua thong tin cu the vao tung ngay: neu co xe/khach san thi dat truc tiep vao activities cua Ngay 1, khong tao muc goi y rieng o tren.");
-        sb.AppendLine("Moi muc co chi phi nhu xe, khach san, bua an, ve tham quan, cafe, vui choi can co estimatedCost neu co the uoc tinh.");
-        sb.AppendLine("Tong chi phi chi xuat hien o costBreakdown va phai phan anh tong cua ca plan.");
-        sb.AppendLine("Goi y phai thuc te, cu the, uu tien cach viet giong travel planner tai Viet Nam, tranh noi chung chung.");
+        sb.AppendLine($"User preferred currency: {context.PreferredCurrency}.");
 
         if (!string.IsNullOrWhiteSpace(context.DatabaseContext))
         {
             sb.AppendLine();
-            sb.AppendLine("DATABASE CONTEXT:");
+            sb.AppendLine("DATABASE CONTEXT (ƯU TIÊN DỮ LIỆU NÀY HƠN CẢ):");
             sb.AppendLine(context.DatabaseContext);
         }
 
@@ -162,7 +335,6 @@ public class GrokAiService : IGrokAiService
             sb.AppendLine();
             sb.AppendLine("USER PROFILE CONTEXT:");
             sb.AppendLine(context.PersonalizationSummary);
-            sb.AppendLine("Neu ngu canh phu hop, hay ca nhan hoa goi y theo so thich va lich su cua user, nhung khong duoc khang dinh sai du lieu khong co trong he thong.");
         }
 
         return sb.ToString();

@@ -1,6 +1,7 @@
 using SmartTrip.Application.DTOs.Chat;
 using SmartTrip.Application.Interfaces.Chat;
 using SmartTrip.Domain.Entities;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -26,6 +27,7 @@ public class ChatService : IChatService
 
     public async Task<ChatResponseDto> GetAiResponseAsync(ChatRequestDto request)
     {
+        var stopwatch = Stopwatch.StartNew();
         var normalizedSessionId = NormalizeSessionId(request.SessionId);
         var userProfile = request.UserId.HasValue
             ? await _chatRepo.GetUserPersonalizationAsync(request.UserId.Value)
@@ -46,11 +48,18 @@ public class ChatService : IChatService
             history = historyResult.Messages;
         }
 
-        var intent = DetectIntentWithHistory(request.Message, history);
+        // 1. Phân loại ý định & trích xuất thực thể qua LLM (Phase 1)
+        var classification = await _aiService.ClassifyIntentAsync(request.Message, history);
+        var intent = classification.Intent;
+        var entities = classification.Entities;
+        var classifierDetails = JsonSerializer.Serialize(classification, JsonOptions);
+
         var contextMessage = intent == "itinerary_request"
             ? BuildMergedUserContext(request.Message, history)
             : request.Message;
-        var dbContext = await BuildDatabaseContext(contextMessage, intent, userProfile);
+
+        // 2. Xây dựng Database Context dựa trên thực thể trích xuất
+        var dbContext = await BuildDatabaseContext(contextMessage, intent, entities, userProfile);
 
         var context = new ChatContextDto
         {
@@ -67,19 +76,49 @@ public class ChatService : IChatService
             Longitude = request.Longitude
         };
 
-        var response = await TryGenerateAiResponseAsync(context);
-        response = NormalizeAiResponse(response);
+        // 3. Gọi AI phản hồi ở chế độ JSON Mode (Phase 2)
+        var response = await _aiService.GenerateResponseWithJsonModeAsync(context);
 
-        if (NeedsDeterministicFallback(response))
+        // 4. Xác minh định dạng JSON và áp dụng Fallback nếu lỗi
+        bool isFallbackUsed = false;
+        bool isJsonValid = true;
+        string? errorLog = null;
+
+        if (string.IsNullOrWhiteSpace(response.Text) || NeedsDeterministicFallback(response))
         {
-            response = await BuildDeterministicResponseAsync(intent, request.Message, userProfile);
+            isFallbackUsed = true;
+            isJsonValid = !string.IsNullOrWhiteSpace(response.Text);
+            response = await BuildDeterministicResponseAsync(intent, request.Message, entities, userProfile);
+        }
+        else
+        {
+            try
+            {
+                var normalized = NormalizeAiResponse(response);
+                if (normalized != response && response.ResponseType == "text" && string.Equals(normalized.Text, response.Text))
+                {
+                    response = normalized;
+                }
+            }
+            catch (Exception ex)
+            {
+                isJsonValid = false;
+                isFallbackUsed = true;
+                errorLog = ex.Message;
+                response = await BuildDeterministicResponseAsync(intent, request.Message, entities, userProfile);
+            }
         }
 
-        response = await EnrichWithDatabaseData(response, intent, request.Message, userProfile);
-        response = await AlignResponseToIntentAsync(response, intent, request.Message, userProfile, history);
+        // 5. Làm giàu dữ liệu và căn chỉnh phản hồi
+        response = await EnrichWithDatabaseData(response, intent, request.Message, entities, userProfile);
+        response = await AlignResponseToIntentAsync(response, intent, request.Message, entities, userProfile, history);
         response = EnsureQuickActions(response, intent, userProfile);
         response.SessionId = normalizedSessionId;
 
+        stopwatch.Stop();
+        var latencyMs = (int)stopwatch.ElapsedMilliseconds;
+
+        // 6. Lưu lịch sử kèm theo các thông tin giám sát Telemetry
         if (request.UserId.HasValue)
         {
             await SaveChatHistory(
@@ -87,7 +126,12 @@ public class ChatService : IChatService
                 request.Message,
                 response,
                 intent,
-                normalizedSessionId);
+                normalizedSessionId,
+                latencyMs,
+                isJsonValid,
+                isFallbackUsed,
+                errorLog,
+                classifierDetails);
         }
 
         return response;
@@ -229,12 +273,25 @@ public class ChatService : IChatService
     private async Task<string> BuildDatabaseContext(
         string message,
         string intent,
+        ChatEntitiesDto? entities,
         ChatUserProfileDto? userProfile)
     {
         var parts = new List<string>();
 
         var destinations = await _chatRepo.GetDestinationsAsync(20);
-        var matchedDestinations = ResolveRelevantDestinations(message, destinations, userProfile);
+        List<Destination> matchedDestinations;
+
+        if (entities != null && !string.IsNullOrWhiteSpace(entities.Destination))
+        {
+            var normalizedEntityDest = NormalizeText(entities.Destination);
+            matchedDestinations = destinations
+                .Where(d => NormalizeText(d.Name).Contains(normalizedEntityDest) || normalizedEntityDest.Contains(NormalizeText(d.Name)))
+                .ToList();
+        }
+        else
+        {
+            matchedDestinations = ResolveRelevantDestinations(message, destinations, userProfile);
+        }
 
         if (destinations.Any())
         {
@@ -244,9 +301,22 @@ public class ChatService : IChatService
 
         if (intent is "hotel_query" or "destination_query" or "booking_request" or "budget_query" or "package_query")
         {
-            var hotels = matchedDestinations.Any()
-                ? await _chatRepo.SearchDestinationsHotelsAsync(matchedDestinations.Select(d => d.Id), 10)
-                : await _chatRepo.GetAvailableHotelsAsync(10);
+            List<Hotel> hotels;
+            if (entities != null && !string.IsNullOrWhiteSpace(entities.HotelName))
+            {
+                var normalizedHotelName = NormalizeText(entities.HotelName);
+                var allAvailableHotels = await _chatRepo.GetAvailableHotelsAsync(50);
+                hotels = allAvailableHotels
+                    .Where(h => NormalizeText(h.Name).Contains(normalizedHotelName) || normalizedHotelName.Contains(NormalizeText(h.Name)))
+                    .Take(10)
+                    .ToList();
+            }
+            else
+            {
+                hotels = matchedDestinations.Any()
+                    ? await _chatRepo.SearchDestinationsHotelsAsync(matchedDestinations.Select(d => d.Id), 10)
+                    : await _chatRepo.GetAvailableHotelsAsync(10);
+            }
 
             if (hotels.Any())
             {
@@ -288,14 +358,39 @@ public class ChatService : IChatService
         ChatResponseDto response,
         string intent,
         string userMessage,
+        ChatEntitiesDto? entities,
         ChatUserProfileDto? userProfile)
     {
         var destinations = await _chatRepo.GetDestinationsAsync(20);
+<<<<<<< Updated upstream
         var matchedDestinations = ResolveRelevantDestinations(
             userMessage,
             destinations,
             userProfile,
             allowPreferenceFallback: ShouldAllowPreferenceFallback(intent));
+=======
+<<<<<<< Updated upstream
+        var matchedDestinations = ResolveRelevantDestinations(userMessage, destinations, userProfile);
+=======
+        List<Destination> matchedDestinations;
+
+        if (entities != null && !string.IsNullOrWhiteSpace(entities.Destination))
+        {
+            var normalizedEntityDest = NormalizeText(entities.Destination);
+            matchedDestinations = destinations
+                .Where(d => NormalizeText(d.Name).Contains(normalizedEntityDest) || normalizedEntityDest.Contains(NormalizeText(d.Name)))
+                .ToList();
+        }
+        else
+        {
+            matchedDestinations = ResolveRelevantDestinations(
+                userMessage,
+                destinations,
+                userProfile,
+                allowPreferenceFallback: ShouldAllowPreferenceFallback(intent));
+        }
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 
         if (intent == "destination_query"
             && (response.DestinationCards == null || response.DestinationCards.Count == 0))
@@ -333,9 +428,23 @@ public class ChatService : IChatService
         if (intent == "hotel_query"
             && (response.HotelCards == null || response.HotelCards.Count == 0))
         {
-            var hotels = matchedDestinations.Any()
-                ? await _chatRepo.SearchDestinationsHotelsAsync(matchedDestinations.Select(d => d.Id), 3)
-                : await _chatRepo.GetAvailableHotelsAsync(3);
+            List<Hotel> hotels;
+            if (entities != null && !string.IsNullOrWhiteSpace(entities.HotelName))
+            {
+                var normalizedHotelName = NormalizeText(entities.HotelName);
+                var allAvailableHotels = await _chatRepo.GetAvailableHotelsAsync(50);
+                hotels = allAvailableHotels
+                    .Where(h => NormalizeText(h.Name).Contains(normalizedHotelName) || normalizedHotelName.Contains(NormalizeText(h.Name)))
+                    .Take(3)
+                    .ToList();
+            }
+            else
+            {
+                hotels = matchedDestinations.Any()
+                    ? await _chatRepo.SearchDestinationsHotelsAsync(matchedDestinations.Select(d => d.Id), 3)
+                    : await _chatRepo.GetAvailableHotelsAsync(3);
+            }
+
             var destinationSummaryVi = string.Join(" va ", matchedDestinations.Take(2).Select(d => d.Name));
             var destinationSummaryEn = string.Join(" and ", matchedDestinations.Take(2).Select(d => d.Name));
 
@@ -468,7 +577,12 @@ public class ChatService : IChatService
         string userMessage,
         ChatResponseDto response,
         string intent,
-        string? sessionId)
+        string? sessionId,
+        int latencyMs,
+        bool isJsonValid,
+        bool isFallbackUsed,
+        string? errorLog,
+        string? classifierDetails)
     {
         var history = new ChatHistory
         {
@@ -479,7 +593,12 @@ public class ChatService : IChatService
             ResponseDataJson = JsonSerializer.Serialize(response, JsonOptions),
             DetectedIntent = intent,
             SessionId = sessionId,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            LatencyMs = latencyMs,
+            IsJsonValid = isJsonValid,
+            IsFallbackUsed = isFallbackUsed,
+            ErrorLog = errorLog,
+            ClassifierDetails = classifierDetails
         };
 
         await _chatRepo.SaveChatHistoryAsync(history);
@@ -549,14 +668,39 @@ public class ChatService : IChatService
     private async Task<ChatResponseDto> BuildDeterministicResponseAsync(
         string intent,
         string userMessage,
+        ChatEntitiesDto? entities,
         ChatUserProfileDto? userProfile)
     {
         var destinations = await _chatRepo.GetDestinationsAsync(20);
+<<<<<<< Updated upstream
         var matchedDestinations = ResolveRelevantDestinations(
             userMessage,
             destinations,
             userProfile,
             allowPreferenceFallback: ShouldAllowPreferenceFallback(intent));
+=======
+<<<<<<< Updated upstream
+        var matchedDestinations = ResolveRelevantDestinations(userMessage, destinations, userProfile);
+=======
+        List<Destination> matchedDestinations;
+
+        if (entities != null && !string.IsNullOrWhiteSpace(entities.Destination))
+        {
+            var normalizedEntityDest = NormalizeText(entities.Destination);
+            matchedDestinations = destinations
+                .Where(d => NormalizeText(d.Name).Contains(normalizedEntityDest) || normalizedEntityDest.Contains(NormalizeText(d.Name)))
+                .ToList();
+        }
+        else
+        {
+            matchedDestinations = ResolveRelevantDestinations(
+                userMessage,
+                destinations,
+                userProfile,
+                allowPreferenceFallback: ShouldAllowPreferenceFallback(intent));
+        }
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 
         return intent switch
         {
@@ -642,15 +786,40 @@ public class ChatService : IChatService
         ChatResponseDto response,
         string intent,
         string userMessage,
+        ChatEntitiesDto? entities,
         ChatUserProfileDto? userProfile,
         List<ChatHistoryItemDto> history)
     {
         var destinations = await _chatRepo.GetDestinationsAsync(20);
+<<<<<<< Updated upstream
         var matchedDestinations = ResolveRelevantDestinations(
             userMessage,
             destinations,
             userProfile,
             allowPreferenceFallback: ShouldAllowPreferenceFallback(intent));
+=======
+<<<<<<< Updated upstream
+        var matchedDestinations = ResolveRelevantDestinations(userMessage, destinations, userProfile);
+=======
+        List<Destination> matchedDestinations;
+
+        if (entities != null && !string.IsNullOrWhiteSpace(entities.Destination))
+        {
+            var normalizedEntityDest = NormalizeText(entities.Destination);
+            matchedDestinations = destinations
+                .Where(d => NormalizeText(d.Name).Contains(normalizedEntityDest) || normalizedEntityDest.Contains(NormalizeText(d.Name)))
+                .ToList();
+        }
+        else
+        {
+            matchedDestinations = ResolveRelevantDestinations(
+                userMessage,
+                destinations,
+                userProfile,
+                allowPreferenceFallback: ShouldAllowPreferenceFallback(intent));
+        }
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 
         switch (intent)
         {

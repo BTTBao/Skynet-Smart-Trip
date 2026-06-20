@@ -378,15 +378,15 @@ class ChatProvider with ChangeNotifier {
 
   String _buildFriendlyErrorMessage(Object error) {
     if (error is ApiException && error.isUnauthorized) {
-      return 'Phien dang nhap da het han. Vui long dang nhap lai de tiep tuc chat.';
+      return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục chat.';
     }
 
-    return 'Sky dang gap su co ket noi. Ban thu lai trong it phut nua nhe.';
+    return 'Sky đang gặp sự cố kết nối. Bạn thử lại trong ít phút nữa nhé.';
   }
 
   String _mapErrorMessage(String message, {int? statusCode}) {
     if (statusCode == 401) {
-      return 'Phien dang nhap da het han. Vui long dang nhap lai.';
+      return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
     }
 
     final lower = message.toLowerCase();
