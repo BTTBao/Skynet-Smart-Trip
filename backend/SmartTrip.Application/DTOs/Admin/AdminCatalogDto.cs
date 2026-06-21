@@ -35,6 +35,8 @@ public class AdminHotelDto
     public int AvailableRoomQty { get; set; }
     public decimal LowestPrice { get; set; }
     public decimal TotalRevenue { get; set; }
+    public decimal TotalProfit { get; set; }
+    public int BookedRoomQty { get; set; }
 }
 
 public class AdminHotelRequest
@@ -63,6 +65,10 @@ public class AdminRoomDto
     public int AvailableQty { get; set; }
     public bool IsSelling { get; set; }
     public List<string> ImageUrls { get; set; } = new();
+    public decimal TotalRevenue { get; set; }
+    public decimal TotalProfit { get; set; }
+    public int BookedRoomQty { get; set; }
+    public int BookingCount { get; set; }
 }
 
 public class AdminRoomRequest

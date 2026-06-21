@@ -9,7 +9,7 @@ import {
   type AdminHotel,
   type AdminHotelRequest,
 } from '@/services/adminService';
-import { downloadCsv } from '@/utils/adminActions';
+import { downloadCsv, getPageNumbers } from '@/utils/adminActions';
 import { toast } from 'sonner';
 import {
   Card,
@@ -49,8 +49,13 @@ import {
   Eye,
   Star,
   DollarSign,
+  Percent,
   Briefcase,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
+
+const PAGE_SIZE = 6;
 
 const initialForm: AdminHotelRequest = {
   destinationId: 0,
@@ -72,6 +77,7 @@ export default function HotelsAdminPage() {
   const [editingHotel, setEditingHotel] = useState<AdminHotel | null>(null);
   const [form, setForm] = useState<AdminHotelRequest>(initialForm);
   const [submitting, setSubmitting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadHotels = async () => {
     try {
@@ -106,8 +112,27 @@ export default function HotelsAdminPage() {
     );
   }, [hotels, query]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredHotels.length / PAGE_SIZE));
+  const currentPageClamped = Math.min(currentPage, totalPages);
+  const paginatedHotels = filteredHotels.slice((currentPageClamped - 1) * PAGE_SIZE, currentPageClamped * PAGE_SIZE);
+  const pageNumbers = getPageNumbers(currentPageClamped, totalPages);
+
   const totalHotelRevenue = useMemo(
     () => filteredHotels.reduce((sum, hotel) => sum + hotel.totalRevenue, 0),
+    [filteredHotels]
+  );
+
+  const totalHotelProfit = useMemo(
+    () => filteredHotels.reduce((sum, hotel) => sum + hotel.totalProfit, 0),
+    [filteredHotels]
+  );
+
+  const totalBookedRoomQty = useMemo(
+    () => filteredHotels.reduce((sum, hotel) => sum + hotel.bookedRoomQty, 0),
     [filteredHotels]
   );
 
@@ -162,6 +187,8 @@ export default function HotelsAdminPage() {
       { key: 'roomCount', header: 'Loại phòng' },
       { key: 'availableRoomQty', header: 'Còn bán' },
       { key: 'totalRevenue', header: 'Doanh thu' },
+      { key: 'totalProfit', header: 'Lợi nhuận' },
+      { key: 'bookedRoomQty', header: 'Phòng đã đặt' },
     ]);
     toast.success('Đã xuất danh sách khách sạn');
   };
@@ -190,14 +217,29 @@ export default function HotelsAdminPage() {
       </div>
 
       {/* Stats and Revenues */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <MetricCard
-          className="md:col-span-2"
           title="Tổng doanh thu khách sạn"
           value={formatCurrency(totalHotelRevenue)}
           description="Doanh số tích lũy từ các lượt đặt phòng thành công hiện tại."
           icon={<DollarSign className="h-4 w-4" />}
           theme="emerald"
+        />
+
+        <MetricCard
+          title="Tổng lợi nhuận"
+          value={formatCurrency(totalHotelProfit)}
+          description="Hoa hồng phòng đã đặt và đã thanh toán."
+          icon={<Percent className="h-4 w-4" />}
+          theme="sky"
+        />
+
+        <MetricCard
+          title="Phòng đã đặt"
+          value={`${totalBookedRoomQty} phòng`}
+          description="Tổng số lượng phòng phát sinh lượt đặt."
+          icon={<Hotel className="h-4 w-4" />}
+          theme="indigo"
         />
 
         <MetricCard
@@ -333,19 +375,20 @@ export default function HotelsAdminPage() {
               <TableHead>Sao & Phòng</TableHead>
               <TableHead>Trạng thái</TableHead>
               <TableHead>Còn bán / Giá từ</TableHead>
-              <TableHead>Doanh thu</TableHead>
+              <TableHead>Đã đặt</TableHead>
+              <TableHead>Doanh thu / Lợi nhuận</TableHead>
               <TableHead className="pr-6 text-right">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredHotels.length === 0 ? (
+            {paginatedHotels.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-sm text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-12 text-sm text-muted-foreground">
                   Không tìm thấy đối tác khách sạn nào phù hợp.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredHotels.map((hotel) => (
+              paginatedHotels.map((hotel) => (
                 <TableRow key={hotel.id} className="hover:bg-muted/30">
                   <TableCell className="pl-6">
                     <div>
@@ -380,7 +423,13 @@ export default function HotelsAdminPage() {
                     <p className="font-semibold text-muted-foreground">{hotel.availableRoomQty} phòng</p>
                     <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{formatCurrency(hotel.lowestPrice)}</p>
                   </TableCell>
-                  <TableCell className="text-xs font-bold">{formatCurrency(hotel.totalRevenue)}</TableCell>
+                  <TableCell className="text-xs font-bold">{hotel.bookedRoomQty} phòng</TableCell>
+                  <TableCell className="text-xs">
+                    <p className="font-bold">{formatCurrency(hotel.totalRevenue)}</p>
+                    <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                      Lợi nhuận {formatCurrency(hotel.totalProfit)}
+                    </p>
+                  </TableCell>
                   <TableCell className="pr-6 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button
@@ -406,6 +455,39 @@ export default function HotelsAdminPage() {
             )}
           </TableBody>
         </Table>
+        <div className="flex items-center justify-between px-6 py-4 border-t">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            disabled={currentPageClamped === 1}
+            className="gap-1 cursor-pointer h-8 text-xs"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" /> Trước
+          </Button>
+          <div className="flex items-center gap-1.5">
+            {pageNumbers.map((page) => (
+              <Button
+                key={page}
+                size="sm"
+                variant={currentPageClamped === page ? 'default' : 'ghost'}
+                onClick={() => setCurrentPage(page)}
+                className="w-8 h-8 p-0 text-xs cursor-pointer"
+              >
+                {page}
+              </Button>
+            ))}
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+            disabled={currentPageClamped === totalPages}
+            className="gap-1 cursor-pointer h-8 text-xs"
+          >
+            Sau <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </Card>
     </div>
   );

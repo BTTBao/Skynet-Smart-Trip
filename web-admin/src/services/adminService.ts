@@ -166,6 +166,8 @@ export interface AdminHotel {
   availableRoomQty: number;
   lowestPrice: number;
   totalRevenue: number;
+  totalProfit: number;
+  bookedRoomQty: number;
 }
 
 export interface AdminHotelRequest {
@@ -187,6 +189,10 @@ export interface AdminRoom {
   availableQty: number;
   isSelling: boolean;
   imageUrls: string[];
+  totalRevenue: number;
+  totalProfit: number;
+  bookedRoomQty: number;
+  bookingCount: number;
 }
 
 export interface AdminHotelDetail extends AdminHotel {
