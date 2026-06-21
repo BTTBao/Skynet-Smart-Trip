@@ -21,6 +21,7 @@ class MyTripsView extends StatefulWidget {
 
 class _MyTripsViewState extends State<MyTripsView> {
   int _selectedTabIndex = 0;
+  final TextEditingController _shareCodeController = TextEditingController();
   final ActivityHistoryService _activityHistoryService = ActivityHistoryService();
   final TripService _tripService = TripService();
 
@@ -32,9 +33,85 @@ class _MyTripsViewState extends State<MyTripsView> {
     });
   }
 
+  @override
+  void dispose() {
+    _shareCodeController.dispose();
+    super.dispose();
+  }
+
   void _openCreateTrip() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const CreateTripView()),
+    );
+  }
+
+  void _openEditTrip(MyTripSummary trip) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CreateTripView(
+          editTripId: trip.tripId,
+          initialTitle: trip.title,
+          initialDestination: trip.destination,
+          initialDestinationId: trip.destinationId,
+          initialShareCode: trip.shareCode,
+          initialStartDate: trip.startDate,
+          initialEndDate: trip.endDate,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteTrip(
+    TripProvider provider,
+    MyTripSummary trip,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Xóa chuyến đi?',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: Text(
+          'Bạn có chắc muốn xóa "${trip.title}"? Hành động này không thể hoàn tác.',
+          style: const TextStyle(height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    final success = await provider.deleteTrip(trip.tripId);
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Đã xóa chuyến đi.'
+              : (provider.error ?? 'Xóa chuyến đi thất bại.'),
+        ),
+        backgroundColor: success ? TripUiColors.timelineGreen : Colors.redAccent,
+      ),
     );
   }
 
@@ -47,6 +124,122 @@ class _MyTripsViewState extends State<MyTripsView> {
           startDate: trip.startDate,
           endDate: trip.endDate,
           travelerInitial: trip.title.isEmpty ? 'T' : trip.title[0].toUpperCase(),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSharedTripByCode(TripProvider provider) async {
+    final code = _shareCodeController.text.trim();
+    if (code.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nhập mã chuyến đi để tìm kiếm.')),
+      );
+      return;
+    }
+
+    if (provider.trips.isEmpty) {
+      await provider.fetchTrips(silent: true);
+      if (!mounted) return;
+    }
+
+    final existingTrip = provider.findTripByShareCode(code);
+    if (existingTrip != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Chuyến đi đã có trong danh sách của bạn.'),
+        ),
+      );
+      _openTripDetail(existingTrip);
+      return;
+    }
+
+    final sharedTrip = await provider.fetchSharedTripDetail(code);
+    if (!mounted) {
+      return;
+    }
+
+    if (sharedTrip == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.error ?? 'Không tìm thấy chuyến đi.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (sharedTrip.canEdit) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Chuyến đi đã có trong danh sách của bạn.'),
+        ),
+      );
+      MyTripSummary? ownTrip;
+      for (final trip in provider.trips) {
+        if (trip.tripId == sharedTrip.tripId) {
+          ownTrip = trip;
+          break;
+        }
+      }
+      if (ownTrip != null) {
+        _openTripDetail(ownTrip);
+      } else {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TripItineraryDetailView(
+              tripId: sharedTrip.tripId,
+              tripTitle: sharedTrip.title,
+              startDate: sharedTrip.startDate,
+              endDate: sharedTrip.endDate,
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!sharedTrip.canSave) {
+      final savedTripId = sharedTrip.savedTripId;
+      if (savedTripId != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Chuyến đi đã có trong danh sách của bạn.'),
+          ),
+        );
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TripItineraryDetailView(
+              tripId: savedTripId,
+              tripTitle: sharedTrip.title,
+              startDate: sharedTrip.startDate,
+              endDate: sharedTrip.endDate,
+            ),
+          ),
+        );
+        return;
+      }
+
+      final savedCopy = provider.findSavedCopyOfTrip(sharedTrip.tripId);
+      if (savedCopy != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Chuyến đi đã có trong danh sách của bạn.'),
+          ),
+        );
+        _openTripDetail(savedCopy);
+        return;
+      }
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TripItineraryDetailView(
+          tripId: sharedTrip.tripId,
+          tripTitle: sharedTrip.title,
+          startDate: sharedTrip.startDate,
+          endDate: sharedTrip.endDate,
+          shareCode: code.trim().toUpperCase(),
         ),
       ),
     );
@@ -537,48 +730,12 @@ class _MyTripsViewState extends State<MyTripsView> {
               onRefresh: () => tripProvider.fetchTrips(),
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8FFF0),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.menu_rounded,
-                            color: TripUiColors.timelineGreen,
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          width: 34,
-                          height: 34,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [Color(0xFFB7F5C6), Color(0xFF1FB266)],
-                            ),
-                          ),
-                          alignment: Alignment.center,
-                          child: const Text(
-                            'N',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
                     const Text(
-                      'Chuyen di cua toi',
+                      'Chuyến đi của tôi',
                       style: TextStyle(
                         fontSize: 34,
                         fontWeight: FontWeight.w900,
@@ -588,12 +745,18 @@ class _MyTripsViewState extends State<MyTripsView> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Kham pha va quan ly nhung hanh trinh tuyet voi cua ban.',
+                      'Khám phá và quản lý những hành trình tuyệt vời của bạn.',
                       style: TextStyle(
                         fontSize: 13,
                         height: 1.45,
                         color: TripUiColors.textSecondary,
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    _SharedTripSearchBox(
+                      controller: _shareCodeController,
+                      isLoading: tripProvider.isSearchingSharedTrip,
+                      onSearch: () => _openSharedTripByCode(tripProvider),
                     ),
                     const SizedBox(height: 18),
                     MyTripFilterTabs(
@@ -610,20 +773,20 @@ class _MyTripsViewState extends State<MyTripsView> {
                       )
                     else if (tripProvider.error != null && tripProvider.trips.isEmpty)
                       _TripStateCard(
-                        title: 'Khong tai duoc danh sach chuyen di',
+                        title: 'Không tải được danh sách chuyến đi',
                         subtitle: tripProvider.error!,
-                        actionLabel: 'Thu lai',
+                        actionLabel: 'Thử lại',
                         onTap: () => tripProvider.fetchTrips(),
                       )
                     else if (visibleTrips.isEmpty)
                       _TripStateCard(
                         title: _selectedTabIndex == 0
-                            ? 'Chua co chuyen di sap toi'
-                            : 'Chua co chuyen di da hoan thanh',
+                            ? 'Chưa có chuyến đi sắp tới'
+                            : 'Chưa có chuyến đi đã hoàn thành',
                         subtitle: _selectedTabIndex == 0
-                            ? 'Tao chuyen di moi de bat dau len lich trinh.'
-                            : 'Nhung chuyen di da qua se xuat hien o day.',
-                        actionLabel: 'Tao chuyen di',
+                            ? 'Tạo chuyến đi mới để bắt đầu lên lịch trình.'
+                            : 'Những chuyến đi đã qua sẽ xuất hiện ở đây.',
+                        actionLabel: 'Tạo chuyến đi',
                         onTap: _openCreateTrip,
                       )
                     else
@@ -633,6 +796,12 @@ class _MyTripsViewState extends State<MyTripsView> {
                           child: MyTripCard(
                             trip: trip,
                             onTap: () => _openTripDetail(trip),
+                            onEditTap: trip.canEdit
+                                ? () => _openEditTrip(trip)
+                                : null,
+                            onDeleteTap: trip.canEdit
+                                ? () => _confirmDeleteTrip(tripProvider, trip)
+                                : null,
                             onReviewTap: _selectedTabIndex == 1 &&
                                     trip.status != 'CANCELLED'
                                 ? () => _openReviewServices(trip)
@@ -647,6 +816,91 @@ class _MyTripsViewState extends State<MyTripsView> {
           ),
         );
       },
+    );
+  }
+}
+
+class _SharedTripSearchBox extends StatelessWidget {
+  const _SharedTripSearchBox({
+    required this.controller,
+    required this.isLoading,
+    required this.onSearch,
+  });
+
+  final TextEditingController controller;
+  final bool isLoading;
+  final VoidCallback onSearch;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE7EDF1)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              enabled: !isLoading,
+              textCapitalization: TextCapitalization.characters,
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(
+                hintText: 'Nhập mã chuyến đi',
+                hintStyle: TextStyle(fontSize: 13),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: TripUiColors.textSecondary,
+                  size: 20,
+                ),
+                prefixIconConstraints: BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+              onSubmitted: (_) => isLoading ? null : onSearch(),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            height: 34,
+            child: ElevatedButton(
+              onPressed: isLoading ? null : onSearch,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: TripUiColors.primaryGreen,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Tìm',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

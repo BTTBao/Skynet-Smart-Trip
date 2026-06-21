@@ -325,12 +325,16 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<Trip>(entity =>
         {
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.Property(e => e.ShareCode).HasMaxLength(20).IsUnicode(false);
             entity.Property(e => e.Status).HasMaxLength(50).HasConversion<string>().HasDefaultValue(SmartTrip.Domain.Enums.TripStatus.Draft);
             entity.Property(e => e.Title).HasMaxLength(200);
             entity.Property(e => e.TotalAmount).HasDefaultValue(0m).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.TotalProfit).HasDefaultValue(0m).HasColumnType("decimal(18, 2)");
+            entity.HasIndex(e => e.ShareCode).IsUnique().HasFilter("[ShareCode] IS NOT NULL");
+            entity.HasIndex(e => new { e.UserId, e.SharedFromTripId }).IsUnique().HasFilter("[SharedFromTripId] IS NOT NULL");
 
             entity.HasOne(d => d.Destination).WithMany(p => p.Trips).HasForeignKey(d => d.DestinationId);
+            entity.HasOne(d => d.SharedFromTrip).WithMany(p => p.SharedTrips).HasForeignKey(d => d.SharedFromTripId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(d => d.User).WithMany(p => p.Trips).HasForeignKey(d => d.UserId);
         });
 

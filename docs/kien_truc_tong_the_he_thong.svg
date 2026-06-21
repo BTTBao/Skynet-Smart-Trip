@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" role="img" aria-labelledby="title desc">
+  <title id="title">Kiến trúc tổng thể hệ thống Skynet Smart Trip</title>
+  <desc id="desc">Sơ đồ kiến trúc tổng thể gồm Mobile App, Web Admin, Backend API, Application Layer, Domain Layer, Infrastructure Layer, SQL Server Database và các dịch vụ ngoài.</desc>
+
+  <defs>
+    <style>
+      .bg { fill: #f7fafc; }
+      .title { font: 700 34px Arial, sans-serif; fill: #152238; }
+      .subtitle { font: 400 16px Arial, sans-serif; fill: #536173; }
+      .group-title { font: 700 17px Arial, sans-serif; fill: #24364f; }
+      .box-title { font: 700 16px Arial, sans-serif; fill: #152238; }
+      .box-text { font: 400 13px Arial, sans-serif; fill: #4a5568; }
+      .small { font: 400 12px Arial, sans-serif; fill: #5d6b7e; }
+      .label { font: 700 12px Arial, sans-serif; fill: #36506f; }
+      .panel { fill: #ffffff; stroke: #d8e1ec; stroke-width: 1.5; rx: 14; }
+      .client { fill: #eaf7ff; stroke: #5eb2e6; stroke-width: 1.8; rx: 12; }
+      .api { fill: #eefdf3; stroke: #57b879; stroke-width: 1.8; rx: 12; }
+      .app { fill: #fff8e6; stroke: #e5b64f; stroke-width: 1.8; rx: 12; }
+      .domain { fill: #f3edff; stroke: #9a7bd8; stroke-width: 1.8; rx: 12; }
+      .infra { fill: #fff0f0; stroke: #dd7878; stroke-width: 1.8; rx: 12; }
+      .db { fill: #edf2f7; stroke: #718096; stroke-width: 1.8; rx: 12; }
+      .external { fill: #f0fff9; stroke: #48a986; stroke-width: 1.8; rx: 12; }
+      .arrow { stroke: #37546f; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .arrow-soft { stroke: #70869d; stroke-width: 1.8; fill: none; marker-end: url(#arrowSoft); stroke-dasharray: 7 6; }
+      .divider { stroke: #d8e1ec; stroke-width: 1; }
+    </style>
+
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#37546f" />
+    </marker>
+    <marker id="arrowSoft" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#70869d" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1400" height="900" />
+
+  <text class="title" x="70" y="62">Kiến trúc tổng thể hệ thống Skynet Smart Trip</text>
+  <text class="subtitle" x="70" y="92">Mobile Flutter + React Web Admin giao tiếp với .NET Web API, xử lý nghiệp vụ qua Clean Architecture và lưu dữ liệu trong SQL Server.</text>
+
+  <rect class="panel" x="60" y="130" width="260" height="620" />
+  <text class="group-title" x="85" y="165">Client Layer</text>
+
+  <rect class="client" x="90" y="195" width="200" height="112" />
+  <text class="box-title" x="120" y="230">Flutter Mobile App</text>
+  <text class="box-text" x="120" y="256">Người dùng</text>
+  <text class="box-text" x="120" y="278">Đặt phòng, chuyến đi</text>
+
+  <rect class="client" x="90" y="350" width="200" height="112" />
+  <text class="box-title" x="120" y="385">React Web Admin</text>
+  <text class="box-text" x="120" y="411">Quản trị viên</text>
+  <text class="box-text" x="120" y="433">Quản lý dữ liệu</text>
+
+  <rect class="client" x="90" y="505" width="200" height="112" />
+  <text class="box-title" x="120" y="540">HTTP Client</text>
+  <text class="box-text" x="120" y="566">REST API</text>
+  <text class="box-text" x="120" y="588">JWT Authentication</text>
+
+  <rect class="panel" x="380" y="130" width="650" height="620" />
+  <text class="group-title" x="405" y="165">Backend - .NET Clean Architecture</text>
+
+  <rect class="api" x="425" y="195" width="560" height="95" />
+  <text class="box-title" x="455" y="228">Presentation Layer - SmartTrip.API</text>
+  <text class="box-text" x="455" y="254">AuthController, TripController, PaymentController, ChatController, AdminController</text>
+
+  <rect class="app" x="425" y="330" width="560" height="105" />
+  <text class="box-title" x="455" y="363">Application Layer - SmartTrip.Application</text>
+  <text class="box-text" x="455" y="389">AuthService, TripService, ItineraryService, ChatService, CatalogService</text>
+  <text class="box-text" x="455" y="411">DTOs, Interfaces, business rules</text>
+
+  <rect class="domain" x="425" y="475" width="560" height="95" />
+  <text class="box-title" x="455" y="508">Domain Layer - SmartTrip.Domain</text>
+  <text class="box-text" x="455" y="534">Entities: User, Trip, TripItinerary, Hotel, Room, Payment, BlogPost</text>
+
+  <rect class="infra" x="425" y="610" width="560" height="95" />
+  <text class="box-title" x="455" y="643">Infrastructure Layer - SmartTrip.Infrastructure</text>
+  <text class="box-text" x="455" y="669">EF Core DbContext, Repositories, PayOS, AI, Email integrations</text>
+
+  <rect class="panel" x="1090" y="130" width="250" height="620" />
+  <text class="group-title" x="1115" y="165">External Systems</text>
+
+  <rect class="external" x="1120" y="195" width="190" height="90" />
+  <text class="box-title" x="1168" y="228">AI Service</text>
+  <text class="box-text" x="1150" y="254">Grok / Gemini</text>
+
+  <rect class="external" x="1120" y="325" width="190" height="90" />
+  <text class="box-title" x="1182" y="358">PayOS</text>
+  <text class="box-text" x="1155" y="384">Thanh toán</text>
+
+  <rect class="external" x="1120" y="455" width="190" height="90" />
+  <text class="box-title" x="1168" y="488">Email Service</text>
+  <text class="box-text" x="1155" y="514">OTP, xác thực</text>
+
+  <rect class="external" x="1120" y="585" width="190" height="90" />
+  <text class="box-title" x="1160" y="618">File Storage</text>
+  <text class="box-text" x="1154" y="644">Avatar, blog image</text>
+
+  <rect class="panel" x="380" y="790" width="650" height="70" />
+  <text class="group-title" x="405" y="825">Database Layer</text>
+  <text class="box-text" x="405" y="848">SQL Server: Users, Hotels, Rooms, Trips, TripItineraries, Payments, ChatHistories, BlogPosts</text>
+
+  <path class="arrow" d="M290 250 H425" />
+  <text class="label" x="325" y="238">REST / JSON</text>
+
+  <path class="arrow" d="M290 406 H425" />
+  <text class="label" x="325" y="394">REST / JSON</text>
+
+  <path class="arrow" d="M705 290 V330" />
+  <path class="arrow" d="M705 435 V475" />
+  <path class="arrow" d="M705 570 V610" />
+  <path class="arrow" d="M705 705 V790" />
+
+  <path class="arrow-soft" d="M985 240 H1120" />
+  <text class="label" x="1026" y="228">Chat AI</text>
+
+  <path class="arrow-soft" d="M985 370 H1120" />
+  <text class="label" x="1028" y="358">Payment</text>
+
+  <path class="arrow-soft" d="M985 500 H1120" />
+  <text class="label" x="1038" y="488">Email</text>
+
+  <path class="arrow-soft" d="M985 630 H1120" />
+  <text class="label" x="1030" y="618">Upload</text>
+
+  <line class="divider" x1="405" y1="310" x2="1005" y2="310" />
+  <line class="divider" x1="405" y1="455" x2="1005" y2="455" />
+  <line class="divider" x1="405" y1="590" x2="1005" y2="590" />
+
+  <rect class="panel" x="60" y="790" width="260" height="70" />
+  <text class="group-title" x="85" y="825">Deployment</text>
+  <text class="box-text" x="85" y="848">Docker Compose, .env, appsettings.json</text>
+</svg>

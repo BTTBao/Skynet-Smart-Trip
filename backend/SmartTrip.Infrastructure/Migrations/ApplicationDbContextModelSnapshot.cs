@@ -940,11 +940,19 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Property<int?>("DestinationId")
                         .HasColumnType("int");
 
-                    b.Property<DateOnly?>("EndDate")
-                        .HasColumnType("date");
+                      b.Property<DateOnly?>("EndDate")
+                          .HasColumnType("date");
 
-                    b.Property<DateOnly?>("StartDate")
-                        .HasColumnType("date");
+                      b.Property<string>("ShareCode")
+                          .HasMaxLength(20)
+                          .IsUnicode(false)
+                          .HasColumnType("varchar(20)");
+
+                      b.Property<int?>("SharedFromTripId")
+                          .HasColumnType("int");
+
+                      b.Property<DateOnly?>("StartDate")
+                          .HasColumnType("date");
 
                     b.Property<string>("Status")
                         .ValueGeneratedOnAdd()
@@ -971,12 +979,22 @@ namespace SmartTrip.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DestinationId");
+                      b.HasIndex("DestinationId");
 
-                    b.HasIndex("UserId");
+                      b.HasIndex("ShareCode")
+                          .IsUnique()
+                          .HasFilter("[ShareCode] IS NOT NULL");
 
-                    b.ToTable("Trips");
-                });
+                      b.HasIndex("SharedFromTripId");
+
+                      b.HasIndex("UserId");
+
+                      b.HasIndex("UserId", "SharedFromTripId")
+                          .IsUnique()
+                          .HasFilter("[SharedFromTripId] IS NOT NULL");
+
+                      b.ToTable("Trips");
+                  });
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.TripItinerary", b =>
                 {
@@ -1546,18 +1564,25 @@ namespace SmartTrip.Infrastructure.Migrations
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Trip", b =>
                 {
-                    b.HasOne("SmartTrip.Domain.Entities.Destination", "Destination")
-                        .WithMany("Trips")
-                        .HasForeignKey("DestinationId");
+                      b.HasOne("SmartTrip.Domain.Entities.Destination", "Destination")
+                          .WithMany("Trips")
+                          .HasForeignKey("DestinationId");
 
-                    b.HasOne("SmartTrip.Domain.Entities.User", "User")
-                        .WithMany("Trips")
-                        .HasForeignKey("UserId");
+                      b.HasOne("SmartTrip.Domain.Entities.Trip", "SharedFromTrip")
+                          .WithMany("SharedTrips")
+                          .HasForeignKey("SharedFromTripId")
+                          .OnDelete(DeleteBehavior.Restrict);
 
-                    b.Navigation("Destination");
+                      b.HasOne("SmartTrip.Domain.Entities.User", "User")
+                          .WithMany("Trips")
+                          .HasForeignKey("UserId");
 
-                    b.Navigation("User");
-                });
+                      b.Navigation("Destination");
+
+                      b.Navigation("SharedFromTrip");
+
+                      b.Navigation("User");
+                  });
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.TripItinerary", b =>
                 {
@@ -1660,10 +1685,12 @@ namespace SmartTrip.Infrastructure.Migrations
 
                     b.Navigation("Payments");
 
-                    b.Navigation("Reviews");
+                      b.Navigation("Reviews");
 
-                    b.Navigation("TripItineraries");
-                });
+                      b.Navigation("SharedTrips");
+
+                      b.Navigation("TripItineraries");
+                  });
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.User", b =>
                 {

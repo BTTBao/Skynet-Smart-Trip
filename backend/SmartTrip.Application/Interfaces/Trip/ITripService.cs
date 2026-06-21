@@ -8,6 +8,10 @@ public interface ITripService
 
     Task<TripDetailDto?> GetTripByIdAsync(int tripId);
 
+    Task<TripDetailDto?> GetTripByShareCodeAsync(string shareCode, int currentUserId);
+
+    Task<TripSummaryDto> SaveSharedTripAsync(string shareCode, int currentUserId);
+
     Task<TripSummaryDto> CreateTripAsync(CreateTripDto request);
 
     Task<TripSummaryDto> CreateHotelBookingAsync(CreateHotelBookingDto request);
@@ -15,4 +19,6 @@ public interface ITripService
     Task<TripSummaryDto> CompleteFakePaymentAsync(int tripId, CreateFakePaymentDto request);
 
     Task<TripSummaryDto> UpdateTripAsync(int tripId, UpdateTripDto request);
+
+    Task DeleteTripAsync(int tripId, int currentUserId);
 }

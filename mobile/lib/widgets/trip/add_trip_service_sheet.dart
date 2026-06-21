@@ -12,6 +12,7 @@ import '../../providers/hotel_provider.dart';
 import '../../providers/trip_provider.dart';
 import '../../views/checkout/booking_date_guest_screen.dart';
 import '../../views/trip/trip_ui_constants.dart';
+import 'place_search_field.dart';
 
 class TripBusCheckoutRequest {
   const TripBusCheckoutRequest({
@@ -30,6 +31,7 @@ class AddTripServiceSheet extends StatefulWidget {
     required this.dayNumber,
     required this.initialServiceDate,
     this.destinationId,
+    this.destinationName,
     this.tripStartDate,
     this.tripEndDate,
   });
@@ -38,6 +40,7 @@ class AddTripServiceSheet extends StatefulWidget {
   final int dayNumber;
   final DateTime initialServiceDate;
   final int? destinationId;
+  final String? destinationName;
   final DateTime? tripStartDate;
   final DateTime? tripEndDate;
 
@@ -51,7 +54,7 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
   final _priceController = TextEditingController();
   final _addressController = TextEditingController();
 
-  String _selectedServiceType = 'BUS';
+  String _selectedServiceType = 'NOTE';
   TripServiceOption? _selectedOption;
   late Future<List<TripServiceOption>> _optionsFuture;
   late DateTime _selectedServiceDate;
@@ -61,10 +64,25 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
   BusScheduleModel? _selectedBusSchedule;
   int _seatSelectionToken = 0;
   int? _loadingSeatScheduleId;
+  String _searchAddress = '';
 
   bool get _isNote => _selectedServiceType == 'NOTE';
   bool get _isBus => _selectedServiceType == 'BUS';
   bool get _isHotel => _selectedServiceType == 'HOTEL';
+
+  /// Resolves the trip destination selected when the trip was created.
+  String? get _resolvedDestinationName {
+    final direct = widget.destinationName?.trim();
+    if (direct != null && direct.isNotEmpty) return direct;
+
+    final id = widget.destinationId;
+    if (id == null) return null;
+    final destinations = context.read<DestinationProvider>().destinations;
+    for (final d in destinations) {
+      if (d.id == id) return d.name;
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -367,6 +385,13 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
       return;
     }
 
+    if (_isNote && _searchAddress.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập và chọn địa điểm.')),
+      );
+      return;
+    }
+
     if (_selectedDepartureTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -384,6 +409,13 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
     final departureText =
         '${departure.hour.toString().padLeft(2, '0')}:${departure.minute.toString().padLeft(2, '0')}:00';
 
+    String combinedAddress = _searchAddress.trim();
+    if (_isNote && _addressController.text.trim().isNotEmpty) {
+      combinedAddress = '$combinedAddress\n${_addressController.text.trim()}';
+    } else if (!_isNote) {
+      combinedAddress = _addressController.text.trim();
+    }
+
     Navigator.of(context).pop(
       CreateTripItineraryRequest(
         dayNumber: _resolveDayNumber(),
@@ -397,7 +429,7 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
         bookedCommissionRate: _isNote ? 0 : _selectedOption!.defaultCommissionRate,
         serviceDate: _selectedServiceDate,
         departureTime: departureText,
-        serviceAddress: _addressController.text.trim(),
+        serviceAddress: combinedAddress,
       ),
     );
   }
@@ -1049,18 +1081,7 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
                   color: TripUiColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 18),
-              const _SheetLabel('Loại dịch vụ'),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildTypeChip(label: 'Di chuyển', value: 'BUS'),
-                  _buildTypeChip(label: 'Lưu trú', value: 'HOTEL'),
-                  _buildTypeChip(label: 'Ghi chú', value: 'NOTE'),
-                ],
-              ),
+
               if (_isBus) ...[
                 const SizedBox(height: 16),
                 _buildBusPlanner(busProvider, destinationProvider),
@@ -1162,7 +1183,7 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _SheetLabel(_isNote ? 'Thời gian' : 'Giờ khởi hành'),
+                        const _SheetLabel('Thời gian (bắt buộc)'),
                         const SizedBox(height: 10),
                         _SelectFieldButton(
                           icon: Icons.access_time_rounded,
@@ -1175,24 +1196,24 @@ class _AddTripServiceSheetState extends State<AddTripServiceSheet> {
                 ],
               ),
               const SizedBox(height: 16),
-              _SheetLabel(_isNote ? 'Nội dung ghi chú' : 'Địa chỉ dịch vụ (không bắt buộc)'),
-              const SizedBox(height: 8),
-              if (!_isNote)
-                const Text(
-                  'Nên nhập để sử dụng tính năng map và vẽ lộ trình chính xác hơn.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: TripUiColors.textSecondary,
-                  ),
-                ),
+              PlaceSearchField(
+                labelText: 'Địa điểm',
+                hintText: 'Nhập địa điểm để vẽ trên bản đồ...',
+                initialValue: _searchAddress.isNotEmpty ? _searchAddress : null,
+                destinationName: _resolvedDestinationName,
+                onAddressConfirmed: (address) {
+                  setState(() {
+                    _searchAddress = address;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              const _SheetLabel('Nội dung ghi chú (không bắt buộc)'),
               const SizedBox(height: 8),
               _SheetTextField(
                 controller: _addressController,
-                hintText: _isNote ? 'Ví dụ: 19:00 đi chợ đêm, ăn tối, chụp ảnh' : 'Ví dụ: 45 Lê Lợi, Quận 1, TP.HCM',
+                hintText: 'Ví dụ: Ăn tối, chụp ảnh lưu niệm...',
                 validator: (value) {
-                  if (_isNote && (value ?? '').trim().isEmpty) {
-                    return 'Nhập nội dung ghi chú';
-                  }
                   return null;
                 },
               ),

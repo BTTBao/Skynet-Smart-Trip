@@ -27,7 +27,11 @@ class TripProvider with ChangeNotifier {
   bool _isLoadingTrips = false;
   bool _isLoadingTripDetail = false;
   bool _isSubmitting = false;
+  bool _isSearchingSharedTrip = false;
   String? _error;
+
+  /// Itinerary IDs excluded from the map route per trip (persists while app runs).
+  final Map<int, Set<int>> _mapRouteExcludedItineraryIdsByTrip = {};
 
   List<MyTripSummary> get trips => List.unmodifiable(_trips);
   TripDetail? get currentTrip => _currentTrip;
@@ -35,7 +39,49 @@ class TripProvider with ChangeNotifier {
   bool get isLoadingTrips => _isLoadingTrips;
   bool get isLoadingTripDetail => _isLoadingTripDetail;
   bool get isSubmitting => _isSubmitting;
+  bool get isSearchingSharedTrip => _isSearchingSharedTrip;
   String? get error => _error;
+
+  Set<int> mapRouteExcludedItineraryIds(int tripId) {
+    return Set.unmodifiable(
+      _mapRouteExcludedItineraryIdsByTrip[tripId] ?? const <int>{},
+    );
+  }
+
+  void setMapRouteItineraryExcluded(
+    int tripId,
+    int itineraryId,
+    bool excluded,
+  ) {
+    final current = _mapRouteExcludedItineraryIdsByTrip.putIfAbsent(
+      tripId,
+      () => <int>{},
+    );
+    if (excluded) {
+      current.add(itineraryId);
+    } else {
+      current.remove(itineraryId);
+      if (current.isEmpty) {
+        _mapRouteExcludedItineraryIdsByTrip.remove(tripId);
+      }
+    }
+  }
+
+  void _pruneMapRouteExcludedItineraryIds(
+    int tripId,
+    Iterable<int> validItineraryIds,
+  ) {
+    final validIds = validItineraryIds.toSet();
+    final current = _mapRouteExcludedItineraryIdsByTrip[tripId];
+    if (current == null) {
+      return;
+    }
+
+    current.removeWhere((id) => !validIds.contains(id));
+    if (current.isEmpty) {
+      _mapRouteExcludedItineraryIdsByTrip.remove(tripId);
+    }
+  }
 
   bool _isBookingOnlyPlaceholder(MyTripSummary trip) {
     if (trip.status == _bookingOnlyStatus) {
@@ -108,6 +154,11 @@ class TripProvider with ChangeNotifier {
 
     try {
       _currentTrip = await _tripService.getTripDetail(tripId);
+      final itineraryIds = _currentTrip?.itineraries
+              .map((entry) => entry.itineraryId)
+              .whereType<int>() ??
+          const <int>[];
+      _pruneMapRouteExcludedItineraryIds(tripId, itineraryIds);
       return _currentTrip;
     } catch (e) {
       _error = e.toString();
@@ -116,6 +167,84 @@ class TripProvider with ChangeNotifier {
       _isLoadingTripDetail = false;
       notifyListeners();
     }
+  }
+
+  Future<TripDetail?> fetchSharedTripDetail(String shareCode) async {
+    final normalizedCode = shareCode.trim();
+    if (normalizedCode.isEmpty) {
+      _error = 'Nhập mã chuyến đi để tìm kiếm.';
+      notifyListeners();
+      return null;
+    }
+
+    _isSearchingSharedTrip = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final sharedTrip = await _tripService.getSharedTripDetail(normalizedCode);
+      _currentTripId = sharedTrip.tripId;
+      _currentTrip = sharedTrip;
+      return sharedTrip;
+    } catch (e) {
+      _error = e.toString();
+      return null;
+    } finally {
+      _isSearchingSharedTrip = false;
+      notifyListeners();
+    }
+  }
+
+  Future<MyTripSummary?> saveSharedTrip(String shareCode) async {
+    final normalizedCode = shareCode.trim();
+    if (normalizedCode.isEmpty) {
+      _error = 'Nhập mã chuyến đi để lưu.';
+      notifyListeners();
+      return null;
+    }
+
+    _isSubmitting = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final savedTrip = await _tripService.saveSharedTrip(normalizedCode);
+      _trips = [
+        savedTrip,
+        ..._trips.where((trip) => trip.tripId != savedTrip.tripId),
+      ];
+      await fetchTripDetail(savedTrip.tripId);
+      return savedTrip;
+    } catch (e) {
+      _error = e.toString();
+      return null;
+    } finally {
+      _isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
+  MyTripSummary? findTripByShareCode(String shareCode) {
+    final normalized = shareCode.trim().toUpperCase();
+    if (normalized.isEmpty) {
+      return null;
+    }
+
+    for (final trip in _trips) {
+      if (trip.shareCode.trim().toUpperCase() == normalized) {
+        return trip;
+      }
+    }
+    return null;
+  }
+
+  MyTripSummary? findSavedCopyOfTrip(int sourceTripId) {
+    for (final trip in _trips) {
+      if (trip.sharedFromTripId == sourceTripId) {
+        return trip;
+      }
+    }
+    return null;
   }
 
   Future<MyTripSummary?> createTrip(CreateTripRequest request) async {
@@ -232,30 +361,49 @@ class TripProvider with ChangeNotifier {
     );
   }
 
-  Future<bool> updateTrip(int tripId, UpdateTripRequest request) async {
+  Future<MyTripSummary?> updateTrip(int tripId, UpdateTripRequest request) async {
     _isSubmitting = true;
     _error = null;
     notifyListeners();
 
     try {
       final updatedTrip = await _tripService.updateTrip(tripId, request);
-      // Update local trips list
       final index = _trips.indexWhere((t) => t.tripId == tripId);
       if (index != -1) {
         _trips[index] = updatedTrip;
       }
 
-      // If updating current trip, refresh detail
       if (_currentTripId == tripId) {
         await fetchTripDetail(tripId);
       } else {
         notifyListeners();
       }
+      return updatedTrip;
+    } catch (e) {
+      _error = e.toString();
+      return null;
+    } finally {
+      _isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteTrip(int tripId) async {
+    _isSubmitting = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _tripService.deleteTrip(tripId);
+      _trips.removeWhere((trip) => trip.tripId == tripId);
+      _mapRouteExcludedItineraryIdsByTrip.remove(tripId);
+      if (_currentTripId == tripId) {
+        _currentTrip = null;
+        _currentTripId = null;
+      }
       return true;
     } catch (e) {
       _error = e.toString();
-      _isSubmitting = false;
-      notifyListeners();
       return false;
     } finally {
       _isSubmitting = false;
@@ -297,7 +445,12 @@ class TripProvider with ChangeNotifier {
     try {
       await _tripService.deleteItinerary(itineraryId);
       if (_currentTripId != null) {
-        await fetchTripDetail(_currentTripId!);
+        final tripId = _currentTripId!;
+        _mapRouteExcludedItineraryIdsByTrip[tripId]?.remove(itineraryId);
+        if (_mapRouteExcludedItineraryIdsByTrip[tripId]?.isEmpty ?? false) {
+          _mapRouteExcludedItineraryIdsByTrip.remove(tripId);
+        }
+        await fetchTripDetail(tripId);
         await fetchTrips(silent: true);
       }
       return true;
