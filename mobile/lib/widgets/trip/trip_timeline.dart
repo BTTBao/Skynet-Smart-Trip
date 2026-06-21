@@ -27,6 +27,7 @@ class TripTimeline extends StatelessWidget {
         final isLast = index == entries.length - 1;
         final connectorHeight = entry.imageColors == null ? 146.0 : 220.0;
         final canManage = entry.itineraryId != null &&
+            (onEditEntry != null || onDeleteEntry != null) &&
             (canManageEntry == null || canManageEntry!(entry));
         final serviceType = (entry.serviceType ?? '').toUpperCase();
         final canViewInvoice =

@@ -11,12 +11,20 @@ class TripDetail {
     required this.destinationDescription,
     required this.itineraries,
     this.destinationId,
+    this.shareCode = '',
+    this.sharedFromTripId,
     this.totalAmount,
     this.totalProfit,
+    this.canEdit = true,
+    this.canSave = false,
+    this.savedTripId,
   });
 
   final int tripId;
   final int? destinationId;
+  final String shareCode;
+  final int? sharedFromTripId;
+  final int? savedTripId;
   final String title;
   final String status;
   final DateTime startDate;
@@ -26,6 +34,8 @@ class TripDetail {
   final double? totalAmount;
   final double? totalProfit;
   final List<TripTimelineEntry> itineraries;
+  final bool canEdit;
+  final bool canSave;
 
   factory TripDetail.fromJson(Map<String, dynamic> json) {
     final startDate = DateTime.tryParse((json['startDate'] ?? '').toString()) ??
@@ -57,6 +67,8 @@ class TripDetail {
     return TripDetail(
       tripId: (json['tripId'] as num?)?.toInt() ?? 0,
       destinationId: (json['destinationId'] as num?)?.toInt(),
+      shareCode: (json['shareCode'] ?? '').toString(),
+      sharedFromTripId: (json['sharedFromTripId'] as num?)?.toInt(),
       title: (json['title'] ?? '').toString(),
       status: (json['status'] ?? 'DRAFT').toString().toUpperCase(),
       startDate: startDate,
@@ -66,6 +78,9 @@ class TripDetail {
       totalAmount: (json['totalAmount'] as num?)?.toDouble(),
       totalProfit: (json['totalProfit'] as num?)?.toDouble(),
       itineraries: itineraries,
+      canEdit: json['canEdit'] as bool? ?? true,
+      canSave: json['canSave'] as bool? ?? false,
+      savedTripId: (json['savedTripId'] as num?)?.toInt(),
     );
   }
 

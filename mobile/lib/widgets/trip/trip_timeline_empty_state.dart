@@ -5,10 +5,10 @@ import '../../views/trip/trip_ui_constants.dart';
 class TripTimelineEmptyState extends StatelessWidget {
   const TripTimelineEmptyState({
     super.key,
-    required this.onAddPressed,
+    this.onAddPressed,
   });
 
-  final VoidCallback onAddPressed;
+  final VoidCallback? onAddPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +55,8 @@ class TripTimelineEmptyState extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          OutlinedButton.icon(
+          if (onAddPressed != null)
+            OutlinedButton.icon(
             onPressed: onAddPressed,
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: TripUiColors.timelineGreen),

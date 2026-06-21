@@ -74,25 +74,29 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
         setState(() => _isAssociating = true);
         try {
           final tripProvider = context.read<TripProvider>();
-          final success = selectedTrip.usesCurrentBooking
-              ? await tripProvider.updateTrip(
-                  widget.bookingId,
-                  UpdateTripRequest(
-                    title: selectedTrip.createdTitle,
-                    destinationId: widget.destinationId,
-                    destinationName: widget.destinationName,
-                    startDate: widget.checkIn,
-                    endDate: widget.checkOut,
-                    status: 'PENDING',
-                  ),
-                )
-              : await tripProvider.updateItinerary(
-                  widget.itineraryId!,
-                  UpdateTripItineraryRequest(
-                    tripId: selectedTrip.tripId,
-                    dayNumber: selectedTrip.dayNumber,
-                  ),
-                );
+          final bool success;
+          if (selectedTrip.usesCurrentBooking) {
+            final updated = await tripProvider.updateTrip(
+              widget.bookingId,
+              UpdateTripRequest(
+                title: selectedTrip.createdTitle,
+                destinationId: widget.destinationId,
+                destinationName: widget.destinationName,
+                startDate: widget.checkIn,
+                endDate: widget.checkOut,
+                status: 'PENDING',
+              ),
+            );
+            success = updated != null;
+          } else {
+            success = await tripProvider.updateItinerary(
+              widget.itineraryId!,
+              UpdateTripItineraryRequest(
+                tripId: selectedTrip.tripId,
+                dayNumber: selectedTrip.dayNumber,
+              ),
+            );
+          }
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(

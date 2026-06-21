@@ -63,6 +63,47 @@ public class TripController : ControllerBase
         }
     }
 
+    [HttpGet("shared/{shareCode}")]
+    public async Task<IActionResult> GetTripByShareCode(string shareCode)
+    {
+        try
+        {
+            var trip = await _tripService.GetTripByShareCodeAsync(shareCode, GetCurrentUserId());
+            if (trip == null)
+            {
+                return NotFound(new { message = "Shared trip was not found." });
+            }
+
+            return Ok(trip);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("shared/{shareCode}/save")]
+    public async Task<IActionResult> SaveSharedTrip(string shareCode)
+    {
+        try
+        {
+            var trip = await _tripService.SaveSharedTripAsync(shareCode, GetCurrentUserId());
+            return Ok(trip);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
     [HttpGet("{tripId:int}")]
     public async Task<IActionResult> GetTripById(int tripId)
     {
@@ -340,6 +381,29 @@ public class TripController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
+        }
+    }
+
+    [HttpDelete("{tripId:int}")]
+    public async Task<IActionResult> DeleteTrip(int tripId)
+    {
+        try
+        {
+            if (!await UserOwnsTripAsync(tripId))
+            {
+                return Forbid();
+            }
+
+            await _tripService.DeleteTripAsync(tripId, GetCurrentUserId());
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
         }
     }
 

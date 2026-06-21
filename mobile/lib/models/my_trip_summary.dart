@@ -18,10 +18,17 @@ class MyTripSummary {
     required this.endDate,
     required this.itineraryCount,
     this.destinationId,
+    this.shareCode = '',
+    this.sharedFromTripId,
+    this.canEdit = true,
+    this.canSave = false,
+    this.itinerariesCleared = false,
   });
 
   final int tripId;
   final int? destinationId;
+  final String shareCode;
+  final int? sharedFromTripId;
   final String title;
   final String destination;
   final String dateRange;
@@ -35,11 +42,14 @@ class MyTripSummary {
   final DateTime startDate;
   final DateTime endDate;
   final int itineraryCount;
+  final bool canEdit;
+  final bool canSave;
+  final bool itinerariesCleared;
 
   factory MyTripSummary.fromJson(Map<String, dynamic> json) {
     final tripId = (json['tripId'] as num?)?.toInt() ?? 0;
     final title = (json['title'] ?? '').toString().trim();
-    final destination = (json['destinationName'] ?? 'Chua cap nhat').toString();
+    final destination = (json['destinationName'] ?? 'Chưa cập nhật').toString();
     final startDate = DateTime.tryParse((json['startDate'] ?? '').toString()) ??
         DateTime.now();
     final endDate = DateTime.tryParse((json['endDate'] ?? '').toString()) ?? startDate;
@@ -54,13 +64,15 @@ class MyTripSummary {
     return MyTripSummary(
       tripId: tripId,
       destinationId: (json['destinationId'] as num?)?.toInt(),
-      title: title.isEmpty ? 'Chuyen di #$tripId' : title,
+      shareCode: (json['shareCode'] ?? '').toString(),
+      sharedFromTripId: (json['sharedFromTripId'] as num?)?.toInt(),
+      title: title.isEmpty ? 'Chuyến đi #$tripId' : title,
       destination: destination,
       dateRange:
           '${DateFormat('dd/MM').format(startDate)} - ${DateFormat('dd/MM/yyyy').format(endDate)}',
       description: destinationDescription.isNotEmpty
           ? destinationDescription
-          : 'Hanh trinh $durationDays ngay den $destination voi $itineraryCount muc lich trinh.',
+          : 'Hành trình $durationDays ngày đến $destination với $itineraryCount mục lịch trình.',
       status: status,
       statusLabel: statusStyle.label,
       statusColor: statusStyle.textColor,
@@ -70,6 +82,9 @@ class MyTripSummary {
       startDate: startDate,
       endDate: endDate,
       itineraryCount: itineraryCount,
+      canEdit: json['canEdit'] as bool? ?? true,
+      canSave: json['canSave'] as bool? ?? false,
+      itinerariesCleared: json['itinerariesCleared'] as bool? ?? false,
     );
   }
 
@@ -86,7 +101,7 @@ class MyTripSummary {
 
     if (status == 'CANCELLED') {
       return const _TripStatusStyle(
-        label: 'DA HUY',
+        label: 'ĐÃ HỦY',
         textColor: Color(0xFFB42318),
         backgroundColor: Color(0xFFFEE4E2),
       );
@@ -94,7 +109,7 @@ class MyTripSummary {
 
     if (normalizedEndDate.isBefore(today)) {
       return const _TripStatusStyle(
-        label: 'DA DI',
+        label: 'ĐÃ ĐI',
         textColor: Color(0xFF6B7280),
         backgroundColor: Color(0xFFF0F2F4),
       );
@@ -102,7 +117,7 @@ class MyTripSummary {
 
     if (status == 'PAID') {
       return const _TripStatusStyle(
-        label: 'DA THANH TOAN',
+        label: 'ĐÃ THANH TOÁN',
         textColor: Color(0xFF166534),
         backgroundColor: Color(0xFFDCFCE7),
       );
@@ -110,14 +125,14 @@ class MyTripSummary {
 
     if (status == 'PENDING') {
       return const _TripStatusStyle(
-        label: 'SAP TOI',
+        label: 'SẮP TỚI',
         textColor: Color(0xFF15803D),
         backgroundColor: Color(0xFFE2FBEA),
       );
     }
 
     return const _TripStatusStyle(
-      label: 'BAN NHAP',
+      label: 'BẢN NHÁP',
       textColor: Color(0xFF1D4ED8),
       backgroundColor: Color(0xFFDBEAFE),
     );

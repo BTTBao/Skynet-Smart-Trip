@@ -14,6 +14,10 @@ public class Trip
 
     public string? Title { get; set; }
 
+    public string? ShareCode { get; set; }
+
+    public int? SharedFromTripId { get; set; }
+
     public DateOnly? StartDate { get; set; }
 
     public DateOnly? EndDate { get; set; }
@@ -35,6 +39,10 @@ public class Trip
     public virtual ICollection<Review> Reviews { get; set; } = new List<Review>();
 
     public virtual ICollection<TripItinerary> TripItineraries { get; set; } = new List<TripItinerary>();
+
+    public virtual Trip? SharedFromTrip { get; set; }
+
+    public virtual ICollection<Trip> SharedTrips { get; set; } = new List<Trip>();
 
     public virtual User? User { get; set; }
 }
