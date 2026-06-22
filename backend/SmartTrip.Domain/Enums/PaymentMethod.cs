@@ -7,4 +7,6 @@ public enum PaymentMethod
     Card = 3,
     PayOS = 4,
     Promotion = 5,
+    Wallet = 6,
+    BankTransfer = 7,
 }

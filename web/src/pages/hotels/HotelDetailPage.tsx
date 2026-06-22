@@ -17,6 +17,7 @@ const emptyHotelForm: AdminHotelRequest = {
   starRating: 4,
   description: '',
   isAvailable: true,
+  commissionRate: 10,
 };
 
 const emptyRoomForm: AdminRoomRequest = {
@@ -32,8 +33,8 @@ function formatCurrency(value: number) {
   return `${new Intl.NumberFormat('vi-VN', { notation: 'compact', maximumFractionDigits: 1 }).format(value)}đ`;
 }
 
-function calculateRoomProfitPerNight(room: AdminRoom) {
-  return room.pricePerNight * (room.commissionRate / 100);
+function calculateRoomProfitPerNight(room: AdminRoom, hotelCommissionRate: number) {
+  return room.pricePerNight * (hotelCommissionRate / 100);
 }
 
 export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
@@ -48,6 +49,7 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
   const [savingHotel, setSavingHotel] = useState(false);
   const [savingRoom, setSavingRoom] = useState(false);
   const [uploadingRoomImage, setUploadingRoomImage] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   const loadHotel = async () => {
     const data = await adminService.getHotelDetail(hotelId);
@@ -59,6 +61,7 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
       starRating: data.starRating,
       description: data.description,
       isAvailable: data.isAvailable,
+      commissionRate: data.commissionRate || 10,
     });
   };
 
@@ -183,16 +186,16 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
       setRoomImageUrls((current) => [...current, ...uploadedImages.map((image) => image.imageUrl)].slice(0, 12));
       showToast({
         type: 'success',
-        title: 'Da tai anh phong',
+        title: 'Đã tải ảnh phòng',
         message:
           filesToUpload.length < selectedFiles.length
-            ? `Da tai ${filesToUpload.length} anh. Album toi da 12 anh.`
-            : `Da tai ${filesToUpload.length} anh vao album phong.`,
+            ? `Đã tải ${filesToUpload.length} ảnh. Album tối đa 12 ảnh.`
+            : `Đã tải ${filesToUpload.length} ảnh vào album phòng.`,
       });
     } catch (error) {
       showToast({
         type: 'error',
-        title: 'Khong the tai anh phong',
+        title: 'Không thể tải ảnh phòng',
         message: getErrorMessage(error),
       });
     } finally {
@@ -211,8 +214,8 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
       roomType: room.roomType,
       capacity: room.capacity,
       pricePerNight: room.pricePerNight,
-      commissionRate: room.commissionRate,
       availableQty: room.availableQty,
+      commissionRate: room.commissionRate ?? 0,
       imageUrls: room.imageUrls,
     });
     setRoomImageUrls(room.imageUrls);
@@ -231,17 +234,25 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
       <div className="rounded-[2.5rem] bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.28),_transparent_32%),linear-gradient(135deg,_#0f766e_0%,_#155e75_55%,_#1f2937_100%)] p-8 text-white shadow-[0px_24px_80px_rgba(15,118,110,0.22)]">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
           <div className="max-w-3xl">
-            <Link
-              to="/hotels"
-              className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white/90"
-            >
-              ← Quay lại danh sách
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                to="/hotels"
+                className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white/90 hover:bg-white/20 transition-all"
+              >
+                ← Quay lại danh sách
+              </Link>
+              <button
+                type="button"
+                onClick={() => setShowGuide(true)}
+                className="inline-flex items-center gap-2 rounded-full bg-amber-500/80 hover:bg-amber-500 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white transition-all shadow-sm"
+              >
+                💡 Hướng dẫn vận hành
+              </button>
+            </div>
             <p className="mt-6 text-[11px] font-black uppercase tracking-[0.28em] text-white/65">Hotel Detail</p>
             <h1 className="mt-4 text-4xl font-black leading-tight">{hotel.name}</h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-white/75">
-              Đây là nơi admin có thể giữ mô tả khách sạn gọn gàng, sau đó vận hành phòng theo cách rất thực tế:
-              phòng nào ngừng bán thì đưa <span className="font-bold text-white">availableQty</span> về 0, không xóa cứng.
+              {hotel.description || 'Chưa có mô tả chi tiết cho khách sạn này.'}
             </p>
           </div>
 
@@ -250,6 +261,11 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/60">Doanh thu khách sạn</p>
               <p className="mt-3 text-2xl font-black">{formatCurrency(hotel.totalRevenue)}</p>
               <p className="mt-1 text-xs text-white/70">Tính trên các booking khách sạn đã thanh toán.</p>
+            </div>
+            <div className="rounded-[1.75rem] bg-white/12 p-5 ring-1 ring-white/10">
+              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/60">Lợi nhuận khách sạn</p>
+              <p className="mt-3 text-2xl font-black text-emerald-300">{formatCurrency(hotel.totalProfit)}</p>
+              <p className="mt-1 text-xs text-white/70">Tính từ phần hoa hồng thực tế thu được.</p>
             </div>
             <div className="rounded-[1.75rem] bg-white/12 p-5 ring-1 ring-white/10">
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/60">Đang mở bán</p>
@@ -284,7 +300,7 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
               <p className="text-[11px] font-black uppercase tracking-[0.22em] text-primary">Tổng quan</p>
               <h2 className="mt-3 text-2xl font-black text-on-surface">Thông tin khách sạn</h2>
               <p className="mt-2 text-sm text-on-surface-variant">
-                Không xóa dữ liệu. Nếu cần dừng kinh doanh, hãy tắt trạng thái mở bán của hotel.
+                Cập nhật các thông tin tổng quan và cấu hình hoa hồng của khách sạn.
               </p>
             </div>
             <span
@@ -301,14 +317,21 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Điểm đến</p>
               <p className="mt-3 text-lg font-black text-on-surface">{hotel.destinationName}</p>
               <p className="mt-2 text-sm text-on-surface-variant">
-                Điểm đến được khóa tại màn này để tránh đổi nhầm ngữ cảnh sau khi đã tạo room.
+                Điểm đến được liên kết cố định với khách sạn này.
               </p>
             </div>
             <div className="rounded-[1.6rem] bg-surface-container-low p-5">
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Doanh thu hiện tại</p>
               <p className="mt-3 text-lg font-black text-on-surface">{formatCurrency(hotel.totalRevenue)}</p>
               <p className="mt-2 text-sm text-on-surface-variant">
-                Giá trị này tự cập nhật từ các booking khách sạn đã thanh toán liên quan tới những room bên dưới.
+                Doanh thu tự động cập nhật từ các booking đã thanh toán.
+              </p>
+            </div>
+            <div className="rounded-[1.6rem] bg-surface-container-low p-5">
+              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-600">Lợi nhuận hiện tại</p>
+              <p className="mt-3 text-lg font-black text-emerald-600">{formatCurrency(hotel.totalProfit)}</p>
+              <p className="mt-2 text-sm text-on-surface-variant">
+                Lợi nhuận thực tế thu được từ hoa hồng của các booking.
               </p>
             </div>
             <label className="rounded-[1.6rem] bg-surface-container-low p-5">
@@ -338,6 +361,18 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
                 min={1}
                 max={5}
                 className="mt-3 w-full bg-transparent text-base font-medium text-on-surface outline-none"
+              />
+            </label>
+            <label className="rounded-[1.6rem] bg-surface-container-low p-5">
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Hoa hồng %</span>
+              <input
+                value={hotelForm.commissionRate}
+                onChange={(event) => setHotelForm((current) => ({ ...current, commissionRate: Number(event.target.value) }))}
+                type="number"
+                min={0}
+                max={100}
+                className="mt-3 w-full bg-transparent text-base font-medium text-on-surface outline-none"
+                required
               />
             </label>
           </div>
@@ -371,9 +406,6 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
             >
               {savingHotel ? 'Đang lưu...' : 'Lưu thay đổi'}
             </button>
-            <p className="text-xs text-on-surface-variant">
-              Xóa khách sạn đã bị chặn hoàn toàn. Cách an toàn nhất là tắt mở bán và đưa room về 0 nếu cần.
-            </p>
           </div>
         </form>
 
@@ -385,8 +417,7 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
                 {editingRoom ? 'Chỉnh sửa phòng' : 'Thêm phòng mới'}
               </h2>
               <p className="mt-2 text-sm text-slate-600">
-                Nếu phòng tạm ngừng bán, chỉ cần đưa <span className="font-bold text-slate-900">availableQty</span> về 0.
-                Không cần xóa phòng.
+                Thiết lập cấu hình chi tiết cho loại phòng của khách sạn.
               </p>
             </div>
             {editingRoom ? (
@@ -436,9 +467,9 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
                 className="mt-3 w-full bg-transparent text-base font-bold text-slate-900 outline-none"
                 required
               />
-              <p className="mt-2 text-xs text-slate-500">Đặt 0 nếu muốn tạm ngừng bán phòng này.</p>
+              <p className="mt-2 text-xs text-slate-500">Tổng số phòng cùng loại hiện có để phục vụ khách.</p>
             </label>
-            <label className="rounded-[1.4rem] bg-white px-5 py-4 ring-1 ring-black/5">
+            <label className="rounded-[1.4rem] bg-white px-5 py-4 ring-1 ring-black/5 sm:col-span-2">
               <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Giá mỗi đêm</span>
               <input
                 value={roomForm.pricePerNight}
@@ -449,65 +480,53 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
                 required
               />
             </label>
-            <label className="rounded-[1.4rem] bg-white px-5 py-4 ring-1 ring-black/5">
-              <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Loi nhuan chot (%)</span>
-              <input
-                value={roomForm.commissionRate}
-                onChange={(event) => setRoomForm((current) => ({ ...current, commissionRate: Number(event.target.value) }))}
-                type="number"
-                min={0}
-                max={100}
-                className="mt-3 w-full bg-transparent text-base font-bold text-slate-900 outline-none"
-                required
-              />
-            </label>
 
             <div className="rounded-[1.4rem] bg-white px-5 py-4 ring-1 ring-black/5 sm:col-span-2">
-  <div className="flex flex-wrap items-center justify-between gap-3">
-    <div>
-      <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Album anh phong</span>
-      <p className="mt-2 text-xs text-slate-500">Tai len JPG, PNG hoac WEBP. Toi da 12 anh moi phong.</p>
-    </div>
-    <label
-      className={`inline-flex cursor-pointer items-center rounded-full px-5 py-2.5 text-xs font-black ${
-        uploadingRoomImage || roomImageUrls.length >= 12
-          ? 'bg-slate-100 text-slate-400'
-          : 'bg-primary text-white shadow-[0px_12px_24px_rgba(15,118,110,0.18)]'
-      }`}
-    >
-      {uploadingRoomImage ? 'Dang tai...' : roomImageUrls.length >= 12 ? 'Da du anh' : 'Tai anh len'}
-      <input
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        multiple
-        disabled={uploadingRoomImage || roomImageUrls.length >= 12}
-        onChange={handleRoomImageUpload}
-        className="hidden"
-      />
-    </label>
-  </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">Album ảnh phòng</span>
+                  <p className="mt-2 text-xs text-slate-500">Tải lên JPG, PNG hoặc WEBP. Tối đa 12 ảnh mỗi phòng.</p>
+                </div>
+                <label
+                  className={`inline-flex cursor-pointer items-center rounded-full px-5 py-2.5 text-xs font-black ${
+                    uploadingRoomImage || roomImageUrls.length >= 12
+                      ? 'bg-slate-100 text-slate-400'
+                      : 'bg-primary text-white shadow-[0px_12px_24px_rgba(15,118,110,0.18)]'
+                  }`}
+                >
+                  {uploadingRoomImage ? 'Đang tải...' : roomImageUrls.length >= 12 ? 'Đã đủ ảnh' : 'Tải ảnh lên'}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    disabled={uploadingRoomImage || roomImageUrls.length >= 12}
+                    onChange={handleRoomImageUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
 
-  {roomImageUrls.length > 0 ? (
-    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-      {roomImageUrls.map((url, index) => (
-        <div key={`${url}-${index}`} className="group relative overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-black/10">
-          <img src={url} alt="" className="h-28 w-full object-cover" />
-          <button
-            type="button"
-            onClick={() => removeRoomImage(url)}
-            className="absolute right-2 top-2 rounded-full bg-white/95 px-2.5 py-1 text-xs font-black text-slate-900 shadow-sm"
-          >
-            Xoa
-          </button>
-        </div>
-      ))}
-    </div>
-  ) : (
-    <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center text-sm font-bold text-slate-400">
-      Chua co anh phong
-    </div>
-  )}
-</div>
+              {roomImageUrls.length > 0 ? (
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {roomImageUrls.map((url, index) => (
+                    <div key={`${url}-${index}`} className="group relative overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-black/10">
+                      <img src={url} alt="" className="h-28 w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeRoomImage(url)}
+                        className="absolute right-2 top-2 rounded-full bg-white/95 px-2.5 py-1 text-xs font-black text-slate-900 shadow-sm"
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center text-sm font-bold text-slate-400">
+                  Chưa có ảnh phòng
+                </div>
+              )}
+            </div>
 
             <div className="sm:col-span-2">
               <button
@@ -528,7 +547,7 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
             <p className="text-[11px] font-black uppercase tracking-[0.22em] text-primary">Danh sách phòng</p>
             <h2 className="mt-3 text-2xl font-black text-on-surface">Vận hành từng loại phòng</h2>
             <p className="mt-2 text-sm text-on-surface-variant">
-              Xóa đã bị khóa hoàn toàn. Phòng nào tạm dừng bán thì để tồn kho về 0, lịch sử vẫn được giữ nguyên.
+              Danh sách các loại phòng đang hoạt động và cấu hình chi tiết của từng phòng.
             </p>
           </div>
           <div className="flex flex-wrap gap-3 text-xs font-bold">
@@ -545,9 +564,9 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
           <div className="px-8 py-14 text-center">
             <div className="mx-auto max-w-xl rounded-[2rem] bg-[linear-gradient(135deg,_rgba(15,118,110,0.08),_rgba(251,191,36,0.10))] px-8 py-10">
               <p className="text-[11px] font-black uppercase tracking-[0.22em] text-primary">Sẵn sàng bước tiếp</p>
-              <h3 className="mt-3 text-2xl font-black text-on-surface">Khách sạn đã tạo xong. Bây giờ hãy thêm phòng đầu tiên.</h3>
+              <h3 className="mt-3 text-2xl font-black text-on-surface">Khách sạn đã được tạo. Hãy thêm phòng đầu tiên.</h3>
               <p className="mt-3 text-sm leading-7 text-on-surface-variant">
-                Chỉ cần bắt đầu với 1 hoặc 2 loại phòng, sau đó quay lại điều chỉnh tồn kho và giá theo nhu cầu thực tế.
+                Thêm các loại phòng để bắt đầu nhận lượt đặt phòng từ khách hàng.
               </p>
             </div>
           </div>
@@ -559,9 +578,8 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
                   <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Loại phòng</th>
                   <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Sức chứa</th>
                   <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Giá / Đêm</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Hoa hong</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Loi nhuan / dem</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Available Qty</th>
+                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Lợi nhuận / Đêm</th>
+                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Số lượng</th>
                   <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Album</th>
                   <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Trạng thái</th>
                   <th className="px-8 py-5 text-right text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Hành động</th>
@@ -576,8 +594,7 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
                     </td>
                     <td className="px-8 py-6 text-sm font-medium text-on-surface">{room.capacity} người</td>
                     <td className="px-8 py-6 text-sm font-medium text-on-surface">{formatCurrency(room.pricePerNight)}</td>
-                    <td className="px-8 py-6 text-sm text-on-surface-variant">{room.commissionRate}%</td>
-                    <td className="px-8 py-6 text-sm font-bold text-[#10B981]">{formatCurrency(calculateRoomProfitPerNight(room))}</td>
+                    <td className="px-8 py-6 text-sm font-bold text-[#10B981]">{formatCurrency(calculateRoomProfitPerNight(room, hotel.commissionRate))}</td>
                     <td className="px-8 py-6 text-sm font-bold text-on-surface">{room.availableQty}</td>
                     <td className="px-8 py-6">
                       {room.imageUrls.length > 0 ? (
@@ -592,10 +609,10 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
                               />
                             ))}
                           </div>
-                          <p className="mt-2 text-xs font-bold text-on-surface-variant">{room.imageUrls.length} anh</p>
+                          <p className="mt-2 text-xs font-bold text-on-surface-variant">{room.imageUrls.length} ảnh</p>
                         </div>
                       ) : (
-                        <span className="text-xs font-bold text-on-surface-variant">Chua co anh</span>
+                        <span className="text-xs font-bold text-on-surface-variant">Chưa có ảnh</span>
                       )}
                     </td>
                     <td className="px-8 py-6">
@@ -622,6 +639,44 @@ export default function HotelDetailPage({ hotelId }: { hotelId: number }) {
           </div>
         )}
       </section>
+
+      {showGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl rounded-[2.5rem] bg-white p-8 shadow-2xl ring-1 ring-black/5 animate-in slide-in-from-bottom-8 duration-350">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-600">Hướng dẫn sử dụng</p>
+                <h3 className="mt-1 text-2xl font-black text-slate-900">Vận hành Khách sạn & Phòng</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGuide(false)}
+                className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-2 text-xs font-bold text-slate-900 transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+            <div className="mt-6 space-y-6 text-sm text-slate-600 leading-relaxed max-h-[50vh] overflow-y-auto pr-2">
+              <div className="rounded-[1.4rem] bg-amber-500/5 p-5 border border-amber-500/10">
+                <h4 className="font-bold text-amber-800 text-base">📌 Nguyên tắc hoạt động cốt lõi</h4>
+                <ul className="mt-3 list-disc list-inside space-y-2 text-amber-950 font-medium">
+                  <li><strong>Không xóa dữ liệu:</strong> Để đảm bảo tính toàn vẹn của lịch sử đặt phòng (bookings), hệ thống không hỗ trợ xóa khách sạn hoặc phòng.</li>
+                  <li><strong>Tạm dừng bán khách sạn:</strong> Tắt checkbox <em>"Khách sạn đang mở bán"</em> trong phần cấu hình để ẩn khách sạn khỏi ứng dụng khách hàng.</li>
+                  <li><strong>Tạm dừng bán loại phòng:</strong> Đặt <em>"Số lượng phòng"</em> của phòng đó về <code>0</code>.</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-black text-slate-900 text-base">🏨 Chi tiết cấu hình</h4>
+                <ul className="mt-2 list-disc list-inside space-y-2">
+                  <li><strong>Điểm đến (Destination):</strong> Điểm đến được liên kết cố định khi tạo khách sạn mới và được khóa để tránh làm sai lệch ngữ cảnh.</li>
+                  <li><strong>Hoa hồng khách sạn:</strong> Cấu hình tỷ lệ hoa hồng ở cấp độ khách sạn. Tất cả các phòng sẽ tự động thừa hưởng tỷ lệ này.</li>
+                  <li><strong>Doanh thu & Lợi nhuận:</strong> Giá trị doanh thu và lợi nhuận hiển thị tự động tích lũy dựa trên các giao dịch thực tế đã thanh toán thành công (Paid).</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

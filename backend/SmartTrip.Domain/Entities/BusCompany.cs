@@ -13,6 +13,8 @@ public class BusCompany
 
     public string? LogoUrl { get; set; }
 
+    public double? CommissionRate { get; set; }
+
     public virtual ICollection<BusSchedule> BusSchedules { get; set; } = new List<BusSchedule>();
 }
 

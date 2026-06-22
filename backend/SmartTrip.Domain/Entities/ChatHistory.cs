@@ -14,5 +14,11 @@ public class ChatHistory
     public string? SessionId { get; set; }
     public DateTime CreatedAt { get; set; }
 
+    public int? LatencyMs { get; set; }
+    public bool? IsJsonValid { get; set; }
+    public bool? IsFallbackUsed { get; set; }
+    public string? ErrorLog { get; set; }
+    public string? ClassifierDetails { get; set; }
+
     public virtual User? User { get; set; }
 }

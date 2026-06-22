@@ -41,6 +41,8 @@ public class ExplorePost
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
+    
+    public string? LinkedTripCode { get; set; }
 
     public virtual User Author { get; set; } = null!;
 

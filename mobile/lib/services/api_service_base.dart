@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -84,7 +84,7 @@ abstract class ApiService {
     } else if (requireAuth) {
       throw ApiException(
         401,
-        'Phien dang nhap da het han. Vui long dang nhap lai.',
+        'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
       );
     }
 
@@ -421,7 +421,7 @@ abstract class ApiService {
 
   String _extractErrorMessage(http.Response response) {
     if (response.body.isEmpty) {
-      return 'Loi API: ${response.statusCode}';
+      return 'Lỗi API: ${response.statusCode}';
     }
 
     try {
@@ -435,7 +435,7 @@ abstract class ApiService {
       }
     } catch (_) {}
 
-    return 'Loi API: ${response.statusCode} - ${response.body}';
+    return 'Lỗi API: ${response.statusCode} - ${response.body}';
   }
 
   MediaType? _resolveImageContentType(XFile file) {
@@ -461,3 +461,6 @@ abstract class ApiService {
     return null;
   }
 }
+
+
+

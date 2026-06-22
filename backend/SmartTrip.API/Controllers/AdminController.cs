@@ -441,6 +441,27 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("payments")]
+    public async Task<IActionResult> GetPayments()
+    {
+        var payments = await _adminService.GetPaymentHistoryAsync();
+        return Ok(payments);
+    }
+
+    [HttpGet("reviews")]
+    public async Task<IActionResult> GetReviews()
+    {
+        var reviews = await _adminService.GetReviewsAsync();
+        return Ok(reviews);
+    }
+
+    [HttpDelete("reviews/{reviewId:int}")]
+    public async Task<IActionResult> DeleteReview(int reviewId)
+    {
+        await _adminService.DeleteReviewAsync(reviewId);
+        return NoContent();
+    }
+
     private async Task<ImageStorageUploadResult> UploadImageAsync(IFormFile file, string folder)
     {
         await using var stream = file.OpenReadStream();

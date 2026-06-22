@@ -4,25 +4,32 @@ namespace SmartTrip.Application.Interfaces.Catalog;
 
 public interface ICatalogService
 {
-    Task<CatalogHomeDto> GetHomeAsync();
+    Task<List<CatalogDestinationDto>> GetPopularDestinationsAsync();
+    Task<List<CatalogHotelCardDto>> GetFeaturedHotelsAsync();
     Task<CatalogHotelSearchResultDto> SearchHotelsAsync(
-        string? query,
         int? destinationId,
+        string? query,
+        int page,
+        int pageSize,
         decimal? minPrice,
         decimal? maxPrice,
-        double? minRating,
-        string? starRatings,
+        int? starRating,
         string? sort);
     Task<CatalogHotelDetailDto?> GetHotelDetailAsync(int hotelId);
-    Task<CatalogRoomAvailabilityDto> GetRoomAvailabilityAsync(int roomId, DateOnly checkInDate, DateOnly checkOutDate, int quantity);
+    Task<List<CatalogBusCardDto>> GetFeaturedBusesAsync();
     Task<CatalogBusSearchResultDto> SearchBusesAsync(
-        string? query,
         int? fromDestinationId,
         int? toDestinationId,
+        DateTime? departureDate,
+        string? query,
+        int page,
+        int pageSize,
         decimal? minPrice,
         decimal? maxPrice,
         string? sort);
     Task<CatalogBusDetailDto?> GetBusDetailAsync(int scheduleId);
+    Task<CatalogPromotionDto?> ValidatePromotionAsync(string code);
+    Task<List<CatalogPromotionDto>> GetPromotionsAsync();
     Task<CatalogVehicleRentalSearchResultDto> SearchVehicleRentalShopsAsync(
         string? query,
         int? destinationId,

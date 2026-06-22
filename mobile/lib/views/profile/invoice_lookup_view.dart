@@ -106,6 +106,7 @@ class _InvoiceLookupViewState extends State<InvoiceLookupView> {
         invoiceNumber: hotel.invoiceNumber ?? payment?.invoiceNumber,
         transactionId: payment?.transactionId,
         paymentMethod: payment?.paymentMethod,
+        usedCoins: payment?.usedCoins,
       );
     }
 
@@ -124,6 +125,7 @@ class _InvoiceLookupViewState extends State<InvoiceLookupView> {
         invoiceNumber: bus.invoiceNumber ?? payment?.invoiceNumber,
         transactionId: payment?.transactionId,
         paymentMethod: payment?.paymentMethod,
+        usedCoins: payment?.usedCoins,
       );
     }
 
@@ -142,6 +144,7 @@ class _InvoiceLookupViewState extends State<InvoiceLookupView> {
         invoiceNumber: booking?.invoiceNumber ?? payment?.invoiceNumber,
         transactionId: payment?.transactionId,
         paymentMethod: payment?.paymentMethod,
+        usedCoins: payment?.usedCoins,
       );
     }
 

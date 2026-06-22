@@ -126,6 +126,11 @@ public static class ServiceExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IChatService, ChatService>();
+        services.AddScoped<IntentRouter>();
+        services.AddScoped<EntityExtractor>();
+        services.AddScoped<KnowledgeService>();
+        services.AddScoped<PlanningService>();
+        services.AddScoped<ResponseBuilder>();
         services.AddScoped<IChatRepository, ChatRepository>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICatalogService, CatalogService>();

@@ -1,11 +1,15 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/user_profile.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/profile_provider.dart';
+import '../../services/payment_service.dart';
+import '../../utils/app_currency_formatter.dart';
 import '../../utils/app_text.dart';
 import '../../widgets/widgets.dart';
 import '../auth/login_screen.dart';
@@ -104,6 +108,12 @@ class _ProfileViewState extends State<ProfileView> {
                   ),
                   const SizedBox(height: 12),
                   _ProfileHero(user: user),
+                  const SizedBox(height: 16),
+                  _WalletCard(
+                    user: user,
+                    onDeposit: () => _showDepositBottomSheet(context, provider),
+                    onWithdraw: () => _showWithdrawBottomSheet(context, provider),
+                  ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
@@ -367,6 +377,533 @@ class _ProfileViewState extends State<ProfileView> {
 
     _handledSessionExpired = true;
     await showSessionExpiredDialog(context, message: provider.error);
+  }
+
+  void _showDepositBottomSheet(BuildContext context, ProfileProvider provider) {
+    final TextEditingController amountController = TextEditingController();
+    bool isDepositing = false;
+    int selectedPaymentMethod = 1; // 1 = VNPAY, 0 = PayOS
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          context.tr(vi: 'Nạp tiền vào ví', en: 'Deposit to wallet'),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.grey),
+                          onPressed: () => Navigator.pop(sheetContext),
+                        ),
+                      ],
+                    ),
+                    const Divider(),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: context.tr(vi: 'Số tiền nạp (VND)', en: 'Amount (VND)'),
+                        hintText: 'Ví dụ: 200.000',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        prefixIcon: const Icon(Icons.monetization_on_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [100000, 200000, 500000, 1000000, 2000000].map((val) {
+                        return InkWell(
+                          onTap: () {
+                            setSheetState(() {
+                              amountController.text = val.toString();
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.green[50],
+                              border: Border.all(color: Colors.green[200]!),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              AppCurrencyFormatter.format(val),
+                              style: const TextStyle(
+                                color: Color(0xFF0D6B42),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      context.tr(vi: 'Phương thức thanh toán', en: 'Payment Method'),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: RadioListTile<int>(
+                            title: const Text('VNPAY'),
+                            value: 1,
+                            groupValue: selectedPaymentMethod,
+                            onChanged: (val) => setSheetState(() => selectedPaymentMethod = val!),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                        Expanded(
+                          child: RadioListTile<int>(
+                            title: const Text('PayOS'),
+                            value: 0,
+                            groupValue: selectedPaymentMethod,
+                            onChanged: (val) => setSheetState(() => selectedPaymentMethod = val!),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: isDepositing
+                          ? null
+                          : () async {
+                              final amountStr = amountController.text.replaceAll('.', '').replaceAll(',', '').trim();
+                              final amount = double.tryParse(amountStr) ?? 0.0;
+                              if (amount <= 0) {
+                                ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                  SnackBar(
+                                    content: Text(context.tr(
+                                      vi: 'Vui lòng nhập số tiền hợp lệ lớn hơn 0.',
+                                      en: 'Please enter a valid amount greater than 0.',
+                                    )),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              setSheetState(() => isDepositing = true);
+                              try {
+                                final paymentMethodStr = selectedPaymentMethod == 0 ? 'PAYOS' : 'VNPAY';
+                                final orderCodeForPayOs = selectedPaymentMethod == 0 ? DateTime.now().millisecondsSinceEpoch % 1000000000 : null;
+                                final result = await PaymentService().createWalletDeposit(
+                                    amount: amount, 
+                                    paymentMethod: paymentMethodStr, 
+                                    orderCode: orderCodeForPayOs
+                                );
+                                final checkoutUrl = result.checkoutUrl;
+                                final orderCode = result.orderCode;
+
+                                if (checkoutUrl == null || checkoutUrl.isEmpty) {
+                                  throw Exception('Không tạo được link thanh toán $paymentMethodStr.');
+                                }
+
+                                Navigator.pop(sheetContext); // Close sheet
+                                await launchUrl(Uri.parse(checkoutUrl), mode: LaunchMode.externalApplication);
+                                if (context.mounted) {
+                                  _showDepositPendingDialog(context, orderCode ?? 0, paymentMethodStr);
+                                }
+                              } catch (e) {
+                                setSheetState(() => isDepositing = false);
+                                ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                  SnackBar(content: Text('Lỗi nạp tiền: ${e.toString()}')),
+                                );
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0D6B42),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: isDepositing
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : Text(
+                              context.tr(vi: 'Tiếp tục thanh toán', en: 'Proceed to Payment'),
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                    ),
+                    if (kDebugMode) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton(
+                        onPressed: isDepositing
+                            ? null
+                            : () async {
+                                final amountStr = amountController.text.replaceAll('.', '').replaceAll(',', '').trim();
+                                final amount = double.tryParse(amountStr) ?? 10000000.0; // default 10M if empty
+                                setSheetState(() => isDepositing = true);
+                                try {
+                                  final result = await PaymentService().simulateWalletDeposit(amount);
+                                  Navigator.pop(sheetContext); // Close sheet
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(result['message'] ?? 'Nạp tiền demo thành công!'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                    context.read<ProfileProvider>().fetchProfile(forceRefresh: true);
+                                  }
+                                } catch (e) {
+                                  setSheetState(() => isDepositing = false);
+                                  ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                    SnackBar(content: Text('Lỗi nạp tiền demo: ${e.toString()}')),
+                                  );
+                                }
+                              },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.orange.shade800,
+                          side: BorderSide(color: Colors.orange.shade300),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          context.tr(vi: 'Nạp Demo (Cộng tiền ngay)', en: 'Deposit Demo (Instant Credit)'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showDepositPendingDialog(BuildContext context, int orderCode, String paymentMethod) async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('Hoàn tất nạp tiền $paymentMethod'),
+          content: Text(
+            'Trang nạp tiền $paymentMethod đã được mở trên trình duyệt. Sau khi nạp tiền thành công, hãy nhấn Xác nhận bên dưới để kiểm tra số dư mới.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Để sau'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                try {
+                  final status = await PaymentService().getPaymentByOrderCode(orderCode);
+                  if (status.isPaid) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Nạp tiền vào ví thành công!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                      context.read<ProfileProvider>().fetchProfile(forceRefresh: true);
+                    }
+                  } else {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Giao dịch chưa hoàn tất hoặc thất bại.'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                      context.read<ProfileProvider>().fetchProfile(forceRefresh: true);
+                    }
+                  }
+                } catch (_) {
+                  if (context.mounted) {
+                    context.read<ProfileProvider>().fetchProfile(forceRefresh: true);
+                  }
+                }
+              },
+              child: const Text('Xác nhận'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showWithdrawBottomSheet(BuildContext context, ProfileProvider provider) {
+    final TextEditingController amountController = TextEditingController();
+    String? selectedBankCode;
+    final TextEditingController accountController = TextEditingController();
+    final TextEditingController nameController = TextEditingController();
+    bool isWithdrawing = false;
+
+    final Map<String, String> bankList = {
+      'VCB': 'Vietcombank',
+      'TCB': 'Techcombank',
+      'MB': 'MBBank',
+      'VIB': 'VIB',
+      'ACB': 'ACB',
+      'VPB': 'VPBank',
+      'BIDV': 'BIDV',
+      'CTG': 'VietinBank',
+      'STB': 'Sacombank',
+      'HDB': 'HDBank',
+      'TPB': 'TPBank',
+    };
+
+    final balance = provider.profileData?.walletBalance ?? 0.0;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            context.tr(vi: 'Rút tiền về tài khoản', en: 'Withdraw from wallet'),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.grey),
+                            onPressed: () => Navigator.pop(sheetContext),
+                          ),
+                        ],
+                      ),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Số dư hiện tại: ${AppCurrencyFormatter.format(balance)}',
+                        style: const TextStyle(
+                          color: Color(0xFF0D6B42),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: selectedBankCode,
+                        decoration: InputDecoration(
+                          labelText: context.tr(vi: 'Chọn Ngân hàng đích', en: 'Select Destination Bank'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.account_balance_outlined),
+                        ),
+                        items: bankList.entries.map((e) {
+                          return DropdownMenuItem<String>(
+                            value: e.key,
+                            child: Text('${e.key} - ${e.value}'),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setSheetState(() => selectedBankCode = value);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: accountController,
+                        decoration: InputDecoration(
+                          labelText: context.tr(vi: 'Số tài khoản / Số điện thoại', en: 'Account Number / Phone'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.badge_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: nameController,
+                        decoration: InputDecoration(
+                          labelText: context.tr(vi: 'Tên chủ tài khoản', en: 'Account Name'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.person_outline),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: amountController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: context.tr(vi: 'Số tiền rút (VND)', en: 'Amount (VND)'),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          prefixIcon: const Icon(Icons.monetization_on_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: isWithdrawing
+                            ? null
+                            : () async {
+                                final amountStr = amountController.text.replaceAll('.', '').replaceAll(',', '').trim();
+                                final amount = double.tryParse(amountStr) ?? 0.0;
+                                final bankName = selectedBankCode ?? '';
+                                final accountNumber = accountController.text.trim();
+                                final accountName = nameController.text.trim();
+
+                                if (bankName.isEmpty || accountNumber.isEmpty || accountName.isEmpty) {
+                                  ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                    SnackBar(content: Text(context.tr(vi: 'Vui lòng điền đầy đủ thông tin rút tiền.', en: 'Please fill in all withdrawal details.'))),
+                                  );
+                                  return;
+                                }
+
+                                if (amount <= 0 || amount > balance) {
+                                  ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                    SnackBar(
+                                      content: Text(context.tr(
+                                        vi: 'Số tiền rút phải lớn hơn 0 và không vượt quá số dư ví.',
+                                        en: 'Amount must be greater than 0 and not exceed wallet balance.',
+                                      )),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                setSheetState(() => isWithdrawing = true);
+                                try {
+                                  final result = await PaymentService().withdrawFromWallet(
+                                    amount: amount,
+                                    bankName: bankName,
+                                    accountNumber: accountNumber,
+                                    accountName: accountName,
+                                  );
+
+                                  Navigator.pop(sheetContext); // Close sheet
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(result['message'] ?? 'Yêu cầu rút tiền đang được xử lý.'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                    context.read<ProfileProvider>().fetchProfile(forceRefresh: true);
+                                  }
+                                } catch (e) {
+                                  setSheetState(() => isWithdrawing = false);
+                                  ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                    SnackBar(content: Text('Lỗi rút tiền: ${e.toString()}')),
+                                  );
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0D6B42),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: isWithdrawing
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : Text(
+                                context.tr(vi: 'Yêu cầu rút tiền', en: 'Request Withdrawal'),
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showVouchersBottomSheet(
@@ -726,4 +1263,111 @@ class _ErrorState extends StatelessWidget {
     );
   }
 }
+
+class _WalletCard extends StatelessWidget {
+  const _WalletCard({required this.user, required this.onDeposit, required this.onWithdraw});
+
+  final UserProfile user;
+  final VoidCallback onDeposit;
+  final VoidCallback onWithdraw;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0D6B42), Color(0xFF1A9C62)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0D6B42).withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.account_balance_wallet, color: Colors.white70, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    context.tr(vi: 'VÍ SMARTTRIP', en: 'SMARTTRIP WALLET'),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ],
+              ),
+              const Icon(Icons.nfc, color: Colors.white24, size: 28),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            AppCurrencyFormatter.format(user.walletBalance),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: onDeposit,
+                  icon: const Icon(Icons.add_rounded, color: Colors.white),
+                  label: Text(
+                    context.tr(vi: 'Nạp tiền', en: 'Deposit'),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.18),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextButton.icon(
+                  onPressed: onWithdraw,
+                  icon: const Icon(Icons.arrow_outward_rounded, color: Colors.white),
+                  label: Text(
+                    context.tr(vi: 'Rút tiền', en: 'Withdraw'),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.18),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 

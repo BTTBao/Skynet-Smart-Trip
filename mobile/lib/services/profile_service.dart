@@ -8,96 +8,34 @@ import '../models/user_settings.dart';
 import 'api_service_base.dart';
 
 class ProfileService extends ApiService {
-  // Giả lập chế độ Mock (Để bạn vẫn chạy được app khi chưa có DB thật)
-  final bool _useMock = false;
-
-  Future<UserProfile?> getProfile() async {
-    if (_useMock) {
-      await Future.delayed(const Duration(seconds: 1));
-      return UserProfile(
-        id: '1',
-        name: 'Nguyen Subin',
-        email: 'subin@skynet.com',
-        phone: '0987654321',
-        avatarUrl: '',
-        isEmailVerified: true,
-        memberTier: 'Gold Member',
-        tripsCount: 12,
-        coins: 450,
-        vouchers: 15,
-        birthDate: '15/08/1995',
-      );
-    } else {
-      // CODE CHO BACKEND THẬT .NET
-      try {
-        final response = await getWithFallback('/user/me', requireAuth: true);
-        return UserProfile.fromJson(handleResponse(response));
-      } catch (e) {
-        rethrow;
-      }
-    }
+  Future<UserProfile> getProfile() async {
+    final response = await getWithFallback(
+      '/user/me',
+      requireAuth: true,
+    );
+    final data = handleResponse(response);
+    return UserProfile.fromJson(Map<String, dynamic>.from(data));
   }
 
   Future<bool> updateProfile(UserProfile profile) async {
-    if (_useMock) {
-      await Future.delayed(const Duration(seconds: 1));
-      return true;
-    } else {
-      // CODE CHO BACKEND THẬT .NET
-      try {
-        final response = await putWithFallback(
-          '/user/me',
-          requireAuth: true,
-          body: jsonEncode(profile.toUpdateJson()),
-        );
-        handleResponse(response);
-        return true;
-      } catch (e) {
-        rethrow;
-      }
-    }
+    final response = await putWithFallback(
+      '/user/me',
+      requireAuth: true,
+      body: jsonEncode(profile.toUpdateJson()),
+    );
+    handleResponse(response);
+    return true;
   }
 
   Future<String?> uploadAvatar(XFile file) async {
-    if (_useMock) {
-      await Future.delayed(const Duration(seconds: 1));
-      return '';
-    } else {
-      try {
-        final response = await multipartPostWithFallback(
-          '/user/me/upload-avatar',
-          fileField: 'file',
-          file: file,
-          requireAuth: true,
-        );
-
-        final data = handleResponse(response);
-        return data['avatarUrl'];
-      } catch (e) {
-        rethrow;
-      }
-    }
-  }
-
-  Future<String?> uploadIdentityCardPhoto(XFile file) async {
-    if (_useMock) {
-      await Future.delayed(const Duration(seconds: 1));
-      return '';
-    } else {
-      try {
-        final response = await multipartPostWithFallback(
-          '/user/me/upload-identity-card',
-          fileField: 'file',
-          file: file,
-          requireAuth: true,
-        );
-
-        final data = handleResponse(response);
-        return data['identityCardPhotoUrl'];
-      } catch (e) {
-        rethrow;
-      }
-    }
+    final response = await multipartPostWithFallback(
+      '/user/me/upload-avatar',
+      fileField: 'file',
+      file: file,
+      requireAuth: true,
+    );
+    final data = handleResponse(response);
+    return data['avatarUrl'];
   }
 
   Future<List<UserFavorite>> getFavorites() async {

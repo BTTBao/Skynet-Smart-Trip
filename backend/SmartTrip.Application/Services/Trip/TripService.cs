@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using SmartTrip.Application.DTOs.Notifications;
@@ -20,6 +20,7 @@ public class TripService : ITripService
     private const string PaidStatus = "PAID";
     private const string CancelledStatus = "CANCELLED";
     private const string BookingOnlyStatus = "BOOKING_ONLY";
+    private const string DepositPaidStatus = "DEPOSIT_PAID";
 
     private readonly IApplicationDbContext _context;
     private readonly IItineraryService _itineraryService;
@@ -537,12 +538,14 @@ public class TripService : ITripService
             return 0m;
         }
 
-        return trip.TripItineraries.Sum(item =>
+        var originalCommission = trip.TripItineraries.Sum(item =>
         {
             var lineGross = item.BookedPrice.GetValueOrDefault() * item.Quantity.GetValueOrDefault(1);
-            var paidLineAmount = paidAmount * lineGross / grossAmount;
-            return paidLineAmount * NormalizeCommissionRate(item.BookedCommissionRate);
+            return lineGross * NormalizeCommissionRate(item.BookedCommissionRate);
         });
+
+        var discount = Math.Max(0m, grossAmount - paidAmount);
+        return originalCommission - discount;
     }
 
     private static decimal NormalizeCommissionRate(double? rate)
@@ -807,6 +810,7 @@ public class TripService : ITripService
                 TripStatus.Paid => PaidStatus,
                 TripStatus.Cancelled => CancelledStatus,
                 TripStatus.BookingOnly => BookingOnlyStatus,
+                TripStatus.DepositPaid => DepositPaidStatus,
                 _ => DraftStatus
             };
         }
@@ -818,6 +822,7 @@ public class TripService : ITripService
             PaidStatus => PaidStatus,
             CancelledStatus => CancelledStatus,
             BookingOnlyStatus => BookingOnlyStatus,
+            DepositPaidStatus => DepositPaidStatus,
             _ => DraftStatus
         };
     }
@@ -836,6 +841,7 @@ public class TripService : ITripService
             PaidStatus => TripStatus.Paid,
             CancelledStatus => TripStatus.Cancelled,
             BookingOnlyStatus => TripStatus.BookingOnly,
+            DepositPaidStatus => TripStatus.DepositPaid,
             _ => TripStatus.Draft
         };
     }

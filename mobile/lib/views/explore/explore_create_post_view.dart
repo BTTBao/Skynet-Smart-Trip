@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/explore_post.dart';
 import '../../providers/explore_provider.dart';
+import '../../providers/trip_provider.dart';
 import '../../services/openstreetmap_geocoding_service.dart';
 import '../../utils/app_text.dart';
 import 'explore_ui_constants.dart';
@@ -24,6 +25,7 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   final _locationController = TextEditingController();
+  final _tripCodeController = TextEditingController();
   final _picker = ImagePicker();
 
   final List<XFile> _selectedPhotos = [];
@@ -40,18 +42,71 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
   double? _latitude;
   double? _longitude;
 
+  bool _isValidatingTripCode = false;
+  String? _validatedTripTitle;
+  String? _tripCodeError;
+
   bool get _canPost =>
       _titleController.text.trim().isNotEmpty &&
       _contentController.text.trim().isNotEmpty &&
       _locationController.text.trim().isNotEmpty &&
-      !_isPosting;
+      !_isPosting &&
+      !_isValidatingTripCode;
 
   @override
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
     _locationController.dispose();
+    _tripCodeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _validateTripCode(String code) async {
+    final cleanCode = code.trim();
+    if (cleanCode.isEmpty) {
+      setState(() {
+        _validatedTripTitle = null;
+        _tripCodeError = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isValidatingTripCode = true;
+      _tripCodeError = null;
+      _validatedTripTitle = null;
+    });
+
+    try {
+      final tripProvider = context.read<TripProvider>();
+      final trip = await tripProvider.fetchSharedTripDetail(cleanCode);
+      if (!mounted) return;
+      if (trip != null) {
+        setState(() {
+          _validatedTripTitle = trip.title;
+          _tripCodeError = null;
+        });
+      } else {
+        setState(() {
+          _tripCodeError = 'Mã lịch trình không hợp lệ hoặc không tồn tại.';
+          _validatedTripTitle = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _tripCodeError = 'Mã lịch trình không hợp lệ hoặc không tồn tại.';
+          _validatedTripTitle = null;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isValidatingTripCode = false;
+        });
+      }
+    }
   }
 
   Future<void> _pickPhotos() async {
@@ -199,6 +254,9 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
         imageUrls: imageUrls,
         latitude: _latitude,
         longitude: _longitude,
+        linkedTripCode: _tripCodeController.text.trim().isNotEmpty && _validatedTripTitle != null
+            ? _tripCodeController.text.trim()
+            : null,
       );
 
       if (!mounted) {
@@ -237,6 +295,7 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
     final location = _locationController.text.trim();
+    final tripCode = _tripCodeController.text.trim();
 
     if (title.length < 5) {
       return 'Tiêu đề cần ít nhất 5 ký tự.';
@@ -248,6 +307,10 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
 
     if (location.length < 2) {
       return 'Vui lòng nhập vị trí hoặc dùng vị trí hiện tại.';
+    }
+
+    if (tripCode.isNotEmpty && _validatedTripTitle == null) {
+      return 'Mã lịch trình chưa được xác thực hoặc không hợp lệ. Vui lòng kiểm tra lại hoặc xóa mã.';
     }
 
     return null;
@@ -383,6 +446,22 @@ class _ExploreCreatePostViewState extends State<ExploreCreatePostView> {
                     onChanged: (value) => setState(() {
                       _selectedCostLevel = value;
                     }),
+                  ),
+                  const SizedBox(height: 16),
+                  _TripCodeField(
+                    controller: _tripCodeController,
+                    isValidating: _isValidatingTripCode,
+                    validatedTitle: _validatedTripTitle,
+                    errorText: _tripCodeError,
+                    onChanged: (val) {
+                      if (val.trim().isEmpty) {
+                        setState(() {
+                          _validatedTripTitle = null;
+                          _tripCodeError = null;
+                        });
+                      }
+                    },
+                    onValidate: () => _validateTripCode(_tripCodeController.text),
                   ),
                   const SizedBox(height: 28),
                 ],
@@ -936,6 +1015,142 @@ class _CostLevelPicker extends StatelessWidget {
               );
             }).toList(),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TripCodeField extends StatelessWidget {
+  const _TripCodeField({
+    required this.controller,
+    required this.isValidating,
+    required this.validatedTitle,
+    required this.errorText,
+    required this.onChanged,
+    required this.onValidate,
+  });
+
+  final TextEditingController controller;
+  final bool isValidating;
+  final String? validatedTitle;
+  final String? errorText;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onValidate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.tr(vi: 'Gắn mã lịch trình (Tùy chọn)', en: 'Link Trip Itinerary (Optional)'),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: ExploreColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: errorText != null
+                    ? Colors.red.shade300
+                    : (validatedTitle != null ? ExploreColors.primary : ExploreColors.border),
+              ),
+            ),
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              style: const TextStyle(
+                fontSize: 14,
+                color: ExploreColors.textPrimary,
+              ),
+              decoration: InputDecoration(
+                hintText: context.tr(
+                  vi: 'Nhập mã chuyến đi (Ví dụ: TRIP-XXXX)...',
+                  en: 'Enter trip code (e.g. TRIP-XXXX)...',
+                ),
+                hintStyle: const TextStyle(
+                  color: ExploreColors.textMuted,
+                  fontSize: 14,
+                ),
+                prefixIcon: Icon(
+                  Icons.map_outlined,
+                  color: validatedTitle != null ? ExploreColors.primary : ExploreColors.textMuted,
+                  size: 20,
+                ),
+                suffixIcon: TextButton(
+                  onPressed: isValidating ? null : onValidate,
+                  child: isValidating
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: ExploreColors.primary),
+                        )
+                      : Text(
+                          context.tr(vi: 'Kiểm tra', en: 'Verify'),
+                          style: const TextStyle(
+                            color: ExploreColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+              ),
+            ),
+          ),
+          if (errorText != null) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                errorText!,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.red.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ] else if (validatedTitle != null) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.check_circle_outline_rounded,
+                    color: ExploreColors.primary,
+                    size: 15,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      context.tr(
+                        vi: 'Liên kết thành công: $validatedTitle',
+                        en: 'Linked successfully: $validatedTitle',
+                      ),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: ExploreColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

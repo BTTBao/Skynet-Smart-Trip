@@ -198,4 +198,12 @@ class TripService extends ApiService {
     );
     handleResponse(response);
   }
+
+  Future<Map<String, dynamic>> cancelBooking(int tripId) async {
+    final response = await postWithFallback(
+      '/trips/$tripId/cancel-booking',
+      requireAuth: true,
+    );
+    return Map<String, dynamic>.from(handleResponse(response));
+  }
 }

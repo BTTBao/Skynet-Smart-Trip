@@ -16,6 +16,7 @@ import '../../services/payment_service.dart';
 import '../../services/bus_service.dart';
 import '../../providers/trip_provider.dart';
 import '../../services/trip_service.dart';
+import '../../providers/profile_provider.dart';
 
 enum _HistorySection { bookings, hotels, buses, payments }
 
@@ -319,6 +320,20 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
   }
 
   Widget _buildBookingCard(BookingHistoryItem item) {
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final startDateStr = item.startDate;
+    DateTime? checkIn;
+    if (startDateStr != null) {
+      checkIn = DateTime.tryParse(startDateStr);
+    }
+    final bool isPastCheckIn = checkIn != null && !checkIn.isAfter(todayDate);
+
+    final bool canCancel = item.status.toUpperCase() != 'CANCELLED' &&
+        item.status.toUpperCase() != 'REFUNDED' &&
+        item.isBookingOnly &&
+        !isPastCheckIn;
+
     return _HistoryCard(
       title: item.title,
       subtitle: item.destinationName,
@@ -339,6 +354,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
               'HOTEL',
             )
           : null,
+      onCancelTap: canCancel ? () => _cancelBooking(item.tripId, item.title) : null,
       extraLines: [
         if ((item.invoiceNumber ?? '').isNotEmpty)
           '${context.tr(vi: 'Hóa đơn', en: 'Invoice')}: ${item.invoiceNumber}',
@@ -355,6 +371,20 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
       completedAt: item.checkOutDate,
     );
     final isReviewed = item.isReviewed;
+
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final checkInStr = item.checkInDate;
+    DateTime? checkIn;
+    if (checkInStr != null) {
+      checkIn = DateTime.tryParse(checkInStr);
+    }
+    final bool isPastCheckIn = checkIn != null && !checkIn.isAfter(todayDate);
+
+    final bool canCancel = item.status.toUpperCase() != 'CANCELLED' &&
+        item.status.toUpperCase() != 'REFUNDED' &&
+        item.isBookingOnly &&
+        !isPastCheckIn;
 
     return _HistoryCard(
       title: item.hotelName,
@@ -390,6 +420,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
                     'HOTEL',
                   )
                 : null),
+      onCancelTap: canCancel ? () => _cancelBooking(item.tripId, item.hotelName) : null,
       extraLines: [
         '${context.tr(vi: 'Chuyến đi', en: 'Trip')}: ${item.tripTitle}',
         '${context.tr(vi: 'Số lượng', en: 'Quantity')}: ${item.quantity}',
@@ -447,6 +478,8 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
     );
     final isReviewed = item.isReviewed;
     final isPending = item.status.toUpperCase() == 'PENDING';
+    final bool canCancel = item.status.toUpperCase() != 'CANCELLED' &&
+        item.status.toUpperCase() != 'REFUNDED';
 
     return _HistoryCard(
       title: item.companyName,
@@ -479,6 +512,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
           : isPending
           ? () => _repayBusTicket(item)
           : null,
+      onCancelTap: null,
       extraLines: [
         '${context.tr(vi: 'Chuyến đi', en: 'Trip')}: ${item.tripTitle}',
         '${context.tr(vi: 'Số lượng', en: 'Quantity')}: ${item.quantity}',
@@ -585,6 +619,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
           invoiceNumber: item.invoiceNumber,
           transactionId: item.transactionId,
           paymentMethod: item.paymentMethod,
+          usedCoins: item.usedCoins,
         ),
       ),
     );
@@ -1160,6 +1195,79 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
     await showSessionExpiredDialog(context, message: message);
   }
 
+  Future<void> _cancelBooking(int tripId, String title) async {
+    final shouldCancel = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xác nhận hủy đặt chỗ?'),
+        content: Text(
+          'Bạn có chắc chắn muốn hủy đặt chỗ "$title" không?\n\n'
+          'Chính sách hoàn tiền:\n'
+          '• Hủy trước 48 giờ nhận phòng: Hoàn tiền 100% vào ví.\n'
+          '• Hủy trước 24 - 48 giờ: Hoàn tiền 50% vào ví.\n'
+          '• Hủy trong vòng 24 giờ nhận phòng: Không hoàn tiền.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Quay lại', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Hủy đặt chỗ', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldCancel != true || !mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: primaryColor)),
+    );
+
+    try {
+      final tripProvider = context.read<TripProvider>();
+      final success = await tripProvider.cancelBooking(tripId);
+      if (mounted) Navigator.pop(context); // close loading
+
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Hủy đặt chỗ thành công!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          context.read<ProfileProvider>().fetchProfile(forceRefresh: true);
+        }
+        _fetchHistory();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Hủy đặt chỗ thất bại: ${tripProvider.error ?? "Lỗi không xác định"}'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // close loading
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _showPaymentModal(
     int tripId,
     double amount,
@@ -1515,6 +1623,8 @@ class _HistoryCard extends StatelessWidget {
     this.onDetailTap,
     this.actionLabel,
     this.onActionTap,
+    this.cancelLabel,
+    this.onCancelTap,
   });
 
   final String title;
@@ -1528,6 +1638,8 @@ class _HistoryCard extends StatelessWidget {
   final VoidCallback? onDetailTap;
   final String? actionLabel;
   final VoidCallback? onActionTap;
+  final String? cancelLabel;
+  final VoidCallback? onCancelTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1642,6 +1754,27 @@ class _HistoryCard extends StatelessWidget {
                         label: Text(detailLabel!),
                       ),
                     ],
+                    if (onCancelTap != null) ...[
+                      OutlinedButton.icon(
+                        onPressed: onCancelTap,
+                        icon: const Icon(Icons.cancel_outlined, size: 18, color: Colors.redAccent),
+                        label: Text(
+                          cancelLabel ?? 'Hủy đơn',
+                          style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.redAccent),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          minimumSize: const Size(0, 36),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+                    ],
                     if (actionLabel != null)
                       ElevatedButton(
                         onPressed: onActionTap,
@@ -1727,6 +1860,9 @@ class _StatusChip extends StatelessWidget {
     switch (raw.trim().toUpperCase()) {
       case 'PAID':
         return 'Đã thanh toán';
+      case 'DEPOSIT_PAID':
+      case 'DEPOSITPAID':
+        return 'Đã đặt cọc';
       case 'PENDING':
         return 'Chờ thanh toán';
       case 'DRAFT':

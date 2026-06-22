@@ -41,6 +41,8 @@ class BusService extends ApiService {
     required double amount,
     int? scheduleId,
     List<String>? selectedSeats,
+    bool isDeposit = false,
+    int? usedCoins,
   }) async {
     final response = await postWithFallback(
       '/trips/$tripId/pay',
@@ -51,6 +53,8 @@ class BusService extends ApiService {
         'amount': amount,
         if (scheduleId != null) 'scheduleId': scheduleId,
         if (selectedSeats != null) 'selectedSeats': selectedSeats,
+        'isDeposit': isDeposit,
+        if (usedCoins != null) 'usedCoins': usedCoins,
       }),
     );
 

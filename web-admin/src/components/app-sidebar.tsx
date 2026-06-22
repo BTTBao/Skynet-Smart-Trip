@@ -13,6 +13,8 @@ import {
   Bell,
   Tag,
   BarChart3,
+  Wallet,
+  Star,
 } from "lucide-react"
 import Link from "next/link"
 import { Logo } from "@/components/logo"
@@ -84,6 +86,16 @@ const data = {
           title: "Khuyến mãi",
           url: "/promotions",
           icon: Tag,
+        },
+        {
+          title: "Ví & Giao dịch",
+          url: "/payments",
+          icon: Wallet,
+        },
+        {
+          title: "Đánh giá",
+          url: "/reviews",
+          icon: Star,
         },
         {
           title: "Báo cáo",

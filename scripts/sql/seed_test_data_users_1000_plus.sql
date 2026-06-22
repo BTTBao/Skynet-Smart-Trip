@@ -469,10 +469,180 @@ BEGIN TRY
         SET @Index += 1;
     END;
 
+    IF OBJECT_ID(N'dbo.ExplorePosts', N'U') IS NOT NULL
+       AND EXISTS (SELECT 1 FROM dbo.ExplorePosts)
+    BEGIN
+        ;WITH TargetUsers AS
+        (
+            SELECT TOP (240)
+                RowNo,
+                UserId
+            FROM @Users
+            ORDER BY RowNo
+        ),
+        TargetPosts AS
+        (
+            SELECT TOP (8)
+                Id,
+                Title,
+                ThumbnailUrl,
+                CreatedAt,
+                ROW_NUMBER() OVER (ORDER BY Id) AS RowNo
+            FROM dbo.ExplorePosts
+            WHERE ISNULL(IsVisible, 1) = 1
+            ORDER BY Id
+        )
+        INSERT INTO dbo.ExplorePostLikes (ExplorePostId, UserId, CreatedAt)
+        SELECT
+            p.Id,
+            u.UserId,
+            DATEADD(MINUTE, u.RowNo + p.RowNo, DATEADD(DAY, -3, GETDATE()))
+        FROM TargetUsers u
+        CROSS JOIN TargetPosts p
+        WHERE ((u.RowNo + p.RowNo) % 3) = 0
+          AND NOT EXISTS
+          (
+              SELECT 1
+              FROM dbo.ExplorePostLikes l
+              WHERE l.ExplorePostId = p.Id
+                AND l.UserId = u.UserId
+          );
+
+        ;WITH TargetUsers AS
+        (
+            SELECT TOP (180)
+                RowNo,
+                UserId
+            FROM @Users
+            ORDER BY RowNo
+        ),
+        TargetPosts AS
+        (
+            SELECT TOP (8)
+                Id,
+                ROW_NUMBER() OVER (ORDER BY Id) AS RowNo
+            FROM dbo.ExplorePosts
+            WHERE ISNULL(IsVisible, 1) = 1
+            ORDER BY Id
+        )
+        INSERT INTO dbo.ExplorePostSaves (ExplorePostId, UserId, CreatedAt)
+        SELECT
+            p.Id,
+            u.UserId,
+            DATEADD(MINUTE, u.RowNo + (p.RowNo * 2), DATEADD(DAY, -2, GETDATE()))
+        FROM TargetUsers u
+        CROSS JOIN TargetPosts p
+        WHERE ((u.RowNo + p.RowNo) % 4) = 0
+          AND NOT EXISTS
+          (
+              SELECT 1
+              FROM dbo.ExplorePostSaves s
+              WHERE s.ExplorePostId = p.Id
+                AND s.UserId = u.UserId
+          );
+
+        ;WITH TargetUsers AS
+        (
+            SELECT TOP (220)
+                RowNo,
+                UserId
+            FROM @Users
+            ORDER BY RowNo
+        ),
+        TargetPosts AS
+        (
+            SELECT TOP (8)
+                Id,
+                ROW_NUMBER() OVER (ORDER BY Id) AS RowNo
+            FROM dbo.ExplorePosts
+            WHERE ISNULL(IsVisible, 1) = 1
+            ORDER BY Id
+        )
+        INSERT INTO dbo.ExplorePostRatings (ExplorePostId, UserId, Rating, CreatedAt, UpdatedAt)
+        SELECT
+            p.Id,
+            u.UserId,
+            CAST(CASE ((u.RowNo + p.RowNo) % 5)
+                WHEN 0 THEN 4.2
+                WHEN 1 THEN 4.4
+                WHEN 2 THEN 4.6
+                WHEN 3 THEN 4.8
+                ELSE 5.0
+            END AS DECIMAL(3,2)),
+            DATEADD(MINUTE, u.RowNo + p.RowNo, DATEADD(DAY, -1, GETDATE())),
+            DATEADD(MINUTE, u.RowNo + p.RowNo, DATEADD(DAY, -1, GETDATE()))
+        FROM TargetUsers u
+        CROSS JOIN TargetPosts p
+        WHERE ((u.RowNo + p.RowNo) % 2) = 0
+          AND NOT EXISTS
+          (
+              SELECT 1
+              FROM dbo.ExplorePostRatings r
+              WHERE r.ExplorePostId = p.Id
+                AND r.UserId = u.UserId
+          );
+
+        ;WITH TargetUsers AS
+        (
+            SELECT TOP (120)
+                RowNo,
+                UserId
+            FROM @Users
+            ORDER BY RowNo
+        ),
+        TargetPosts AS
+        (
+            SELECT TOP (4)
+                Id,
+                Title,
+                ThumbnailUrl,
+                ROW_NUMBER() OVER (ORDER BY Id) AS RowNo
+            FROM dbo.ExplorePosts
+            WHERE ISNULL(IsVisible, 1) = 1
+            ORDER BY Id
+        )
+        INSERT INTO dbo.ExploreComments (ExplorePostId, UserId, Content, ImageUrl, LikeCount, CreatedAt, ParentCommentId)
+        SELECT
+            p.Id,
+            u.UserId,
+            CONCAT(N'Test user ', u.UserId, N' danh gia bai "', p.Title, N'" kha huu ich de len lich trinh.'),
+            CASE WHEN ((u.RowNo + p.RowNo) % 5) = 0 THEN p.ThumbnailUrl ELSE NULL END,
+            ((u.RowNo + p.RowNo) % 9),
+            DATEADD(MINUTE, u.RowNo + (p.RowNo * 3), GETDATE()),
+            NULL
+        FROM TargetUsers u
+        CROSS JOIN TargetPosts p
+        WHERE ((u.RowNo + p.RowNo) % 4) = 1
+          AND NOT EXISTS
+          (
+              SELECT 1
+              FROM dbo.ExploreComments c
+              WHERE c.ExplorePostId = p.Id
+                AND c.UserId = u.UserId
+                AND c.Content = CONCAT(N'Test user ', u.UserId, N' danh gia bai "', p.Title, N'" kha huu ich de len lich trinh.')
+          );
+
+        UPDATE post
+        SET
+            post.AverageRating = ratingData.AverageRating,
+            post.RatingCount = ratingData.RatingCount,
+            post.UpdatedAt = GETDATE()
+        FROM dbo.ExplorePosts post
+        INNER JOIN
+        (
+            SELECT
+                rating.ExplorePostId,
+                CAST(AVG(CAST(rating.Rating AS DECIMAL(10,2))) AS DECIMAL(3,2)) AS AverageRating,
+                COUNT(*) AS RatingCount
+            FROM dbo.ExplorePostRatings rating
+            GROUP BY rating.ExplorePostId
+        ) ratingData ON ratingData.ExplorePostId = post.Id;
+    END;
+
     COMMIT TRANSACTION;
 
     PRINT 'Seed du lieu mau cho user Id >= 1000 thanh cong.';
-    PRINT 'Moi user se co: 2 trip, hotel/bus itinerary, payment, invoice, favorites, wallet.';
+    PRINT 'Moi user se co: 2 trip, hotel/bus itinerary, payment, invoice, favorites, wallet va tuong tac explore.';
 END TRY
 BEGIN CATCH
     IF @@TRANCOUNT > 0

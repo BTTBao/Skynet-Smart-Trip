@@ -455,6 +455,21 @@ public class ItineraryService : IItineraryService
             throw new InvalidOperationException($"Only {totalRooms} room(s) are available for the selected room type.");
         }
 
+        var thirtyMinutesAgo = DateTime.UtcNow.AddMinutes(-30);
+        
+        // Auto-cancel expired pending bookings to free up rooms in the database
+        var expiredTrips = await _context.Trips
+            .Where(t => t.Status == TripStatus.Pending && t.CreatedAt < thirtyMinutesAgo)
+            .ToListAsync();
+        if (expiredTrips.Any())
+        {
+            foreach (var t in expiredTrips)
+            {
+                t.Status = TripStatus.Cancelled;
+            }
+            await _context.SaveChangesAsync();
+        }
+
         var overlappingBookings = await _context.TripItineraries
             .AsNoTracking()
             .Include(item => item.Trip)
@@ -464,6 +479,7 @@ public class ItineraryService : IItineraryService
                 (existingHotelItinerary == null || item.Id != existingHotelItinerary.Id) &&
                 item.Trip != null &&
                 item.Trip.Status != TripStatus.Cancelled &&
+                !(item.Trip.Status == TripStatus.Pending && item.Trip.CreatedAt < thirtyMinutesAgo) &&
                 item.Trip.StartDate.HasValue &&
                 item.Trip.EndDate.HasValue)
             .ToListAsync();
@@ -649,12 +665,13 @@ public class ItineraryService : IItineraryService
             }
             else
             {
-                trip.TotalProfit = trip.TripItineraries.Sum(item =>
+                var originalCommission = trip.TripItineraries.Sum(item =>
                 {
                     var lineGross = (item.BookedPrice ?? 0) * (item.Quantity ?? 1);
-                    var paidLineAmount = totalPaidAmount * lineGross / grossAmount;
-                    return paidLineAmount * (decimal)((item.BookedCommissionRate ?? 0) / 100d);
+                    return lineGross * (decimal)((item.BookedCommissionRate ?? 0) / 100d);
                 });
+                var discount = Math.Max(0m, grossAmount - totalPaidAmount);
+                trip.TotalProfit = originalCommission - discount;
             }
         }
 

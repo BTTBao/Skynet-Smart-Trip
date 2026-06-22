@@ -16,6 +16,58 @@ public class CatalogService : ICatalogService
         _context = context;
     }
 
+    public async Task<List<CatalogDestinationDto>> GetPopularDestinationsAsync()
+    {
+        var home = await GetHomeAsync();
+        return home.PopularDestinations;
+    }
+
+    public async Task<List<CatalogHotelCardDto>> GetFeaturedHotelsAsync()
+    {
+        var home = await GetHomeAsync();
+        return home.FeaturedHotels;
+    }
+
+    public async Task<List<CatalogBusCardDto>> GetFeaturedBusesAsync()
+    {
+        var home = await GetHomeAsync();
+        return home.FeaturedBuses;
+    }
+
+    public Task<CatalogHotelSearchResultDto> SearchHotelsAsync(
+        int? destinationId,
+        string? query,
+        int page,
+        int pageSize,
+        decimal? minPrice,
+        decimal? maxPrice,
+        int? starRating,
+        string? sort)
+    {
+        return SearchHotelsAsync(
+            query,
+            destinationId,
+            minPrice,
+            maxPrice,
+            starRating.HasValue ? (double)starRating.Value : null,
+            starRating?.ToString(),
+            sort);
+    }
+
+    public Task<CatalogBusSearchResultDto> SearchBusesAsync(
+        int? fromDestinationId,
+        int? toDestinationId,
+        DateTime? departureDate,
+        string? query,
+        int page,
+        int pageSize,
+        decimal? minPrice,
+        decimal? maxPrice,
+        string? sort)
+    {
+        return SearchBusesAsync(query, fromDestinationId, toDestinationId, minPrice, maxPrice, sort);
+    }
+
     public async Task<CatalogHomeDto> GetHomeAsync()
     {
         var destinationBookingCounts = await _context.Trips
@@ -706,4 +758,84 @@ public class CatalogService : ICatalogService
     private static double BuildLatitude(int id) => 11.9404 + (id * 0.0035);
 
     private static double BuildLongitude(int id) => 108.4583 + (id * 0.0041);
+
+    public async Task<CatalogPromotionDto?> ValidatePromotionAsync(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return null;
+        }
+
+        var normalizedCode = code.Trim().ToUpperInvariant();
+        var promotion = await _context.Promotions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Code == normalizedCode);
+
+        if (promotion == null)
+        {
+            return null;
+        }
+
+        var now = DateTime.UtcNow;
+        if (promotion.ValidUntil.HasValue && promotion.ValidUntil.Value < now)
+        {
+            return null;
+        }
+
+        if (promotion.UsageLimit.HasValue && promotion.UsedCount.HasValue && promotion.UsedCount.Value >= promotion.UsageLimit.Value)
+        {
+            return null;
+        }
+
+        return new CatalogPromotionDto
+        {
+            Code = promotion.Code ?? string.Empty,
+            DiscountPercent = promotion.DiscountPercent ?? 0,
+            MaxDiscountAmount = promotion.MaxDiscountAmount ?? 0,
+            Title = GetPromotionTitle(promotion),
+            Description = GetPromotionDescription(promotion)
+        };
+    }
+
+    public async Task<List<CatalogPromotionDto>> GetPromotionsAsync()
+    {
+        var now = DateTime.UtcNow;
+        var promotions = await _context.Promotions
+            .AsNoTracking()
+            .Where(p => (!p.ValidUntil.HasValue || p.ValidUntil.Value >= now) &&
+                        (!p.UsageLimit.HasValue || !p.UsedCount.HasValue || p.UsedCount.Value < p.UsageLimit.Value))
+            .ToListAsync();
+
+        return promotions.Select(p => new CatalogPromotionDto
+        {
+            Code = p.Code ?? string.Empty,
+            DiscountPercent = p.DiscountPercent ?? 0,
+            MaxDiscountAmount = p.MaxDiscountAmount ?? 0,
+            Title = GetPromotionTitle(p),
+            Description = GetPromotionDescription(p)
+        }).ToList();
+    }
+
+    private static string GetPromotionTitle(Promotion p)
+    {
+        if (p.Code == "WELCOME10") return "Mừng Bạn Mới";
+        if (p.Code == "SUMMER20") return "Chào Hè Rực Rỡ";
+        if (p.Code == "HOTEL5") return "Ưu Đãi Đặt Phòng";
+        
+        return p.DiscountPercent.HasValue && p.DiscountPercent > 0 
+            ? $"Giảm Giá {p.DiscountPercent.Value}%" 
+            : "Khuyến Mãi Đặc Biệt";
+    }
+
+    private static string GetPromotionDescription(Promotion p)
+    {
+        if (p.Code == "WELCOME10") return "Giảm ngay 10% cho khách hàng mới đăng ký trải nghiệm.";
+        if (p.Code == "SUMMER20") return "Giảm 20% đặt khách sạn và vé xe, tối đa 250k.";
+        if (p.Code == "HOTEL5") return "Giảm 5% cho tất cả phòng khách sạn trong tháng này.";
+        
+        var maxDesc = p.MaxDiscountAmount.HasValue && p.MaxDiscountAmount.Value > 0 
+            ? $" tối đa {p.MaxDiscountAmount.Value:N0}đ" 
+            : "";
+        return $"Áp dụng giảm {p.DiscountPercent ?? 0}%{maxDesc} cho đơn hàng.";
+    }
 }

@@ -110,6 +110,7 @@ export interface AdminTransportCompany {
   name: string;
   hotline: string;
   logoUrl: string;
+  commissionRate: number;
   scheduleCount: number;
   averageCommissionRate: number;
 }
@@ -131,6 +132,7 @@ export interface AdminCreateTransportCompanyRequest {
   name: string;
   hotline: string;
   logoUrl: string;
+  commissionRate: number;
 }
 
 export interface AdminUpdateTransportCompanyRequest extends AdminCreateTransportCompanyRequest {}
@@ -170,6 +172,8 @@ export interface AdminHotel {
   availableRoomQty: number;
   lowestPrice: number;
   totalRevenue: number;
+  totalProfit: number;
+  commissionRate: number;
 }
 
 export interface AdminHotelRequest {
@@ -179,6 +183,7 @@ export interface AdminHotelRequest {
   starRating: number;
   description: string;
   isAvailable: boolean;
+  commissionRate: number;
 }
 
 export interface AdminRoom {

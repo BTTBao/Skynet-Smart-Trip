@@ -101,6 +101,7 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.ViewCount).HasDefaultValue(0);
             entity.Property(e => e.IsVisible).HasDefaultValue(true);
             entity.Property(e => e.Tags).HasMaxLength(500);
+            entity.Property(e => e.LinkedTripCode).HasMaxLength(20).IsUnicode(false);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 
@@ -442,6 +443,11 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.ResponseType).HasMaxLength(50);
             entity.Property(e => e.DetectedIntent).HasMaxLength(50);
             entity.Property(e => e.SessionId).HasMaxLength(100).IsUnicode(false);
+            entity.Property(e => e.LatencyMs);
+            entity.Property(e => e.IsJsonValid);
+            entity.Property(e => e.IsFallbackUsed);
+            entity.Property(e => e.ErrorLog).HasMaxLength(1000);
+            entity.Property(e => e.ClassifierDetails).HasColumnType("nvarchar(max)");
 
             entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId);
         });
