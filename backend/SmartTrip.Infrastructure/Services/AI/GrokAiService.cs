@@ -120,6 +120,14 @@ public class GrokAiService : IGrokAiService
         try
         {
             var systemPrompt = @"Phân tích tin nhắn của người dùng và lịch sử chat để xác định ý định (intent) của họ và trích xuất các thông tin tham số (entities).
+
+QUAN TRỌNG — QUY TẮC PHÂN LOẠI INTENT:
+1. Luôn xác định intent DỰA TRÊN câu hỏi HIỆN TẠI của người dùng, KHÔNG phải lịch sử.
+2. KHÔNG BAO GIỜ tự ý đổi intent thành itinerary_request chỉ vì lịch sử có lập kế hoạch.
+3. Nếu người dùng hỏi về khách sạn → hotel_query, bất kể trước đó họ đang làm gì.
+4. Nếu người dùng hỏi về xe → bus_query, bất kể trước đó họ đang làm gì.
+5. Lịch sử chỉ dùng để bổ sung entities (ví dụ: destination từ câu trước), KHÔNG dùng để thay đổi intent.
+
 Hãy chọn MỘT intent phù hợp nhất từ danh sách sau:
 - package_query (nếu muốn hỏi tour du lịch trọn gói, combo)
 - budget_query (hỏi về chi phí, ngân sách du lịch, giá rẻ, bao nhiêu tiền)
@@ -238,7 +246,11 @@ Trả về kết quả dưới dạng một đối tượng JSON duy nhất theo
             var skillPath = Path.Combine(assemblyPath ?? string.Empty, "Services", "AI", "skill.md");
             if (File.Exists(skillPath))
             {
-                return File.ReadAllText(skillPath, Encoding.UTF8);
+                var content = File.ReadAllText(skillPath, Encoding.UTF8);
+                if (!LooksLikeMojibake(content))
+                {
+                    return content;
+                }
             }
 
             var currentDir = AppContext.BaseDirectory;
@@ -247,7 +259,11 @@ Trả về kết quả dưới dạng một đối tượng JSON duy nhất theo
                 var checkPath = Path.Combine(currentDir, "Services", "AI", "skill.md");
                 if (File.Exists(checkPath))
                 {
-                    return File.ReadAllText(checkPath, Encoding.UTF8);
+                    var content = File.ReadAllText(checkPath, Encoding.UTF8);
+                    if (!LooksLikeMojibake(content))
+                    {
+                        return content;
+                    }
                 }
 
                 var parent = Directory.GetParent(currentDir);
@@ -260,7 +276,26 @@ Trả về kết quả dưới dạng một đối tượng JSON duy nhất theo
             _logger.LogError(ex, "Failed to read skill.md");
         }
 
-        return "Ban la Sky, tro ly du lich AI cua Skynet Smart Trip. Luon tra loi bang tieng Viet co dau.";
+        return BuildDefaultSkillPrompt();
+    }
+
+    private static bool LooksLikeMojibake(string content)
+    {
+        return content.Contains('\u00c3')
+            || content.Contains('\u00c2')
+            || content.Contains('\u00c6')
+            || content.Contains('\u00c4')
+            || content.Contains('\u00ba')
+            || content.Contains('\u00bb');
+    }
+
+    private static string BuildDefaultSkillPrompt()
+    {
+        return "B\u1ea1n l\u00e0 Sky, tr\u1ee3 l\u00fd du l\u1ecbch AI c\u1ee7a Skynet Smart Trip.\n"
+            + "Lu\u00f4n tr\u1ea3 l\u1eddi b\u1eb1ng ti\u1ebfng Vi\u1ec7t c\u00f3 d\u1ea5u, tr\u1eeb khi ng\u01b0\u1eddi d\u00f9ng ch\u1ee7 \u0111\u1ed9ng h\u1ecfi b\u1eb1ng ti\u1ebfng Anh.\n"
+            + "Khi c\u00f3 DATABASE CONTEXT, \u01b0u ti\u00ean d\u1eef li\u1ec7u trong h\u1ec7 th\u1ed1ng v\u00e0 kh\u00f4ng b\u1ecba t\u00ean kh\u00e1ch s\u1ea1n, tuy\u1ebfn xe, gi\u00e1 ho\u1eb7c khuy\u1ebfn m\u00e3i.\n"
+            + "Tr\u1ea3 v\u1ec1 m\u1ed9t JSON object h\u1ee3p l\u1ec7 duy nh\u1ea5t theo schema: text, responseType, destinationCards, suggestedItinerary, hotelCards, transportCards, weatherInfo, quickActions.\n"
+            + "Kh\u00f4ng d\u00f9ng markdown, kh\u00f4ng th\u00eam gi\u1ea3i th\u00edch ngo\u00e0i JSON, v\u00e0 lu\u00f4n k\u00e8m 2-4 quickActions b\u1eb1ng ti\u1ebfng Vi\u1ec7t c\u00f3 d\u1ea5u.";
     }
 
     private object BuildRequestBody(ChatContextDto context, bool forceJsonMode = false)
@@ -439,12 +474,12 @@ Trả về kết quả dưới dạng một đối tượng JSON duy nhất theo
     {
         return context.DetectedIntent switch
         {
-            "promotion_query" => "De minh xem nhanh cac uu dai phu hop cho ban nhe.",
-            "bus_query" => "De minh tim nhanh cac tuyen di phu hop cho ban nhe.",
-            "hotel_query" => "De minh loc nhanh mot vai khach san phu hop cho ban nhe.",
-            "itinerary_request" => "De minh len nhanh mot lich trinh tham khao de ban de hinh dung hon nhe.",
-            "budget_query" => "De minh uoc tinh nhanh chi phi tham khao cho ban nhe.",
-            _ => "De minh xem nhanh thong tin phu hop cho ban nhe."
+            "promotion_query" => "\u0110\u1ec3 m\u00ecnh xem nhanh c\u00e1c \u01b0u \u0111\u00e3i ph\u00f9 h\u1ee3p cho b\u1ea1n nh\u00e9.",
+            "bus_query" => "\u0110\u1ec3 m\u00ecnh t\u00ecm nhanh c\u00e1c tuy\u1ebfn xe ph\u00f9 h\u1ee3p cho b\u1ea1n nh\u00e9.",
+            "hotel_query" => "\u0110\u1ec3 m\u00ecnh l\u1ecdc nhanh m\u1ed9t v\u00e0i kh\u00e1ch s\u1ea1n ph\u00f9 h\u1ee3p cho b\u1ea1n nh\u00e9.",
+            "itinerary_request" => "\u0110\u1ec3 m\u00ecnh l\u00ean nhanh m\u1ed9t l\u1ecbch tr\u00ecnh tham kh\u1ea3o \u0111\u1ec3 b\u1ea1n d\u1ec5 h\u00ecnh dung h\u01a1n nh\u00e9.",
+            "budget_query" => "\u0110\u1ec3 m\u00ecnh \u01b0\u1edbc t\u00ednh nhanh chi ph\u00ed tham kh\u1ea3o cho b\u1ea1n nh\u00e9.",
+            _ => "\u0110\u1ec3 m\u00ecnh xem nhanh th\u00f4ng tin ph\u00f9 h\u1ee3p cho b\u1ea1n nh\u00e9."
         };
     }
 
@@ -452,12 +487,11 @@ Trả về kết quả dưới dạng một đối tượng JSON duy nhất theo
     {
         return new List<QuickActionDto>
         {
-            new() { Label = "Goi y diem den", Icon = "explore", ActionPayload = "Goi y diem den dep o Viet Nam" },
-            new() { Label = "Lap lich trinh", Icon = "calendar", ActionPayload = "Lap lich trinh du lich cho toi" },
-            new() { Label = "Tim khach san", Icon = "hotel", ActionPayload = "Tim khach san tot nhat" }
+            new() { Label = "G\u1ee3i \u00fd \u0111i\u1ec3m \u0111\u1ebfn", Icon = "explore", ActionPayload = "G\u1ee3i \u00fd \u0111i\u1ec3m \u0111\u1ebfn \u0111\u1eb9p \u1edf Vi\u1ec7t Nam" },
+            new() { Label = "L\u1eadp l\u1ecbch tr\u00ecnh", Icon = "calendar", ActionPayload = "L\u1eadp l\u1ecbch tr\u00ecnh du l\u1ecbch cho t\u00f4i" },
+            new() { Label = "T\u00ecm kh\u00e1ch s\u1ea1n", Icon = "hotel", ActionPayload = "T\u00ecm kh\u00e1ch s\u1ea1n t\u1ed1t nh\u1ea5t" }
         };
     }
-
     private static string? NormalizeConfigValue(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))

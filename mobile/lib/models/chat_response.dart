@@ -1,6 +1,18 @@
 import 'dart:convert';
 
 /// Structured response from Sky Assistant backend.
+String _repairVietnameseText(dynamic value) {
+  if (value is! String) return value?.toString() ?? '';
+  if (!value.contains('Ã') && !value.contains('Ä') && !value.contains('Â') && !value.contains('Æ') && !value.contains('á')) {
+    return value;
+  }
+  try {
+    return utf8.decode(latin1.encode(value));
+  } catch (_) {
+    return value;
+  }
+}
+
 class ChatResponse {
   final String text;
   final String responseType;
@@ -30,9 +42,9 @@ class ChatResponse {
     final normalizedJson = _normalizeChatPayload(json);
 
     return ChatResponse(
-      text: normalizedJson['text'] ?? '',
-      responseType: normalizedJson['responseType'] ?? 'text',
-      sessionId: normalizedJson['sessionId']?.toString(),
+      text: _repairVietnameseText(normalizedJson['text']),
+      responseType: _repairVietnameseText(normalizedJson['responseType']).isEmpty ? 'text' : _repairVietnameseText(normalizedJson['responseType']),
+      sessionId: _repairVietnameseText(normalizedJson['sessionId']).isEmpty ? null : _repairVietnameseText(normalizedJson['sessionId']),
       destinationCards: normalizedJson['destinationCards'] != null
           ? (normalizedJson['destinationCards'] as List)
               .map((e) => DestinationCard.fromJson(e))
@@ -152,12 +164,12 @@ class DestinationCard {
   factory DestinationCard.fromJson(Map<String, dynamic> json) {
     return DestinationCard(
       id: json['id'],
-      name: json['name'] ?? '',
-      description: json['description'],
-      imageUrl: json['imageUrl'],
+      name: _repairVietnameseText(json['name']),
+      description: _repairVietnameseText(json['description']),
+      imageUrl: _repairVietnameseText(json['imageUrl']),
       rating: (json['rating'] as num?)?.toDouble(),
-      bestSeason: json['bestSeason'],
-      estimatedBudget: json['estimatedBudget'],
+      bestSeason: _repairVietnameseText(json['bestSeason']),
+      estimatedBudget: _repairVietnameseText(json['estimatedBudget']),
       isHot: json['isHot'],
     );
   }
@@ -195,12 +207,12 @@ class HotelCard {
   factory HotelCard.fromJson(Map<String, dynamic> json) {
     return HotelCard(
       id: json['id'],
-      name: json['name'] ?? '',
-      address: json['address'],
+      name: _repairVietnameseText(json['name']),
+      address: _repairVietnameseText(json['address']),
       starRating: json['starRating'],
-      description: json['description'],
+      description: _repairVietnameseText(json['description']),
       pricePerNight: (json['pricePerNight'] as num?)?.toDouble(),
-      destinationName: json['destinationName'],
+      destinationName: _repairVietnameseText(json['destinationName']),
       destinationId: json['destinationId'],
       amenities: json['amenities'] != null
           ? List<String>.from(json['amenities'])
@@ -233,7 +245,7 @@ class HotelRoomCard {
   factory HotelRoomCard.fromJson(Map<String, dynamic> json) {
     return HotelRoomCard(
       id: json['id'] ?? 0,
-      roomType: json['roomType'] ?? 'Standard',
+      roomType: _repairVietnameseText(json['roomType']) ?? 'Standard',
       pricePerNight: (json['pricePerNight'] as num?)?.toDouble() ?? 0,
       capacity: json['capacity'] ?? 2,
       availableQty: json['availableQty'] ?? 0,
@@ -273,7 +285,7 @@ class TransportCard {
       fromDestinationName: json['fromDestinationName'],
       toDestinationId: json['toDestinationId'],
       toDestinationName: json['toDestinationName'],
-      companyName: json['companyName'] ?? '',
+      companyName: _repairVietnameseText(json['companyName']),
       price: (json['price'] as num?)?.toDouble(),
       departureTime: json['departureTime'] != null
           ? DateTime.tryParse(json['departureTime'])
@@ -301,9 +313,9 @@ class QuickAction {
 
   factory QuickAction.fromJson(Map<String, dynamic> json) {
     return QuickAction(
-      label: json['label'] ?? '',
-      icon: json['icon'] ?? 'chat',
-      actionPayload: json['actionPayload'] ?? '',
+      label: _repairVietnameseText(json['label']),
+      icon: _repairVietnameseText(json['icon']).isEmpty ? 'chat' : _repairVietnameseText(json['icon']),
+      actionPayload: _repairVietnameseText(json['actionPayload']),
     );
   }
 }
@@ -337,12 +349,12 @@ class SuggestedItinerary {
 
   factory SuggestedItinerary.fromJson(Map<String, dynamic> json) {
     return SuggestedItinerary(
-      title: json['title'] ?? '',
-      destination: json['destination'] ?? '',
+      title: _repairVietnameseText(json['title']),
+      destination: _repairVietnameseText(json['destination']),
       destinationId: json['destinationId'],
       totalDays: json['totalDays'] ?? 0,
-      estimatedBudget: json['estimatedBudget'],
-      travelStyle: json['travelStyle'],
+      estimatedBudget: _repairVietnameseText(json['estimatedBudget']),
+      travelStyle: _repairVietnameseText(json['travelStyle']),
       hotelSuggestion: json['hotelSuggestion'] != null
           ? HotelPlanSuggestion.fromJson(json['hotelSuggestion'])
           : null,
@@ -386,10 +398,10 @@ class HotelPlanSuggestion {
     return HotelPlanSuggestion(
       hotelId: json['hotelId'],
       roomId: json['roomId'],
-      name: json['name'] ?? '',
-      roomType: json['roomType'],
-      address: json['address'],
-      destinationName: json['destinationName'],
+      name: _repairVietnameseText(json['name']),
+      roomType: _repairVietnameseText(json['roomType']),
+      address: _repairVietnameseText(json['address']),
+      destinationName: _repairVietnameseText(json['destinationName']),
       pricePerNight: (json['pricePerNight'] as num?)?.toDouble(),
       capacity: json['capacity'],
       availableQty: json['availableQty'],
@@ -429,7 +441,7 @@ class TransportPlanSuggestion {
       fromDestinationName: json['fromDestinationName'],
       toDestinationId: json['toDestinationId'],
       toDestinationName: json['toDestinationName'],
-      companyName: json['companyName'] ?? '',
+      companyName: _repairVietnameseText(json['companyName']),
       price: (json['price'] as num?)?.toDouble(),
       departureTime: json['departureTime'] != null
           ? DateTime.tryParse(json['departureTime'])
@@ -485,7 +497,7 @@ class ItineraryDay {
   factory ItineraryDay.fromJson(Map<String, dynamic> json) {
     return ItineraryDay(
       dayNumber: json['dayNumber'] ?? 0,
-      theme: json['theme'],
+      theme: _repairVietnameseText(json['theme']),
       activities: json['activities'] != null
           ? (json['activities'] as List).map((e) => ItineraryActivity.fromJson(e)).toList()
           : [],
@@ -510,10 +522,10 @@ class ItineraryActivity {
 
   factory ItineraryActivity.fromJson(Map<String, dynamic> json) {
     return ItineraryActivity(
-      time: json['time'] ?? '',
-      title: json['title'] ?? '',
-      description: json['description'],
-      icon: json['icon'] ?? 'location',
+      time: _repairVietnameseText(json['time']),
+      title: _repairVietnameseText(json['title']),
+      description: _repairVietnameseText(json['description']),
+      icon: _repairVietnameseText(json['icon']).isEmpty ? 'location' : _repairVietnameseText(json['icon']),
       estimatedCost: json['estimatedCost'],
     );
   }

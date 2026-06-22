@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -430,24 +430,28 @@ class ChatProvider with ChangeNotifier {
 
   static const List<QuickAction> _defaultSuggestions = [
     QuickAction(
-      label: 'Goi y diem den',
+      label: 'Gợi ý điểm đến',
       icon: 'explore',
-      actionPayload: 'Goi y cho toi 3 diem den dep o Viet Nam',
+      actionPayload: 'Gợi ý cho tôi 3 điểm đến đẹp ở Việt Nam',
     ),
     QuickAction(
-      label: 'Lap lich trinh',
+      label: 'Lập lịch trình',
       icon: 'calendar',
-      actionPayload: 'Lap lich trinh du lich Da Lat 3 ngay 2 dem',
+      actionPayload: 'Lập lịch trình du lịch Đà Lạt 3 ngày 2 đêm',
     ),
     QuickAction(
-      label: 'Tim khach san',
+      label: 'Tìm khách sạn',
       icon: 'hotel',
-      actionPayload: 'Tim khach san tot o Phu Quoc',
+      actionPayload: 'Tìm khách sạn tốt ở Phú Quốc',
     ),
     QuickAction(
-      label: 'Xem thoi tiet',
+      label: 'Xem thời tiết',
       icon: 'weather',
-      actionPayload: 'Thoi tiet Da Nang hom nay the nao?',
+      actionPayload: 'Thời tiết Đà Nẵng hôm nay thế nào?',
     ),
   ];
 }
+
+
+
+

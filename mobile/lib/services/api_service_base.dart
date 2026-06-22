@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -27,25 +27,54 @@ abstract class ApiService {
     'API_BASE_URL',
     defaultValue: '',
   );
+  static const String _configuredBaseUrlsFromEnv = String.fromEnvironment(
+    'API_BASE_URLS',
+    defaultValue: '',
+  );
 
   String get configuredBaseUrl {
+    final urls = configuredBaseUrls;
+    return urls.isEmpty ? 'http://localhost:5110/api' : urls.first;
+  }
+
+  List<String> get configuredBaseUrls {
+    if (_configuredBaseUrlsFromEnv.isNotEmpty) {
+      final urls = _configuredBaseUrlsFromEnv
+          .split(',')
+          .map((url) => url.trim())
+          .where((url) => url.isNotEmpty)
+          .toList(growable: false);
+      if (urls.isNotEmpty) {
+        return urls;
+      }
+    }
+
     if (_configuredBaseUrlFromEnv.isNotEmpty) {
-      return _configuredBaseUrlFromEnv;
+      return [_configuredBaseUrlFromEnv];
     }
 
     if (kIsWeb) {
-      return 'http://localhost:5110/api';
+      return const [
+        'http://localhost:5110/api',
+        'http://127.0.0.1:5110/api',
+      ];
     }
 
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return 'http://10.0.2.2:5110/api';
+        return const [
+          'http://10.0.2.2:5110/api',
+          'http://localhost:5110/api',
+        ];
       case TargetPlatform.iOS:
       case TargetPlatform.macOS:
       case TargetPlatform.windows:
       case TargetPlatform.linux:
       case TargetPlatform.fuchsia:
-        return 'http://localhost:5110/api';
+        return const [
+          'http://localhost:5110/api',
+          'http://127.0.0.1:5110/api',
+        ];
     }
   }
 
@@ -70,7 +99,7 @@ abstract class ApiService {
     } else if (requireAuth) {
       throw ApiException(
         401,
-        'Phien dang nhap da het han. Vui long dang nhap lai.',
+        'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
       );
     }
 
@@ -199,29 +228,30 @@ abstract class ApiService {
   Future<http.Response> _sendWithFallback(
     Future<http.Response> Function(String baseUrl) send,
   ) async {
-    final baseUrl = configuredBaseUrl;
+    final baseUrls = configuredBaseUrls;
+    Object? lastError;
 
-    try {
-      return await send(baseUrl);
-    } on TimeoutException catch (e) {
-      throw Exception(
-        'Ket noi toi backend bi timeout sau 10 giay ($baseUrl). '
-        'Android emulator dung 10.0.2.2, iOS simulator/Desktop dung localhost, '
-        'thiet bi that can cau hinh --dart-define=API_BASE_URL=http://<LAN-IP>:5110/api. $e',
-      );
-    } on SocketException catch (e) {
-      throw Exception(
-        'Khong the ket noi toi backend o $baseUrl. '
-        'Android emulator dung 10.0.2.2, iOS simulator/Desktop dung localhost, '
-        'thiet bi that can cau hinh --dart-define=API_BASE_URL=http://<LAN-IP>:5110/api. $e',
-      );
-    } on HttpException catch (e) {
-      throw Exception('Backend tra ve loi ket noi o $baseUrl: $e');
-    } on http.ClientException catch (e) {
-      throw Exception('Loi client khi goi backend o $baseUrl: $e');
-    } on HandshakeException catch (e) {
-      throw Exception('Loi SSL/handshake khi goi backend o $baseUrl: $e');
+    for (final baseUrl in baseUrls) {
+      try {
+        return await send(baseUrl);
+      } on TimeoutException catch (e) {
+        lastError = e;
+      } on SocketException catch (e) {
+        lastError = e;
+      } on HttpException catch (e) {
+        lastError = e;
+      } on http.ClientException catch (e) {
+        lastError = e;
+      } on HandshakeException catch (e) {
+        lastError = e;
+      }
     }
+
+    throw Exception(
+      'Không thể kết nối tới backend. Đã thử: ${baseUrls.join(', ')}. '
+      'Hãy đảm bảo API đang chạy ở port 5110 hoặc chạy Flutter với '
+      '--dart-define=API_BASE_URL=http://<host>:5110/api. $lastError',
+    );
   }
 
   dynamic handleResponse(http.Response response) {
@@ -242,7 +272,7 @@ abstract class ApiService {
 
   String _extractErrorMessage(http.Response response) {
     if (response.body.isEmpty) {
-      return 'Loi API: ${response.statusCode}';
+      return 'Lỗi API: ${response.statusCode}';
     }
 
     try {
@@ -256,7 +286,7 @@ abstract class ApiService {
       }
     } catch (_) {}
 
-    return 'Loi API: ${response.statusCode} - ${response.body}';
+    return 'Lỗi API: ${response.statusCode} - ${response.body}';
   }
 
   MediaType? _resolveImageContentType(XFile file) {
@@ -282,3 +312,6 @@ abstract class ApiService {
     return null;
   }
 }
+
+
+
