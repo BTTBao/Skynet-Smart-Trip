@@ -445,21 +445,47 @@ public class PaymentController : ControllerBase
                 return BadRequest(new { message = "Số tiền nạp phải lớn hơn 0." });
             }
 
-            // Create VNPAY payment with deposit metadata
-            var vnpayRequest = new CreateVnPayPaymentRequestDto
+            var metadataJson = $"{{\"userId\":{userId},\"type\":\"wallet_deposit\"}}";
+            var metadataElement = JsonSerializer.Deserialize<JsonElement>(metadataJson);
+
+            if (request.PaymentMethod?.ToUpper() == "PAYOS")
             {
-                Amount = request.Amount,
-                Description = $"Nap tien vao vi SmartTrip (User #{userId})",
-                Locale = request.Locale,
-                Metadata = JsonSerializer.Deserialize<JsonElement>($"{{\"userId\":{userId},\"type\":\"wallet_deposit\"}}")
-            };
+                if (request.OrderCode == null || string.IsNullOrEmpty(request.ReturnUrl) || string.IsNullOrEmpty(request.CancelUrl))
+                {
+                    return BadRequest(new { message = "Thiếu thông tin OrderCode, ReturnUrl hoặc CancelUrl cho PayOS." });
+                }
 
-            var payment = await _paymentService.CreateVnPayPaymentAsync(
-                vnpayRequest,
-                ResolveClientIpAddress(),
-                cancellationToken);
+                var payOsRequest = new CreatePaymentRequestDto
+                {
+                    Amount = request.Amount,
+                    Description = $"Nap tien vao vi SmartTrip (User #{userId})",
+                    OrderCode = request.OrderCode.Value,
+                    ReturnUrl = request.ReturnUrl,
+                    CancelUrl = request.CancelUrl,
+                    Metadata = metadataElement
+                };
 
-            return Ok(payment);
+                var payment = await _paymentService.CreatePaymentAsync(payOsRequest, cancellationToken);
+                return Ok(payment);
+            }
+            else
+            {
+                // Mặc định là VNPAY
+                var vnpayRequest = new CreateVnPayPaymentRequestDto
+                {
+                    Amount = request.Amount,
+                    Description = $"Nap tien vao vi SmartTrip (User #{userId})",
+                    Locale = request.Locale,
+                    Metadata = metadataElement
+                };
+
+                var payment = await _paymentService.CreateVnPayPaymentAsync(
+                    vnpayRequest,
+                    ResolveClientIpAddress(),
+                    cancellationToken);
+
+                return Ok(payment);
+            }
         }
         catch (Exception ex)
         {
@@ -487,14 +513,30 @@ public class PaymentController : ControllerBase
                 return BadRequest(new { message = "Số dư ví không đủ để thực hiện giao dịch." });
             }
 
+            var payoutRequest = new CreatePayoutRequestDto
+            {
+                Amount = request.Amount,
+                BankCode = request.BankName, // Frontend will send BankCode here
+                AccountNumber = request.AccountNumber,
+                AccountName = request.AccountName,
+                Description = $"Rut tien SmartTrip - {request.AccountNumber}"
+            };
+
+            var payoutResult = await _paymentService.CreatePayoutAsync(payoutRequest, cancellationToken);
+
+            if (!payoutResult.Success)
+            {
+                return BadRequest(new { message = $"Chi hộ thất bại: {payoutResult.Message}" });
+            }
+
             wallet.Balance -= request.Amount;
 
             var withdrawalPayment = new Payment
             {
                 Amount = -request.Amount,
-                PaymentMethod = PaymentMethod.Card,
+                PaymentMethod = PaymentMethod.BankTransfer,
                 Status = PaymentStatus.Paid,
-                TransactionId = $"WITHDRAW-{userId}-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                TransactionId = string.IsNullOrEmpty(payoutResult.TransactionId) ? $"WITHDRAW-{userId}-{DateTime.UtcNow:yyyyMMddHHmmss}" : payoutResult.TransactionId,
                 Description = $"Rút tiền về tài khoản: {request.BankName} - {request.AccountNumber}",
                 PaidAt = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow,
@@ -502,9 +544,9 @@ public class PaymentController : ControllerBase
             };
             _context.Payments.Add(withdrawalPayment);
 
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(cancellationToken);
 
-            return Ok(new { message = "Yêu cầu rút tiền đang được xử lý.", remainingBalance = wallet.Balance });
+            return Ok(new { message = payoutResult.Message ?? "Rút tiền thành công.", remainingBalance = wallet.Balance });
         }
         catch (Exception ex)
         {

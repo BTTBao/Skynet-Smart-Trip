@@ -531,201 +531,6 @@ public class TripController : ControllerBase
                     : request.TransactionId,
                 Amount = paymentAmount,
                 Status = PaymentStatus.Paid,
-    public async Task<IActionResult> AddItinerary(int tripId, [FromBody] CreateTripItineraryDto request)
-    {
-        try
-        {
-            if (!await UserOwnsTripAsync(tripId))
-            {
-                return Forbid();
-            }
-
-            if (string.Equals(request.ServiceType, "HOTEL", StringComparison.OrdinalIgnoreCase))
-            {
-                var currentUser = await _context.Users
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(user => user.Id == GetCurrentUserId());
-                if (currentUser == null)
-                {
-                    return Unauthorized();
-                }
-
-                var missingProfileFields = GetMissingHotelBookingProfileFields(currentUser);
-                if (missingProfileFields.Count > 0)
-                {
-                    return Conflict(new
-                    {
-                        code = "PROFILE_INCOMPLETE",
-                        message = "Vui long hoan tat ho so truoc khi dat phong.",
-                        missingFields = missingProfileFields
-                    });
-                }
-            }
-
-            var itinerary = await _itineraryService.AddItineraryAsync(tripId, request);
-            return CreatedAtAction(nameof(GetTripById), new { tripId }, itinerary);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
-    }
-
-    [HttpPut("{tripId:int}")]
-    public async Task<IActionResult> UpdateTrip(int tripId, [FromBody] UpdateTripDto request)
-    {
-        try
-        {
-            if (!await UserOwnsTripAsync(tripId))
-            {
-                return Forbid();
-            }
-
-            var trip = await _tripService.UpdateTripAsync(tripId, request);
-            return Ok(trip);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-    }
-
-    [HttpPut("itineraries/{itineraryId:int}")]
-    public async Task<IActionResult> UpdateItinerary(int itineraryId, [FromBody] UpdateTripItineraryDto request)
-    {
-        try
-        {
-            if (!await UserOwnsItineraryAsync(itineraryId))
-            {
-                return Forbid();
-            }
-
-            var itinerary = await _itineraryService.UpdateItineraryAsync(itineraryId, request);
-            return Ok(itinerary);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-    }
-
-    [HttpDelete("itineraries/{itineraryId:int}")]
-    public async Task<IActionResult> DeleteItinerary(int itineraryId)
-    {
-        try
-        {
-            if (!await UserOwnsItineraryAsync(itineraryId))
-            {
-                return Forbid();
-            }
-
-            var result = await _itineraryService.DeleteItineraryAsync(itineraryId);
-            if (!result)
-            {
-                return NotFound(new { message = $"Itinerary {itineraryId} was not found." });
-            }
-
-            return NoContent();
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-
-    [HttpGet("service-options")]
-    public async Task<IActionResult> GetServiceOptions([FromQuery] string serviceType, [FromQuery] int? destinationId)
-    {
-        try
-        {
-            var options = await _optionService.GetServiceOptionsAsync(serviceType, destinationId);
-            return Ok(options);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-
-    [HttpPost("{tripId:int}/pay")]
-    public async Task<IActionResult> ConfirmPayment(int tripId, [FromBody] ConfirmPaymentDto request)
-    {
-        try
-        {
-            if (!await UserOwnsTripAsync(tripId))
-            {
-                return Forbid();
-            }
-
-            var trip = await _context.Trips
-                .Include(t => t.User)
-                .Include(t => t.TripItineraries)
-                .Include(t => t.Payments)
-                .Include(t => t.Invoices)
-                .FirstOrDefaultAsync(t => t.Id == tripId);
-
-            if (trip == null)
-            {
-                return NotFound(new { message = $"Trip {tripId} was not found." });
-            }
-
-            var totalPaidAmountSoFar = trip.Payments
-                .Where(p => p.Status == PaymentStatus.Paid)
-                .Sum(p => p.Amount ?? 0m);
-
-            var totalRequired = trip.TotalAmount ?? 0m;
-
-            if (totalPaidAmountSoFar >= totalRequired && trip.Invoices.Any())
-            {
-                return Ok(new
-                {
-                    message = "Booking da duoc thanh toan va phat hanh hoa don.",
-                    tripId = trip.Id,
-                    status = "PAID",
-                    alreadyPaid = true
-                });
-            }
-
-            if (request.Amount < 0)
-            {
-                return BadRequest(new { message = "So tien thanh toan khong hop le." });
-            }
-
-            // Parse payment method
-            if (!Enum.TryParse<PaymentMethod>(request.PaymentMethod, true, out var method))
-            {
-                method = PaymentMethod.Card;
-            }
-            if (request.Amount == 0 && method != PaymentMethod.Promotion)
-            {
-                return BadRequest(new { message = "Thanh toan 0 dong chi hop le khi dung khuyen mai." });
-            }
-            var paymentAmount = request.Amount;
-            var payment = new Payment
-            {
-                TripId = tripId,
-                PaymentMethod = method,
-                TransactionId = string.IsNullOrWhiteSpace(request.TransactionId) 
-                    ? $"PAY-{tripId}-{DateTime.UtcNow:yyyyMMddHHmmss}" 
-                    : request.TransactionId,
-                Amount = paymentAmount,
-                Status = PaymentStatus.Paid,
                 PaidAt = DateTime.UtcNow,
                 MetadataJson = request.UsedCoins.HasValue && request.UsedCoins.Value > 0
                     ? $"{{\"usedCoins\": {request.UsedCoins.Value}}}"
@@ -973,7 +778,7 @@ public class TripController : ControllerBase
                 return BadRequest(new { message = "Đơn đặt chỗ này đã bị hủy trước đó." });
             }
 
-            if (trip.Status != TripStatus.BookingOnly)
+            if (trip.Status != TripStatus.BookingOnly && trip.Status != TripStatus.Paid && trip.Status != TripStatus.Pending)
             {
                 return BadRequest(new { message = "Chỉ hỗ trợ hủy đơn đặt phòng khách sạn." });
             }
@@ -986,8 +791,22 @@ public class TripController : ControllerBase
                 return BadRequest(new { message = "Không thể hủy đặt phòng khi đã đến ngày nhận phòng hoặc phòng đã sử dụng." });
             }
             
-            // Calculate refund eligibility: check-in date must be at least 2 days in the future (more than 24 hours from check-in day)
-            var canRefund = checkInDate >= today.AddDays(2);
+            // Calculate refund eligibility: check-in date-time must be at least 24 hours in the future
+            // Assuming standard hotel check-in time is 14:00 (2:00 PM) on the check-in day.
+            var checkInDateTime = checkInDate.ToDateTime(new TimeOnly(14, 0));
+            var nowLocal = DateTime.UtcNow.AddHours(7);
+            
+            var hoursUntilCheckIn = (checkInDateTime - nowLocal).TotalHours;
+            decimal refundPercentage = 0m;
+            
+            if (hoursUntilCheckIn >= 48)
+            {
+                refundPercentage = 1.0m;
+            }
+            else if (hoursUntilCheckIn >= 24)
+            {
+                refundPercentage = 0.5m;
+            }
 
             var totalPaid = trip.Payments
                 .Where(p => p.Status == PaymentStatus.Paid)
@@ -997,9 +816,9 @@ public class TripController : ControllerBase
             int totalUsedCoinsRefund = 0;
             int totalEarnedCoinsDeduct = 0;
 
-            if (canRefund && totalPaid > 0)
+            if (refundPercentage > 0m)
             {
-                refundAmount = totalPaid;
+                refundAmount = totalPaid * refundPercentage;
 
                 foreach (var p in trip.Payments.Where(pm => pm.Status == PaymentStatus.Paid))
                 {
@@ -1024,41 +843,50 @@ public class TripController : ControllerBase
                         }
                     }
                 }
+                
+                totalEarnedCoinsDeduct = (int)Math.Round(totalEarnedCoinsDeduct * refundPercentage);
+                totalUsedCoinsRefund = (int)Math.Round(totalUsedCoinsRefund * refundPercentage);
             }
 
-            // Perform wallet refund if there's a refund amount
-            if (refundAmount > 0)
+            // Perform wallet refund if there's a refund amount or used coins refund
+            if ((refundAmount > 0 || totalUsedCoinsRefund > 0 || totalEarnedCoinsDeduct > 0) && trip.UserId.HasValue)
             {
-                var wallet = await _context.UserWallets.FirstOrDefaultAsync(w => w.UserId == trip.UserId);
+                var wallet = await _context.UserWallets.FirstOrDefaultAsync(w => w.UserId == trip.UserId.Value);
                 if (wallet == null)
                 {
                     wallet = new UserWallet
                     {
-                        UserId = trip.UserId,
+                        UserId = trip.UserId.Value,
                         Balance = 0m,
                         LoyaltyPoints = 0
                     };
                     _context.UserWallets.Add(wallet);
                 }
 
-                wallet.Balance = (wallet.Balance ?? 0m) + refundAmount;
+                if (refundAmount > 0)
+                {
+                    wallet.Balance = (wallet.Balance ?? 0m) + refundAmount;
+                }
                 
                 // Refund used coins and deduct earned coins
                 wallet.LoyaltyPoints = (wallet.LoyaltyPoints ?? 0) + totalUsedCoinsRefund;
                 wallet.LoyaltyPoints = Math.Max(0, (wallet.LoyaltyPoints ?? 0) - totalEarnedCoinsDeduct);
 
-                // Log the refund transaction
-                var refundPayment = new Payment
+                // Log the refund transaction if refundAmount > 0
+                if (refundAmount > 0)
                 {
-                    TripId = tripId,
-                    Amount = -refundAmount,
-                    PaymentMethod = PaymentMethod.Card,
-                    Status = PaymentStatus.Refunded,
-                    TransactionId = $"REFUND-{tripId}-{DateTime.UtcNow:yyyyMMddHHmmss}",
-                    Description = $"Hoàn tiền hủy đặt phòng #{tripId}",
-                    PaidAt = DateTime.UtcNow
-                };
-                _context.Payments.Add(refundPayment);
+                    var refundPayment = new Payment
+                    {
+                        TripId = tripId,
+                        Amount = -refundAmount,
+                        PaymentMethod = PaymentMethod.Card,
+                        Status = PaymentStatus.Refunded,
+                        TransactionId = $"REFUND-{tripId}-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                        Description = $"Hoàn tiền hủy đặt phòng #{tripId}",
+                        PaidAt = DateTime.UtcNow
+                    };
+                    _context.Payments.Add(refundPayment);
+                }
             }
 
             // Release bus seats if any
@@ -1085,13 +913,20 @@ public class TripController : ControllerBase
             // Create notification
             try
             {
+                string notificationMessage = refundAmount > 0
+                    ? $"Đặt phòng \"{trip.Title}\" đã được hủy. Đã hoàn {refundAmount:N0}đ vào ví của bạn."
+                    : $"Đặt phòng \"{trip.Title}\" đã được hủy. Bạn không được hoàn tiền do hủy sát giờ.";
+                    
+                if (refundAmount > 0 && refundPercentage < 1.0m)
+                {
+                    notificationMessage = $"Đặt phòng \"{trip.Title}\" đã được hủy. Đã hoàn {(refundPercentage * 100):N0}% ({refundAmount:N0}đ) vào ví do hủy trong vòng 48h.";
+                }
+
                 await _notificationService.CreateAsync(new CreateNotificationDto
                 {
                     UserId = trip.UserId ?? 0,
                     Title = "Hủy đặt phòng thành công",
-                    Message = refundAmount > 0
-                        ? $"Đặt phòng \"{trip.Title}\" đã được hủy. Đã hoàn {refundAmount:N0}đ vào ví của bạn."
-                        : $"Đặt phòng \"{trip.Title}\" đã được hủy. Bạn không được hoàn tiền do hủy sát giờ.",
+                    Message = notificationMessage,
                     Type = "booking.cancelled",
                     ReferenceType = "booking",
                     ReferenceId = trip.Id,
@@ -1109,11 +944,19 @@ public class TripController : ControllerBase
                 var user = trip.User ?? await _context.Users.FirstOrDefaultAsync(u => u.Id == trip.UserId);
                 if (user != null && !string.IsNullOrWhiteSpace(user.Email))
                 {
+                    string statusMsg = "Đã hủy (Không hoàn cọc)";
+                    if (refundAmount > 0)
+                    {
+                        statusMsg = refundPercentage < 1.0m 
+                            ? $"Đã hủy & Hoàn tiền {(refundPercentage * 100):N0}% ({refundAmount:N0}đ) vào ví" 
+                            : $"Đã hủy & Hoàn tiền {refundAmount:N0}đ vào ví";
+                    }
+
                     await _emailService.SendBookingStatusChangedEmailAsync(
                         user.Email,
                         user.FullName ?? user.Email,
                         trip.Title ?? $"Booking #{trip.Id}",
-                        refundAmount > 0 ? $"Đã hủy & Hoàn tiền {refundAmount:N0}đ vào ví" : "Đã hủy (Không hoàn cọc)",
+                        statusMsg,
                         trip.TotalAmount
                     );
                 }

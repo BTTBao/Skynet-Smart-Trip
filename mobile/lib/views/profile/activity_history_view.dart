@@ -16,6 +16,7 @@ import '../../services/payment_service.dart';
 import '../../services/bus_service.dart';
 import '../../providers/trip_provider.dart';
 import '../../services/trip_service.dart';
+import '../../providers/profile_provider.dart';
 
 enum _HistorySection { bookings, hotels, buses, payments }
 
@@ -1201,7 +1202,8 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
         content: Text(
           'Bạn có chắc chắn muốn hủy đặt chỗ "$title" không?\n\n'
           'Chính sách hoàn tiền:\n'
-          '• Hủy trước 24 giờ nhận phòng: Hoàn tiền 100% vào ví.\n'
+          '• Hủy trước 48 giờ nhận phòng: Hoàn tiền 100% vào ví.\n'
+          '• Hủy trước 24 - 48 giờ: Hoàn tiền 50% vào ví.\n'
           '• Hủy trong vòng 24 giờ nhận phòng: Không hoàn tiền.',
         ),
         actions: [
@@ -1239,6 +1241,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
               backgroundColor: Colors.green,
             ),
           );
+          context.read<ProfileProvider>().fetchProfile(forceRefresh: true);
         }
         _fetchHistory();
       } else {

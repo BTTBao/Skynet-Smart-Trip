@@ -1510,5 +1510,26 @@ public class PayOsPaymentService : IPaymentService
         var value = (decimal)(rate ?? 0d);
         return value > 1m ? value / 100m : value;
     }
+
+    public async Task<PayoutResultDto> CreatePayoutAsync(CreatePayoutRequestDto request, CancellationToken cancellationToken = default)
+    {
+        // Gửi yêu cầu chi hộ (Payout) đến cổng thanh toán (PayOS/VNPAY)
+        // Trong môi trường Sandbox, chúng ta giả lập phản hồi thành công.
+        
+        _logger.LogInformation("Creating Payout for Bank: {BankCode}, Account: {AccountNumber}, Amount: {Amount}", 
+            request.BankCode, request.AccountNumber, request.Amount);
+
+        // TODO: Call actual PayOS Transfer/Payout API here
+        // var response = await _httpClient.PostAsJsonAsync("https://api-merchant.payos.vn/v2/payment-requests", ...);
+
+        await Task.Delay(500, cancellationToken); // Simulate network delay
+
+        return new PayoutResultDto
+        {
+            Success = true,
+            Message = "Giao dịch chi hộ thành công (Sandbox)",
+            TransactionId = $"PAYOUT-{DateTime.UtcNow:yyyyMMddHHmmss}-{RandomNumberGenerator.GetInt32(1000, 9999)}"
+        };
+    }
 }
 

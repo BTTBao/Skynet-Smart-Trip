@@ -381,6 +381,7 @@ class _ProfileViewState extends State<ProfileView> {
   void _showDepositBottomSheet(BuildContext context, ProfileProvider provider) {
     final TextEditingController amountController = TextEditingController();
     bool isDepositing = false;
+    int selectedPaymentMethod = 1; // 1 = VNPAY, 0 = PayOS
 
     showModalBottomSheet(
       context: context,
@@ -478,7 +479,34 @@ class _ProfileViewState extends State<ProfileView> {
                         );
                       }).toList(),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
+                    Text(
+                      context.tr(vi: 'Phương thức thanh toán', en: 'Payment Method'),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: RadioListTile<int>(
+                            title: const Text('VNPAY'),
+                            value: 1,
+                            groupValue: selectedPaymentMethod,
+                            onChanged: (val) => setSheetState(() => selectedPaymentMethod = val!),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                        Expanded(
+                          child: RadioListTile<int>(
+                            title: const Text('PayOS'),
+                            value: 0,
+                            groupValue: selectedPaymentMethod,
+                            onChanged: (val) => setSheetState(() => selectedPaymentMethod = val!),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: isDepositing
                           ? null
@@ -500,18 +528,24 @@ class _ProfileViewState extends State<ProfileView> {
 
                               setSheetState(() => isDepositing = true);
                               try {
-                                final result = await PaymentService().createWalletDeposit(amount: amount);
+                                final paymentMethodStr = selectedPaymentMethod == 0 ? 'PAYOS' : 'VNPAY';
+                                final orderCodeForPayOs = selectedPaymentMethod == 0 ? DateTime.now().millisecondsSinceEpoch % 1000000000 : null;
+                                final result = await PaymentService().createWalletDeposit(
+                                    amount: amount, 
+                                    paymentMethod: paymentMethodStr, 
+                                    orderCode: orderCodeForPayOs
+                                );
                                 final checkoutUrl = result.checkoutUrl;
                                 final orderCode = result.orderCode;
 
                                 if (checkoutUrl == null || checkoutUrl.isEmpty) {
-                                  throw Exception('Không tạo được link thanh toán VNPAY.');
+                                  throw Exception('Không tạo được link thanh toán $paymentMethodStr.');
                                 }
 
                                 Navigator.pop(sheetContext); // Close sheet
                                 await launchUrl(Uri.parse(checkoutUrl), mode: LaunchMode.externalApplication);
                                 if (context.mounted) {
-                                  _showDepositPendingDialog(context, orderCode ?? 0);
+                                  _showDepositPendingDialog(context, orderCode ?? 0, paymentMethodStr);
                                 }
                               } catch (e) {
                                 setSheetState(() => isDepositing = false);
@@ -534,7 +568,7 @@ class _ProfileViewState extends State<ProfileView> {
                               child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                             )
                           : Text(
-                              context.tr(vi: 'Tiếp tục thanh toán VNPAY', en: 'Proceed to VNPAY'),
+                              context.tr(vi: 'Tiếp tục thanh toán', en: 'Proceed to Payment'),
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                             ),
                     ),
@@ -548,15 +582,15 @@ class _ProfileViewState extends State<ProfileView> {
     );
   }
 
-  Future<void> _showDepositPendingDialog(BuildContext context, int orderCode) async {
+  Future<void> _showDepositPendingDialog(BuildContext context, int orderCode, String paymentMethod) async {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Hoàn tất nạp tiền VNPAY'),
-          content: const Text(
-            'Trang nạp tiền VNPAY đã được mở trên trình duyệt. Sau khi nạp tiền thành công, hãy nhấn Xác nhận bên dưới để kiểm tra số dư mới.',
+          title: Text('Hoàn tất nạp tiền $paymentMethod'),
+          content: Text(
+            'Trang nạp tiền $paymentMethod đã được mở trên trình duyệt. Sau khi nạp tiền thành công, hãy nhấn Xác nhận bên dưới để kiểm tra số dư mới.',
           ),
           actions: [
             TextButton(
@@ -605,10 +639,24 @@ class _ProfileViewState extends State<ProfileView> {
 
   void _showWithdrawBottomSheet(BuildContext context, ProfileProvider provider) {
     final TextEditingController amountController = TextEditingController();
-    final TextEditingController bankController = TextEditingController();
+    String? selectedBankCode;
     final TextEditingController accountController = TextEditingController();
     final TextEditingController nameController = TextEditingController();
     bool isWithdrawing = false;
+
+    final Map<String, String> bankList = {
+      'VCB': 'Vietcombank',
+      'TCB': 'Techcombank',
+      'MB': 'MBBank',
+      'VIB': 'VIB',
+      'ACB': 'ACB',
+      'VPB': 'VPBank',
+      'BIDV': 'BIDV',
+      'CTG': 'VietinBank',
+      'STB': 'Sacombank',
+      'HDB': 'HDBank',
+      'TPB': 'TPBank',
+    };
 
     final balance = provider.profileData?.walletBalance ?? 0.0;
 
@@ -676,15 +724,24 @@ class _ProfileViewState extends State<ProfileView> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      TextField(
-                        controller: bankController,
+                      DropdownButtonFormField<String>(
+                        value: selectedBankCode,
                         decoration: InputDecoration(
-                          labelText: context.tr(vi: 'Tên ngân hàng / Ví (Ví dụ: Momo, VCB...)', en: 'Bank Name / Wallet'),
+                          labelText: context.tr(vi: 'Chọn Ngân hàng đích', en: 'Select Destination Bank'),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                           prefixIcon: const Icon(Icons.account_balance_outlined),
                         ),
+                        items: bankList.entries.map((e) {
+                          return DropdownMenuItem<String>(
+                            value: e.key,
+                            child: Text('${e.key} - ${e.value}'),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setSheetState(() => selectedBankCode = value);
+                        },
                       ),
                       const SizedBox(height: 12),
                       TextField(
@@ -727,7 +784,7 @@ class _ProfileViewState extends State<ProfileView> {
                             : () async {
                                 final amountStr = amountController.text.replaceAll('.', '').replaceAll(',', '').trim();
                                 final amount = double.tryParse(amountStr) ?? 0.0;
-                                final bankName = bankController.text.trim();
+                                final bankName = selectedBankCode ?? '';
                                 final accountNumber = accountController.text.trim();
                                 final accountName = nameController.text.trim();
 

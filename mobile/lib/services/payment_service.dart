@@ -78,14 +78,25 @@ class PaymentService extends ApiService {
   Future<PaymentResult> createWalletDeposit({
     required double amount,
     String locale = 'vn',
+    String paymentMethod = 'VNPAY',
+    int? orderCode,
   }) async {
+    final Map<String, dynamic> body = {
+      'amount': amount.round(),
+      'locale': locale,
+      'paymentMethod': paymentMethod,
+    };
+
+    if (paymentMethod == 'PAYOS' && orderCode != null) {
+      body['orderCode'] = orderCode;
+      body['returnUrl'] = '$configuredBaseUrl/payments/payos/return?orderCode=$orderCode';
+      body['cancelUrl'] = '$configuredBaseUrl/payments/payos/cancel?orderCode=$orderCode';
+    }
+
     final response = await postWithFallback(
       '/payments/wallet/deposit',
       requireAuth: true,
-      body: jsonEncode({
-        'amount': amount.round(),
-        'locale': locale,
-      }),
+      body: jsonEncode(body),
     );
 
     final data = Map<String, dynamic>.from(handleResponse(response));
