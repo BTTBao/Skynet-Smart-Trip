@@ -32,57 +32,6 @@ abstract class ApiService {
     'API_BASE_URL',
     defaultValue: '',
   );
-<<<<<<< HEAD
-  static const String _configuredBaseUrlsFromEnv = String.fromEnvironment(
-    'API_BASE_URLS',
-    defaultValue: '',
-  );
-
-  String get configuredBaseUrl {
-    final urls = configuredBaseUrls;
-    return urls.isEmpty ? 'http://localhost:5110/api' : urls.first;
-  }
-
-  List<String> get configuredBaseUrls {
-    if (_configuredBaseUrlsFromEnv.isNotEmpty) {
-      final urls = _configuredBaseUrlsFromEnv
-          .split(',')
-          .map((url) => url.trim())
-          .where((url) => url.isNotEmpty)
-          .toList(growable: false);
-      if (urls.isNotEmpty) {
-        return urls;
-      }
-    }
-
-    if (_configuredBaseUrlFromEnv.isNotEmpty) {
-      return [_configuredBaseUrlFromEnv];
-    }
-
-    if (kIsWeb) {
-      return const [
-        'http://localhost:5110/api',
-        'http://127.0.0.1:5110/api',
-      ];
-    }
-
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return const [
-          'http://10.0.2.2:5110/api',
-          'http://localhost:5110/api',
-        ];
-      case TargetPlatform.iOS:
-      case TargetPlatform.macOS:
-      case TargetPlatform.windows:
-      case TargetPlatform.linux:
-      case TargetPlatform.fuchsia:
-        return const [
-          'http://localhost:5110/api',
-          'http://127.0.0.1:5110/api',
-        ];
-    }
-=======
   static const String _configuredBaseUrlsFromDefine = String.fromEnvironment(
     'API_BASE_URLS',
     defaultValue: '',
@@ -115,7 +64,6 @@ abstract class ApiService {
     }
 
     return _dedupe(_buildDefaultBaseUrls());
->>>>>>> dev
   }
 
   /// Standard headers. Adds Bearer token automatically when available.
@@ -279,39 +227,15 @@ abstract class ApiService {
   Future<http.Response> _sendWithFallback(
     Future<http.Response> Function(String baseUrl) send,
   ) async {
-<<<<<<< HEAD
-    final baseUrls = configuredBaseUrls;
-    Object? lastError;
-
-    for (final baseUrl in baseUrls) {
-=======
     final candidates = configuredBaseUrls;
     Object? lastError;
 
     for (var i = 0; i < candidates.length; i++) {
       final baseUrl = candidates[i];
->>>>>>> dev
       try {
         return await send(baseUrl);
       } on TimeoutException catch (e) {
         lastError = e;
-<<<<<<< HEAD
-      } on SocketException catch (e) {
-        lastError = e;
-      } on HttpException catch (e) {
-        lastError = e;
-      } on http.ClientException catch (e) {
-        lastError = e;
-      } on HandshakeException catch (e) {
-        lastError = e;
-      }
-    }
-
-    throw Exception(
-      'Không thể kết nối tới backend. Đã thử: ${baseUrls.join(', ')}. '
-      'Hãy đảm bảo API đang chạy ở port 5110 hoặc chạy Flutter với '
-      '--dart-define=API_BASE_URL=http://<host>:5110/api. $lastError',
-=======
         if (i < candidates.length - 1) {
           continue;
         }
@@ -341,7 +265,6 @@ abstract class ApiService {
     final tried = candidates.join(' -> ');
     throw Exception(
       'Khong the ket noi backend qua cac endpoint: $tried. $lastError',
->>>>>>> dev
     );
   }
 
