@@ -66,7 +66,8 @@ const initialForm: AdminHotelRequest = {
   isAvailable: true,
 };
 
-const formatCurrency = (value: number) => `${value.toLocaleString('vi-VN')} VND`;
+const formatCurrency = (value: number) =>
+  `${new Intl.NumberFormat('vi-VN', { notation: 'compact', maximumFractionDigits: 1 }).format(value)}đ`;
 
 export default function HotelsAdminPage() {
   const router = useRouter();

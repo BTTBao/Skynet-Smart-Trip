@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -68,7 +68,6 @@ public async Task<AdminDashboardDto> GetDashboardStatsAsync(DateOnly? startDate 
             .Include(t => t.Destination)
             .Include(t => t.Payments)
             .Where(t => t.CreatedAt.HasValue && t.CreatedAt.Value >= resolvedStart && t.CreatedAt.Value <= resolvedEnd)
-            .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
 
         var paymentsInRange = await _context.Payments
@@ -78,11 +77,63 @@ public async Task<AdminDashboardDto> GetDashboardStatsAsync(DateOnly? startDate 
             .OrderByDescending(p => p.PaidAt)
             .ToListAsync();
 
-        var paidPayments = paymentsInRange.Where(p => p.Status == PaymentStatus.Paid).ToList();
-        var totalRevenue = paidPayments.Sum(p => p.Amount.GetValueOrDefault());
-        var totalProfit = tripsInRange
-            .Where(t => t.Status == TripStatus.Paid)
-            .Sum(t => t.TotalProfit.GetValueOrDefault());
+        // Load paid trips with itineraries for revenue/profit calculation.
+        // We use the SAME formula as each sub-page:
+        //   Hotel items  → BookedPrice × Quantity          (mirrors BuildHotelRevenueLookupAsync)
+        //   Bus items    → proportional share of paidAmount (mirrors GetTransportStatsAsync)
+        var paidTripsWithItineraries = await _context.Trips
+            .Include(t => t.Payments)
+            .Include(t => t.TripItineraries)
+            .Where(t =>
+                t.CreatedAt.HasValue &&
+                t.CreatedAt.Value >= resolvedStart &&
+                t.CreatedAt.Value <= resolvedEnd &&
+                t.Status != TripStatus.Cancelled &&
+                t.Payments.Any(p => p.Status == PaymentStatus.Paid))
+            .ToListAsync();
+
+        // Compute dashboard revenue + profit broken down by service type so they match
+        // exactly what the Hotel and Transport sub-pages display.
+        (decimal Revenue, decimal Profit) ComputeRevenueAndProfit(IEnumerable<Trip> trips)
+        {
+            decimal revenue = 0m;
+            decimal profit = 0m;
+
+            foreach (var trip in trips)
+            {
+                var paidAmount = ResolvePaidBookingAmount(trip);
+                // Gross = sum of all line items (used for proportional attribution of bus items)
+                var grossAmount = trip.TripItineraries
+                    .Sum(i => i.BookedPrice.GetValueOrDefault() * i.Quantity.GetValueOrDefault(1));
+
+                foreach (var item in trip.TripItineraries)
+                {
+                    var lineGross = item.BookedPrice.GetValueOrDefault() * item.Quantity.GetValueOrDefault(1);
+                    var commission = NormalizeCommissionRate(item.BookedCommissionRate);
+
+                    if (item.ServiceType == TripServiceType.Hotel)
+                    {
+                        // Hotel sub-page uses raw BookedPrice × Quantity
+                        revenue += lineGross;
+                        profit  += lineGross * commission;
+                    }
+                    else if (item.ServiceType == TripServiceType.Bus)
+                    {
+                        // Transport sub-page uses proportional share of actual paid amount
+                        if (grossAmount > 0 && paidAmount > 0)
+                        {
+                            var paidLine = paidAmount * lineGross / grossAmount;
+                            revenue += paidLine;
+                            profit  += paidLine * commission;
+                        }
+                    }
+                }
+            }
+
+            return (revenue, profit);
+        }
+
+        var (totalRevenue, totalProfit) = ComputeRevenueAndProfit(paidTripsWithItineraries);
 
         var useMonthlyBucket = (resolvedEnd - resolvedStart).TotalDays > 62;
         var chartSeries = new List<AdminDashboardChartPointDto>();
@@ -97,15 +148,17 @@ public async Task<AdminDashboardDto> GetDashboardStatsAsync(DateOnly? startDate 
                 ? cursor.AddMonths(1).AddTicks(-1)
                 : cursor.Date.AddDays(1).AddTicks(-1);
 
+            var bucketTrips = paidTripsWithItineraries
+                .Where(t => t.CreatedAt.HasValue && t.CreatedAt.Value >= bucketStart && t.CreatedAt.Value <= bucketEnd)
+                .ToList();
+
+            var (bucketRevenue, bucketProfit) = ComputeRevenueAndProfit(bucketTrips);
+
             chartSeries.Add(new AdminDashboardChartPointDto
             {
                 Label = useMonthlyBucket ? cursor.ToString("MMM").ToUpperInvariant() : cursor.ToString("dd/MM"),
-                Revenue = paidPayments
-                    .Where(p => p.PaidAt.HasValue && p.PaidAt.Value >= bucketStart && p.PaidAt.Value <= bucketEnd)
-                    .Sum(p => p.Amount.GetValueOrDefault()),
-                Profit = tripsInRange
-                    .Where(t => t.Status == TripStatus.Paid && t.CreatedAt.HasValue && t.CreatedAt.Value >= bucketStart && t.CreatedAt.Value <= bucketEnd)
-                    .Sum(t => t.TotalProfit.GetValueOrDefault()),
+                Revenue = bucketRevenue,
+                Profit = bucketProfit,
                 Bookings = tripsInRange.Count(t => t.CreatedAt.HasValue && t.CreatedAt.Value >= bucketStart && t.CreatedAt.Value <= bucketEnd)
             });
 
@@ -363,7 +416,7 @@ public async Task<AdminUserStatsDto> GetUsersAsync(string? search = null)
         await NotifyAccountStatusChangedAsync(user, false);
     }
 
-public async Task<AdminTransportStatsDto> GetTransportStatsAsync()
+    public async Task<AdminTransportStatsDto> GetTransportStatsAsync()
     {
         var now = DateTime.UtcNow;
         var monthStart = new DateTime(now.Year, now.Month, 1);
@@ -389,10 +442,69 @@ public async Task<AdminTransportStatsDto> GetTransportStatsAsync()
                         s.DepartureTime.Value < monthStart)
             .ToList();
 
+        // 1. Fetch active paid bookings to calculate actual revenue and profit
+        var paidTrips = await _context.Trips
+            .Include(t => t.Payments)
+            .Include(t => t.TripItineraries)
+            .ToListAsync();
+
+        var activePaidTrips = paidTrips
+            .Where(t => GetBookingPaymentStatus(t) == "paid")
+            .ToList();
+
+        // 2. Precalculate actual revenue and profit for each itinerary item
+        var actualItineraryStats = new Dictionary<int, (decimal Revenue, decimal Profit)>();
+        foreach (var trip in activePaidTrips)
+        {
+            var paidAmount = ResolvePaidBookingAmount(trip);
+            if (paidAmount <= 0) continue;
+
+            var grossAmount = trip.TripItineraries.Sum(item =>
+                item.BookedPrice.GetValueOrDefault() * item.Quantity.GetValueOrDefault(1));
+
+            if (grossAmount <= 0) continue;
+
+            foreach (var itinerary in trip.TripItineraries)
+            {
+                var lineGross = itinerary.BookedPrice.GetValueOrDefault() * itinerary.Quantity.GetValueOrDefault(1);
+                var paidLineAmount = paidAmount * lineGross / grossAmount;
+                var profit = paidLineAmount * NormalizeCommissionRate(itinerary.BookedCommissionRate);
+                actualItineraryStats[itinerary.Id] = (paidLineAmount, profit);
+            }
+        }
+
+        // 3. Helper to get actual stats for a given schedule
+        (decimal Revenue, decimal Profit) GetActualStatsForSchedule(int scheduleId)
+        {
+            decimal totalRevenue = 0m;
+            decimal totalProfit = 0m;
+
+            foreach (var trip in activePaidTrips)
+            {
+                foreach (var itinerary in trip.TripItineraries)
+                {
+                    if (itinerary.ServiceType == TripServiceType.Bus && itinerary.ServiceId == scheduleId)
+                    {
+                        if (actualItineraryStats.TryGetValue(itinerary.Id, out var stats))
+                        {
+                            totalRevenue += stats.Revenue;
+                            totalProfit += stats.Profit;
+                        }
+                    }
+                }
+            }
+
+            return (totalRevenue, totalProfit);
+        }
+
+        // 4. Map schedules with their actual revenue and profit stats
         var displayedSchedules = schedules
             .OrderBy(s => GetTransportStatusOrder(GetTransportStatus(s, now)))
             .ThenBy(s => s.DepartureTime ?? DateTime.MaxValue)
-            .Select(s => MapTransportSchedule(s, now))
+            .Select(s => {
+                var (rev, prof) = GetActualStatsForSchedule(s.Id);
+                return MapTransportSchedule(s, now, rev, prof);
+            })
             .ToList();
 
         var totalSeatsThisMonth = schedulesThisMonth.Sum(GetTotalSeatCount);
@@ -401,18 +513,21 @@ public async Task<AdminTransportStatsDto> GetTransportStatsAsync()
             ? 0
             : Math.Round((double)occupiedSeatsThisMonth / totalSeatsThisMonth * 100, 1);
 
-        var currentAffiliateRevenue = schedulesThisMonth.Sum(CalculateAffiliateProfit);
-        var previousAffiliateRevenue = previousMonthSchedules.Sum(CalculateAffiliateProfit);
-        var affiliateGrowthRate = previousAffiliateRevenue == 0
-            ? (currentAffiliateRevenue > 0 ? 100 : 0)
-            : Math.Round((double)((currentAffiliateRevenue - previousAffiliateRevenue) / previousAffiliateRevenue * 100), 1);
+        // 5. Calculate monthly actual revenue and profit (instead of capacity-based estimates)
+        var actualRevenueThisMonth = schedulesThisMonth.Sum(s => GetActualStatsForSchedule(s.Id).Revenue);
+        var actualProfitThisMonth = schedulesThisMonth.Sum(s => GetActualStatsForSchedule(s.Id).Profit);
+        var previousMonthActualProfit = previousMonthSchedules.Sum(s => GetActualStatsForSchedule(s.Id).Profit);
+
+        var affiliateGrowthRate = previousMonthActualProfit == 0
+            ? (actualProfitThisMonth > 0 ? 100 : 0)
+            : Math.Round((double)((actualProfitThisMonth - previousMonthActualProfit) / previousMonthActualProfit * 100), 1);
 
         return new AdminTransportStatsDto
         {
             TotalSchedules = schedules.Count,
             TotalSchedulesThisMonth = schedulesThisMonth.Count,
-            ExpectedRevenueThisMonth = schedulesThisMonth.Sum(s => s.Price.GetValueOrDefault() * GetTotalSeatCount(s)),
-            AffiliateRevenueThisMonth = currentAffiliateRevenue,
+            ExpectedRevenueThisMonth = actualRevenueThisMonth,
+            AffiliateRevenueThisMonth = actualProfitThisMonth,
             AverageOccupancyRate = averageOccupancyRate,
             AffiliateGrowthRate = affiliateGrowthRate,
             ActiveSchedules = schedules.Count(s => GetTransportStatus(s, now) == "running"),

@@ -225,7 +225,8 @@ export default function TransportAdminPage() {
       { key: 'departureTime', header: 'Giờ khởi hành' },
       { key: 'status', header: 'Trạng thái' },
       { key: 'ticketPrice', header: 'Giá vé' },
-      { key: 'affiliateProfit', header: 'Lợi nhuận affiliate' },
+      { key: 'actualRevenue', header: 'Doanh thu' },
+      { key: 'actualProfit', header: 'Lợi nhuận' },
     ]);
 
     toast.success('Xuất dữ liệu lịch trình thành công.');
@@ -427,7 +428,7 @@ export default function TransportAdminPage() {
         />
 
         <MetricCard
-          title="Doanh thu dự kiến"
+          title="Doanh thu thực tế"
           value={formatCompactCurrency(stats.expectedRevenueThisMonth)}
           description={`Tỷ lệ ghế đặt trung bình: ${stats.averageOccupancyRate.toFixed(1)}%`}
           icon={<DollarSign className="h-4 w-4" />}
@@ -435,7 +436,7 @@ export default function TransportAdminPage() {
         />
 
         <MetricCard
-          title="Doanh số Affiliate"
+          title="Lợi nhuận thực tế"
           value={formatCompactCurrency(stats.affiliateRevenueThisMonth)}
           description={`Tăng trưởng ${stats.affiliateGrowthRate >= 0 ? '+' : ''}${stats.affiliateGrowthRate.toFixed(1)}%`}
           icon={<Award className="h-4 w-4" />}
@@ -756,6 +757,7 @@ export default function TransportAdminPage() {
                   <TableHead>Khởi hành</TableHead>
                   <TableHead>Trạng thái</TableHead>
                   <TableHead className="text-right">Giá vé</TableHead>
+                  <TableHead className="text-right">Doanh thu</TableHead>
                   <TableHead className="text-right">Lợi nhuận</TableHead>
                   <TableHead className="text-center">Ghế đặt</TableHead>
                   <TableHead className="pr-6 text-right">Thao tác</TableHead>
@@ -764,7 +766,7 @@ export default function TransportAdminPage() {
               <TableBody>
                 {paginatedSchedules.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12 text-sm text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-12 text-sm text-muted-foreground">
                       Không tìm thấy chuyến xe nào phù hợp.
                     </TableCell>
                   </TableRow>
@@ -794,7 +796,10 @@ export default function TransportAdminPage() {
                         </TableCell>
                         <TableCell className="text-right text-xs font-medium">{schedule.ticketPrice}</TableCell>
                         <TableCell className="text-right text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                          {schedule.affiliateProfit}
+                          {schedule.actualRevenue}
+                        </TableCell>
+                        <TableCell className="text-right text-xs font-bold text-sky-600 dark:text-sky-400">
+                          {schedule.actualProfit}
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge variant="outline" className="text-xs font-semibold">
