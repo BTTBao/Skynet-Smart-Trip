@@ -23,4 +23,12 @@ public interface ICatalogService
         decimal? maxPrice,
         string? sort);
     Task<CatalogBusDetailDto?> GetBusDetailAsync(int scheduleId);
+    Task<CatalogVehicleRentalSearchResultDto> SearchVehicleRentalShopsAsync(
+        string? query,
+        int? destinationId,
+        decimal? minPrice,
+        decimal? maxPrice,
+        string? vehicleType,
+        string? sort);
+    Task<CatalogVehicleRentalShopDetailDto?> GetVehicleRentalShopDetailAsync(int shopId);
 }

@@ -83,6 +83,7 @@ public partial class AdminService
             .Include(item => item.Trips)
             .Include(item => item.BusScheduleFromDests)
             .Include(item => item.BusScheduleToDests)
+            .Include(item => item.VehicleRentalShops)
             .FirstOrDefaultAsync(item => item.Id == destinationId);
 
         if (destination is null)
@@ -90,9 +91,9 @@ public partial class AdminService
             throw new BadHttpRequestException("Không tìm thấy điểm đến.");
         }
 
-        if (destination.Hotels.Any() || destination.Trips.Any() || destination.BusScheduleFromDests.Any() || destination.BusScheduleToDests.Any())
+        if (destination.Hotels.Any() || destination.Trips.Any() || destination.BusScheduleFromDests.Any() || destination.BusScheduleToDests.Any() || destination.VehicleRentalShops.Any())
         {
-            throw new BadHttpRequestException("Không thể xóa điểm đến đang được sử dụng bởi khách sạn, chuyến đi hoặc lịch xe.");
+            throw new BadHttpRequestException("Không thể xóa điểm đến đang được sử dụng bởi khách sạn, chuyến đi, lịch xe hoặc cửa hàng thuê xe.");
         }
 
         _context.Destinations.Remove(destination);

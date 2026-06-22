@@ -24,6 +24,8 @@ public class Destination
     public virtual ICollection<Hotel> Hotels { get; set; } = new List<Hotel>();
 
     public virtual ICollection<Trip> Trips { get; set; } = new List<Trip>();
+
+    public virtual ICollection<VehicleRentalShop> VehicleRentalShops { get; set; } = new List<VehicleRentalShop>();
 }
 
 

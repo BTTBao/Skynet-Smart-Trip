@@ -799,9 +799,7 @@ class _MyTripsViewState extends State<MyTripsView> {
                             onEditTap: trip.canEdit
                                 ? () => _openEditTrip(trip)
                                 : null,
-                            onDeleteTap: trip.canEdit
-                                ? () => _confirmDeleteTrip(tripProvider, trip)
-                                : null,
+                            onDeleteTap: () => _confirmDeleteTrip(tripProvider, trip),
                             onReviewTap: _selectedTabIndex == 1 &&
                                     trip.status != 'CANCELLED'
                                 ? () => _openReviewServices(trip)

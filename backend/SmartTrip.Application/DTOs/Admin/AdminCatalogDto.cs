@@ -118,3 +118,51 @@ public class AdminReportBreakdownDto
     public string Label { get; set; } = string.Empty;
     public decimal Value { get; set; }
 }
+
+public class AdminVehicleRentalOptionDto
+{
+    public int Id { get; set; }
+    public string VehicleType { get; set; } = string.Empty;
+    public string VehicleTypeLabel { get; set; } = string.Empty;
+    public int? MaxSeats { get; set; }
+    public decimal PricePerDay { get; set; }
+    public bool IsAvailable { get; set; }
+}
+
+public class AdminVehicleRentalShopDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string PhoneNumber { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+    public int DestinationId { get; set; }
+    public string DestinationName { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+    public string CreatedAt { get; set; } = string.Empty;
+    public int OptionCount { get; set; }
+    public decimal MinPricePerDay { get; set; }
+    public List<string> VehicleTypeLabels { get; set; } = new();
+    public List<AdminVehicleRentalOptionDto> VehicleOptions { get; set; } = new();
+}
+
+public class AdminVehicleRentalOptionRequest
+{
+    public string VehicleType { get; set; } = string.Empty;
+    public int? MaxSeats { get; set; }
+    public decimal PricePerDay { get; set; }
+    public bool IsAvailable { get; set; } = true;
+}
+
+public class AdminVehicleRentalShopRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string PhoneNumber { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+    public int DestinationId { get; set; }
+    public string Description { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+    public List<AdminVehicleRentalOptionRequest> VehicleOptions { get; set; } = new();
+}

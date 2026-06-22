@@ -90,6 +90,38 @@ class CatalogService extends ApiService {
     return CatalogBusDetail.fromJson(data);
   }
 
+  Future<CatalogVehicleRentalSearchResult> searchVehicleRentalShops({
+    String? query,
+    int? destinationId,
+    double? minPrice,
+    double? maxPrice,
+    String? vehicleType,
+    String? sort,
+  }) async {
+    final response = await _get(
+      '/catalog/vehicle-rentals',
+      queryParameters: {
+        if (query != null && query.trim().isNotEmpty) 'query': query.trim(),
+        if (destinationId != null) 'destinationId': '$destinationId',
+        if (minPrice != null) 'minPrice': minPrice.round().toString(),
+        if (maxPrice != null) 'maxPrice': maxPrice.round().toString(),
+        if (vehicleType != null && vehicleType.isNotEmpty)
+          'vehicleType': vehicleType,
+        if (sort != null && sort.isNotEmpty) 'sort': sort,
+      },
+    );
+    final data = Map<String, dynamic>.from(handleResponse(response));
+    return CatalogVehicleRentalSearchResult.fromJson(data);
+  }
+
+  Future<CatalogVehicleRentalShopDetail> getVehicleRentalShopDetail(
+    int shopId,
+  ) async {
+    final response = await getWithFallback('/catalog/vehicle-rentals/$shopId');
+    final data = Map<String, dynamic>.from(handleResponse(response));
+    return CatalogVehicleRentalShopDetail.fromJson(data);
+  }
+
   Future<http.Response> _get(
     String path, {
     Map<String, String>? queryParameters,
