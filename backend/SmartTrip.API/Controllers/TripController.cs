@@ -389,17 +389,16 @@ public class TripController : ControllerBase
     {
         try
         {
-            if (!await UserOwnsTripAsync(tripId))
-            {
-                return Forbid();
-            }
-
             await _tripService.DeleteTripAsync(tripId, GetCurrentUserId());
             return NoContent();
         }
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (InvalidOperationException ex)
         {

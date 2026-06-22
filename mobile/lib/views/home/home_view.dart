@@ -11,6 +11,8 @@ import '../catalog/search_view.dart';
 import '../resort_detail/resort_detail_screen.dart';
 import '../resort_search/resort_search_screen.dart';
 import '../destination/destination_article_screen.dart';
+import '../vehicle_rental/vehicle_rental_list_screen.dart';
+import '../vehicle_rental/vehicle_rental_detail_screen.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({
@@ -92,56 +94,78 @@ class _HomeViewState extends State<HomeView> {
                   const SizedBox(height: 18),
                   const _HeroBanner(),
                   const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _CategoryItem(
-                        icon: Icons.apartment_rounded,
-                        label: 'Khách sạn',
-                        color: const Color(0xFF3B82F6),
-                        background: const Color(0xFFEFF6FF),
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const ResortSearchScreen()),
-                          );
-                        },
-                      ),
-                      _CategoryItem(
-                        icon: Icons.directions_bus_rounded,
-                        label: 'Xe khách',
-                        color: const Color(0xFFF97316),
-                        background: const Color(0xFFFFF7ED),
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const SearchView(
-                                initialMode: SearchMode.bus,
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _CategoryItem(
+                          icon: Icons.apartment_rounded,
+                          label: 'Khách sạn',
+                          color: const Color(0xFF3B82F6),
+                          background: const Color(0xFFEFF6FF),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const ResortSearchScreen(),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                      _CategoryItem(
-                        icon: Icons.map_outlined,
-                        label: 'Tour',
-                        color: const Color(0xFF8B5CF6),
-                        background: const Color(0xFFF5F3FF),
-                        onTap: _openTrips,
-                      ),
-                      _CategoryItem(
-                        icon: Icons.explore_outlined,
-                        label: 'Khám phá',
-                        color: const Color(0xFF22C55E),
-                        background: const Color(0xFFF0FDF4),
-                        onTap: () {
-                          if (widget.onNavigateToExplore != null) {
-                            widget.onNavigateToExplore!();
-                          } else {
-                            _openSearch();
-                          }
-                        },
-                      ),
-                    ],
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 12),
+                        _CategoryItem(
+                          icon: Icons.directions_bus_rounded,
+                          label: 'Xe khách',
+                          color: const Color(0xFFF97316),
+                          background: const Color(0xFFFFF7ED),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SearchView(
+                                  initialMode: SearchMode.bus,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 12),
+                        _CategoryItem(
+                          icon: Icons.two_wheeler_rounded,
+                          label: 'Thuê xe',
+                          color: const Color(0xFF0EA5E9),
+                          background: const Color(0xFFE0F2FE),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const VehicleRentalListScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 12),
+                        _CategoryItem(
+                          icon: Icons.map_outlined,
+                          label: 'Tour',
+                          color: const Color(0xFF8B5CF6),
+                          background: const Color(0xFFF5F3FF),
+                          onTap: _openTrips,
+                        ),
+                        const SizedBox(width: 12),
+                        _CategoryItem(
+                          icon: Icons.explore_outlined,
+                          label: 'Khám phá',
+                          color: const Color(0xFF22C55E),
+                          background: const Color(0xFFF0FDF4),
+                          onTap: () {
+                            if (widget.onNavigateToExplore != null) {
+                              widget.onNavigateToExplore!();
+                            } else {
+                              _openSearch();
+                            }
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 28),
                   _SectionHeader(
@@ -191,6 +215,51 @@ class _HomeViewState extends State<HomeView> {
                           onTap: () => _openHotel(home.featuredHotels[index]),
                         ),
                       ),
+                    ),
+                  const SizedBox(height: 28),
+                  _SectionHeader(
+                    title: 'Dịch vụ thuê xe tự lái',
+                    actionLabel: 'Xem tất cả',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const VehicleRentalListScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  if (provider.isLoadingHome && home == null)
+                    const _LoadingCard(height: 190)
+                  else if (home != null)
+                    SizedBox(
+                      height: 210,
+                      child: home.featuredVehicleRentalShops.isEmpty
+                          ? Container(
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(22),
+                              ),
+                              child: const Text(
+                                'Chưa có cửa hàng cho thuê xe.',
+                                style: TextStyle(color: AppColors.textMuted),
+                              ),
+                            )
+                          : ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              itemCount: home.featuredVehicleRentalShops.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(width: 14),
+                              itemBuilder: (context, index) =>
+                                  _VehicleRentalShopCard(
+                                shop: home.featuredVehicleRentalShops[index],
+                                onTap: () => _openVehicleRentalShop(
+                                  home.featuredVehicleRentalShops[index],
+                                ),
+                              ),
+                            ),
                     ),
                   const SizedBox(height: 28),
                   _SectionHeader(
@@ -303,6 +372,14 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  void _openVehicleRentalShop(CatalogVehicleRentalShopCard shop) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => VehicleRentalDetailScreen(shopId: shop.id),
+      ),
+    );
+  }
+
   void _showDestinationActionSheet(String destinationName, int destinationId) {
     showModalBottomSheet(
       context: context,
@@ -353,6 +430,26 @@ class _HomeViewState extends State<HomeView> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => ResortSearchScreen(
+                          destinationId: destinationId,
+                          destinationName: destinationName,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildActionOptionCard(
+                  sheetContext,
+                  icon: Icons.two_wheeler_rounded,
+                  color: const Color(0xFF0284C7),
+                  label: 'THUÊ XE',
+                  description: 'Thuê xe máy, ô tô tự lái tại điểm đến',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => VehicleRentalListScreen(
                           destinationId: destinationId,
                           destinationName: destinationName,
                         ),
@@ -964,6 +1061,81 @@ class _BusCard extends StatelessWidget {
                 color: AppColors.primary,
                 fontWeight: FontWeight.w800,
                 fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VehicleRentalShopCard extends StatelessWidget {
+  const _VehicleRentalShopCard({required this.shop, required this.onTap});
+
+  final CatalogVehicleRentalShopCard shop;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 250,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.network(
+                shop.imageUrl,
+                height: 96,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => Container(
+                  height: 96,
+                  color: const Color(0xFFE2E8F0),
+                  child: const Icon(
+                    Icons.two_wheeler_rounded,
+                    color: AppColors.primary,
+                    size: 36,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              shop.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: AppColors.textHeading,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              shop.destinationName,
+              style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+            ),
+            const Spacer(),
+            Text(
+              'Từ ${AppCurrencyFormatter.format(shop.minPricePerDay)}/ngày',
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],

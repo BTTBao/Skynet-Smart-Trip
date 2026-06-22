@@ -92,7 +92,9 @@ public class TripService : ITripService
                 TotalProfit = trip.TotalProfit,
                 Status = NormalizeTripStatus(trip.Status?.ToString()),
                 CreatedAt = trip.CreatedAt,
-                ItineraryCount = trip.ItineraryCount
+                ItineraryCount = trip.ItineraryCount,
+                CanEdit = true,
+                CanSave = false
             })
             .ToList();
     }
@@ -163,11 +165,7 @@ public class TripService : ITripService
             throw new ArgumentException("Share code is required.");
         }
 
-        var trip = await _context.Trips
-            .AsNoTracking()
-            .Include(item => item.Destination)
-            .Include(item => item.TripItineraries)
-            .FirstOrDefaultAsync(item => item.ShareCode == normalizedShareCode);
+        var trip = await FindTripByShareCodeAsync(normalizedShareCode, currentUserId);
 
         if (trip == null)
         {
@@ -199,10 +197,7 @@ public class TripService : ITripService
             throw new ArgumentException("Share code is required.");
         }
 
-        var sourceTrip = await _context.Trips
-            .AsNoTracking()
-            .Include(item => item.TripItineraries)
-            .FirstOrDefaultAsync(item => item.ShareCode == normalizedShareCode);
+        var sourceTrip = await FindShareSourceTripAsync(normalizedShareCode);
 
         if (sourceTrip == null)
         {
@@ -230,7 +225,7 @@ public class TripService : ITripService
             UserId = currentUserId,
             DestinationId = sourceTrip.DestinationId,
             Title = sourceTrip.Title,
-            ShareCode = await GenerateUniqueShareCodeAsync(),
+            ShareCode = sourceTrip.ShareCode,
             SharedFromTripId = sourceTrip.Id,
             StartDate = sourceTrip.StartDate,
             EndDate = sourceTrip.EndDate,
@@ -647,21 +642,29 @@ public class TripService : ITripService
             .Include(t => t.Payments)
             .Include(t => t.Reviews)
             .Include(t => t.Invoices)
-            .FirstOrDefaultAsync(t => t.Id == tripId && t.UserId == currentUserId);
+            .FirstOrDefaultAsync(t => t.Id == tripId);
 
         if (trip == null)
         {
             throw new KeyNotFoundException($"Trip {tripId} was not found.");
         }
 
-        var hasSharedCopies = await _context.Trips
-            .AsNoTracking()
-            .AnyAsync(item => item.SharedFromTripId == tripId);
-
-        if (hasSharedCopies)
+        if (trip.UserId != currentUserId)
         {
-            throw new InvalidOperationException(
-                "Không thể xóa chuyến đi vì đã có người khác lưu lịch trình này.");
+            throw new UnauthorizedAccessException("You do not have permission to delete this trip.");
+        }
+
+        if (trip.SharedFromTripId == null)
+        {
+            var hasSharedCopies = await _context.Trips
+                .AsNoTracking()
+                .AnyAsync(item => item.SharedFromTripId == tripId);
+
+            if (hasSharedCopies)
+            {
+                throw new InvalidOperationException(
+                    "Không thể xóa chuyến đi vì đã có người khác lưu lịch trình này.");
+            }
         }
 
         _context.TripItineraries.RemoveRange(trip.TripItineraries);
@@ -670,6 +673,40 @@ public class TripService : ITripService
         _context.Invoices.RemoveRange(trip.Invoices);
         _context.Trips.Remove(trip);
         await _context.SaveChangesAsync();
+    }
+
+    private async Task<TripEntity?> FindTripByShareCodeAsync(string normalizedShareCode, int currentUserId)
+    {
+        var ownedTrip = await _context.Trips
+            .AsNoTracking()
+            .Include(item => item.Destination)
+            .Include(item => item.TripItineraries)
+            .FirstOrDefaultAsync(item => item.ShareCode == normalizedShareCode && item.UserId == currentUserId);
+
+        if (ownedTrip != null)
+        {
+            return ownedTrip;
+        }
+
+        return await _context.Trips
+            .AsNoTracking()
+            .Include(item => item.Destination)
+            .Include(item => item.TripItineraries)
+            .Where(item => item.ShareCode == normalizedShareCode)
+            .OrderBy(item => item.SharedFromTripId == null ? 0 : 1)
+            .ThenBy(item => item.Id)
+            .FirstOrDefaultAsync();
+    }
+
+    private async Task<TripEntity?> FindShareSourceTripAsync(string normalizedShareCode)
+    {
+        return await _context.Trips
+            .AsNoTracking()
+            .Include(item => item.TripItineraries)
+            .Where(item => item.ShareCode == normalizedShareCode)
+            .OrderBy(item => item.SharedFromTripId == null ? 0 : 1)
+            .ThenBy(item => item.Id)
+            .FirstOrDefaultAsync();
     }
 
     private async Task<string> GenerateUniqueShareCodeAsync()

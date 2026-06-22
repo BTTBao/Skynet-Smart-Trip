@@ -81,4 +81,29 @@ public class CatalogController : ControllerBase
         var schedule = await _catalogService.GetBusDetailAsync(scheduleId);
         return schedule is null ? NotFound() : Ok(schedule);
     }
+
+    [HttpGet("vehicle-rentals")]
+    public async Task<IActionResult> SearchVehicleRentalShops(
+        [FromQuery] string? query,
+        [FromQuery] int? destinationId,
+        [FromQuery] decimal? minPrice,
+        [FromQuery] decimal? maxPrice,
+        [FromQuery] string? vehicleType,
+        [FromQuery] string? sort)
+    {
+        return Ok(await _catalogService.SearchVehicleRentalShopsAsync(
+            query,
+            destinationId,
+            minPrice,
+            maxPrice,
+            vehicleType,
+            sort));
+    }
+
+    [HttpGet("vehicle-rentals/{shopId:int}")]
+    public async Task<IActionResult> GetVehicleRentalShopDetail(int shopId)
+    {
+        var shop = await _catalogService.GetVehicleRentalShopDetailAsync(shopId);
+        return shop is null ? NotFound() : Ok(shop);
+    }
 }
