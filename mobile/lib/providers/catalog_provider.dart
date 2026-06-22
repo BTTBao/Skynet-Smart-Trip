@@ -17,23 +17,34 @@ class CatalogProvider extends ChangeNotifier {
   );
   CatalogHotelDetail? _selectedHotel;
   CatalogBusDetail? _selectedBus;
+  CatalogVehicleRentalSearchResult _vehicleRentalSearchResult =
+      const CatalogVehicleRentalSearchResult(total: 0, items: []);
+  CatalogVehicleRentalShopDetail? _selectedVehicleRentalShop;
   bool _isLoadingHome = false;
   bool _isSearchingHotels = false;
   bool _isSearchingBuses = false;
+  bool _isSearchingVehicleRentals = false;
   bool _isLoadingHotelDetail = false;
   bool _isLoadingBusDetail = false;
+  bool _isLoadingVehicleRentalDetail = false;
   String? _error;
 
   CatalogHomeData? get homeData => _homeData;
   CatalogHotelSearchResult get hotelSearchResult => _hotelSearchResult;
   CatalogBusSearchResult get busSearchResult => _busSearchResult;
+  CatalogVehicleRentalSearchResult get vehicleRentalSearchResult =>
+      _vehicleRentalSearchResult;
   CatalogHotelDetail? get selectedHotel => _selectedHotel;
   CatalogBusDetail? get selectedBus => _selectedBus;
+  CatalogVehicleRentalShopDetail? get selectedVehicleRentalShop =>
+      _selectedVehicleRentalShop;
   bool get isLoadingHome => _isLoadingHome;
   bool get isSearchingHotels => _isSearchingHotels;
   bool get isSearchingBuses => _isSearchingBuses;
+  bool get isSearchingVehicleRentals => _isSearchingVehicleRentals;
   bool get isLoadingHotelDetail => _isLoadingHotelDetail;
   bool get isLoadingBusDetail => _isLoadingBusDetail;
+  bool get isLoadingVehicleRentalDetail => _isLoadingVehicleRentalDetail;
   String? get error => _error;
 
   Future<void> loadHome({bool forceRefresh = false}) async {
@@ -145,6 +156,55 @@ class CatalogProvider extends ChangeNotifier {
       return null;
     } finally {
       _isLoadingBusDetail = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> searchVehicleRentalShops({
+    String? query,
+    int? destinationId,
+    double? minPrice,
+    double? maxPrice,
+    String? vehicleType,
+    String? sort,
+  }) async {
+    _isSearchingVehicleRentals = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _vehicleRentalSearchResult = await _catalogService.searchVehicleRentalShops(
+        query: query,
+        destinationId: destinationId,
+        minPrice: minPrice,
+        maxPrice: maxPrice,
+        vehicleType: vehicleType,
+        sort: sort,
+      );
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isSearchingVehicleRentals = false;
+      notifyListeners();
+    }
+  }
+
+  Future<CatalogVehicleRentalShopDetail?> loadVehicleRentalShopDetail(
+    int shopId,
+  ) async {
+    _isLoadingVehicleRentalDetail = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _selectedVehicleRentalShop =
+          await _catalogService.getVehicleRentalShopDetail(shopId);
+      return _selectedVehicleRentalShop;
+    } catch (e) {
+      _error = e.toString();
+      return null;
+    } finally {
+      _isLoadingVehicleRentalDetail = false;
       notifyListeners();
     }
   }

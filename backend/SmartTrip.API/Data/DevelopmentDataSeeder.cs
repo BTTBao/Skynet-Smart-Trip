@@ -988,7 +988,144 @@ public static class DevelopmentDataSeeder
             }
         }
 
+        await SeedVehicleRentalAsync(context);
         await SeedExploreAsync(context, demoUser.Id, adminUser.Id);
+    }
+
+    private static async Task SeedVehicleRentalAsync(ApplicationDbContext context)
+    {
+        if (await context.VehicleRentalShops.AnyAsync())
+        {
+            return;
+        }
+
+        var destinations = await context.Destinations.ToDictionaryAsync(item => item.Name, item => item.Id);
+
+        if (!destinations.TryGetValue("Đà Lạt", out var daLatId) ||
+            !destinations.TryGetValue("Đà Nẵng", out var daNangId) ||
+            !destinations.TryGetValue("Phú Quốc", out var phuQuocId))
+        {
+            return;
+        }
+
+        context.VehicleRentalShops.AddRange(
+            new VehicleRentalShop
+            {
+                Name = "Anh Tuấn Thuê Xe Đà Lạt",
+                PhoneNumber = "0901234567",
+                Address = "123 Đường 3 Tháng 2, Phường 1, Đà Lạt",
+                DestinationId = daLatId,
+                Description = "Cho thuê xe máy số, tay ga giá tốt, giao xe tận nơi trong nội thành Đà Lạt.",
+                ImageUrl = "https://images.unsplash.com/photo-1558981403-c5f9899a28bc?w=800",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                VehicleOptions =
+                [
+                    new VehicleRentalOption
+                    {
+                        VehicleType = VehicleRentalType.ManualMotorbike,
+                        PricePerDay = 120000m,
+                        IsAvailable = true
+                    },
+                    new VehicleRentalOption
+                    {
+                        VehicleType = VehicleRentalType.Scooter,
+                        PricePerDay = 150000m,
+                        IsAvailable = true
+                    }
+                ]
+            },
+            new VehicleRentalShop
+            {
+                Name = "Happy Car Đà Nẵng",
+                PhoneNumber = "0908765432",
+                Address = "45 Nguyễn Văn Linh, Quận Hải Châu, Đà Nẵng",
+                DestinationId = daNangId,
+                Description = "Cho thuê xe ô tô tự lái, xe 7 chỗ phục vụ du lịch miền Trung.",
+                ImageUrl = "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                VehicleOptions =
+                [
+                    new VehicleRentalOption
+                    {
+                        VehicleType = VehicleRentalType.Car,
+                        MaxSeats = 5,
+                        PricePerDay = 850000m,
+                        IsAvailable = true
+                    },
+                    new VehicleRentalOption
+                    {
+                        VehicleType = VehicleRentalType.MultiSeatCar,
+                        MaxSeats = 7,
+                        PricePerDay = 1200000m,
+                        IsAvailable = true
+                    }
+                ]
+            },
+            new VehicleRentalShop
+            {
+                Name = "Phú Quốc Motorbike Rental",
+                PhoneNumber = "0912345678",
+                Address = "88 Trần Hưng Đạo, Dương Đông, Phú Quốc",
+                DestinationId = phuQuocId,
+                Description = "Thuê xe máy khám phá đảo ngọc, hỗ trợ đổ xăng và bản đồ du lịch miễn phí.",
+                ImageUrl = "https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=800",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                VehicleOptions =
+                [
+                    new VehicleRentalOption
+                    {
+                        VehicleType = VehicleRentalType.ManualMotorbike,
+                        PricePerDay = 100000m,
+                        IsAvailable = true
+                    },
+                    new VehicleRentalOption
+                    {
+                        VehicleType = VehicleRentalType.Scooter,
+                        PricePerDay = 130000m,
+                        IsAvailable = true
+                    },
+                    new VehicleRentalOption
+                    {
+                        VehicleType = VehicleRentalType.Car,
+                        MaxSeats = 4,
+                        PricePerDay = 900000m,
+                        IsAvailable = true
+                    }
+                ]
+            },
+            new VehicleRentalShop
+            {
+                Name = "Đà Lạt Family Car",
+                PhoneNumber = "0934567890",
+                Address = "56 Nguyễn Thị Minh Khai, Phường 1, Đà Lạt",
+                DestinationId = daLatId,
+                Description = "Chuyên xe ô tô và xe 16 chỗ phục vụ đoàn du lịch Đà Lạt.",
+                ImageUrl = "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=800",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                VehicleOptions =
+                [
+                    new VehicleRentalOption
+                    {
+                        VehicleType = VehicleRentalType.Car,
+                        MaxSeats = 5,
+                        PricePerDay = 800000m,
+                        IsAvailable = true
+                    },
+                    new VehicleRentalOption
+                    {
+                        VehicleType = VehicleRentalType.MultiSeatCar,
+                        MaxSeats = 16,
+                        PricePerDay = 1800000m,
+                        IsAvailable = true
+                    }
+                ]
+            });
+
+        await context.SaveChangesAsync();
     }
 
     private static async Task SeedExploreAsync(ApplicationDbContext context, int demoUserId, int adminUserId)

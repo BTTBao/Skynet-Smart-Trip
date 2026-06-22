@@ -7,6 +7,7 @@ import {
   MapPin,
   Hotel,
   Bus,
+  Car,
   FileText,
   Compass,
   Bell,
@@ -58,6 +59,11 @@ const data = {
           title: "Vận chuyển",
           url: "/transport",
           icon: Bus,
+        },
+        {
+          title: "Thuê xe tự lái",
+          url: "/vehicle-rental",
+          icon: Car,
         },
         {
           title: "Đặt chỗ",

@@ -88,6 +88,10 @@ export interface AdminTransportSchedule {
   status: 'running' | 'upcoming' | 'completed';
   ticketPrice: string;
   affiliateProfit: string;
+  actualRevenue: string;
+  actualRevenueValue: number;
+  actualProfit: string;
+  actualProfitValue: number;
   priceValue: number;
   commissionRate: number;
   occupiedSeats: number;

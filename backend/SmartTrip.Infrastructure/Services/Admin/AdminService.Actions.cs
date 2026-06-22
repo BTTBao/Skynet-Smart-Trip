@@ -501,12 +501,15 @@ public partial class AdminService
         return value > 1m ? value / 100m : value;
     }
 
-    private static AdminTransportScheduleDto MapTransportSchedule(BusSchedule schedule, DateTime now)
+    private static AdminTransportScheduleDto MapTransportSchedule(
+        BusSchedule schedule, 
+        DateTime now, 
+        decimal actualRevenue = 0m, 
+        decimal actualProfit = 0m)
     {
         var occupiedSeats = GetOccupiedSeatCount(schedule);
         var totalSeats = GetTotalSeatCount(schedule);
         var ticketPrice = schedule.Price.GetValueOrDefault();
-        var affiliateProfit = CalculateAffiliateProfit(schedule);
 
         return new AdminTransportScheduleDto
         {
@@ -523,7 +526,11 @@ public partial class AdminService
             ArrivalAt = schedule.ArrivalTime?.ToString("O") ?? string.Empty,
             Status = GetTransportStatus(schedule, now),
             TicketPrice = $"{ticketPrice:N0}đ",
-            AffiliateProfit = $"{affiliateProfit:N0}đ",
+            AffiliateProfit = $"{actualProfit:N0}đ",
+            ActualRevenue = $"{actualRevenue:N0}đ",
+            ActualRevenueValue = actualRevenue,
+            ActualProfit = $"{actualProfit:N0}đ",
+            ActualProfitValue = actualProfit,
             PriceValue = ticketPrice,
             CommissionRate = (double)(NormalizeCommissionRate(schedule.CommissionRate) * 100m),
             OccupiedSeats = occupiedSeats,

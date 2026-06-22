@@ -88,6 +88,10 @@ export interface AdminTransportSchedule {
   status: 'running' | 'upcoming' | 'completed';
   ticketPrice: string;
   affiliateProfit: string;
+  actualRevenue: string;
+  actualRevenueValue: number;
+  actualProfit: string;
+  actualProfitValue: number;
   priceValue: number;
   commissionRate: number;
   occupiedSeats: number;
@@ -166,6 +170,8 @@ export interface AdminHotel {
   availableRoomQty: number;
   lowestPrice: number;
   totalRevenue: number;
+  totalProfit: number;
+  bookedRoomQty: number;
 }
 
 export interface AdminHotelRequest {
@@ -187,6 +193,10 @@ export interface AdminRoom {
   availableQty: number;
   isSelling: boolean;
   imageUrls: string[];
+  totalRevenue: number;
+  totalProfit: number;
+  bookedRoomQty: number;
+  bookingCount: number;
 }
 
 export interface AdminHotelDetail extends AdminHotel {
@@ -224,6 +234,52 @@ export interface AdminPromotionRequest {
   maxDiscountAmount: number;
   validUntil: string;
   usageLimit: number;
+}
+
+export type VehicleRentalType = 'ManualMotorbike' | 'Scooter' | 'Car' | 'MultiSeatCar';
+
+export interface AdminVehicleRentalOption {
+  id: number;
+  vehicleType: VehicleRentalType;
+  vehicleTypeLabel: string;
+  maxSeats?: number | null;
+  pricePerDay: number;
+  isAvailable: boolean;
+}
+
+export interface AdminVehicleRentalShop {
+  id: number;
+  name: string;
+  phoneNumber: string;
+  address: string;
+  destinationId: number;
+  destinationName: string;
+  description: string;
+  imageUrl: string;
+  isActive: boolean;
+  createdAt: string;
+  optionCount: number;
+  minPricePerDay: number;
+  vehicleTypeLabels: string[];
+  vehicleOptions: AdminVehicleRentalOption[];
+}
+
+export interface AdminVehicleRentalOptionRequest {
+  vehicleType: VehicleRentalType;
+  maxSeats?: number | null;
+  pricePerDay: number;
+  isAvailable: boolean;
+}
+
+export interface AdminVehicleRentalShopRequest {
+  name: string;
+  phoneNumber: string;
+  address: string;
+  destinationId: number;
+  description: string;
+  imageUrl: string;
+  isActive: boolean;
+  vehicleOptions: AdminVehicleRentalOptionRequest[];
 }
 
 export interface AdminReportBreakdown {
@@ -514,7 +570,8 @@ export const adminService = {
   },
 
   getDestinations: async (): Promise<AdminDestination[]> => {
-    return fetchClient.get<AdminDestination[]>('/admin/destinations');
+    const data = await fetchClient.get<AdminDestination[]>('/admin/destinations');
+    return Array.isArray(data) ? data.map((item) => normalizeDestination(item as Record<string, unknown>)) : [];
   },
 
   createDestination: async (payload: AdminDestinationRequest): Promise<AdminDestination> => {
@@ -567,6 +624,33 @@ export const adminService = {
 
   uploadTransportCompanyLogo: async (file: File): Promise<AdminImageUploadResult> => {
     return uploadAdminImage('/admin/uploads/transport-company-logos', file);
+  },
+
+  uploadVehicleRentalImage: async (file: File): Promise<AdminImageUploadResult> => {
+    return uploadAdminImage('/admin/uploads/vehicle-rental-images', file);
+  },
+
+  getVehicleRentalShops: async (): Promise<AdminVehicleRentalShop[]> => {
+    return fetchClient.get<AdminVehicleRentalShop[]>('/admin/vehicle-rental/shops');
+  },
+
+  getVehicleRentalShopDetail: async (shopId: number): Promise<AdminVehicleRentalShop> => {
+    return fetchClient.get<AdminVehicleRentalShop>(`/admin/vehicle-rental/shops/${shopId}`);
+  },
+
+  createVehicleRentalShop: async (payload: AdminVehicleRentalShopRequest): Promise<AdminVehicleRentalShop> => {
+    return fetchClient.post<AdminVehicleRentalShop>('/admin/vehicle-rental/shops', payload);
+  },
+
+  updateVehicleRentalShop: async (
+    shopId: number,
+    payload: AdminVehicleRentalShopRequest
+  ): Promise<AdminVehicleRentalShop> => {
+    return fetchClient.put<AdminVehicleRentalShop>(`/admin/vehicle-rental/shops/${shopId}`, payload);
+  },
+
+  deleteVehicleRentalShop: async (shopId: number): Promise<void> => {
+    await fetchClient.delete(`/admin/vehicle-rental/shops/${shopId}`);
   },
 
   deleteRoom: async (roomId: number): Promise<void> => {
@@ -633,5 +717,23 @@ export const adminService = {
 async function uploadAdminImage(path: string, file: File): Promise<AdminImageUploadResult> {
   const formData = new FormData();
   formData.append('file', file);
-  return fetchClient.post<AdminImageUploadResult>(path, formData);
+  const result = await fetchClient.post<Record<string, unknown>>(path, formData);
+  return {
+    imageUrl: String(result.imageUrl ?? result.ImageUrl ?? ''),
+    relativeUrl: String(
+      result.relativeUrl ?? result.RelativeUrl ?? result.imagePath ?? result.ImagePath ?? ''
+    ),
+  };
+}
+
+function normalizeDestination(raw: Record<string, unknown>): AdminDestination {
+  return {
+    id: Number(raw.id ?? raw.Id ?? 0),
+    name: String(raw.name ?? raw.Name ?? ''),
+    description: String(raw.description ?? raw.Description ?? ''),
+    coverImageUrl: String(raw.coverImageUrl ?? raw.CoverImageUrl ?? ''),
+    isHot: Boolean(raw.isHot ?? raw.IsHot ?? false),
+    hotelCount: Number(raw.hotelCount ?? raw.HotelCount ?? 0),
+    tripCount: Number(raw.tripCount ?? raw.TripCount ?? 0),
+  };
 }

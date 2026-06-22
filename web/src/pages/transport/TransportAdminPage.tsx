@@ -175,8 +175,7 @@ export default function TransportAdminPage() {
   const pageNumbers = getPageNumbers(currentPageClamped, totalPages);
 
   const exportSchedules = () => {
-    downloadCsv(`transport-schedules-${statusFilter}.csv`, filteredSchedules, [
-      { key: 'code', header: 'Ma chuyen' },
+    downloadCsv(`transport-schedules-${statusFilter}.csv`, filteredSchedules, [      { key: 'code', header: 'Ma chuyen' },
       { key: 'companyName', header: 'Nha xe' },
       { key: 'route', header: 'Tuyen duong' },
       { key: 'departureDate', header: 'Ngay khoi hanh' },
@@ -361,9 +360,7 @@ export default function TransportAdminPage() {
           <button onClick={() => setShowGuide(true)} className="rounded-full bg-amber-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-amber-600">Huong dan</button>
           <button onClick={exportSchedules} className="rounded-full bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-200">Xuat CSV</button>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+      </div>      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <MetricCard label="Tong lich trinh" value={stats.totalSchedules.toLocaleString()} helper={`${stats.totalSchedulesThisMonth} thang nay`} icon="route" />
         <MetricCard label="Doanh thu du kien" value={formatCompactCurrency(stats.expectedRevenueThisMonth)} helper="Thang nay" icon="payments" />
         <MetricCard label="Loi nhuan affiliate" value={formatCompactCurrency(stats.affiliateRevenueThisMonth)} helper={`${stats.affiliateGrowthRate.toFixed(1)}%`} icon="account_balance_wallet" />
@@ -532,8 +529,7 @@ export default function TransportAdminPage() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="bg-surface-container-low/50">
-                <th className="px-8 py-4 text-[11px] font-black uppercase tracking-widest text-outline">Ma chuyen</th>
+              <tr className="bg-surface-container-low/50">                <th className="px-8 py-4 text-[11px] font-black uppercase tracking-widest text-outline">Ma chuyen</th>
                 <th className="px-8 py-4 text-[11px] font-black uppercase tracking-widest text-outline">Nha xe / Tuyen duong</th>
                 <th className="px-8 py-4 text-center text-[11px] font-black uppercase tracking-widest text-outline">Khoi hanh</th>
                 <th className="px-8 py-4 text-center text-[11px] font-black uppercase tracking-widest text-outline">Trang thai</th>
@@ -557,8 +553,7 @@ export default function TransportAdminPage() {
                           <p className="text-xs text-outline">{schedule.route}</p>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-8 py-6 text-center"><p className="text-sm font-medium text-on-surface">{schedule.departureTime}</p><p className="text-[10px] font-bold text-outline">{schedule.departureDate}</p></td>
+                    </td>                    <td className="px-8 py-6 text-center"><p className="text-sm font-medium text-on-surface">{schedule.departureTime}</p><p className="text-[10px] font-bold text-outline">{schedule.departureDate}</p></td>
                     <td className="px-8 py-6 text-center"><span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${status.badgeClass}`}>{status.label}</span></td>
                     <td className="px-8 py-6 text-right"><span className="text-sm font-medium text-on-surface">{schedule.ticketPrice}</span></td>
                     <td className="px-8 py-6 text-right"><span className="text-sm font-bold text-[#10B981]">{schedule.affiliateProfit}</span></td>

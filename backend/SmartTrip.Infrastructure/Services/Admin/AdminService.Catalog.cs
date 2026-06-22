@@ -83,6 +83,7 @@ public partial class AdminService
             .Include(item => item.Trips)
             .Include(item => item.BusScheduleFromDests)
             .Include(item => item.BusScheduleToDests)
+            .Include(item => item.VehicleRentalShops)
             .FirstOrDefaultAsync(item => item.Id == destinationId);
 
         if (destination is null)
@@ -90,9 +91,9 @@ public partial class AdminService
             throw new BadHttpRequestException("Không tìm thấy điểm đến.");
         }
 
-        if (destination.Hotels.Any() || destination.Trips.Any() || destination.BusScheduleFromDests.Any() || destination.BusScheduleToDests.Any())
+        if (destination.Hotels.Any() || destination.Trips.Any() || destination.BusScheduleFromDests.Any() || destination.BusScheduleToDests.Any() || destination.VehicleRentalShops.Any())
         {
-            throw new BadHttpRequestException("Không thể xóa điểm đến đang được sử dụng bởi khách sạn, chuyến đi hoặc lịch xe.");
+            throw new BadHttpRequestException("Không thể xóa điểm đến đang được sử dụng bởi khách sạn, chuyến đi, lịch xe hoặc cửa hàng thuê xe.");
         }
 
         _context.Destinations.Remove(destination);
@@ -114,7 +115,7 @@ public partial class AdminService
         return hotels
             .Select(hotel => MapHotel(
                 hotel, 
-                revenueLookup.GetValueOrDefault(hotel.Id), 
+                revenueLookup.GetValueOrDefault(hotel.Id)?.TotalRevenue ?? 0m,
                 profitLookup.GetValueOrDefault(hotel.Id)))
             .ToList();
     }
@@ -137,7 +138,7 @@ public partial class AdminService
         var profitLookup = await BuildHotelProfitLookupAsync([hotelId]);
         return MapHotelDetail(
             hotel, 
-            revenueLookup.GetValueOrDefault(hotelId), 
+            revenueLookup.GetValueOrDefault(hotelId)?.TotalRevenue ?? 0m,
             profitLookup.GetValueOrDefault(hotelId), 
             roomGalleryLookup);
     }
@@ -206,7 +207,7 @@ public partial class AdminService
 
         var revenueLookup = await BuildHotelRevenueLookupAsync([hotelId]);
         var profitLookup = await BuildHotelProfitLookupAsync([hotelId]);
-        return MapHotel(hotel, revenueLookup.GetValueOrDefault(hotelId), profitLookup.GetValueOrDefault(hotelId));
+        return MapHotel(hotel, revenueLookup.GetValueOrDefault(hotelId)?.TotalRevenue ?? 0m, profitLookup.GetValueOrDefault(hotelId));
     }
 
     public async Task<AdminRoomDto> CreateRoomAsync(int hotelId, AdminRoomRequest request)
@@ -399,11 +400,11 @@ public partial class AdminService
         };
     }
 
-    private async Task<Dictionary<int, decimal>> BuildHotelRevenueLookupAsync(List<int> hotelIds)
+    private async Task<Dictionary<int, AdminHotelBookingStats>> BuildHotelRevenueLookupAsync(List<int> hotelIds)
     {
         if (hotelIds.Count == 0)
         {
-            return new Dictionary<int, decimal>();
+            return new Dictionary<int, AdminHotelBookingStats>();
         }
 
         var roomMappings = await _context.Rooms
@@ -412,38 +413,63 @@ public partial class AdminService
             .Select(room => new
             {
                 RoomId = room.Id,
-                HotelId = room.HotelId!.Value
+                HotelId = room.HotelId!.Value,
+                CommissionRate = room.CommissionRate
             })
             .ToListAsync();
 
         if (roomMappings.Count == 0)
         {
-            return new Dictionary<int, decimal>();
+            return new Dictionary<int, AdminHotelBookingStats>();
         }
 
         var roomToHotelLookup = roomMappings.ToDictionary(item => item.RoomId, item => item.HotelId);
+        var roomCommissionLookup = roomMappings.ToDictionary(item => item.RoomId, item => item.CommissionRate);
         var roomIds = roomMappings.Select(item => item.RoomId).ToList();
 
         var hotelItineraries = await _context.TripItineraries
             .AsNoTracking()
-            .Include(item => item.Trip)
             .Where(item =>
                 item.ServiceType == TripServiceType.Hotel &&
                 item.ServiceId.HasValue &&
                 roomIds.Contains(item.ServiceId.Value) &&
                 item.Trip != null &&
-                item.Trip.Status == TripStatus.Paid)
+                item.Trip.Status != TripStatus.Cancelled &&
+                item.Trip.Payments.Any(payment => payment.Status == PaymentStatus.Paid))
             .Select(item => new
             {
                 RoomId = item.ServiceId!.Value,
                 Revenue = item.BookedPrice.GetValueOrDefault(),
-                Quantity = item.Quantity ?? 1
+                Quantity = item.Quantity ?? 1,
+                CommissionRate = item.BookedCommissionRate
             })
             .ToListAsync();
 
         return hotelItineraries
             .GroupBy(item => roomToHotelLookup[item.RoomId])
-            .ToDictionary(group => group.Key, group => group.Sum(item => item.Revenue * (item.Quantity <= 0 ? 1 : item.Quantity)));
+            .ToDictionary(group => group.Key, group =>
+            {
+                var roomStats = group
+                    .GroupBy(item => item.RoomId)
+                    .ToDictionary(roomGroup => roomGroup.Key, roomGroup =>
+                    {
+                        var revenue = roomGroup.Sum(item => item.Revenue * Math.Max(item.Quantity, 1));
+                        var profit = roomGroup.Sum(item =>
+                        {
+                            var quantity = Math.Max(item.Quantity, 1);
+                            var commission = item.CommissionRate ?? roomCommissionLookup.GetValueOrDefault(item.RoomId);
+                            return item.Revenue * quantity * NormalizeCommissionRate(commission);
+                        });
+
+                        return new AdminRoomBookingStats(
+                            Revenue: revenue,
+                            Profit: profit,
+                            BookedRoomQty: roomGroup.Sum(item => Math.Max(item.Quantity, 1)),
+                            BookingCount: roomGroup.Count());
+                    });
+
+                return new AdminHotelBookingStats(roomStats);
+            });
     }
 
     private async Task<Dictionary<int, decimal>> BuildHotelProfitLookupAsync(List<int> hotelIds)
@@ -597,6 +623,33 @@ public partial class AdminService
             IsSelling = availableQty > 0,
             ImageUrls = imageUrls ?? []
         };
+    }
+
+    private sealed class AdminHotelBookingStats
+    {
+        public static readonly AdminHotelBookingStats Empty = new(new Dictionary<int, AdminRoomBookingStats>());
+
+        public AdminHotelBookingStats(Dictionary<int, AdminRoomBookingStats> roomStats)
+        {
+            RoomStats = roomStats;
+            TotalRevenue = roomStats.Values.Sum(item => item.Revenue);
+            TotalProfit = roomStats.Values.Sum(item => item.Profit);
+            BookedRoomQty = roomStats.Values.Sum(item => item.BookedRoomQty);
+        }
+
+        public Dictionary<int, AdminRoomBookingStats> RoomStats { get; }
+        public decimal TotalRevenue { get; }
+        public decimal TotalProfit { get; }
+        public int BookedRoomQty { get; }
+    }
+
+    private sealed record AdminRoomBookingStats(
+        decimal Revenue,
+        decimal Profit,
+        int BookedRoomQty,
+        int BookingCount)
+    {
+        public static readonly AdminRoomBookingStats Empty = new(0m, 0m, 0, 0);
     }
 
     private async Task<Dictionary<int, List<string>>> BuildGalleryLookupAsync(GalleryReferenceType referenceType, List<int> referenceIds)

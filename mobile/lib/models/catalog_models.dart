@@ -4,12 +4,14 @@ class CatalogHomeData {
     required this.featuredHotels,
     required this.recommendedHotels,
     required this.featuredBuses,
+    required this.featuredVehicleRentalShops,
   });
 
   final List<CatalogDestination> popularDestinations;
   final List<CatalogHotelCard> featuredHotels;
   final List<CatalogHotelCard> recommendedHotels;
   final List<CatalogBusCard> featuredBuses;
+  final List<CatalogVehicleRentalShopCard> featuredVehicleRentalShops;
 
   factory CatalogHomeData.fromJson(Map<String, dynamic> json) {
     return CatalogHomeData(
@@ -40,6 +42,14 @@ class CatalogHomeData {
                 CatalogBusCard.fromJson(Map<String, dynamic>.from(item as Map)),
           )
           .toList(),
+      featuredVehicleRentalShops:
+          (json['featuredVehicleRentalShops'] as List<dynamic>? ?? [])
+              .map(
+                (item) => CatalogVehicleRentalShopCard.fromJson(
+                  Map<String, dynamic>.from(item as Map),
+                ),
+              )
+              .toList(),
     );
   }
 }
@@ -452,3 +462,143 @@ class CatalogPromotion {
   }
 }
 
+class CatalogVehicleRentalSearchResult {
+  const CatalogVehicleRentalSearchResult({
+    required this.total,
+    required this.items,
+  });
+
+  final int total;
+  final List<CatalogVehicleRentalShopCard> items;
+
+  factory CatalogVehicleRentalSearchResult.fromJson(Map<String, dynamic> json) {
+    final rawItems = json['items'] as List<dynamic>? ?? [];
+    return CatalogVehicleRentalSearchResult(
+      total: json['total'] as int? ?? rawItems.length,
+      items: rawItems
+          .map(
+            (item) => CatalogVehicleRentalShopCard.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class CatalogVehicleRentalShopCard {
+  const CatalogVehicleRentalShopCard({
+    required this.id,
+    required this.name,
+    required this.phoneNumber,
+    required this.address,
+    required this.destinationId,
+    required this.destinationName,
+    this.description,
+    required this.imageUrl,
+    required this.minPricePerDay,
+    required this.vehicleTypeLabels,
+  });
+
+  final int id;
+  final String name;
+  final String phoneNumber;
+  final String address;
+  final int destinationId;
+  final String destinationName;
+  final String? description;
+  final String imageUrl;
+  final double minPricePerDay;
+  final List<String> vehicleTypeLabels;
+
+  factory CatalogVehicleRentalShopCard.fromJson(Map<String, dynamic> json) {
+    return CatalogVehicleRentalShopCard(
+      id: json['id'] as int? ?? 0,
+      name: json['name'] as String? ?? '',
+      phoneNumber: json['phoneNumber'] as String? ?? '',
+      address: json['address'] as String? ?? '',
+      destinationId: json['destinationId'] as int? ?? 0,
+      destinationName: json['destinationName'] as String? ?? '',
+      description: json['description'] as String?,
+      imageUrl: json['imageUrl'] as String? ?? '',
+      minPricePerDay: (json['minPricePerDay'] as num?)?.toDouble() ?? 0,
+      vehicleTypeLabels: (json['vehicleTypeLabels'] as List<dynamic>? ?? [])
+          .map((item) => item as String? ?? '')
+          .where((item) => item.isNotEmpty)
+          .toList(),
+    );
+  }
+}
+
+class CatalogVehicleRentalShopDetail {
+  const CatalogVehicleRentalShopDetail({
+    required this.id,
+    required this.name,
+    required this.phoneNumber,
+    required this.address,
+    required this.destinationId,
+    required this.destinationName,
+    this.description,
+    required this.imageUrl,
+    required this.vehicleOptions,
+  });
+
+  final int id;
+  final String name;
+  final String phoneNumber;
+  final String address;
+  final int destinationId;
+  final String destinationName;
+  final String? description;
+  final String imageUrl;
+  final List<CatalogVehicleRentalOption> vehicleOptions;
+
+  factory CatalogVehicleRentalShopDetail.fromJson(Map<String, dynamic> json) {
+    return CatalogVehicleRentalShopDetail(
+      id: json['id'] as int? ?? 0,
+      name: json['name'] as String? ?? '',
+      phoneNumber: json['phoneNumber'] as String? ?? '',
+      address: json['address'] as String? ?? '',
+      destinationId: json['destinationId'] as int? ?? 0,
+      destinationName: json['destinationName'] as String? ?? '',
+      description: json['description'] as String?,
+      imageUrl: json['imageUrl'] as String? ?? '',
+      vehicleOptions: (json['vehicleOptions'] as List<dynamic>? ?? [])
+          .map(
+            (item) => CatalogVehicleRentalOption.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class CatalogVehicleRentalOption {
+  const CatalogVehicleRentalOption({
+    required this.id,
+    required this.vehicleType,
+    required this.vehicleTypeLabel,
+    this.maxSeats,
+    required this.pricePerDay,
+    required this.isAvailable,
+  });
+
+  final int id;
+  final String vehicleType;
+  final String vehicleTypeLabel;
+  final int? maxSeats;
+  final double pricePerDay;
+  final bool isAvailable;
+
+  factory CatalogVehicleRentalOption.fromJson(Map<String, dynamic> json) {
+    return CatalogVehicleRentalOption(
+      id: json['id'] as int? ?? 0,
+      vehicleType: json['vehicleType'] as String? ?? '',
+      vehicleTypeLabel: json['vehicleTypeLabel'] as String? ?? '',
+      maxSeats: json['maxSeats'] as int?,
+      pricePerDay: (json['pricePerDay'] as num?)?.toDouble() ?? 0,
+      isAvailable: json['isAvailable'] as bool? ?? false,
+    );
+  }
+}

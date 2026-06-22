@@ -984,13 +984,13 @@ namespace SmartTrip.Infrastructure.Migrations
 
                       b.HasIndex("DestinationId");
 
-                      b.HasIndex("ShareCode")
-                          .IsUnique()
-                          .HasFilter("[ShareCode] IS NOT NULL");
-
                       b.HasIndex("SharedFromTripId");
 
                       b.HasIndex("UserId");
+
+                      b.HasIndex("UserId", "ShareCode")
+                          .IsUnique()
+                          .HasFilter("[ShareCode] IS NOT NULL AND [UserId] IS NOT NULL");
 
                       b.HasIndex("UserId", "SharedFromTripId")
                           .IsUnique()
@@ -1299,6 +1299,98 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("UserWallets");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.VehicleRentalOption", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsAvailable")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<int?>("MaxSeats")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("PricePerDay")
+                        .HasColumnType("decimal(18, 2)");
+
+                    b.Property<int>("VehicleRentalShopId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("VehicleType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VehicleRentalShopId");
+
+                    b.HasIndex("VehicleType");
+
+                    b.ToTable("VehicleRentalOptions");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.VehicleRentalShop", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("DestinationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DestinationId");
+
+                    b.HasIndex("IsActive");
+
+                    b.ToTable("VehicleRentalShops");
                 });
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Wishlist", b =>
@@ -1627,6 +1719,28 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("SmartTrip.Domain.Entities.VehicleRentalOption", b =>
+                {
+                    b.HasOne("SmartTrip.Domain.Entities.VehicleRentalShop", "VehicleRentalShop")
+                        .WithMany("VehicleOptions")
+                        .HasForeignKey("VehicleRentalShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("VehicleRentalShop");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.VehicleRentalShop", b =>
+                {
+                    b.HasOne("SmartTrip.Domain.Entities.Destination", "Destination")
+                        .WithMany("VehicleRentalShops")
+                        .HasForeignKey("DestinationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Destination");
+                });
+
             modelBuilder.Entity("SmartTrip.Domain.Entities.Wishlist", b =>
                 {
                     b.HasOne("SmartTrip.Domain.Entities.User", "User")
@@ -1657,6 +1771,8 @@ namespace SmartTrip.Infrastructure.Migrations
                     b.Navigation("Hotels");
 
                     b.Navigation("Trips");
+
+                    b.Navigation("VehicleRentalShops");
                 });
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.ExploreComment", b =>
@@ -1680,6 +1796,11 @@ namespace SmartTrip.Infrastructure.Migrations
             modelBuilder.Entity("SmartTrip.Domain.Entities.Hotel", b =>
                 {
                     b.Navigation("Rooms");
+                });
+
+            modelBuilder.Entity("SmartTrip.Domain.Entities.VehicleRentalShop", b =>
+                {
+                    b.Navigation("VehicleOptions");
                 });
 
             modelBuilder.Entity("SmartTrip.Domain.Entities.Trip", b =>

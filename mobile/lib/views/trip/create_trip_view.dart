@@ -116,6 +116,10 @@ class _CreateTripViewState extends State<CreateTripView> {
     return DateTime(now.year, now.month, now.day);
   }
 
+  DateTime _laterDate(DateTime first, DateTime second) {
+    return first.isBefore(second) ? second : first;
+  }
+
   String? get _tripNameValidation {
     if (_tripNameController.text.trim().isEmpty) {
       return 'Nhap ten chuyen di';
@@ -134,8 +138,7 @@ class _CreateTripViewState extends State<CreateTripView> {
     if (_startDate == null) {
       return 'Chon ngay di';
     }
-    // Only validate past date for NEW trips
-    if (!_isEditMode && _startDate!.isBefore(_today)) {
+    if (_startDate!.isBefore(_today)) {
       return 'Ngay di khong duoc o qua khu';
     }
     return null;
@@ -145,7 +148,7 @@ class _CreateTripViewState extends State<CreateTripView> {
     if (_endDate == null) {
       return 'Chon ngay ve';
     }
-    if (!_isEditMode && _endDate!.isBefore(_today)) {
+    if (_endDate!.isBefore(_today)) {
       return 'Ngay ve khong duoc o qua khu';
     }
     if (_startDate == null) {
@@ -176,20 +179,28 @@ class _CreateTripViewState extends State<CreateTripView> {
 
   Future<void> _pickDate({required bool isStartDate}) async {
     final today = _today;
-    final initialDate = isStartDate
+    final preferredInitialDate = isStartDate
         ? _startDate ?? today
         : _endDate ?? _startDate ?? today;
-    final firstDate = _isEditMode
-        ? DateTime(2000)
-        : (isStartDate ? today : (_startDate ?? today));
-    final lastDate = isStartDate
+    final firstDate = isStartDate
+        ? today
+        : _laterDate(_startDate ?? today, today);
+    final allowedLastDate = isStartDate
         ? DateTime(today.year + 5, today.month, today.day)
         : (_startDate?.add(const Duration(days: 30)) ??
               DateTime(today.year + 5, today.month, today.day));
+    final lastDate = allowedLastDate.isBefore(firstDate)
+        ? firstDate
+        : allowedLastDate;
+    final initialDate = preferredInitialDate.isBefore(firstDate)
+        ? firstDate
+        : (preferredInitialDate.isAfter(lastDate)
+              ? lastDate
+              : preferredInitialDate);
 
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: initialDate.isBefore(firstDate) ? firstDate : initialDate,
+      initialDate: initialDate,
       firstDate: firstDate,
       lastDate: lastDate,
       builder: (context, child) {
@@ -242,7 +253,9 @@ class _CreateTripViewState extends State<CreateTripView> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: const Text(
             'Đổi điểm đến?',
             style: TextStyle(fontWeight: FontWeight.w800),
@@ -450,7 +463,10 @@ class _CreateTripViewState extends State<CreateTripView> {
                 const SizedBox(height: 8),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF1F4F6),
                     borderRadius: BorderRadius.circular(16),
@@ -562,20 +578,14 @@ class _DestinationDropdownField extends StatelessWidget {
       items: destinations.map((destination) {
         return DropdownMenuItem<Destination>(
           value: destination,
-          child: Text(
-            destination.name,
-            overflow: TextOverflow.ellipsis,
-          ),
+          child: Text(destination.name, overflow: TextOverflow.ellipsis),
         );
       }).toList(),
       onChanged: isLoading ? null : onChanged,
       decoration: InputDecoration(
         hintText: isLoading ? 'Dang tai diem den...' : 'Chon diem den...',
         errorText: errorText,
-        hintStyle: const TextStyle(
-          color: Color(0xFFA0A7AF),
-          fontSize: 13,
-        ),
+        hintStyle: const TextStyle(color: Color(0xFFA0A7AF), fontSize: 13),
         prefixIcon: const Icon(
           Icons.place_outlined,
           color: TripUiColors.primaryGreen,

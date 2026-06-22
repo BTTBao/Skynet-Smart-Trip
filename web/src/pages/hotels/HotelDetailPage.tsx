@@ -30,7 +30,7 @@ const emptyRoomForm: AdminRoomRequest = {
 };
 
 function formatCurrency(value: number) {
-  return `${value.toLocaleString('vi-VN')} VND`;
+  return `${new Intl.NumberFormat('vi-VN', { notation: 'compact', maximumFractionDigits: 1 }).format(value)}đ`;
 }
 
 function calculateRoomProfitPerNight(room: AdminRoom, hotelCommissionRate: number) {
