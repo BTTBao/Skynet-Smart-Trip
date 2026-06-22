@@ -1,5 +1,18 @@
-import 'chat_response.dart';
+import 'dart:convert';
 import 'chat_history_result.dart';
+import 'chat_response.dart';
+
+String _repairVietnameseText(dynamic value) {
+  if (value is! String) return value?.toString() ?? '';
+  if (!value.contains('\u00c3') && !value.contains('\u00c4') && !value.contains('\u00c2') && !value.contains('\u00c6') && !value.contains('\u00e1')) {
+    return value;
+  }
+  try {
+    return utf8.decode(latin1.encode(value));
+  } catch (_) {
+    return value;
+  }
+}
 
 enum MessageSender { user, bot }
 enum MessageType { text, destinationCard, itinerary, hotelList, weather, loading }
@@ -42,7 +55,7 @@ class ChatMessage {
     }
 
     return ChatMessage(
-      text: response.text,
+      text: _repairVietnameseText(response.text),
       sender: MessageSender.bot,
       timestamp: response.timestamp,
       type: type,
@@ -56,7 +69,7 @@ class ChatMessage {
     }
 
     return ChatMessage(
-      text: item.content,
+      text: _repairVietnameseText(item.content),
       sender: item.role == 'user' ? MessageSender.user : MessageSender.bot,
       timestamp: item.timestamp,
     );

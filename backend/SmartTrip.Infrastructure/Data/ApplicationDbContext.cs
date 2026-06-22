@@ -437,6 +437,11 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.ResponseType).HasMaxLength(50);
             entity.Property(e => e.DetectedIntent).HasMaxLength(50);
             entity.Property(e => e.SessionId).HasMaxLength(100).IsUnicode(false);
+            entity.Property(e => e.LatencyMs);
+            entity.Property(e => e.IsJsonValid);
+            entity.Property(e => e.IsFallbackUsed);
+            entity.Property(e => e.ErrorLog).HasMaxLength(1000);
+            entity.Property(e => e.ClassifierDetails).HasColumnType("nvarchar(max)");
 
             entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId);
         });

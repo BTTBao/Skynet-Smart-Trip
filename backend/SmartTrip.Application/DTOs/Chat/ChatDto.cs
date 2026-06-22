@@ -236,3 +236,20 @@ public class ChatHistoryItemDto
     public DateTime Timestamp { get; set; }
     public ChatResponseDto? ResponsePayload { get; set; }
 }
+
+public class ChatIntentResultDto
+{
+    public string Intent { get; set; } = "general";
+    public ChatEntitiesDto Entities { get; set; } = new();
+}
+
+public class ChatEntitiesDto
+{
+    public string? Destination { get; set; }
+    public string? Origin { get; set; }
+    public int? Days { get; set; }
+    public decimal? Budget { get; set; }
+    public int? PassengerCount { get; set; }
+    public string? HotelName { get; set; }
+    public string? DepartureDate { get; set; }
+}

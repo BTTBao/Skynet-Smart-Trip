@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -378,15 +378,15 @@ class ChatProvider with ChangeNotifier {
 
   String _buildFriendlyErrorMessage(Object error) {
     if (error is ApiException && error.isUnauthorized) {
-      return 'Phien dang nhap da het han. Vui long dang nhap lai de tiep tuc chat.';
+      return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục chat.';
     }
 
-    return 'Sky dang gap su co ket noi. Ban thu lai trong it phut nua nhe.';
+    return 'Sky đang gặp sự cố kết nối. Bạn thử lại trong ít phút nữa nhé.';
   }
 
   String _mapErrorMessage(String message, {int? statusCode}) {
     if (statusCode == 401) {
-      return 'Phien dang nhap da het han. Vui long dang nhap lai.';
+      return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
     }
 
     final lower = message.toLowerCase();
@@ -430,24 +430,28 @@ class ChatProvider with ChangeNotifier {
 
   static const List<QuickAction> _defaultSuggestions = [
     QuickAction(
-      label: 'Goi y diem den',
+      label: 'Gợi ý điểm đến',
       icon: 'explore',
-      actionPayload: 'Goi y cho toi 3 diem den dep o Viet Nam',
+      actionPayload: 'Gợi ý cho tôi 3 điểm đến đẹp ở Việt Nam',
     ),
     QuickAction(
-      label: 'Lap lich trinh',
+      label: 'Lập lịch trình',
       icon: 'calendar',
-      actionPayload: 'Lap lich trinh du lich Da Lat 3 ngay 2 dem',
+      actionPayload: 'Lập lịch trình du lịch Đà Lạt 3 ngày 2 đêm',
     ),
     QuickAction(
-      label: 'Tim khach san',
+      label: 'Tìm khách sạn',
       icon: 'hotel',
-      actionPayload: 'Tim khach san tot o Phu Quoc',
+      actionPayload: 'Tìm khách sạn tốt ở Phú Quốc',
     ),
     QuickAction(
-      label: 'Xem thoi tiet',
+      label: 'Xem thời tiết',
       icon: 'weather',
-      actionPayload: 'Thoi tiet Da Nang hom nay the nao?',
+      actionPayload: 'Thời tiết Đà Nẵng hôm nay thế nào?',
     ),
   ];
 }
+
+
+
+
