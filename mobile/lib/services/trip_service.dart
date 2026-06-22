@@ -29,6 +29,28 @@ class TripService extends ApiService {
     return TripDetail.fromJson(data);
   }
 
+  Future<TripDetail> getSharedTripDetail(String shareCode) async {
+    final encodedCode = Uri.encodeComponent(shareCode.trim());
+    final response = await getWithFallback(
+      '/trips/shared/$encodedCode',
+      requireAuth: true,
+    );
+
+    final data = Map<String, dynamic>.from(handleResponse(response));
+    return TripDetail.fromJson(data);
+  }
+
+  Future<MyTripSummary> saveSharedTrip(String shareCode) async {
+    final encodedCode = Uri.encodeComponent(shareCode.trim());
+    final response = await postWithFallback(
+      '/trips/shared/$encodedCode/save',
+      requireAuth: true,
+    );
+
+    final data = Map<String, dynamic>.from(handleResponse(response));
+    return MyTripSummary.fromJson(data);
+  }
+
   Future<MyTripSummary> createTrip(CreateTripRequest request) async {
     final response = await postWithFallback(
       '/trips',
@@ -133,6 +155,15 @@ class TripService extends ApiService {
   Future<void> deleteItinerary(int itineraryId) async {
     final response = await deleteWithFallback(
       '/trips/itineraries/$itineraryId',
+      requireAuth: true,
+    );
+
+    handleResponse(response);
+  }
+
+  Future<void> deleteTrip(int tripId) async {
+    final response = await deleteWithFallback(
+      '/trips/$tripId',
       requireAuth: true,
     );
 

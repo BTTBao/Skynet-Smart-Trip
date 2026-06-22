@@ -63,6 +63,8 @@ public class TripService : ITripService
                 DestinationDescription = trip.Destination != null ? trip.Destination.Description : null,
                 DestinationCoverImageUrl = trip.Destination != null ? trip.Destination.CoverImageUrl : null,
                 Title = trip.Title ?? string.Empty,
+                ShareCode = trip.ShareCode ?? string.Empty,
+                trip.SharedFromTripId,
                 trip.StartDate,
                 trip.EndDate,
                 trip.TotalAmount,
@@ -83,6 +85,8 @@ public class TripService : ITripService
                 DestinationDescription = trip.DestinationDescription,
                 DestinationCoverImageUrl = trip.DestinationCoverImageUrl,
                 Title = trip.Title,
+                ShareCode = trip.ShareCode,
+                SharedFromTripId = trip.SharedFromTripId,
                 StartDate = trip.StartDate,
                 EndDate = trip.EndDate,
                 TotalAmount = trip.TotalAmount,
@@ -137,6 +141,8 @@ public class TripService : ITripService
             DestinationDescription = trip.Destination?.Description,
             DestinationCoverImageUrl = trip.Destination?.CoverImageUrl,
             Title = trip.Title ?? string.Empty,
+            ShareCode = trip.ShareCode ?? string.Empty,
+            SharedFromTripId = trip.SharedFromTripId,
             StartDate = trip.StartDate,
             EndDate = trip.EndDate,
             TotalAmount = trip.TotalAmount,
@@ -144,8 +150,123 @@ public class TripService : ITripService
             Status = NormalizeTripStatus(trip.Status?.ToString()),
             CreatedAt = trip.CreatedAt,
             ItineraryCount = itineraryItems.Count,
-            Itineraries = itineraries
+            Itineraries = itineraries,
+            CanEdit = true,
+            CanSave = false
         };
+    }
+
+    public async Task<TripDetailDto?> GetTripByShareCodeAsync(string shareCode, int currentUserId)
+    {
+        var normalizedShareCode = NormalizeShareCode(shareCode);
+        if (string.IsNullOrWhiteSpace(normalizedShareCode))
+        {
+            throw new ArgumentException("Share code is required.");
+        }
+
+        var trip = await _context.Trips
+            .AsNoTracking()
+            .Include(item => item.Destination)
+            .Include(item => item.TripItineraries)
+            .FirstOrDefaultAsync(item => item.ShareCode == normalizedShareCode);
+
+        if (trip == null)
+        {
+            return null;
+        }
+
+        var detail = await MapTripDetailAsync(trip);
+        var ownsTrip = trip.UserId == currentUserId;
+        var savedTrip = !ownsTrip
+            ? await _context.Trips
+                .AsNoTracking()
+                .Where(item => item.UserId == currentUserId && item.SharedFromTripId == trip.Id)
+                .Select(item => new { item.Id })
+                .FirstOrDefaultAsync()
+            : null;
+        var alreadySaved = savedTrip != null;
+
+        detail.CanEdit = ownsTrip;
+        detail.CanSave = !ownsTrip && !alreadySaved;
+        detail.SavedTripId = savedTrip?.Id;
+        return detail;
+    }
+
+    public async Task<TripSummaryDto> SaveSharedTripAsync(string shareCode, int currentUserId)
+    {
+        var normalizedShareCode = NormalizeShareCode(shareCode);
+        if (string.IsNullOrWhiteSpace(normalizedShareCode))
+        {
+            throw new ArgumentException("Share code is required.");
+        }
+
+        var sourceTrip = await _context.Trips
+            .AsNoTracking()
+            .Include(item => item.TripItineraries)
+            .FirstOrDefaultAsync(item => item.ShareCode == normalizedShareCode);
+
+        if (sourceTrip == null)
+        {
+            throw new KeyNotFoundException("Shared trip was not found.");
+        }
+
+        if (sourceTrip.UserId == currentUserId)
+        {
+            return await GetTripSummaryAsync(sourceTrip.Id)
+                ?? throw new InvalidOperationException("Trip could not be loaded.");
+        }
+
+        var existingSavedTrip = await _context.Trips
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.UserId == currentUserId && item.SharedFromTripId == sourceTrip.Id);
+
+        if (existingSavedTrip != null)
+        {
+            return await GetTripSummaryAsync(existingSavedTrip.Id)
+                ?? throw new InvalidOperationException("Saved trip could not be loaded.");
+        }
+
+        var savedTrip = new TripEntity
+        {
+            UserId = currentUserId,
+            DestinationId = sourceTrip.DestinationId,
+            Title = sourceTrip.Title,
+            ShareCode = await GenerateUniqueShareCodeAsync(),
+            SharedFromTripId = sourceTrip.Id,
+            StartDate = sourceTrip.StartDate,
+            EndDate = sourceTrip.EndDate,
+            Status = TripStatus.Draft,
+            CreatedAt = DateTime.UtcNow,
+            TotalAmount = sourceTrip.TotalAmount,
+            TotalProfit = 0
+        };
+
+        foreach (var item in sourceTrip.TripItineraries)
+        {
+            savedTrip.TripItineraries.Add(new TripItinerary
+            {
+                DayNumber = item.DayNumber,
+                ServiceType = item.ServiceType,
+                ServiceId = item.ServiceId,
+                Quantity = item.Quantity,
+                AdultCount = item.AdultCount,
+                ChildCount = item.ChildCount,
+                InfantCount = item.InfantCount,
+                BookedPrice = item.BookedPrice,
+                BookedCommissionRate = item.BookedCommissionRate,
+                ServiceDate = item.ServiceDate,
+                HotelCheckOutDate = item.HotelCheckOutDate,
+                DepartureTime = item.DepartureTime,
+                ServiceAddress = item.ServiceAddress,
+                SelectedSeats = item.SelectedSeats
+            });
+        }
+
+        _context.Trips.Add(savedTrip);
+        await _context.SaveChangesAsync();
+
+        return await GetTripSummaryAsync(savedTrip.Id)
+            ?? throw new InvalidOperationException("Shared trip was saved but could not be loaded.");
     }
 
     public async Task<TripSummaryDto> CreateTripAsync(CreateTripDto request)
@@ -170,6 +291,7 @@ public class TripService : ITripService
             UserId = request.UserId,
             DestinationId = destination?.Id,
             Title = request.Title.Trim(),
+            ShareCode = await GenerateUniqueShareCodeAsync(),
             StartDate = request.StartDate,
             EndDate = request.EndDate,
             Status = ParseTripStatus(request.Status),
@@ -328,6 +450,8 @@ public class TripService : ITripService
                 DestinationDescription = item.Destination != null ? item.Destination.Description : null,
                 DestinationCoverImageUrl = item.Destination != null ? item.Destination.CoverImageUrl : null,
                 Title = item.Title ?? string.Empty,
+                ShareCode = item.ShareCode ?? string.Empty,
+                item.SharedFromTripId,
                 item.StartDate,
                 item.EndDate,
                 item.TotalAmount,
@@ -352,6 +476,8 @@ public class TripService : ITripService
             DestinationDescription = trip.DestinationDescription,
             DestinationCoverImageUrl = trip.DestinationCoverImageUrl,
             Title = trip.Title,
+            ShareCode = trip.ShareCode,
+            SharedFromTripId = trip.SharedFromTripId,
             StartDate = trip.StartDate,
             EndDate = trip.EndDate,
             TotalAmount = trip.TotalAmount,
@@ -359,6 +485,46 @@ public class TripService : ITripService
             Status = NormalizeTripStatus(trip.Status?.ToString()),
             CreatedAt = trip.CreatedAt,
             ItineraryCount = trip.ItineraryCount
+        };
+    }
+
+    private async Task<TripDetailDto> MapTripDetailAsync(TripEntity trip)
+    {
+        var itineraryItems = trip.TripItineraries
+            .OrderBy(item => item.ServiceDate ?? DateOnly.MaxValue)
+            .ThenBy(item => item.DayNumber ?? int.MaxValue)
+            .ThenBy(item => item.DepartureTime ?? TimeOnly.MaxValue)
+            .ThenBy(item => item.Id)
+            .ToList();
+
+        var itineraries = new List<TripItineraryDto>();
+        if (_itineraryService is ItineraryService concreteItineraryService)
+        {
+            foreach (var item in itineraryItems)
+            {
+                itineraries.Add(await concreteItineraryService.MapItineraryAsync(item));
+            }
+        }
+
+        return new TripDetailDto
+        {
+            TripId = trip.Id,
+            UserId = trip.UserId,
+            DestinationId = trip.DestinationId,
+            DestinationName = trip.Destination?.Name,
+            DestinationDescription = trip.Destination?.Description,
+            DestinationCoverImageUrl = trip.Destination?.CoverImageUrl,
+            Title = trip.Title ?? string.Empty,
+            ShareCode = trip.ShareCode ?? string.Empty,
+            SharedFromTripId = trip.SharedFromTripId,
+            StartDate = trip.StartDate,
+            EndDate = trip.EndDate,
+            TotalAmount = trip.TotalAmount,
+            TotalProfit = trip.TotalProfit,
+            Status = NormalizeTripStatus(trip.Status?.ToString()),
+            CreatedAt = trip.CreatedAt,
+            ItineraryCount = itineraryItems.Count,
+            Itineraries = itineraries
         };
     }
 
@@ -432,27 +598,101 @@ public class TripService : ITripService
 
     public async Task<TripSummaryDto> UpdateTripAsync(int tripId, UpdateTripDto request)
     {
-        var trip = await _context.Trips.FirstOrDefaultAsync(t => t.Id == tripId);
+        var trip = await _context.Trips
+            .Include(t => t.TripItineraries)
+            .FirstOrDefaultAsync(t => t.Id == tripId);
         if (trip == null)
         {
             throw new KeyNotFoundException($"Trip {tripId} was not found.");
         }
+
+        var previousDestinationId = trip.DestinationId;
+        var itinerariesCleared = false;
 
         if (request.Title != null) trip.Title = request.Title.Trim();
         if (request.StartDate.HasValue) trip.StartDate = request.StartDate.Value;
         if (request.EndDate.HasValue) trip.EndDate = request.EndDate.Value;
         if (request.Status != null) trip.Status = ParseTripStatus(request.Status);
 
+        if (trip.StartDate.HasValue && trip.EndDate.HasValue && trip.EndDate < trip.StartDate)
+        {
+            throw new ArgumentException("EndDate must be greater than or equal to StartDate.");
+        }
+
         if (request.DestinationId.HasValue || request.DestinationName != null)
         {
             var destination = await ResolveDestinationAsync(request.DestinationId, request.DestinationName);
-            trip.DestinationId = destination?.Id;
+            var newDestinationId = destination?.Id;
+
+            if (newDestinationId != previousDestinationId && trip.TripItineraries.Count > 0)
+            {
+                _context.TripItineraries.RemoveRange(trip.TripItineraries);
+                trip.TotalAmount = 0;
+                trip.TotalProfit = 0;
+                itinerariesCleared = true;
+            }
+
+            trip.DestinationId = newDestinationId;
         }
 
         await _context.SaveChangesAsync();
 
-        return await GetTripSummaryAsync(trip.Id)
+        var summary = await GetTripSummaryAsync(trip.Id)
             ?? throw new InvalidOperationException("Trip was updated but could not be loaded.");
+        summary.ItinerariesCleared = itinerariesCleared;
+        return summary;
+    }
+
+    public async Task DeleteTripAsync(int tripId, int currentUserId)
+    {
+        var trip = await _context.Trips
+            .Include(t => t.TripItineraries)
+            .Include(t => t.Payments)
+            .Include(t => t.Reviews)
+            .Include(t => t.Invoices)
+            .FirstOrDefaultAsync(t => t.Id == tripId && t.UserId == currentUserId);
+
+        if (trip == null)
+        {
+            throw new KeyNotFoundException($"Trip {tripId} was not found.");
+        }
+
+        var hasSharedCopies = await _context.Trips
+            .AsNoTracking()
+            .AnyAsync(item => item.SharedFromTripId == tripId);
+
+        if (hasSharedCopies)
+        {
+            throw new InvalidOperationException(
+                "Không thể xóa chuyến đi vì đã có người khác lưu lịch trình này.");
+        }
+
+        _context.TripItineraries.RemoveRange(trip.TripItineraries);
+        _context.Payments.RemoveRange(trip.Payments);
+        _context.Reviews.RemoveRange(trip.Reviews);
+        _context.Invoices.RemoveRange(trip.Invoices);
+        _context.Trips.Remove(trip);
+        await _context.SaveChangesAsync();
+    }
+
+    private async Task<string> GenerateUniqueShareCodeAsync()
+    {
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            var code = $"TRIP-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
+            var exists = await _context.Trips.AnyAsync(item => item.ShareCode == code);
+            if (!exists)
+            {
+                return code;
+            }
+        }
+
+        throw new InvalidOperationException("Could not generate a unique trip share code.");
+    }
+
+    private static string NormalizeShareCode(string? shareCode)
+    {
+        return (shareCode ?? string.Empty).Trim().ToUpperInvariant();
     }
 
     private static void ValidateCreateTripRequest(CreateTripDto request)

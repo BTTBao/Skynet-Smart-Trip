@@ -18,3 +18,4 @@ export 'trip_screen_header.dart';
 export 'trip_section_label.dart';
 export 'trip_timeline.dart';
 export 'trip_timeline_empty_state.dart';
+export 'place_search_field.dart';
