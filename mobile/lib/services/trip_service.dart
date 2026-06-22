@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:http/http.dart' as http;
-
 import '../models/create_trip_itinerary_request.dart';
 import '../models/create_fake_payment_request.dart';
 import '../models/create_hotel_booking_request.dart';
@@ -29,6 +27,28 @@ class TripService extends ApiService {
 
     final data = Map<String, dynamic>.from(handleResponse(response));
     return TripDetail.fromJson(data);
+  }
+
+  Future<TripDetail> getSharedTripDetail(String shareCode) async {
+    final encodedCode = Uri.encodeComponent(shareCode.trim());
+    final response = await getWithFallback(
+      '/trips/shared/$encodedCode',
+      requireAuth: true,
+    );
+
+    final data = Map<String, dynamic>.from(handleResponse(response));
+    return TripDetail.fromJson(data);
+  }
+
+  Future<MyTripSummary> saveSharedTrip(String shareCode) async {
+    final encodedCode = Uri.encodeComponent(shareCode.trim());
+    final response = await postWithFallback(
+      '/trips/shared/$encodedCode/save',
+      requireAuth: true,
+    );
+
+    final data = Map<String, dynamic>.from(handleResponse(response));
+    return MyTripSummary.fromJson(data);
   }
 
   Future<MyTripSummary> createTrip(CreateTripRequest request) async {
@@ -87,16 +107,13 @@ class TripService extends ApiService {
     required String serviceType,
     int? destinationId,
   }) async {
-    final uri = buildUri(configuredBaseUrl, '/trips/service-options').replace(
+    final response = await getWithFallback(
+      '/trips/service-options',
+      requireAuth: true,
       queryParameters: {
         'serviceType': serviceType,
         if (destinationId != null) 'destinationId': '$destinationId',
       },
-    );
-
-    final response = await http.get(
-      uri,
-      headers: await getHeaders(requireAuth: true),
     );
 
     final data = handleResponse(response) as List<dynamic>? ?? [];
@@ -138,6 +155,15 @@ class TripService extends ApiService {
   Future<void> deleteItinerary(int itineraryId) async {
     final response = await deleteWithFallback(
       '/trips/itineraries/$itineraryId',
+      requireAuth: true,
+    );
+
+    handleResponse(response);
+  }
+
+  Future<void> deleteTrip(int tripId) async {
+    final response = await deleteWithFallback(
+      '/trips/$tripId',
       requireAuth: true,
     );
 

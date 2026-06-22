@@ -34,6 +34,8 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
     public virtual DbSet<TripItinerary> TripItineraries { get; set; }
     public virtual DbSet<User> Users { get; set; }
     public virtual DbSet<UserWallet> UserWallets { get; set; }
+    public virtual DbSet<VehicleRentalOption> VehicleRentalOptions { get; set; }
+    public virtual DbSet<VehicleRentalShop> VehicleRentalShops { get; set; }
     public virtual DbSet<Wishlist> Wishlists { get; set; }
     public virtual DbSet<ChatHistory> ChatHistories { get; set; }
     public virtual DbSet<UserPreference> UserPreferences { get; set; }
@@ -325,12 +327,16 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<Trip>(entity =>
         {
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+            entity.Property(e => e.ShareCode).HasMaxLength(20).IsUnicode(false);
             entity.Property(e => e.Status).HasMaxLength(50).HasConversion<string>().HasDefaultValue(SmartTrip.Domain.Enums.TripStatus.Draft);
             entity.Property(e => e.Title).HasMaxLength(200);
             entity.Property(e => e.TotalAmount).HasDefaultValue(0m).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.TotalProfit).HasDefaultValue(0m).HasColumnType("decimal(18, 2)");
+            entity.HasIndex(e => new { e.UserId, e.ShareCode }).IsUnique().HasFilter("[ShareCode] IS NOT NULL AND [UserId] IS NOT NULL");
+            entity.HasIndex(e => new { e.UserId, e.SharedFromTripId }).IsUnique().HasFilter("[SharedFromTripId] IS NOT NULL");
 
             entity.HasOne(d => d.Destination).WithMany(p => p.Trips).HasForeignKey(d => d.DestinationId);
+            entity.HasOne(d => d.SharedFromTrip).WithMany(p => p.SharedTrips).HasForeignKey(d => d.SharedFromTripId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(d => d.User).WithMany(p => p.Trips).HasForeignKey(d => d.UserId);
         });
 
@@ -377,6 +383,40 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.LoyaltyPoints).HasDefaultValue(0);
 
             entity.HasOne(d => d.User).WithMany(p => p.UserWallets).HasForeignKey(d => d.UserId);
+        });
+
+        modelBuilder.Entity<VehicleRentalShop>(entity =>
+        {
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.PhoneNumber).HasMaxLength(20).IsUnicode(false).IsRequired();
+            entity.Property(e => e.Address).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.ImageUrl).HasMaxLength(500).IsUnicode(false);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
+
+            entity.HasIndex(e => e.DestinationId);
+            entity.HasIndex(e => e.IsActive);
+
+            entity.HasOne(e => e.Destination)
+                .WithMany(d => d.VehicleRentalShops)
+                .HasForeignKey(e => e.DestinationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<VehicleRentalOption>(entity =>
+        {
+            entity.Property(e => e.VehicleType).HasMaxLength(30).HasConversion<string>();
+            entity.Property(e => e.PricePerDay).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.IsAvailable).HasDefaultValue(true);
+
+            entity.HasIndex(e => e.VehicleRentalShopId);
+            entity.HasIndex(e => e.VehicleType);
+
+            entity.HasOne(e => e.VehicleRentalShop)
+                .WithMany(s => s.VehicleOptions)
+                .HasForeignKey(e => e.VehicleRentalShopId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Wishlist>(entity =>

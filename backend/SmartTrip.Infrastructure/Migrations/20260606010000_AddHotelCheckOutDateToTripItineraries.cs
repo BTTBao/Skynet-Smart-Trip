@@ -14,19 +14,23 @@ namespace SmartTrip.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<DateOnly>(
-                name: "HotelCheckOutDate",
-                table: "TripItineraries",
-                type: "date",
-                nullable: true);
+            migrationBuilder.Sql("""
+                IF COL_LENGTH('TripItineraries', 'HotelCheckOutDate') IS NULL
+                BEGIN
+                    ALTER TABLE [TripItineraries] ADD [HotelCheckOutDate] date NULL;
+                END
+                """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "HotelCheckOutDate",
-                table: "TripItineraries");
+            migrationBuilder.Sql("""
+                IF COL_LENGTH('TripItineraries', 'HotelCheckOutDate') IS NOT NULL
+                BEGIN
+                    ALTER TABLE [TripItineraries] DROP COLUMN [HotelCheckOutDate];
+                END
+                """);
         }
     }
 }

@@ -1,4 +1,4 @@
-# 🗺️ Skynet Smart Trip - Hướng Dẫn Chạy Dự Án (Manual & Setup)
+# Skynet Smart Trip - Hướng Dẫn Chạy Dự Án (Manual & Setup)
 
 Chào mừng bạn đến với **Skynet Smart Trip**, ứng dụng hỗ trợ lên lịch trình du lịch thông minh, tích hợp Trợ lý ảo AI (Grok AI Chatbot), đặt phòng khách sạn, vé xe khách và thanh toán hóa đơn. 
 
@@ -6,7 +6,7 @@ Dự án gồm 4 phần chính: **Mobile App (Flutter)**, **Backend API (.NET 8)
 
 ---
 
-## 📋 PHẦN 3: THÔNG TIN DỰ ÁN & HƯỚNG DẪN CHẠY PHẦN MỀM
+## 📋 PHẦN 1: THÔNG TIN DỰ ÁN & HƯỚNG DẪN CHẠY PHẦN MỀM
 
 ### 🛠️ 1. Công Nghệ Sử Dụng
 
@@ -123,7 +123,7 @@ Các tài khoản dưới đây đã được nạp sẵn vào hệ thống cơ 
 
 ---
 
-## 🔥 PHẦN 4: CẤU HÌNH HỆ THỐNG FIREBASE (HYBRID)
+## 🔥 PHẦN 2: CẤU HÌNH HỆ THỐNG FIREBASE
 
 Dự án này sử dụng mô hình kết hợp (Hybrid) với Firebase để xử lý các tác vụ thông báo thời gian thực và lưu trữ đám mây.
 
@@ -168,7 +168,7 @@ Nếu bạn muốn chuyển sang cấu hình dự án Firebase cá nhân của m
 
 ---
 
-## 🗄️ PHẦN 5: CẤU HÌNH CƠ SỞ DỮ LIỆU SQL SERVER
+## 🗄️ PHẦN 3: CẤU HÌNH CƠ SỞ DỮ LIỆU SQL SERVER
 
 Hệ thống lưu trữ dữ liệu nghiệp vụ quan trọng (Người dùng, Điểm đến, Khách sạn, Xe khách, Lịch trình, Hóa đơn, Đánh giá) trên **SQL Server 2022**.
 
@@ -203,17 +203,3 @@ Nếu bạn muốn áp dụng cơ chế code-first migrations từ mã nguồn C
     ```
 
 ---
-
-## 📋 PHẦN 6: YÊU CẦU CHUNG & ĐẢM BẢO CHẠY THÀNH CÔNG (GENERAL COMPLIANCE)
-
-Để đảm bảo Giảng viên có thể clone dự án về và khởi chạy thành công ngay lập tức mà không gặp lỗi thiếu dữ liệu hay thiếu cấu hình, dự án đã được tối ưu hóa như sau:
-
-1.  **Đầy đủ cấu hình & dữ liệu mẫu:** Hệ thống đi kèm các file cấu hình mẫu (`.env.example`, `appsettings.json`) và các file script SQL tạo cấu trúc bảng (`database.sql`), dữ liệu mẫu (`sample_seed_data.sql`).
-2.  **Cơ chế dự phòng (Local Fallback Storage):** Nếu Giảng viên chưa cấu hình tài khoản Firebase Storage cá nhân hoặc chưa cung cấp file Key JSON trên Backend, hệ thống sẽ tự động kích hoạt chế độ lưu trữ cục bộ (`Local Fallback`) vào thư mục `wwwroot` của server và tự động sinh đường dẫn ảnh cục bộ. Điều này đảm bảo tính năng upload ảnh avatar hoạt động trơn tru 100% khi chạy thử.
-3.  **Tự động tạo CSDL nếu chạy Docker:** Khi dùng Docker Compose, toàn bộ cơ sở dữ liệu sẽ được thiết lập tự động, Giảng viên không cần thực hiện thêm bất cứ thao tác import SQL nào.
-4.  **Tự động nhận diện thiết bị (Cổng kết nối):** Mã nguồn di động đã cấu hình tự động trỏ API về cổng phù hợp dựa trên thiết bị chạy (Android Emulator trỏ về `10.0.2.2`, iOS Emulator / Web / Desktop trỏ về `localhost`), giảm thiểu tối đa khả năng lỗi kết nối mạng.
-
-### 💡 Các Lưu Ý Quan Trọng Khác:
-- **Cài đặt OTP:** Dịch vụ gửi mã OTP qua Gmail sử dụng SMTP của tài khoản `dule1028a@gmail.com`. Mật khẩu ứng dụng đã được cấu hình sẵn trong `.env`.
-- **Tích hợp chatbot AI:** Chatbot sử dụng Groq API và khóa API đã được đặt sẵn trong tệp `.env`.
-- **Cổng thanh toán:** Giao dịch thanh toán được demo qua môi trường giả lập (Sandbox) của PayOS và VNPay. Vui lòng dùng thẻ ngân hàng thử nghiệm để thực hiện.

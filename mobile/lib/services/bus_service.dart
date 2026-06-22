@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../models/bus_schedule_model.dart';
 import 'api_service_base.dart';
 
@@ -9,26 +8,27 @@ class BusService extends ApiService {
     int? toDestId,
     String? date,
   }) async {
-    final uri = buildUri(configuredBaseUrl, '/bus/schedules').replace(
+    final response = await getWithFallback(
+      '/bus/schedules',
       queryParameters: {
         if (fromDestId != null) 'fromDestId': '$fromDestId',
         if (toDestId != null) 'toDestId': '$toDestId',
         if (date != null) 'date': date,
       },
     );
-
-    final response = await http.get(uri, headers: headers);
     final data = handleResponse(response) as List<dynamic>? ?? [];
-    
+
     return data
-        .map((item) => BusScheduleModel.fromJson(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => BusScheduleModel.fromJson(Map<String, dynamic>.from(item)),
+        )
         .toList();
   }
 
   Future<List<BusSeatModel>> getSeats(int scheduleId) async {
     final response = await getWithFallback('/bus/schedules/$scheduleId/seats');
     final data = handleResponse(response) as List<dynamic>? ?? [];
-    
+
     return data
         .map((item) => BusSeatModel.fromJson(Map<String, dynamic>.from(item)))
         .toList();
@@ -53,7 +53,7 @@ class BusService extends ApiService {
         if (selectedSeats != null) 'selectedSeats': selectedSeats,
       }),
     );
-    
+
     final result = handleResponse(response) as Map<String, dynamic>? ?? {};
     return result['status'] == 'PAID';
   }

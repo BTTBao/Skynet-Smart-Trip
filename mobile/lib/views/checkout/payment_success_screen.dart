@@ -4,8 +4,8 @@ import '../../widgets/checkout/resort_summary_card.dart';
 import '../main_shell.dart'; // To go back to home
 import '../../providers/trip_provider.dart';
 import '../../models/my_trip_summary.dart';
-import '../../models/create_trip_request.dart';
 import '../../models/update_trip_itinerary_request.dart';
+import '../../models/update_trip_request.dart';
 
 class PaymentSuccessScreen extends StatefulWidget {
   final int bookingId;
@@ -65,27 +65,51 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
     if (wantsTrip == true) {
       final selectedTrip = await _selectOrCreateTripForBooking(
         destinationId: widget.destinationId,
-        destinationName: widget.destinationName.isNotEmpty ? widget.destinationName : 'Hành trình',
+        destinationName: widget.destinationName.isNotEmpty
+            ? widget.destinationName
+            : 'Hành trình',
       );
 
       if (selectedTrip != null) {
         setState(() => _isAssociating = true);
         try {
           final tripProvider = context.read<TripProvider>();
-          final success = await tripProvider.updateItinerary(
-            widget.itineraryId!,
-            UpdateTripItineraryRequest(
-              tripId: selectedTrip.tripId,
-              dayNumber: selectedTrip.dayNumber,
-            ),
-          );
+          final bool success;
+          if (selectedTrip.usesCurrentBooking) {
+            final updated = await tripProvider.updateTrip(
+              widget.bookingId,
+              UpdateTripRequest(
+                title: selectedTrip.createdTitle,
+                destinationId: widget.destinationId,
+                destinationName: widget.destinationName,
+                startDate: widget.checkIn,
+                endDate: widget.checkOut,
+                status: 'PENDING',
+              ),
+            );
+            success = updated != null;
+          } else {
+            success = await tripProvider.updateItinerary(
+              widget.itineraryId!,
+              UpdateTripItineraryRequest(
+                tripId: selectedTrip.tripId,
+                dayNumber: selectedTrip.dayNumber,
+              ),
+            );
+          }
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(success
-                    ? 'Đã thêm lịch trình đặt phòng vào chuyến đi thành công!'
-                    : 'Không thể di chuyển lịch trình vào chuyến đi.'),
+                content: Text(
+                  success
+                      ? selectedTrip.usesCurrentBooking
+                            ? 'Đã tạo chuyến đi thành công!'
+                            : 'Đã thêm lịch trình đặt phòng vào chuyến đi thành công!'
+                      : selectedTrip.usesCurrentBooking
+                      ? 'Không thể tạo chuyến đi.'
+                      : 'Không thể di chuyển lịch trình vào chuyến đi.',
+                ),
                 backgroundColor: success ? const Color(0xFF0D6B42) : Colors.red,
               ),
             );
@@ -157,9 +181,9 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
 
   int _dayNumberForTrip(MyTripSummary trip) {
     if (widget.checkIn == null) return 1;
-    return _dateOnly(widget.checkIn!)
-            .difference(_dateOnly(trip.startDate))
-            .inDays +
+    return _dateOnly(
+          widget.checkIn!,
+        ).difference(_dateOnly(trip.startDate)).inDays +
         1;
   }
 
@@ -201,30 +225,30 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
       return null;
     }
 
-    final trips = tripProvider.upcomingTrips
-        .where(
-          (trip) =>
-              trip.status != 'CANCELLED' &&
-              _bookingTripBlockReason(
-                    trip,
-                    destinationId: destinationId,
-                    destinationName: destinationName,
-                  ) ==
-                  null,
-        )
-        .toList(growable: false)
-      ..sort((left, right) => left.startDate.compareTo(right.startDate));
+    final trips =
+        tripProvider.upcomingTrips
+            .where(
+              (trip) =>
+                  trip.status != 'CANCELLED' &&
+                  _bookingTripBlockReason(
+                        trip,
+                        destinationId: destinationId,
+                        destinationName: destinationName,
+                      ) ==
+                      null,
+            )
+            .toList(growable: false)
+          ..sort((left, right) => left.startDate.compareTo(right.startDate));
 
     return showModalBottomSheet<_SelectedCheckoutTrip>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
-        var isCreating = false;
         var title = 'Chuyến đi $destinationName';
         var query = '';
 
-        Future<void> createTrip(StateSetter setSheetState) async {
+        Future<void> createTrip() async {
           final normalizedTitle = title.trim();
           if (normalizedTitle.isEmpty) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -233,36 +257,13 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
             return;
           }
 
-          setSheetState(() => isCreating = true);
-          final tripProvider = context.read<TripProvider>();
-          final createdTrip = await tripProvider.createTrip(
-            CreateTripRequest(
-              userId: 1, // Default user ID, will be resolved by backend
-              destinationId: destinationId,
-              destinationName: destinationName,
-              title: normalizedTitle,
-              startDate: widget.checkIn ?? DateTime.now(),
-              endDate: widget.checkOut ?? DateTime.now().add(const Duration(days: 1)),
-              status: 'PENDING',
-            ),
-          );
-
-          if (!sheetContext.mounted) {
-            return;
-          }
-
-          setSheetState(() => isCreating = false);
-          if (createdTrip == null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(tripProvider.error ?? 'Không thể tạo chuyến đi.'),
-              ),
-            );
-            return;
-          }
-
           Navigator.of(sheetContext).pop(
-            _SelectedCheckoutTrip(tripId: createdTrip.tripId, dayNumber: 1),
+            _SelectedCheckoutTrip(
+              tripId: widget.bookingId,
+              dayNumber: 1,
+              usesCurrentBooking: true,
+              createdTitle: normalizedTitle,
+            ),
           );
         }
 
@@ -272,19 +273,19 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
             final visibleTrips = normalizedQuery.isEmpty
                 ? trips
                 : trips
-                    .where(
-                      (trip) =>
-                          trip.title.toLowerCase().contains(
-                            normalizedQuery,
-                          ) ||
-                          trip.destination.toLowerCase().contains(
-                            normalizedQuery,
-                          ) ||
-                          trip.dateRange.toLowerCase().contains(
-                            normalizedQuery,
-                          ),
-                    )
-                    .toList(growable: false);
+                      .where(
+                        (trip) =>
+                            trip.title.toLowerCase().contains(
+                              normalizedQuery,
+                            ) ||
+                            trip.destination.toLowerCase().contains(
+                              normalizedQuery,
+                            ) ||
+                            trip.dateRange.toLowerCase().contains(
+                              normalizedQuery,
+                            ),
+                      )
+                      .toList(growable: false);
 
             return Container(
               decoration: const BoxDecoration(
@@ -332,7 +333,6 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                       ),
                       const SizedBox(height: 16),
                       TextField(
-                        enabled: !isCreating,
                         onChanged: (value) =>
                             setSheetState(() => query = value),
                         decoration: InputDecoration(
@@ -361,13 +361,17 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                         const SizedBox(height: 12),
                       ],
                       ...visibleTrips.map((trip) {
-                        final blockedReason = _bookingTripBlockReason(trip, destinationId: destinationId, destinationName: destinationName);
+                        final blockedReason = _bookingTripBlockReason(
+                          trip,
+                          destinationId: destinationId,
+                          destinationName: destinationName,
+                        );
                         final canSelect = blockedReason == null;
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: InkWell(
-                            onTap: isCreating || !canSelect
+                            onTap: !canSelect
                                 ? null
                                 : () => Navigator.of(sheetContext).pop(
                                     _SelectedCheckoutTrip(
@@ -443,7 +447,6 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                       }),
                       const SizedBox(height: 8),
                       TextField(
-                        enabled: !isCreating,
                         controller: TextEditingController(text: title)
                           ..selection = TextSelection.collapsed(
                             offset: title.length,
@@ -460,26 +463,16 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(
-                          onPressed: isCreating
-                              ? null
-                              : () => createTrip(setSheetState),
+                          onPressed: createTrip,
                           style: FilledButton.styleFrom(
                             backgroundColor: const Color(0xFF6DE899),
                             foregroundColor: Colors.black,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          child: isCreating
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text(
-                                  'Tạo chuyến đi mới',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
+                          child: const Text(
+                            'Tạo chuyến đi mới',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ),
                     ],
@@ -493,7 +486,8 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
     );
   }
 
-  String get _bookingCode => 'SKN-${widget.bookingId.toString().padLeft(6, '0')}';
+  String get _bookingCode =>
+      'SKN-${widget.bookingId.toString().padLeft(6, '0')}';
 
   String _formatPrice(double price) {
     final formatted = price
@@ -515,6 +509,8 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
     switch (method) {
       case 'Momo':
         return 'Ví điện tử MoMo';
+      case 'VNPAY':
+        return 'VNPAY';
       case 'Zalopay':
         return 'Ví điện tử ZaloPay';
       case 'BankTransfer':
@@ -576,7 +572,11 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.check, color: Colors.white, size: 60),
+                    child: const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 60,
+                    ),
                   ),
                   const SizedBox(height: 40),
                   const Text(
@@ -622,7 +622,10 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                         ),
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 16.0),
-                          child: Divider(color: Color(0xFFEEEEEE), thickness: 1),
+                          child: Divider(
+                            color: Color(0xFFEEEEEE),
+                            thickness: 1,
+                          ),
                         ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -650,16 +653,13 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                   const SizedBox(height: 24),
                   _buildInfoRow(
                     'Hình thức thanh toán',
-                    widget.paymentMethod == 'Momo'
-                        ? 'Ví điện tử MoMo'
-                        : widget.paymentMethod == 'Zalopay'
-                        ? 'Ví điện tử ZaloPay'
-                        : widget.paymentMethod == 'BankTransfer'
-                        ? 'Chuyển khoản ngân hàng'
-                        : 'Thẻ quốc tế',
+                    _formatPaymentMethod(widget.paymentMethod),
                   ),
                   const SizedBox(height: 12),
-                  _buildInfoRow('Thời gian', _formatDateTime(widget.paymentTime)),
+                  _buildInfoRow(
+                    'Thời gian',
+                    _formatDateTime(widget.paymentTime),
+                  ),
                   const SizedBox(height: 48),
                   SizedBox(
                     width: double.infinity,
@@ -771,6 +771,13 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
 class _SelectedCheckoutTrip {
   final int tripId;
   final int dayNumber;
+  final bool usesCurrentBooking;
+  final String? createdTitle;
 
-  _SelectedCheckoutTrip({required this.tripId, required this.dayNumber});
+  _SelectedCheckoutTrip({
+    required this.tripId,
+    required this.dayNumber,
+    this.usesCurrentBooking = false,
+    this.createdTitle,
+  });
 }

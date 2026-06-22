@@ -7,6 +7,7 @@ import '../../providers/trip_provider.dart';
 import '../../widgets/trip/widgets.dart';
 import 'edit_itinerary_view_data.dart';
 import 'trip_ui_constants.dart';
+import '../../widgets/trip/place_search_field.dart';
 
 class EditItineraryView extends StatefulWidget {
   const EditItineraryView({
@@ -343,9 +344,11 @@ class _EditActivitySheet extends StatefulWidget {
 }
 
 class _EditActivitySheetState extends State<_EditActivitySheet> {
-  late final TextEditingController _addressController;
+  late String _addressText;
   late DateTime _serviceDate;
   late TimeOfDay _departureTime;
+  String _searchAddress = '';
+  late final TextEditingController _noteController;
 
   bool get _isNote => widget.activity.title.toLowerCase().contains('ghi chu');
 
@@ -362,14 +365,22 @@ class _EditActivitySheetState extends State<_EditActivitySheet> {
           );
     _departureTime =
         _parseTime(widget.activity.departureTime) ?? TimeOfDay.now();
-    _addressController = TextEditingController(
-      text: widget.activity.serviceAddress ?? '',
-    );
+    _addressText = widget.activity.serviceAddress ?? '';
+    
+    if (_isNote) {
+      final parts = _addressText.split('\n');
+      _searchAddress = parts.isNotEmpty ? parts[0].trim() : '';
+      final noteContent = parts.length > 1 ? parts.skip(1).join('\n').trim() : '';
+      _noteController = TextEditingController(text: noteContent);
+    } else {
+      _searchAddress = _addressText;
+      _noteController = TextEditingController();
+    }
   }
 
   @override
   void dispose() {
-    _addressController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
@@ -408,6 +419,21 @@ class _EditActivitySheetState extends State<_EditActivitySheet> {
   }
 
   void _submit() {
+    final placeName = _isNote ? _searchAddress.trim() : _addressText.trim();
+    final noteContent = _isNote ? _noteController.text.trim() : '';
+
+    if (placeName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập và chọn địa điểm.')),
+      );
+      return;
+    }
+
+    String combinedAddress = placeName;
+    if (_isNote && noteContent.isNotEmpty) {
+      combinedAddress = '$placeName\n$noteContent';
+    }
+
     final timeText =
         '${_departureTime.hour.toString().padLeft(2, '0')}:${_departureTime.minute.toString().padLeft(2, '0')}:00';
     final dayNumber = widget.activity.dayNumber;
@@ -416,15 +442,13 @@ class _EditActivitySheetState extends State<_EditActivitySheet> {
         itineraryId: widget.activity.itineraryId,
         dayNumber: dayNumber,
         title: widget.activity.title,
-        location: _addressController.text.trim().isEmpty
-            ? widget.activity.location
-            : _addressController.text.trim(),
+        location: combinedAddress.replaceAll('\n', ' - '),
         timeRange:
             '${timeText.substring(0, 5)} - ${_buildEndTimeFromText(timeText.substring(0, 5))}',
         imageGradient: widget.activity.imageGradient,
         serviceDate: _serviceDate,
         departureTime: timeText,
-        serviceAddress: _addressController.text.trim(),
+        serviceAddress: combinedAddress,
         quantity: widget.activity.quantity,
         bookedPrice: widget.activity.bookedPrice,
       ),
@@ -470,8 +494,12 @@ class _EditActivitySheetState extends State<_EditActivitySheet> {
     final timeLabel =
         '${_departureTime.hour.toString().padLeft(2, '0')}:${_departureTime.minute.toString().padLeft(2, '0')}';
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset + 16),
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(20, 0, 20, bottomInset + 20),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -481,22 +509,42 @@ class _EditActivitySheetState extends State<_EditActivitySheet> {
               child: Container(
                 width: 42,
                 height: 5,
+                margin: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
                   color: const Color(0xFFD7DDE3),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
             ),
-            const SizedBox(height: 18),
-            Text(
-              widget.activity.title,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: TripUiColors.textPrimary,
-              ),
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8FFF0),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.edit_location_alt_rounded,
+                    color: TripUiColors.timelineGreen,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    widget.activity.title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: TripUiColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Row(
               children: [
                 Expanded(
@@ -516,31 +564,51 @@ class _EditActivitySheetState extends State<_EditActivitySheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            Text(
-              _isNote ? 'Noi dung ghi chu' : 'Dia chi',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: TripUiColors.textPrimary,
+            const SizedBox(height: 18),
+            if (_isNote) ...[
+              PlaceSearchField(
+                initialValue: _searchAddress.isNotEmpty ? _searchAddress : null,
+                labelText: 'Địa điểm',
+                hintText: 'Nhập tên địa điểm để tìm trên bản đồ...',
+                onAddressConfirmed: (addr) {
+                  setState(() => _searchAddress = addr);
+                },
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _addressController,
-              decoration: InputDecoration(
-                hintText: _isNote
-                    ? 'Nhap noi dung ghi chu'
-                    : 'Nhap dia chi de ve lai lo trinh tren map',
-                filled: true,
-                fillColor: const Color(0xFFF1F4F6),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+              const SizedBox(height: 16),
+              const Text(
+                'Nội dung ghi chú (không bắt buộc)',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: TripUiColors.textPrimary,
                 ),
               ),
-            ),
-            const SizedBox(height: 18),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _noteController,
+                minLines: 3,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  hintText: 'Ví dụ: Ăn tối, chụp ảnh lưu niệm...',
+                  filled: true,
+                  fillColor: const Color(0xFFF1F4F6),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ] else ...[
+              PlaceSearchField(
+                initialValue: _addressText,
+                labelText: 'Địa chỉ',
+                hintText: 'Nhập tên địa điểm để tìm trên bản đồ...',
+                onAddressConfirmed: (addr) {
+                  setState(() => _addressText = addr);
+                },
+              ),
+            ],
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -548,10 +616,17 @@ class _EditActivitySheetState extends State<_EditActivitySheet> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: TripUiColors.timelineGreen,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
-                icon: const Icon(Icons.check_rounded),
-                label: const Text('Luu thay doi'),
+                icon: const Icon(Icons.check_circle_rounded),
+                label: const Text(
+                  'Luu thay doi',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                ),
               ),
             ),
           ],

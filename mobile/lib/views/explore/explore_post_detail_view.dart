@@ -903,7 +903,7 @@ class _CommentItemState extends State<_CommentItem> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lá»—i gá»­i pháº£n há»“i: $e'),
+            content: Text('Lỗi gửi phản hồi: $e'),
             behavior: SnackBarBehavior.floating,
           ),
         );

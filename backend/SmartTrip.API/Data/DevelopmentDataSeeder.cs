@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using SmartTrip.Domain.Entities;
 using SmartTrip.Domain.Enums;
 

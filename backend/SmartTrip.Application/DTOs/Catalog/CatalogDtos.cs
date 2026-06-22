@@ -6,6 +6,7 @@ public class CatalogHomeDto
     public List<CatalogHotelCardDto> FeaturedHotels { get; set; } = new();
     public List<CatalogHotelCardDto> RecommendedHotels { get; set; } = new();
     public List<CatalogBusCardDto> FeaturedBuses { get; set; } = new();
+    public List<CatalogVehicleRentalShopCardDto> FeaturedVehicleRentalShops { get; set; } = new();
 }
 
 public class CatalogDestinationDto
@@ -126,4 +127,47 @@ public class CatalogReviewDto
     public int Rating { get; set; }
     public string Comment { get; set; } = string.Empty;
     public DateTime? CreatedAt { get; set; }
+}
+
+public class CatalogVehicleRentalSearchResultDto
+{
+    public int Total { get; set; }
+    public List<CatalogVehicleRentalShopCardDto> Items { get; set; } = new();
+}
+
+public class CatalogVehicleRentalShopCardDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string PhoneNumber { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+    public int DestinationId { get; set; }
+    public string DestinationName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string ImageUrl { get; set; } = string.Empty;
+    public decimal MinPricePerDay { get; set; }
+    public List<string> VehicleTypeLabels { get; set; } = new();
+}
+
+public class CatalogVehicleRentalShopDetailDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string PhoneNumber { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+    public int DestinationId { get; set; }
+    public string DestinationName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string ImageUrl { get; set; } = string.Empty;
+    public List<CatalogVehicleRentalOptionDto> VehicleOptions { get; set; } = new();
+}
+
+public class CatalogVehicleRentalOptionDto
+{
+    public int Id { get; set; }
+    public string VehicleType { get; set; } = string.Empty;
+    public string VehicleTypeLabel { get; set; } = string.Empty;
+    public int? MaxSeats { get; set; }
+    public decimal PricePerDay { get; set; }
+    public bool IsAvailable { get; set; }
 }

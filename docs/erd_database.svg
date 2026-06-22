@@ -1,0 +1,346 @@
+﻿<svg xmlns='http://www.w3.org/2000/svg' width='2330' height='1425' viewBox='0 0 2330 1425'>
+<defs><marker id='arrow' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='6' markerHeight='6' orient='auto'><path d='M 0 0 L 10 5 L 0 10 z' fill='#047857'/></marker><filter id='shadow' x='-8%' y='-8%' width='116%' height='116%'><feDropShadow dx='0' dy='1.4' stdDeviation='2' flood-color='#064e3b' flood-opacity='0.12'/></filter><style><![CDATA[text{font-family:Segoe UI,Arial,sans-serif}.mono{font-family:Consolas,Menlo,monospace}.rel{fill:none;stroke:#047857;stroke-width:1.25;stroke-linecap:square;stroke-linejoin:miter;shape-rendering:crispEdges}.label{font-size:9.5px;fill:#065f46}.card{shape-rendering:crispEdges}]]></style></defs>
+<rect width='100%' height='100%' fill='#f8fafc'/><text x='46' y='40' font-size='23' font-weight='800' fill='#064e3b'>Skynet Smart Trip ERD</text><text x='46' y='62' font-size='12.5' fill='#475569'>Clean compact layout - 30 tables, 34 foreign keys, orthogonal relationship lines</text>
+<g opacity='0.55'><rect x='40' y='82' width='790' height='310' rx='18' fill='#ecfdf5' stroke='#bbf7d0'/><rect x='860' y='82' width='1120' height='500' rx='18' fill='#ecfdf5' stroke='#bbf7d0'/><rect x='200' y='492' width='980' height='360' rx='18' fill='#ecfdf5' stroke='#bbf7d0'/><rect x='600' y='870' width='1180' height='460' rx='18' fill='#ecfdf5' stroke='#bbf7d0'/><rect x='1700' y='492' width='590' height='830' rx='18' fill='#ecfdf5' stroke='#bbf7d0'/></g>
+<g opacity='0.86'>
+<path class='rel' d='M 1218 207 V 388 H 1015 V 610' marker-end='url(#arrow)'><title>BlogPosts.AuthorId -> Users.Id</title></path>
+<text class='label mono' x='1116' y='405' text-anchor='middle'>AuthorId</text>
+<path class='rel' d='M 1160 138 V 212 H 1130 V 307' marker-end='url(#arrow)'><title>BlogPosts.DestinationId -> Destinations.Id</title></path>
+<text class='label mono' x='1145' y='219' text-anchor='middle'>DestinationId</text>
+<path class='rel' d='M 360 193 V 150 H 310 V 106' marker-end='url(#arrow)'><title>BusSchedules.CompanyId -> BusCompanies.Id</title></path>
+<text class='label mono' x='335' y='147' text-anchor='middle'>CompanyId</text>
+<path class='rel' d='M 590 124 H 755 V 282 H 900' marker-end='url(#arrow)'><title>BusSchedules.FromDestId -> Destinations.Id</title></path>
+<text class='label mono' x='745' y='200' text-anchor='middle'>FromDestId</text>
+<path class='rel' d='M 590 158 H 765 V 307 H 900' marker-end='url(#arrow)'><title>BusSchedules.ToDestId -> Destinations.Id</title></path>
+<text class='label mono' x='745' y='229' text-anchor='middle'>ToDestId</text>
+<path class='rel' d='M 470 850 H 665 V 653 H 900' marker-end='url(#arrow)'><title>ChatHistories.UserId -> Users.Id</title></path>
+<text class='label mono' x='685' y='749' text-anchor='middle'>UserId</text>
+<path class='rel' d='M 2020 728 H 1985 V 758 H 1970' marker-end='url(#arrow)'><title>ExploreComments.ExplorePostId -> ExplorePosts.Id</title></path>
+<text class='label mono' x='1995' y='740' text-anchor='middle'>ExplorePostId</text>
+<path class='rel' d='M 2250 767 H 2135 V 806 H 2020' marker-end='url(#arrow)'><title>ExploreComments.ParentCommentId -> ExploreComments.Id</title></path>
+<text class='label mono' x='2135' y='783' text-anchor='middle'>ParentCommentId</text>
+<path class='rel' d='M 2020 806 H 1585 V 653 H 1130' marker-end='url(#arrow)'><title>ExploreComments.UserId -> Users.Id</title></path>
+<text class='label mono' x='1575' y='727' text-anchor='middle'>UserId</text>
+<path class='rel' d='M 2020 546 V 672 H 1970 V 758' marker-end='url(#arrow)'><title>ExplorePostImages.ExplorePostId -> ExplorePosts.Id</title></path>
+<text class='label mono' x='1995' y='649' text-anchor='middle'>ExplorePostId</text>
+<path class='rel' d='M 2020 930 V 842 H 1970 V 793' marker-end='url(#arrow)'><title>ExplorePostLikes.ExplorePostId -> ExplorePosts.Id</title></path>
+<text class='label mono' x='1995' y='859' text-anchor='middle'>ExplorePostId</text>
+<path class='rel' d='M 2020 960 H 1565 V 653 H 1130' marker-end='url(#arrow)'><title>ExplorePostLikes.UserId -> Users.Id</title></path>
+<text class='label mono' x='1575' y='803' text-anchor='middle'>UserId</text>
+<path class='rel' d='M 2078 1045 H 1966 V 827 H 1855' marker-end='url(#arrow)'><title>ExplorePostRatings.ExplorePostId -> ExplorePosts.Id</title></path>
+<text class='label mono' x='1966' y='933' text-anchor='middle'>ExplorePostId</text>
+<path class='rel' d='M 2020 1114 H 1585 V 738 H 1130' marker-end='url(#arrow)'><title>ExplorePostRatings.UserId -> Users.Id</title></path>
+<text class='label mono' x='1575' y='923' text-anchor='middle'>UserId</text>
+<path class='rel' d='M 1740 793 H 1455 V 653 H 1130' marker-end='url(#arrow)'><title>ExplorePosts.AuthorId -> Users.Id</title></path>
+<text class='label mono' x='1435' y='720' text-anchor='middle'>AuthorId</text>
+<path class='rel' d='M 2078 1215 V 1001 H 1855 V 827' marker-end='url(#arrow)'><title>ExplorePostSaves.ExplorePostId -> ExplorePosts.Id</title></path>
+<text class='label mono' x='1966' y='1018' text-anchor='middle'>ExplorePostId</text>
+<path class='rel' d='M 2020 1275 H 1565 V 738 H 1130' marker-end='url(#arrow)'><title>ExplorePostSaves.UserId -> Users.Id</title></path>
+<text class='label mono' x='1575' y='1003' text-anchor='middle'>UserId</text>
+<path class='rel' d='M 1740 320 V 346 H 1690 V 371' marker-end='url(#arrow)'><title>HotelAmenityMapping.AmenityId -> Amenities.Id</title></path>
+<text class='label mono' x='1715' y='343' text-anchor='middle'>AmenityId</text>
+<path class='rel' d='M 1740 276 H 1585 V 310 H 1410' marker-end='url(#arrow)'><title>HotelAmenityMapping.HotelId -> Hotels.Id</title></path>
+<text class='label mono' x='1575' y='290' text-anchor='middle'>HotelId</text>
+<path class='rel' d='M 1180 310 L 1130 307' marker-end='url(#arrow)'><title>Hotels.DestinationId -> Destinations.Id</title></path>
+<text class='label mono' x='1155' y='305' text-anchor='middle'>DestinationId</text>
+<path class='rel' d='M 1460 1047 H 1275 V 943 H 1130' marker-end='url(#arrow)'><title>Invoices.TripId -> Trips.Id</title></path>
+<text class='label mono' x='1295' y='992' text-anchor='middle'>TripId</text>
+<path class='rel' d='M 470 634 H 675 V 696 H 900' marker-end='url(#arrow)'><title>Notifications.UserId -> Users.Id</title></path>
+<text class='label mono' x='685' y='662' text-anchor='middle'>UserId</text>
+<path class='rel' d='M 1180 1134 V 1081 H 1130 V 1028' marker-end='url(#arrow)'><title>Payments.TripId -> Trips.Id</title></path>
+<text class='label mono' x='1155' y='1078' text-anchor='middle'>TripId</text>
+<path class='rel' d='M 1460 638 H 1305 V 943 H 1130' marker-end='url(#arrow)'><title>Reviews.TripId -> Trips.Id</title></path>
+<text class='label mono' x='1295' y='787' text-anchor='middle'>TripId</text>
+<path class='rel' d='M 1460 569 H 1315 V 696 H 1130' marker-end='url(#arrow)'><title>Reviews.UserId -> Users.Id</title></path>
+<text class='label mono' x='1295' y='629' text-anchor='middle'>UserId</text>
+<path class='rel' d='M 1460 216 V 258 H 1410 V 340' marker-end='url(#arrow)'><title>Rooms.HotelId -> Hotels.Id</title></path>
+<text class='label mono' x='1435' y='275' text-anchor='middle'>HotelId</text>
+<path class='rel' d='M 640 180 V 142 H 590 V 124' marker-end='url(#arrow)'><title>Seats.ScheduleId -> BusSchedules.Id</title></path>
+<text class='label mono' x='615' y='149' text-anchor='middle'>ScheduleId</text>
+<path class='rel' d='M 1180 916 V 951 H 1130 V 986' marker-end='url(#arrow)'><title>TripItineraries.TripId -> Trips.Id</title></path>
+<text class='label mono' x='1155' y='948' text-anchor='middle'>TripId</text>
+<path class='rel' d='M 1015 900 V 626 H 1072 V 333' marker-end='url(#arrow)'><title>Trips.DestinationId -> Destinations.Id</title></path>
+<text class='label mono' x='1044' y='613' text-anchor='middle'>DestinationId</text>
+<path class='rel' d='M 1072 900 V 860 H 958 V 781' marker-end='url(#arrow)'><title>Trips.UserId -> Users.Id</title></path>
+<text class='label mono' x='1015' y='837' text-anchor='middle'>UserId</text>
+<path class='rel' d='M 750 850 V 753 H 900 V 696' marker-end='url(#arrow)'><title>UserFcmTokens.UserId -> Users.Id</title></path>
+<text class='label mono' x='825' y='770' text-anchor='middle'>UserId</text>
+<path class='rel' d='M 750 722 H 815 V 738 H 900' marker-end='url(#arrow)'><title>UserPreferences.UserId -> Users.Id</title></path>
+<text class='label mono' x='825' y='727' text-anchor='middle'>UserId</text>
+<path class='rel' d='M 750 597 H 825 V 653 H 900' marker-end='url(#arrow)'><title>UserWallets.UserId -> Users.Id</title></path>
+<text class='label mono' x='825' y='622' text-anchor='middle'>UserId</text>
+<path class='rel' d='M 698 1070 H 866 V 781 H 1015' marker-end='url(#arrow)'><title>Wishlists.UserId -> Users.Id</title></path>
+<text class='label mono' x='856' y='923' text-anchor='middle'>UserId</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='1160' y='70' width='230' height='137' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='1160' y='70' width='230' height='30' rx='7' fill='#059669'/><path d='M 1160 92 H 1390 V 100 H 1160 Z' fill='#059669'/><text x='1170' y='90' font-size='13.3' font-weight='800' fill='#ffffff'>BlogPosts</text>
+<text class='mono' x='1170' y='118' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='1194' y='118' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='1381' y='118' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='1170' y='135' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='1194' y='135' font-size='10.8' fill='#0f172a'>AuthorId</text><text class='mono' x='1381' y='135' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='1170' y='152' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='1194' y='152' font-size='10.8' fill='#0f172a'>DestinationId</text><text class='mono' x='1381' y='152' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='1175' cy='165' r='2' fill='#a7f3d0'/>
+<text class='mono' x='1186' y='169' font-size='10.8' fill='#0f172a'>Title</text><text class='mono' x='1381' y='169' font-size='9.4' fill='#64748b' text-anchor='end'>nvarchar(255</text>
+<text class='mono' x='1170' y='186' font-size='10.4' fill='#64748b'>+3 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='80' y='80' width='230' height='103' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='80' y='80' width='230' height='30' rx='7' fill='#059669'/><path d='M 80 102 H 310 V 110 H 80 Z' fill='#059669'/><text x='90' y='100' font-size='13.3' font-weight='800' fill='#ffffff'>BusCompanies</text>
+<text class='mono' x='90' y='128' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='114' y='128' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='301' y='128' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='95' cy='141' r='2' fill='#a7f3d0'/>
+<text class='mono' x='106' y='145' font-size='10.8' fill='#0f172a'>Name</text><text class='mono' x='301' y='145' font-size='9.4' fill='#64748b' text-anchor='end'>nvarchar(100</text>
+<text class='mono' x='90' y='162' font-size='10.4' fill='#64748b'>+2 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='360' y='90' width='230' height='137' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='360' y='90' width='230' height='30' rx='7' fill='#059669'/><path d='M 360 112 H 590 V 120 H 360 Z' fill='#059669'/><text x='370' y='110' font-size='13.3' font-weight='800' fill='#ffffff'>BusSchedules</text>
+<text class='mono' x='370' y='138' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='394' y='138' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='581' y='138' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='370' y='155' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='394' y='155' font-size='10.8' fill='#0f172a'>CompanyId</text><text class='mono' x='581' y='155' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='370' y='172' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='394' y='172' font-size='10.8' fill='#0f172a'>FromDestId</text><text class='mono' x='581' y='172' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='370' y='189' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='394' y='189' font-size='10.8' fill='#0f172a'>ToDestId</text><text class='mono' x='581' y='189' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='370' y='206' font-size='10.4' fill='#64748b'>+5 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='640' y='90' width='230' height='120' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='640' y='90' width='230' height='30' rx='7' fill='#059669'/><path d='M 640 112 H 870 V 120 H 640 Z' fill='#059669'/><text x='650' y='110' font-size='13.3' font-weight='800' fill='#ffffff'>Seats</text>
+<text class='mono' x='650' y='138' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='674' y='138' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='861' y='138' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='650' y='155' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='674' y='155' font-size='10.8' fill='#0f172a'>ScheduleId</text><text class='mono' x='861' y='155' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='655' cy='168' r='2' fill='#a7f3d0'/>
+<text class='mono' x='666' y='172' font-size='10.8' fill='#0f172a'>Status</text><text class='mono' x='861' y='172' font-size='9.4' fill='#64748b' text-anchor='end'>nvarchar(20)</text>
+<text class='mono' x='650' y='189' font-size='10.4' fill='#64748b'>+3 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='1460' y='165' width='230' height='103' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='1460' y='165' width='230' height='30' rx='7' fill='#059669'/><path d='M 1460 187 H 1690 V 195 H 1460 Z' fill='#059669'/><text x='1470' y='185' font-size='13.3' font-weight='800' fill='#ffffff'>Rooms</text>
+<text class='mono' x='1470' y='213' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='1494' y='213' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='1681' y='213' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='1470' y='230' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='1494' y='230' font-size='10.8' fill='#0f172a'>HotelId</text><text class='mono' x='1681' y='230' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='1470' y='247' font-size='10.4' fill='#64748b'>+5 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='900' y='230' width='230' height='103' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='900' y='230' width='230' height='30' rx='7' fill='#059669'/><path d='M 900 252 H 1130 V 260 H 900 Z' fill='#059669'/><text x='910' y='250' font-size='13.3' font-weight='800' fill='#ffffff'>Destinations</text>
+<text class='mono' x='910' y='278' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='934' y='278' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='1121' y='278' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='915' cy='291' r='2' fill='#a7f3d0'/>
+<text class='mono' x='926' y='295' font-size='10.8' fill='#0f172a'>Name</text><text class='mono' x='1121' y='295' font-size='9.4' fill='#64748b' text-anchor='end'>nvarchar(100</text>
+<text class='mono' x='910' y='312' font-size='10.4' fill='#64748b'>+3 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='1180' y='250' width='230' height='120' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='1180' y='250' width='230' height='30' rx='7' fill='#059669'/><path d='M 1180 272 H 1410 V 280 H 1180 Z' fill='#059669'/><text x='1190' y='270' font-size='13.3' font-weight='800' fill='#ffffff'>Hotels</text>
+<text class='mono' x='1190' y='298' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='1214' y='298' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='1401' y='298' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='1190' y='315' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='1214' y='315' font-size='10.8' fill='#0f172a'>DestinationId</text><text class='mono' x='1401' y='315' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='1195' cy='328' r='2' fill='#a7f3d0'/>
+<text class='mono' x='1206' y='332' font-size='10.8' fill='#0f172a'>Name</text><text class='mono' x='1401' y='332' font-size='9.4' fill='#64748b' text-anchor='end'>nvarchar(200</text>
+<text class='mono' x='1190' y='349' font-size='10.4' fill='#64748b'>+4 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='1740' y='255' width='230' height='86' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='1740' y='255' width='230' height='30' rx='7' fill='#059669'/><path d='M 1740 277 H 1970 V 285 H 1740 Z' fill='#059669'/><text x='1750' y='275' font-size='13.3' font-weight='800' fill='#ffffff'>HotelAmenityMapping</text>
+<text class='mono' x='1750' y='303' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='1774' y='303' font-size='10.8' fill='#0f172a'>HotelId</text><text class='mono' x='1961' y='303' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='1750' y='320' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='1774' y='320' font-size='10.8' fill='#0f172a'>AmenityId</text><text class='mono' x='1961' y='320' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='1460' y='345' width='230' height='103' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='1460' y='345' width='230' height='30' rx='7' fill='#059669'/><path d='M 1460 367 H 1690 V 375 H 1460 Z' fill='#059669'/><text x='1470' y='365' font-size='13.3' font-weight='800' fill='#ffffff'>Amenities</text>
+<text class='mono' x='1470' y='393' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='1494' y='393' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='1681' y='393' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='1475' cy='406' r='2' fill='#a7f3d0'/>
+<text class='mono' x='1486' y='410' font-size='10.8' fill='#0f172a'>Name</text><text class='mono' x='1681' y='410' font-size='9.4' fill='#64748b' text-anchor='end'>nvarchar(100</text>
+<text class='mono' x='1470' y='427' font-size='10.4' fill='#64748b'>+1 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='1180' y='455' width='230' height='86' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='1180' y='455' width='230' height='30' rx='7' fill='#059669'/><path d='M 1180 477 H 1410 V 485 H 1180 Z' fill='#059669'/><text x='1190' y='475' font-size='13.3' font-weight='800' fill='#ffffff'>Galleries</text>
+<text class='mono' x='1190' y='503' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='1214' y='503' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='1401' y='503' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='1190' y='520' font-size='10.4' fill='#64748b'>+3 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='520' y='520' width='230' height='103' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='520' y='520' width='230' height='30' rx='7' fill='#059669'/><path d='M 520 542 H 750 V 550 H 520 Z' fill='#059669'/><text x='530' y='540' font-size='13.3' font-weight='800' fill='#ffffff'>UserWallets</text>
+<text class='mono' x='530' y='568' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='554' y='568' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='741' y='568' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='530' y='585' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='554' y='585' font-size='10.8' fill='#0f172a'>UserId</text><text class='mono' x='741' y='585' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='530' y='602' font-size='10.4' fill='#64748b'>+2 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='2020' y='520' width='230' height='103' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='2020' y='520' width='230' height='30' rx='7' fill='#059669'/><path d='M 2020 542 H 2250 V 550 H 2020 Z' fill='#059669'/><text x='2030' y='540' font-size='13.3' font-weight='800' fill='#ffffff'>ExplorePostImages</text>
+<text class='mono' x='2030' y='568' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='2054' y='568' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='2241' y='568' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='2030' y='585' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='2054' y='585' font-size='10.8' fill='#0f172a'>ExplorePostId</text><text class='mono' x='2241' y='585' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='2030' y='602' font-size='10.4' fill='#64748b'>+2 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='1460' y='535' width='230' height='137' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='1460' y='535' width='230' height='30' rx='7' fill='#059669'/><path d='M 1460 557 H 1690 V 565 H 1460 Z' fill='#059669'/><text x='1470' y='555' font-size='13.3' font-weight='800' fill='#ffffff'>Reviews</text>
+<text class='mono' x='1470' y='583' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='1494' y='583' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='1681' y='583' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='1470' y='600' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='1494' y='600' font-size='10.8' fill='#0f172a'>UserId</text><text class='mono' x='1681' y='600' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='1470' y='617' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='1494' y='617' font-size='10.8' fill='#0f172a'>TripId</text><text class='mono' x='1681' y='617' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='1475' cy='630' r='2' fill='#a7f3d0'/>
+<text class='mono' x='1486' y='634' font-size='10.8' fill='#0f172a'>CreatedAt</text><text class='mono' x='1681' y='634' font-size='9.4' fill='#64748b' text-anchor='end'>datetime</text>
+<text class='mono' x='1470' y='651' font-size='10.4' fill='#64748b'>+4 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='240' y='600' width='230' height='137' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='240' y='600' width='230' height='30' rx='7' fill='#059669'/><path d='M 240 622 H 470 V 630 H 240 Z' fill='#059669'/><text x='250' y='620' font-size='13.3' font-weight='800' fill='#ffffff'>Notifications</text>
+<text class='mono' x='250' y='648' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='274' y='648' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='461' y='648' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='250' y='665' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='274' y='665' font-size='10.8' fill='#0f172a'>UserId</text><text class='mono' x='461' y='665' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='255' cy='678' r='2' fill='#a7f3d0'/>
+<text class='mono' x='266' y='682' font-size='10.8' fill='#0f172a'>Title</text><text class='mono' x='461' y='682' font-size='9.4' fill='#64748b' text-anchor='end'>nvarchar(200</text>
+<circle cx='255' cy='695' r='2' fill='#a7f3d0'/>
+<text class='mono' x='266' y='699' font-size='10.8' fill='#0f172a'>CreatedAt</text><text class='mono' x='461' y='699' font-size='9.4' fill='#64748b' text-anchor='end'>datetime</text>
+<text class='mono' x='250' y='716' font-size='10.4' fill='#64748b'>+6 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='900' y='610' width='230' height='171' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='900' y='610' width='230' height='30' rx='7' fill='#059669'/><path d='M 900 632 H 1130 V 640 H 900 Z' fill='#059669'/><text x='910' y='630' font-size='13.3' font-weight='800' fill='#ffffff'>Users</text>
+<text class='mono' x='910' y='658' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='934' y='658' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='1121' y='658' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='915' cy='671' r='2' fill='#a7f3d0'/>
+<text class='mono' x='926' y='675' font-size='10.8' fill='#0f172a'>Email</text><text class='mono' x='1121' y='675' font-size='9.4' fill='#64748b' text-anchor='end'>varchar(100)</text>
+<circle cx='915' cy='688' r='2' fill='#a7f3d0'/>
+<text class='mono' x='926' y='692' font-size='10.8' fill='#0f172a'>FullName</text><text class='mono' x='1121' y='692' font-size='9.4' fill='#64748b' text-anchor='end'>nvarchar(100</text>
+<circle cx='915' cy='705' r='2' fill='#a7f3d0'/>
+<text class='mono' x='926' y='709' font-size='10.8' fill='#0f172a'>Role</text><text class='mono' x='1121' y='709' font-size='9.4' fill='#64748b' text-anchor='end'>nvarchar(20)</text>
+<circle cx='915' cy='722' r='2' fill='#a7f3d0'/>
+<text class='mono' x='926' y='726' font-size='10.8' fill='#0f172a'>CreatedAt</text><text class='mono' x='1121' y='726' font-size='9.4' fill='#64748b' text-anchor='end'>datetime</text>
+<circle cx='915' cy='739' r='2' fill='#a7f3d0'/>
+<text class='mono' x='926' y='743' font-size='10.8' fill='#0f172a'>UserName</text><text class='mono' x='1121' y='743' font-size='9.4' fill='#64748b' text-anchor='end'>varchar(50)</text>
+<text class='mono' x='910' y='760' font-size='10.4' fill='#64748b'>+17 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='520' y='670' width='230' height='103' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='520' y='670' width='230' height='30' rx='7' fill='#059669'/><path d='M 520 692 H 750 V 700 H 520 Z' fill='#059669'/><text x='530' y='690' font-size='13.3' font-weight='800' fill='#ffffff'>UserPreferences</text>
+<text class='mono' x='530' y='718' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='554' y='718' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='741' y='718' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='530' y='735' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='554' y='735' font-size='10.8' fill='#0f172a'>UserId</text><text class='mono' x='741' y='735' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='530' y='752' font-size='10.4' fill='#64748b'>+3 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='1740' y='690' width='230' height='137' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='1740' y='690' width='230' height='30' rx='7' fill='#059669'/><path d='M 1740 712 H 1970 V 720 H 1740 Z' fill='#059669'/><text x='1750' y='710' font-size='13.3' font-weight='800' fill='#ffffff'>ExplorePosts</text>
+<text class='mono' x='1750' y='738' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='1774' y='738' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='1961' y='738' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='1750' y='755' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='1774' y='755' font-size='10.8' fill='#0f172a'>AuthorId</text><text class='mono' x='1961' y='755' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='1755' cy='768' r='2' fill='#a7f3d0'/>
+<text class='mono' x='1766' y='772' font-size='10.8' fill='#0f172a'>Title</text><text class='mono' x='1961' y='772' font-size='9.4' fill='#64748b' text-anchor='end'>nvarchar(200</text>
+<circle cx='1755' cy='785' r='2' fill='#a7f3d0'/>
+<text class='mono' x='1766' y='789' font-size='10.8' fill='#0f172a'>CreatedAt</text><text class='mono' x='1961' y='789' font-size='9.4' fill='#64748b' text-anchor='end'>datetime</text>
+<text class='mono' x='1750' y='806' font-size='10.4' fill='#64748b'>+16 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='2020' y='690' width='230' height='154' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='2020' y='690' width='230' height='30' rx='7' fill='#059669'/><path d='M 2020 712 H 2250 V 720 H 2020 Z' fill='#059669'/><text x='2030' y='710' font-size='13.3' font-weight='800' fill='#ffffff'>ExploreComments</text>
+<text class='mono' x='2030' y='738' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='2054' y='738' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='2241' y='738' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='2030' y='755' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='2054' y='755' font-size='10.8' fill='#0f172a'>ExplorePostId</text><text class='mono' x='2241' y='755' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='2030' y='772' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='2054' y='772' font-size='10.8' fill='#0f172a'>UserId</text><text class='mono' x='2241' y='772' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='2030' y='789' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='2054' y='789' font-size='10.8' fill='#0f172a'>ParentCommentId</text><text class='mono' x='2241' y='789' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='2035' cy='802' r='2' fill='#a7f3d0'/>
+<text class='mono' x='2046' y='806' font-size='10.8' fill='#0f172a'>CreatedAt</text><text class='mono' x='2241' y='806' font-size='9.4' fill='#64748b' text-anchor='end'>datetime</text>
+<text class='mono' x='2030' y='823' font-size='10.4' fill='#64748b'>+3 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='240' y='760' width='230' height='120' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='240' y='760' width='230' height='30' rx='7' fill='#059669'/><path d='M 240 782 H 470 V 790 H 240 Z' fill='#059669'/><text x='250' y='780' font-size='13.3' font-weight='800' fill='#ffffff'>ChatHistories</text>
+<text class='mono' x='250' y='808' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='274' y='808' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='461' y='808' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='250' y='825' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='274' y='825' font-size='10.8' fill='#0f172a'>UserId</text><text class='mono' x='461' y='825' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='255' cy='838' r='2' fill='#a7f3d0'/>
+<text class='mono' x='266' y='842' font-size='10.8' fill='#0f172a'>CreatedAt</text><text class='mono' x='461' y='842' font-size='9.4' fill='#64748b' text-anchor='end'>datetime</text>
+<text class='mono' x='250' y='859' font-size='10.4' fill='#64748b'>+6 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='520' y='820' width='230' height='120' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='520' y='820' width='230' height='30' rx='7' fill='#059669'/><path d='M 520 842 H 750 V 850 H 520 Z' fill='#059669'/><text x='530' y='840' font-size='13.3' font-weight='800' fill='#ffffff'>UserFcmTokens</text>
+<text class='mono' x='530' y='868' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='554' y='868' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='741' y='868' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='530' y='885' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='554' y='885' font-size='10.8' fill='#0f172a'>UserId</text><text class='mono' x='741' y='885' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='535' cy='898' r='2' fill='#a7f3d0'/>
+<text class='mono' x='546' y='902' font-size='10.8' fill='#0f172a'>CreatedAt</text><text class='mono' x='741' y='902' font-size='9.4' fill='#64748b' text-anchor='end'>datetime</text>
+<text class='mono' x='530' y='919' font-size='10.4' fill='#64748b'>+6 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='2020' y='870' width='230' height='120' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='2020' y='870' width='230' height='30' rx='7' fill='#059669'/><path d='M 2020 892 H 2250 V 900 H 2020 Z' fill='#059669'/><text x='2030' y='890' font-size='13.3' font-weight='800' fill='#ffffff'>ExplorePostLikes</text>
+<text class='mono' x='2030' y='918' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='2054' y='918' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='2241' y='918' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='2030' y='935' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='2054' y='935' font-size='10.8' fill='#0f172a'>ExplorePostId</text><text class='mono' x='2241' y='935' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='2030' y='952' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='2054' y='952' font-size='10.8' fill='#0f172a'>UserId</text><text class='mono' x='2241' y='952' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='2035' cy='965' r='2' fill='#a7f3d0'/>
+<text class='mono' x='2046' y='969' font-size='10.8' fill='#0f172a'>CreatedAt</text><text class='mono' x='2241' y='969' font-size='9.4' fill='#64748b' text-anchor='end'>datetime</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='1180' y='890' width='230' height='103' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='1180' y='890' width='230' height='30' rx='7' fill='#059669'/><path d='M 1180 912 H 1410 V 920 H 1180 Z' fill='#059669'/><text x='1190' y='910' font-size='13.3' font-weight='800' fill='#ffffff'>TripItineraries</text>
+<text class='mono' x='1190' y='938' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='1214' y='938' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='1401' y='938' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='1190' y='955' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='1214' y='955' font-size='10.8' fill='#0f172a'>TripId</text><text class='mono' x='1401' y='955' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='1190' y='972' font-size='10.4' fill='#64748b'>+13 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='900' y='900' width='230' height='171' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='900' y='900' width='230' height='30' rx='7' fill='#059669'/><path d='M 900 922 H 1130 V 930 H 900 Z' fill='#059669'/><text x='910' y='920' font-size='13.3' font-weight='800' fill='#ffffff'>Trips</text>
+<text class='mono' x='910' y='948' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='934' y='948' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='1121' y='948' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='910' y='965' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='934' y='965' font-size='10.8' fill='#0f172a'>UserId</text><text class='mono' x='1121' y='965' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='910' y='982' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='934' y='982' font-size='10.8' fill='#0f172a'>DestinationId</text><text class='mono' x='1121' y='982' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='915' cy='995' r='2' fill='#a7f3d0'/>
+<text class='mono' x='926' y='999' font-size='10.8' fill='#0f172a'>Title</text><text class='mono' x='1121' y='999' font-size='9.4' fill='#64748b' text-anchor='end'>nvarchar(200</text>
+<circle cx='915' cy='1012' r='2' fill='#a7f3d0'/>
+<text class='mono' x='926' y='1016' font-size='10.8' fill='#0f172a'>Status</text><text class='mono' x='1121' y='1016' font-size='9.4' fill='#64748b' text-anchor='end'>nvarchar(50)</text>
+<circle cx='915' cy='1029' r='2' fill='#a7f3d0'/>
+<text class='mono' x='926' y='1033' font-size='10.8' fill='#0f172a'>CreatedAt</text><text class='mono' x='1121' y='1033' font-size='9.4' fill='#64748b' text-anchor='end'>datetime</text>
+<text class='mono' x='910' y='1050' font-size='10.4' fill='#64748b'>+4 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='1460' y='970' width='230' height='103' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='1460' y='970' width='230' height='30' rx='7' fill='#059669'/><path d='M 1460 992 H 1690 V 1000 H 1460 Z' fill='#059669'/><text x='1470' y='990' font-size='13.3' font-weight='800' fill='#ffffff'>Invoices</text>
+<text class='mono' x='1470' y='1018' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='1494' y='1018' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='1681' y='1018' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='1470' y='1035' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='1494' y='1035' font-size='10.8' fill='#0f172a'>TripId</text><text class='mono' x='1681' y='1035' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='1470' y='1052' font-size='10.4' fill='#64748b'>+4 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='2020' y='1045' width='230' height='137' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='2020' y='1045' width='230' height='30' rx='7' fill='#059669'/><path d='M 2020 1067 H 2250 V 1075 H 2020 Z' fill='#059669'/><text x='2030' y='1065' font-size='13.3' font-weight='800' fill='#ffffff'>ExplorePostRatings</text>
+<text class='mono' x='2030' y='1093' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='2054' y='1093' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='2241' y='1093' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='2030' y='1110' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='2054' y='1110' font-size='10.8' fill='#0f172a'>ExplorePostId</text><text class='mono' x='2241' y='1110' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='2030' y='1127' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='2054' y='1127' font-size='10.8' fill='#0f172a'>UserId</text><text class='mono' x='2241' y='1127' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='2035' cy='1140' r='2' fill='#a7f3d0'/>
+<text class='mono' x='2046' y='1144' font-size='10.8' fill='#0f172a'>CreatedAt</text><text class='mono' x='2241' y='1144' font-size='9.4' fill='#64748b' text-anchor='end'>datetime</text>
+<text class='mono' x='2030' y='1161' font-size='10.4' fill='#64748b'>+2 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='1180' y='1065' width='230' height='137' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='1180' y='1065' width='230' height='30' rx='7' fill='#059669'/><path d='M 1180 1087 H 1410 V 1095 H 1180 Z' fill='#059669'/><text x='1190' y='1085' font-size='13.3' font-weight='800' fill='#ffffff'>Payments</text>
+<text class='mono' x='1190' y='1113' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='1214' y='1113' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='1401' y='1113' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='1190' y='1130' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='1214' y='1130' font-size='10.8' fill='#0f172a'>TripId</text><text class='mono' x='1401' y='1130' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='1195' cy='1143' r='2' fill='#a7f3d0'/>
+<text class='mono' x='1206' y='1147' font-size='10.8' fill='#0f172a'>Status</text><text class='mono' x='1401' y='1147' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='1195' cy='1160' r='2' fill='#a7f3d0'/>
+<text class='mono' x='1206' y='1164' font-size='10.8' fill='#0f172a'>CreatedAt</text><text class='mono' x='1401' y='1164' font-size='9.4' fill='#64748b' text-anchor='end'>datetime</text>
+<text class='mono' x='1190' y='1181' font-size='10.4' fill='#64748b'>+14 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='640' y='1070' width='230' height='120' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='640' y='1070' width='230' height='30' rx='7' fill='#059669'/><path d='M 640 1092 H 870 V 1100 H 640 Z' fill='#059669'/><text x='650' y='1090' font-size='13.3' font-weight='800' fill='#ffffff'>Wishlists</text>
+<text class='mono' x='650' y='1118' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='674' y='1118' font-size='10.8' fill='#0f172a'>WishId</text><text class='mono' x='861' y='1118' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='650' y='1135' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='674' y='1135' font-size='10.8' fill='#0f172a'>UserId</text><text class='mono' x='861' y='1135' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='655' cy='1148' r='2' fill='#a7f3d0'/>
+<text class='mono' x='666' y='1152' font-size='10.8' fill='#0f172a'>CreatedAt</text><text class='mono' x='861' y='1152' font-size='9.4' fill='#64748b' text-anchor='end'>datetime</text>
+<text class='mono' x='650' y='1169' font-size='10.4' fill='#64748b'>+2 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='1460' y='1160' width='230' height='103' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='1460' y='1160' width='230' height='30' rx='7' fill='#059669'/><path d='M 1460 1182 H 1690 V 1190 H 1460 Z' fill='#059669'/><text x='1470' y='1180' font-size='13.3' font-weight='800' fill='#ffffff'>Promotions</text>
+<text class='mono' x='1470' y='1208' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='1494' y='1208' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='1681' y='1208' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='1475' cy='1221' r='2' fill='#a7f3d0'/>
+<text class='mono' x='1486' y='1225' font-size='10.8' fill='#0f172a'>Code</text><text class='mono' x='1681' y='1225' font-size='9.4' fill='#64748b' text-anchor='end'>varchar(50)</text>
+<text class='mono' x='1470' y='1242' font-size='10.4' fill='#64748b'>+5 columns</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='2020' y='1215' width='230' height='120' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='2020' y='1215' width='230' height='30' rx='7' fill='#059669'/><path d='M 2020 1237 H 2250 V 1245 H 2020 Z' fill='#059669'/><text x='2030' y='1235' font-size='13.3' font-weight='800' fill='#ffffff'>ExplorePostSaves</text>
+<text class='mono' x='2030' y='1263' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='2054' y='1263' font-size='10.8' fill='#0f172a'>Id</text><text class='mono' x='2241' y='1263' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='2030' y='1280' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='2054' y='1280' font-size='10.8' fill='#0f172a'>ExplorePostId</text><text class='mono' x='2241' y='1280' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<text class='mono' x='2030' y='1297' font-size='10.3' font-weight='800' fill='#047857'>FK</text>
+<text class='mono' x='2054' y='1297' font-size='10.8' fill='#0f172a'>UserId</text><text class='mono' x='2241' y='1297' font-size='9.4' fill='#64748b' text-anchor='end'>int</text>
+<circle cx='2035' cy='1310' r='2' fill='#a7f3d0'/>
+<text class='mono' x='2046' y='1314' font-size='10.8' fill='#0f172a'>CreatedAt</text><text class='mono' x='2241' y='1314' font-size='9.4' fill='#64748b' text-anchor='end'>datetime</text>
+</g>
+<g filter='url(#shadow)'><rect class='card' x='80' y='1240' width='230' height='86' rx='7' fill='#ffffff' stroke='#059669' stroke-width='1.35'/><rect class='card' x='80' y='1240' width='230' height='30' rx='7' fill='#059669'/><path d='M 80 1262 H 310 V 1270 H 80 Z' fill='#059669'/><text x='90' y='1260' font-size='13.3' font-weight='800' fill='#ffffff'>__EFMigrationsHistory</text>
+<text class='mono' x='90' y='1288' font-size='10.3' font-weight='800' fill='#047857'>PK</text>
+<text class='mono' x='114' y='1288' font-size='10.8' fill='#0f172a'>MigrationId</text><text class='mono' x='301' y='1288' font-size='9.4' fill='#64748b' text-anchor='end'>nvarchar(150</text>
+<text class='mono' x='90' y='1305' font-size='10.4' fill='#64748b'>+1 columns</text>
+</g>
+<g><rect x='46' y='1367' width='545' height='32' rx='7' fill='#ffffff' stroke='#a7f3d0'/><text class='mono' x='62' y='1387' font-size='12' font-weight='800' fill='#047857'>PK</text><text x='92' y='1387' font-size='12' fill='#334155'>Primary key</text><text class='mono' x='190' y='1387' font-size='12' font-weight='800' fill='#047857'>FK</text><text x='220' y='1387' font-size='12' fill='#334155'>Foreign key</text><path class='rel' d='M 332 1383 H 382 V 1371 H 430' marker-end='url(#arrow)'/><text x='445' y='1387' font-size='12' fill='#334155'>vuong goc 90 do</text></g></svg>
