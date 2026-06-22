@@ -5,6 +5,7 @@ import '../../core/app_theme.dart';
 import '../../models/catalog_models.dart';
 import '../../providers/catalog_provider.dart';
 import '../../utils/app_currency_formatter.dart';
+import '../../widgets/app_network_image.dart';
 import 'vehicle_rental_detail_screen.dart';
 
 class VehicleRentalListScreen extends StatefulWidget {
@@ -166,8 +167,8 @@ class _VehicleRentalShopCard extends StatelessWidget {
               borderRadius: const BorderRadius.horizontal(
                 left: Radius.circular(22),
               ),
-              child: Image.network(
-                shop.imageUrl,
+              child: AppNetworkImage(
+                imageUrl: shop.imageUrl,
                 width: 110,
                 height: 120,
                 fit: BoxFit.cover,

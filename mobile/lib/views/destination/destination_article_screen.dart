@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/explore_post.dart';
 import '../../providers/destination_provider.dart';
+import '../../widgets/app_network_image.dart';
 import '../catalog/search_view.dart';
 
 class DestinationArticleScreen extends StatelessWidget {
@@ -116,8 +117,8 @@ class DestinationArticleScreen extends StatelessWidget {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            Image.network(
-              imageUrl,
+            AppNetworkImage(
+              imageUrl: imageUrl,
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => Container(color: Colors.grey[300]),
             ),
@@ -246,8 +247,8 @@ class DestinationArticleScreen extends StatelessWidget {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        p['url'],
+                      child: AppNetworkImage(
+                        imageUrl: p['url'],
                         height: 200,
                         width: double.infinity,
                         fit: BoxFit.cover,

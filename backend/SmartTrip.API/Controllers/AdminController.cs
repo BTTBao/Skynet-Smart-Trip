@@ -371,6 +371,13 @@ public class AdminController : ControllerBase
         return Ok(shop);
     }
 
+    [HttpPatch("vehicle-rental/shops/{shopId:int}/payment")]
+    public async Task<IActionResult> UpdateVehicleRentalShopPayment(int shopId, [FromBody] AdminVehicleRentalShopPaymentRequest request)
+    {
+        var shop = await _adminService.UpdateVehicleRentalShopPaymentAsync(shopId, request);
+        return Ok(shop);
+    }
+
     [HttpDelete("vehicle-rental/shops/{shopId:int}")]
     public async Task<IActionResult> DeleteVehicleRentalShop(int shopId)
     {

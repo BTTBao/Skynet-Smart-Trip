@@ -62,7 +62,26 @@ const statusConfig = {
 const formatCompactNumber = (number: number) =>
   new Intl.NumberFormat('vi-VN', { notation: 'compact', maximumFractionDigits: 1 }).format(number);
 
-const formatDateInput = (date: Date) => date.toISOString().slice(0, 10);
+const formatDateInput = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+const createRollingMonthRange = (monthCount: number) => {
+  const endDate = new Date();
+  const startDate = new Date(endDate);
+
+  startDate.setDate(1);
+  startDate.setMonth(startDate.getMonth() - (monthCount - 1));
+
+  return {
+    startDate: formatDateInput(startDate),
+    endDate: formatDateInput(endDate),
+  };
+};
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -71,15 +90,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [recentStatus, setRecentStatus] = useState<'all' | AdminRecentBooking['status']>('all');
   const [selectedBooking, setSelectedBooking] = useState<AdminRecentBooking | null>(null);
-  const [range, setRange] = useState(() => {
-    const today = new Date();
-    const start = new Date(today);
-    start.setMonth(today.getMonth() - 5);
-    return {
-      startDate: formatDateInput(start),
-      endDate: formatDateInput(today),
-    };
-  });
+  const [range, setRange] = useState(() => createRollingMonthRange(6));
 
   const loadDashboard = async (params = range) => {
     try {
@@ -141,13 +152,7 @@ export default function DashboardPage() {
   };
 
   const setQuickRange = async (months: number) => {
-    const endDate = new Date();
-    const startDate = new Date(endDate);
-    startDate.setMonth(endDate.getMonth() - months);
-    const nextRange = {
-      startDate: formatDateInput(startDate),
-      endDate: formatDateInput(endDate),
-    };
+    const nextRange = createRollingMonthRange(months);
     setRange(nextRange);
 
     setLoading(true);
@@ -180,6 +185,7 @@ export default function DashboardPage() {
     ...stats.chartSeries.flatMap((item) => [item.revenue, item.profit]),
     1
   );
+  const chartMinWidth = Math.max(stats.chartSeries.length * 72, 640);
 
   return (
     <div className="px-4 lg:px-6 space-y-6">
@@ -193,8 +199,8 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-card p-3 rounded-xl border shadow-sm">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-card p-3 rounded-xl border shadow-sm min-w-0 w-full xl:w-auto">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <Input
               type="date"
               value={range.startDate}
@@ -209,15 +215,15 @@ export default function DashboardPage() {
               className="h-9 w-36 text-xs bg-muted/40 border-none rounded-lg"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={handleApplyRange} className="h-9 cursor-pointer">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Button size="sm" onClick={handleApplyRange} className="h-9 cursor-pointer whitespace-nowrap">
               Áp dụng
             </Button>
             <div className="h-5 w-[1px] bg-border mx-1" />
-            <Button size="sm" variant="ghost" onClick={() => setQuickRange(2)} className="h-9 text-xs px-2 cursor-pointer">
+            <Button size="sm" variant="ghost" onClick={() => setQuickRange(3)} className="h-9 text-xs px-2 cursor-pointer whitespace-nowrap">
               3 tháng
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setQuickRange(5)} className="h-9 text-xs px-2 cursor-pointer">
+            <Button size="sm" variant="ghost" onClick={() => setQuickRange(6)} className="h-9 text-xs px-2 cursor-pointer whitespace-nowrap">
               6 tháng
             </Button>
           </div>
@@ -292,7 +298,7 @@ export default function DashboardPage() {
                 So sánh sự tăng trưởng doanh thu và lợi nhuận hoa hồng thực tế qua từng tháng.
               </CardDescription>
             </div>
-            <div className="flex gap-4 text-xs font-semibold">
+            <div className="flex flex-wrap gap-4 text-xs font-semibold">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <span className="h-2.5 w-2.5 rounded-full bg-primary" /> Doanh thu
               </span>
@@ -302,25 +308,35 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex h-[280px] items-end justify-between gap-2 bg-muted/20 p-4 rounded-xl border border-muted">
-              {stats.chartSeries.map((point) => (
-                <div key={point.label} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-                  <div className="w-full flex justify-center items-end gap-1.5 h-44">
-                    <div
-                      className="w-4 sm:w-5 bg-primary/80 rounded-t-sm hover:bg-primary transition-all duration-300"
-                      style={{ height: `${Math.max(10, (point.revenue / maxChartValue) * 100)}%` }}
-                    />
-                    <div
-                      className="w-4 sm:w-5 bg-emerald-500/80 rounded-t-sm hover:bg-emerald-500 transition-all duration-300"
-                      style={{ height: `${Math.max(10, (point.profit / maxChartValue) * 100)}%` }}
-                    />
+            <div className="overflow-x-auto">
+              <div
+                className="flex h-[280px] items-end gap-2 bg-muted/20 p-4 rounded-xl border border-muted"
+                style={{ minWidth: `${chartMinWidth}px` }}
+              >
+                {stats.chartSeries.map((point) => (
+                  <div
+                    key={point.label}
+                    className="w-[72px] shrink-0 flex flex-col items-center gap-2 h-full justify-end group"
+                  >
+                    <div className="w-full flex justify-center items-end gap-1.5 h-44">
+                      <div
+                        className="w-4 sm:w-5 bg-primary/80 rounded-t-sm hover:bg-primary transition-all duration-300"
+                        style={{ height: `${Math.max(10, (point.revenue / maxChartValue) * 100)}%` }}
+                      />
+                      <div
+                        className="w-4 sm:w-5 bg-emerald-500/80 rounded-t-sm hover:bg-emerald-500 transition-all duration-300"
+                        style={{ height: `${Math.max(10, (point.profit / maxChartValue) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase text-center">
+                      {point.label}
+                    </span>
+                    <span className="text-[10px] font-medium text-neutral-400 group-hover:text-foreground transition-colors text-center">
+                      {point.bookings} b.
+                    </span>
                   </div>
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase">{point.label}</span>
-                  <span className="text-[10px] font-medium text-neutral-400 group-hover:text-foreground transition-colors">
-                    {point.bookings} b.
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>

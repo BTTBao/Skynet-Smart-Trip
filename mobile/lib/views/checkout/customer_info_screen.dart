@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/resort_model.dart';
 import '../../providers/profile_provider.dart';
+import '../../widgets/app_network_image.dart';
 import '../../widgets/checkout/checkout_stepper.dart';
 import '../profile/edit_profile_view.dart';
 import 'payment_confirm_screen.dart';
@@ -431,8 +432,8 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
             if (hasCCCDPhoto)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  profile.identityCardPhotoUrl!,
+                child: AppNetworkImage(
+                  imageUrl: profile.identityCardPhotoUrl!,
                   height: 120,
                   width: double.infinity,
                   fit: BoxFit.cover,

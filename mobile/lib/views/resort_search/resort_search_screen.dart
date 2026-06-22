@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/resort_model.dart';
 import '../../providers/hotel_provider.dart';
+import '../../widgets/app_network_image.dart';
 import '../resort_detail/resort_detail_screen.dart';
 import 'resort_filter_sheet.dart';
 import 'resort_map_screen.dart';
@@ -381,8 +382,8 @@ class _ResortSearchScreenState extends State<ResortSearchScreen> {
                                 child: Icon(Icons.hotel, size: 56, color: Colors.grey),
                               ),
                             )
-                          : Image.network(
-                              hotel.coverImageUrl,
+                          : AppNetworkImage(
+                              imageUrl: hotel.coverImageUrl,
                               height: 200,
                               width: double.infinity,
                               fit: BoxFit.cover,

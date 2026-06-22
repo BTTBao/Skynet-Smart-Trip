@@ -89,7 +89,7 @@ public class CatalogService : ICatalogService
             .AsNoTracking()
             .Include(shop => shop.Destination)
             .Include(shop => shop.VehicleOptions)
-            .Where(shop => shop.IsActive)
+            .Where(shop => shop.IsActive && !shop.IsDeleted)
             .Take(12)
             .ToListAsync();
 
@@ -434,7 +434,7 @@ public class CatalogService : ICatalogService
             .AsNoTracking()
             .Include(shop => shop.Destination)
             .Include(shop => shop.VehicleOptions)
-            .Where(shop => shop.IsActive)
+            .Where(shop => shop.IsActive && !shop.IsDeleted)
             .ToListAsync();
 
         VehicleRentalType? parsedVehicleType = null;
@@ -482,7 +482,7 @@ public class CatalogService : ICatalogService
             .AsNoTracking()
             .Include(item => item.Destination)
             .Include(item => item.VehicleOptions)
-            .FirstOrDefaultAsync(item => item.Id == shopId && item.IsActive);
+            .FirstOrDefaultAsync(item => item.Id == shopId && item.IsActive && !item.IsDeleted);
 
         if (shop is null)
         {

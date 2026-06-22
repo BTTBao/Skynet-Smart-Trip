@@ -140,11 +140,20 @@ public class AdminVehicleRentalShopDto
     public string Description { get; set; } = string.Empty;
     public string ImageUrl { get; set; } = string.Empty;
     public bool IsActive { get; set; }
+    public decimal MonthlyAgreementFee { get; set; }
+    public bool IsMonthlyFeePaid { get; set; }
+    public string? MonthlyFeePaidAt { get; set; }
+    public bool IsDeleted { get; set; }
     public string CreatedAt { get; set; } = string.Empty;
     public int OptionCount { get; set; }
     public decimal MinPricePerDay { get; set; }
     public List<string> VehicleTypeLabels { get; set; } = new();
     public List<AdminVehicleRentalOptionDto> VehicleOptions { get; set; } = new();
+}
+
+public class AdminVehicleRentalShopPaymentRequest
+{
+    public bool IsMonthlyFeePaid { get; set; }
 }
 
 public class AdminVehicleRentalOptionRequest
@@ -164,5 +173,7 @@ public class AdminVehicleRentalShopRequest
     public string Description { get; set; } = string.Empty;
     public string ImageUrl { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
+    public decimal MonthlyAgreementFee { get; set; }
+    public bool IsMonthlyFeePaid { get; set; }
     public List<AdminVehicleRentalOptionRequest> VehicleOptions { get; set; } = new();
 }

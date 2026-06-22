@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 /// Structured response from Sky Assistant backend.
+import '../utils/image_url_resolver.dart';
+
 class ChatResponse {
   final String text;
   final String responseType;
@@ -154,7 +156,7 @@ class DestinationCard {
       id: json['id'],
       name: json['name'] ?? '',
       description: json['description'],
-      imageUrl: json['imageUrl'],
+      imageUrl: ImageUrlResolver.resolve(json['imageUrl']?.toString()),
       rating: (json['rating'] as num?)?.toDouble(),
       bestSeason: json['bestSeason'],
       estimatedBudget: json['estimatedBudget'],

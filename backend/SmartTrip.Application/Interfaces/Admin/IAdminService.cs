@@ -45,6 +45,7 @@ public interface IAdminService
     Task<AdminVehicleRentalShopDto> GetVehicleRentalShopDetailAsync(int shopId);
     Task<AdminVehicleRentalShopDto> CreateVehicleRentalShopAsync(AdminVehicleRentalShopRequest request);
     Task<AdminVehicleRentalShopDto> UpdateVehicleRentalShopAsync(int shopId, AdminVehicleRentalShopRequest request);
+    Task<AdminVehicleRentalShopDto> UpdateVehicleRentalShopPaymentAsync(int shopId, AdminVehicleRentalShopPaymentRequest request);
     Task DeleteVehicleRentalShopAsync(int shopId);
     Task<AdminReportSummaryDto> GetReportSummaryAsync();
     Task<List<AdminExplorePostDto>> GetExplorePostsAsync(string? search = null);
