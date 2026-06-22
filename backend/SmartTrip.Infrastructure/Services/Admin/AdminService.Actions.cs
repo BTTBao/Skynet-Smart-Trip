@@ -140,11 +140,17 @@ public partial class AdminService
             throw new BadHttpRequestException("Tên nhà xe không được để trống.");
         }
 
+        if (request.CommissionRate < 0 || request.CommissionRate > 100)
+        {
+            throw new BadHttpRequestException("Hoa há»“ng nhÃ  xe pháº£i náº±m trong khoáº£ng 0 - 100%.");
+        }
+
         var company = new BusCompany
         {
             Name = request.Name.Trim(),
             Hotline = string.IsNullOrWhiteSpace(request.Hotline) ? null : request.Hotline.Trim(),
-            LogoUrl = string.IsNullOrWhiteSpace(request.LogoUrl) ? null : request.LogoUrl.Trim()
+            LogoUrl = string.IsNullOrWhiteSpace(request.LogoUrl) ? null : request.LogoUrl.Trim(),
+            CommissionRate = request.CommissionRate
         };
 
         _context.BusCompanies.Add(company);
@@ -173,9 +179,15 @@ public partial class AdminService
             throw new BadHttpRequestException("Tên nhà xe không được để trống.");
         }
 
+        if (request.CommissionRate < 0 || request.CommissionRate > 100)
+        {
+            throw new BadHttpRequestException("Hoa há»“ng nhÃ  xe pháº£i náº±m trong khoáº£ng 0 - 100%.");
+        }
+
         company.Name = request.Name.Trim();
         company.Hotline = string.IsNullOrWhiteSpace(request.Hotline) ? null : request.Hotline.Trim();
         company.LogoUrl = string.IsNullOrWhiteSpace(request.LogoUrl) ? null : request.LogoUrl.Trim();
+        company.CommissionRate = request.CommissionRate;
 
         await _context.SaveChangesAsync();
 
@@ -416,6 +428,7 @@ public partial class AdminService
             "paid" => TripStatus.Paid,
             "cancelled" => TripStatus.Cancelled,
             "draft" => TripStatus.Draft,
+            "depositpaid" => TripStatus.DepositPaid,
             _ => TripStatus.Pending
         };
     }
@@ -542,10 +555,11 @@ public partial class AdminService
             Name = company.Name ?? "Nhà xe chưa đặt tên",
             Hotline = company.Hotline ?? "--",
             LogoUrl = company.LogoUrl ?? string.Empty,
+            CommissionRate = (double)(NormalizeCommissionRate(company.CommissionRate) * 100m),
             ScheduleCount = company.BusSchedules.Count,
             AverageCommissionRate = company.BusSchedules.Any()
-                ? Math.Round(company.BusSchedules.Average(schedule => schedule.CommissionRate ?? 0d), 2)
-                : 0
+                ? Math.Round(company.BusSchedules.Average(schedule => (double)(NormalizeCommissionRate(schedule.CommissionRate) * 100m)), 2)
+                : (double)(NormalizeCommissionRate(company.CommissionRate) * 100m)
         };
     }
 

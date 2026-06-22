@@ -14,30 +14,30 @@ public class CatalogController : ControllerBase
         _catalogService = catalogService;
     }
 
-    [HttpGet("home")]
-    public async Task<IActionResult> GetHome()
+    [HttpGet("popular-destinations")]
+    public async Task<IActionResult> GetPopularDestinations()
     {
-        return Ok(await _catalogService.GetHomeAsync());
+        return Ok(await _catalogService.GetPopularDestinationsAsync());
+    }
+
+    [HttpGet("featured-hotels")]
+    public async Task<IActionResult> GetFeaturedHotels()
+    {
+        return Ok(await _catalogService.GetFeaturedHotelsAsync());
     }
 
     [HttpGet("hotels")]
     public async Task<IActionResult> SearchHotels(
-        [FromQuery] string? query,
         [FromQuery] int? destinationId,
-        [FromQuery] decimal? minPrice,
-        [FromQuery] decimal? maxPrice,
-        [FromQuery] double? minRating,
-        [FromQuery] string? starRatings,
-        [FromQuery] string? sort)
+        [FromQuery] string? query,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] decimal? minPrice = null,
+        [FromQuery] decimal? maxPrice = null,
+        [FromQuery] int? starRating = null,
+        [FromQuery] string? sort = null)
     {
-        return Ok(await _catalogService.SearchHotelsAsync(
-            query,
-            destinationId,
-            minPrice,
-            maxPrice,
-            minRating,
-            starRatings,
-            sort));
+        return Ok(await _catalogService.SearchHotelsAsync(destinationId, query, page, pageSize, minPrice, maxPrice, starRating, sort));
     }
 
     [HttpGet("hotels/{hotelId:int}")]
@@ -47,32 +47,25 @@ public class CatalogController : ControllerBase
         return hotel is null ? NotFound() : Ok(hotel);
     }
 
-    [HttpGet("rooms/{roomId:int}/availability")]
-    public async Task<IActionResult> GetRoomAvailability(
-        int roomId,
-        [FromQuery] DateOnly checkInDate,
-        [FromQuery] DateOnly checkOutDate,
-        [FromQuery] int quantity = 1)
+    [HttpGet("featured-buses")]
+    public async Task<IActionResult> GetFeaturedBuses()
     {
-        return Ok(await _catalogService.GetRoomAvailabilityAsync(roomId, checkInDate, checkOutDate, quantity));
+        return Ok(await _catalogService.GetFeaturedBusesAsync());
     }
 
     [HttpGet("buses")]
     public async Task<IActionResult> SearchBuses(
-        [FromQuery] string? query,
         [FromQuery] int? fromDestinationId,
         [FromQuery] int? toDestinationId,
-        [FromQuery] decimal? minPrice,
-        [FromQuery] decimal? maxPrice,
-        [FromQuery] string? sort)
+        [FromQuery] DateTime? departureDate,
+        [FromQuery] string? query,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] decimal? minPrice = null,
+        [FromQuery] decimal? maxPrice = null,
+        [FromQuery] string? sort = null)
     {
-        return Ok(await _catalogService.SearchBusesAsync(
-            query,
-            fromDestinationId,
-            toDestinationId,
-            minPrice,
-            maxPrice,
-            sort));
+        return Ok(await _catalogService.SearchBusesAsync(fromDestinationId, toDestinationId, departureDate, query, page, pageSize, minPrice, maxPrice, sort));
     }
 
     [HttpGet("buses/{scheduleId:int}")]
@@ -80,6 +73,24 @@ public class CatalogController : ControllerBase
     {
         var schedule = await _catalogService.GetBusDetailAsync(scheduleId);
         return schedule is null ? NotFound() : Ok(schedule);
+    }
+
+    [HttpGet("promotions")]
+    public async Task<IActionResult> GetPromotions()
+    {
+        return Ok(await _catalogService.GetPromotionsAsync());
+    }
+
+    [HttpGet("promotions/validate/{code}")]
+    public async Task<IActionResult> ValidatePromotion(string code)
+    {
+        var result = await _catalogService.ValidatePromotionAsync(code);
+        if (result == null)
+        {
+            return NotFound(new { message = "Mã khuyến mãi không hợp lệ hoặc đã hết hạn." });
+        }
+
+        return Ok(result);
     }
 
     [HttpGet("vehicle-rentals")]

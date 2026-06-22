@@ -19,4 +19,5 @@ public interface IPaymentService
         IReadOnlyDictionary<string, string> queryParameters,
         CancellationToken cancellationToken = default);
     bool VerifyPayOsWebhook(PayOsWebhookDto webhook);
+    Task<PayoutResultDto> CreatePayoutAsync(CreatePayoutRequestDto request, CancellationToken cancellationToken = default);
 }

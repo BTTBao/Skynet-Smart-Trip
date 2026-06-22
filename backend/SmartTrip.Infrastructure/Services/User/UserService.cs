@@ -45,11 +45,14 @@ public class UserService : IUserService
 
         if (user == null) return null;
 
-        var loyaltyPoints = await _context.UserWallets
+        var walletInfo = await _context.UserWallets
             .AsNoTracking()
             .Where(w => w.UserId == userId)
-            .Select(w => w.LoyaltyPoints ?? 0)
+            .Select(w => new { LoyaltyPoints = w.LoyaltyPoints ?? 0, Balance = w.Balance ?? 0m })
             .FirstOrDefaultAsync();
+
+        var loyaltyPoints = walletInfo?.LoyaltyPoints ?? 0;
+        var walletBalance = walletInfo?.Balance ?? 0m;
 
         var tripsCount = await _context.Trips
             .AsNoTracking()
@@ -72,6 +75,7 @@ public class UserService : IUserService
             MemberTier = GetMemberTier(loyaltyPoints),
             TripsCount = tripsCount,
             Coins = loyaltyPoints,
+            WalletBalance = walletBalance,
             Vouchers = vouchersCount,
             BirthDate = user.BirthDate?.ToString("yyyy-MM-dd"),
             IdentityNumber = user.IdentityNumber,
@@ -293,6 +297,23 @@ public class UserService : IUserService
                     .OrderByDescending(i => i.IssuedAt)
                     .FirstOrDefault();
 
+                int? usedCoins = null;
+                if (!string.IsNullOrEmpty(p.MetadataJson))
+                {
+                    try
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(p.MetadataJson);
+                        if (doc.RootElement.TryGetProperty("usedCoins", out var prop) && prop.ValueKind == System.Text.Json.JsonValueKind.Number)
+                        {
+                            usedCoins = prop.GetInt32();
+                        }
+                    }
+                    catch
+                    {
+                        // ignore parsing errors
+                    }
+                }
+
                 return new PaymentHistoryItemDto
                 {
                     PaymentId = p.Id,
@@ -305,7 +326,8 @@ public class UserService : IUserService
                     TransactionId = p.TransactionId,
                     InvoiceNumber = latestInvoice?.InvoiceNumber,
                     InvoicePdfUrl = latestInvoice?.PdfUrl,
-                    IsBookingOnly = p.Trip?.Status == TripStatus.BookingOnly
+                    IsBookingOnly = p.Trip?.Status == TripStatus.BookingOnly,
+                    UsedCoins = usedCoins
                 };
             })
             .ToList();

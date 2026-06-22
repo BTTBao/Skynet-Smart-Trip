@@ -244,7 +244,7 @@ public class TripController : ControllerBase
                     ChildCount = request.ChildCount,
                     InfantCount = request.InfantCount,
                     BookedPrice = totalRoomPrice / request.Quantity,
-                    BookedCommissionRate = room.CommissionRate,
+                    BookedCommissionRate = room.Hotel?.CommissionRate ?? room.CommissionRate,
                     ServiceDate = request.CheckInDate,
                     HotelCheckOutDate = request.CheckOutDate
                 });
@@ -489,8 +489,13 @@ public class TripController : ControllerBase
                 return NotFound(new { message = $"Trip {tripId} was not found." });
             }
 
-            if (trip.Payments.Any(item => item.Status == PaymentStatus.Paid) ||
-                trip.Invoices.Any())
+            var totalPaidAmountSoFar = trip.Payments
+                .Where(p => p.Status == PaymentStatus.Paid)
+                .Sum(p => p.Amount ?? 0m);
+
+            var totalRequired = trip.TotalAmount ?? 0m;
+
+            if (totalPaidAmountSoFar >= totalRequired && trip.Invoices.Any())
             {
                 return Ok(new
                 {
@@ -515,7 +520,7 @@ public class TripController : ControllerBase
             {
                 return BadRequest(new { message = "Thanh toan 0 dong chi hop le khi dung khuyen mai." });
             }
-
+            var paymentAmount = request.Amount;
             var payment = new Payment
             {
                 TripId = tripId,
@@ -523,26 +528,67 @@ public class TripController : ControllerBase
                 TransactionId = string.IsNullOrWhiteSpace(request.TransactionId) 
                     ? $"PAY-{tripId}-{DateTime.UtcNow:yyyyMMddHHmmss}" 
                     : request.TransactionId,
-                Amount = request.Amount,
+                Amount = paymentAmount,
                 Status = PaymentStatus.Paid,
-                PaidAt = DateTime.UtcNow
+                PaidAt = DateTime.UtcNow,
+                MetadataJson = request.UsedCoins.HasValue && request.UsedCoins.Value > 0
+                    ? $"{{\"usedCoins\": {request.UsedCoins.Value}}}"
+                    : null
             };
 
             _context.Payments.Add(payment);
+
+            var newTotalPaid = totalPaidAmountSoFar + paymentAmount;
+            var isFullyPaid = newTotalPaid >= totalRequired;
+
+            // Deduct used coins
+            if (request.UsedCoins.HasValue && request.UsedCoins.Value > 0 && trip.UserId.HasValue)
+            {
+                var wallet = await _context.UserWallets.FirstOrDefaultAsync(w => w.UserId == trip.UserId.Value);
+                if (wallet != null)
+                {
+                    wallet.LoyaltyPoints = Math.Max(0, (wallet.LoyaltyPoints ?? 0) - request.UsedCoins.Value);
+                }
+            }
+
+            // Reward loyalty points (1% of actual paid cash amount)
+            if (paymentAmount > 0 && trip.UserId.HasValue)
+            {
+                var wallet = await _context.UserWallets.FirstOrDefaultAsync(w => w.UserId == trip.UserId.Value);
+                if (wallet == null)
+                {
+                    wallet = new UserWallet
+                    {
+                        UserId = trip.UserId.Value,
+                        Balance = 0m,
+                        LoyaltyPoints = 0
+                    };
+                    _context.UserWallets.Add(wallet);
+                }
+                int earnedCoins = (int)(paymentAmount / 100000m);
+                if (earnedCoins > 0)
+                {
+                    wallet.LoyaltyPoints = (wallet.LoyaltyPoints ?? 0) + earnedCoins;
+                }
+            }
+
             if (trip.Status != TripStatus.BookingOnly)
             {
                 trip.Status = TripStatus.Paid;
             }
-            trip.TotalProfit = CalculateTripProfitFromPaidAmount(trip, request.Amount);
+            trip.TotalProfit = CalculateTripProfitFromPaidAmount(trip, newTotalPaid);
 
-            var invoice = new Invoice
+            if (isFullyPaid)
             {
-                TripId = tripId,
-                InvoiceNumber = $"INV-{DateTime.UtcNow:yyyyMMdd}-{tripId:D6}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
-                TaxAmount = 0,
-                IssuedAt = DateTime.UtcNow
-            };
-            _context.Invoices.Add(invoice);
+                var invoice = new Invoice
+                {
+                    TripId = tripId,
+                    InvoiceNumber = $"INV-{DateTime.UtcNow:yyyyMMdd}-{tripId:D6}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
+                    TaxAmount = 0,
+                    IssuedAt = DateTime.UtcNow
+                };
+                _context.Invoices.Add(invoice);
+            }
 
             // If it is a BUS booking, book the corresponding seats!
             var busItinerary = trip.TripItineraries
@@ -599,7 +645,7 @@ public class TripController : ControllerBase
                     Type = isBusBooking ? "booking.bus_paid" : "booking.hotel_paid",
                     ReferenceType = "booking",
                     ReferenceId = trip.Id,
-                    ActionUrl = $"/activity/invoices/{trip.Id}"
+                    ActionUrl = isFullyPaid ? $"/activity/invoices/{trip.Id}" : $"/trips/{trip.Id}"
                 });
             }
             catch (Exception ex)
@@ -608,93 +654,324 @@ public class TripController : ControllerBase
             }
 
              // Send booking confirmation email asynchronously
-             _ = Task.Run(async () =>
+             if (isFullyPaid)
              {
-                 try
+                 _ = Task.Run(async () =>
                  {
-                     // Create a new scope to safely access DbContext inside a background task
-                     using (var scope = HttpContext.RequestServices.CreateScope())
+                     try
                      {
-                         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                         var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
- 
-                         var dbTrip = await dbContext.Trips
-                             .Include(t => t.Destination)
-                             .Include(t => t.TripItineraries)
-                             .FirstOrDefaultAsync(t => t.Id == tripId);
-                         if (dbTrip == null) return;
- 
-                         var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == dbTrip.UserId);
-                         if (user != null && !string.IsNullOrWhiteSpace(user.Email))
+                         // Create a new scope to safely access DbContext inside a background task
+                         using (var scope = HttpContext.RequestServices.CreateScope())
                          {
-                             var bookingCode = $"SKN-{dbTrip.Id:D6}";
-                             
-                             var busItinerary = dbTrip.TripItineraries
-                                 .FirstOrDefault(i => i.ServiceType == TripServiceType.Bus);
-                                 
-                             if (busItinerary != null && busItinerary.ServiceId.HasValue)
-                             {
-                                 var schedule = await dbContext.BusSchedules
-                                     .Include(s => s.Company)
-                                     .Include(s => s.FromDest)
-                                     .Include(s => s.ToDest)
-                                     .FirstOrDefaultAsync(s => s.Id == busItinerary.ServiceId.Value);
-                                     
-                                 var companyName = schedule?.Company?.Name ?? dbTrip.Title?.Replace("Vé xe: ", "") ?? "Nhà xe SmartTrip";
-                                 var fromDest = schedule?.FromDest?.Name ?? "N/A";
-                                 var toDest = schedule?.ToDest?.Name ?? dbTrip.Destination?.Name ?? "N/A";
-                                 var departure = schedule?.DepartureTime?.ToString("dd/MM/yyyy HH:mm") ?? "N/A";
-                                 var arrival = schedule?.ArrivalTime?.ToString("dd/MM/yyyy HH:mm") ?? "N/A";
-                                 var seats = busItinerary.SelectedSeats ?? "N/A";
-                                 var totalPrice = $"{dbTrip.TotalAmount:N0}đ";
-                                 
-                                 await emailService.SendBusBookingConfirmationEmailAsync(
-                                     user.Email,
-                                     user.FullName ?? user.Email,
-                                     bookingCode,
-                                     companyName,
-                                     fromDest,
-                                     toDest,
-                                     departure,
-                                     arrival,
-                                     seats,
-                                     totalPrice
-                                 );
-                             }
-                             else
-                             {
-                                 var hotelName = dbTrip.Title ?? "Khách sạn & Resort";
-                                 var dateRange = dbTrip.StartDate.HasValue && dbTrip.EndDate.HasValue 
-                                     ? $"{dbTrip.StartDate.Value:dd/MM/yyyy} - {dbTrip.EndDate.Value:dd/MM/yyyy}"
-                                     : "Chi tiết hành trình";
-                                 var roomInfo = "Chi tiết phòng và các dịch vụ xem tại ứng dụng di động SmartTrip";
-                                 var totalPrice = $"{dbTrip.TotalAmount:N0}đ";
-                                 var paymentMethodName = request.PaymentMethod == "Momo" ? "Ví điện tử MoMo" 
-                                                        : request.PaymentMethod == "Zalopay" ? "Ví điện tử ZaloPay" 
-                                                        : request.PaymentMethod == "Promotion" ? "Khuyến mãi (0đ)"
-                                                        : "Thẻ ngân hàng";
+                             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                             var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
  
-                                 await emailService.SendBookingConfirmationEmailAsync(
-                                     user.Email,
-                                     user.FullName ?? user.Email,
-                                     bookingCode,
-                                     hotelName,
-                                     dateRange,
-                                     roomInfo,
-                                     totalPrice,
-                                     paymentMethodName
-                                 );
+                             var dbTrip = await dbContext.Trips
+                                 .Include(t => t.Destination)
+                                 .Include(t => t.TripItineraries)
+                                 .FirstOrDefaultAsync(t => t.Id == tripId);
+                             if (dbTrip == null) return;
+ 
+                             var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == dbTrip.UserId);
+                             if (user != null && !string.IsNullOrWhiteSpace(user.Email))
+                             {
+                                 var bookingCode = $"SKN-{dbTrip.Id:D6}";
+                                 
+                                 var busItinerary = dbTrip.TripItineraries
+                                     .FirstOrDefault(i => i.ServiceType == TripServiceType.Bus);
+                                     
+                                 if (busItinerary != null && busItinerary.ServiceId.HasValue)
+                                 {
+                                     var schedule = await dbContext.BusSchedules
+                                         .Include(s => s.Company)
+                                         .Include(s => s.FromDest)
+                                         .Include(s => s.ToDest)
+                                         .FirstOrDefaultAsync(s => s.Id == busItinerary.ServiceId.Value);
+                                         
+                                     var companyName = schedule?.Company?.Name ?? dbTrip.Title?.Replace("Vé xe: ", "") ?? "Nhà xe SmartTrip";
+                                     var fromDest = schedule?.FromDest?.Name ?? "N/A";
+                                     var toDest = schedule?.ToDest?.Name ?? dbTrip.Destination?.Name ?? "N/A";
+                                     var departure = schedule?.DepartureTime?.ToString("dd/MM/yyyy HH:mm") ?? "N/A";
+                                     var arrival = schedule?.ArrivalTime?.ToString("dd/MM/yyyy HH:mm") ?? "N/A";
+                                     var seats = busItinerary.SelectedSeats ?? "N/A";
+                                     var totalPrice = $"{dbTrip.TotalAmount:N0}đ";
+                                     
+                                     await emailService.SendBusBookingConfirmationEmailAsync(
+                                         user.Email,
+                                         user.FullName ?? user.Email,
+                                         bookingCode,
+                                         companyName,
+                                         fromDest,
+                                         toDest,
+                                         departure,
+                                         arrival,
+                                         seats,
+                                         totalPrice
+                                     );
+                                 }
+                                 else
+                                 {
+                                     var hotelName = dbTrip.Title ?? "Khách sạn & Resort";
+                                     var dateRange = dbTrip.StartDate.HasValue && dbTrip.EndDate.HasValue 
+                                         ? $"{dbTrip.StartDate.Value:dd/MM/yyyy} - {dbTrip.EndDate.Value:dd/MM/yyyy}"
+                                         : "Chi tiết hành trình";
+                                     var roomInfo = "Chi tiết phòng và các dịch vụ xem tại ứng dụng di động SmartTrip";
+                                     var totalPrice = $"{dbTrip.TotalAmount:N0}đ";
+                                     var paymentMethodName = request.PaymentMethod == "Momo" ? "Ví điện tử MoMo" 
+                                                            : request.PaymentMethod == "Zalopay" ? "Ví điện tử ZaloPay" 
+                                                            : request.PaymentMethod == "Promotion" ? "Khuyến mãi (0đ)"
+                                                            : "Thẻ ngân hàng";
+ 
+                                     await emailService.SendBookingConfirmationEmailAsync(
+                                         user.Email,
+                                         user.FullName ?? user.Email,
+                                         bookingCode,
+                                         hotelName,
+                                         dateRange,
+                                         roomInfo,
+                                         totalPrice,
+                                         paymentMethodName
+                                     );
+                                 }
                              }
                          }
                      }
-                 }
-                 catch (Exception ex)
-                 {
-                     Console.WriteLine($"[Email Error] Failed to send booking confirmation email for trip {tripId}: {ex.Message}");
-                 }
-             });
+                     catch (Exception ex)
+                     {
+                         Console.WriteLine($"[Email Error] Failed to send booking confirmation email for trip {tripId}: {ex.Message}");
+                     }
+                 });
+             }
 
             return Ok(new { message = "Thanh toán thành công.", tripId = trip.Id, status = "PAID" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{tripId:int}/cancel-booking")]
+    public async Task<IActionResult> CancelBooking(int tripId)
+    {
+        try
+        {
+            if (!await UserOwnsTripAsync(tripId))
+            {
+                return Forbid();
+            }
+
+            var trip = await _context.Trips
+                .Include(t => t.User)
+                .Include(t => t.TripItineraries)
+                .Include(t => t.Payments)
+                .FirstOrDefaultAsync(t => t.Id == tripId);
+
+            if (trip == null)
+            {
+                return NotFound(new { message = $"Trip {tripId} was not found." });
+            }
+
+            if (trip.Status == TripStatus.Cancelled)
+            {
+                return BadRequest(new { message = "Đơn đặt chỗ này đã bị hủy trước đó." });
+            }
+
+            if (trip.Status != TripStatus.BookingOnly && trip.Status != TripStatus.Paid && trip.Status != TripStatus.Pending)
+            {
+                return BadRequest(new { message = "Chỉ hỗ trợ hủy đơn đặt phòng khách sạn." });
+            }
+
+            var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7));
+            var checkInDate = trip.StartDate ?? today;
+
+            if (today >= checkInDate)
+            {
+                return BadRequest(new { message = "Không thể hủy đặt phòng khi đã đến ngày nhận phòng hoặc phòng đã sử dụng." });
+            }
+            
+            // Calculate refund eligibility: check-in date-time must be at least 24 hours in the future
+            // Assuming standard hotel check-in time is 14:00 (2:00 PM) on the check-in day.
+            var checkInDateTime = checkInDate.ToDateTime(new TimeOnly(14, 0));
+            var nowLocal = DateTime.UtcNow.AddHours(7);
+            
+            var hoursUntilCheckIn = (checkInDateTime - nowLocal).TotalHours;
+            decimal refundPercentage = 0m;
+            
+            if (hoursUntilCheckIn >= 48)
+            {
+                refundPercentage = 1.0m;
+            }
+            else if (hoursUntilCheckIn >= 24)
+            {
+                refundPercentage = 0.5m;
+            }
+
+            var totalPaid = trip.Payments
+                .Where(p => p.Status == PaymentStatus.Paid)
+                .Sum(p => p.Amount ?? 0m);
+
+            decimal refundAmount = 0m;
+            int totalUsedCoinsRefund = 0;
+            int totalEarnedCoinsDeduct = 0;
+
+            if (refundPercentage > 0m)
+            {
+                refundAmount = totalPaid * refundPercentage;
+
+                foreach (var p in trip.Payments.Where(pm => pm.Status == PaymentStatus.Paid))
+                {
+                    // Calculate earned coins that need to be deducted (1% of actual paid cash amount)
+                    int earned = (int)((p.Amount ?? 0m) / 100000m);
+                    totalEarnedCoinsDeduct += earned;
+
+                    // Calculate used coins that need to be refunded
+                    if (!string.IsNullOrEmpty(p.MetadataJson))
+                    {
+                        try
+                        {
+                            using var doc = System.Text.Json.JsonDocument.Parse(p.MetadataJson);
+                            if (doc.RootElement.TryGetProperty("usedCoins", out var usedElement))
+                            {
+                                totalUsedCoinsRefund += usedElement.GetInt32();
+                            }
+                        }
+                        catch
+                        {
+                            // Ignore parsing issues
+                        }
+                    }
+                }
+                
+                totalEarnedCoinsDeduct = (int)Math.Round(totalEarnedCoinsDeduct * refundPercentage);
+                totalUsedCoinsRefund = (int)Math.Round(totalUsedCoinsRefund * refundPercentage);
+            }
+
+            // Perform wallet refund if there's a refund amount or used coins refund
+            if ((refundAmount > 0 || totalUsedCoinsRefund > 0 || totalEarnedCoinsDeduct > 0) && trip.UserId.HasValue)
+            {
+                var wallet = await _context.UserWallets.FirstOrDefaultAsync(w => w.UserId == trip.UserId.Value);
+                if (wallet == null)
+                {
+                    wallet = new UserWallet
+                    {
+                        UserId = trip.UserId.Value,
+                        Balance = 0m,
+                        LoyaltyPoints = 0
+                    };
+                    _context.UserWallets.Add(wallet);
+                }
+
+                if (refundAmount > 0)
+                {
+                    wallet.Balance = (wallet.Balance ?? 0m) + refundAmount;
+                }
+                
+                // Refund used coins and deduct earned coins
+                wallet.LoyaltyPoints = (wallet.LoyaltyPoints ?? 0) + totalUsedCoinsRefund;
+                wallet.LoyaltyPoints = Math.Max(0, (wallet.LoyaltyPoints ?? 0) - totalEarnedCoinsDeduct);
+
+                // Log the refund transaction if refundAmount > 0
+                if (refundAmount > 0)
+                {
+                    var refundPayment = new Payment
+                    {
+                        TripId = tripId,
+                        Amount = -refundAmount,
+                        PaymentMethod = PaymentMethod.Card,
+                        Status = PaymentStatus.Refunded,
+                        TransactionId = $"REFUND-{tripId}-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                        Description = $"Hoàn tiền hủy đặt phòng #{tripId}",
+                        PaidAt = DateTime.UtcNow
+                    };
+                    _context.Payments.Add(refundPayment);
+                }
+            }
+
+            // Release bus seats if any
+            var busItinerary = trip.TripItineraries.FirstOrDefault(i => i.ServiceType == TripServiceType.Bus);
+            if (busItinerary != null && busItinerary.ServiceId.HasValue && !string.IsNullOrEmpty(busItinerary.SelectedSeats))
+            {
+                var seatNumbers = busItinerary.SelectedSeats.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim())
+                    .ToList();
+                var seats = await _context.Seats
+                    .Where(s => s.ScheduleId == busItinerary.ServiceId.Value && s.SeatNumber != null && seatNumbers.Contains(s.SeatNumber))
+                    .ToListAsync();
+                foreach (var seat in seats)
+                {
+                    seat.Status = SeatStatus.Available;
+                    seat.LockedUntil = null;
+                    seat.LockedByTripId = null;
+                }
+            }
+
+            trip.Status = TripStatus.Cancelled;
+            await _context.SaveChangesAsync();
+
+            // Create notification
+            try
+            {
+                string notificationMessage = refundAmount > 0
+                    ? $"Đặt phòng \"{trip.Title}\" đã được hủy. Đã hoàn {refundAmount:N0}đ vào ví của bạn."
+                    : $"Đặt phòng \"{trip.Title}\" đã được hủy. Bạn không được hoàn tiền do hủy sát giờ.";
+                    
+                if (refundAmount > 0 && refundPercentage < 1.0m)
+                {
+                    notificationMessage = $"Đặt phòng \"{trip.Title}\" đã được hủy. Đã hoàn {(refundPercentage * 100):N0}% ({refundAmount:N0}đ) vào ví do hủy trong vòng 48h.";
+                }
+
+                await _notificationService.CreateAsync(new CreateNotificationDto
+                {
+                    UserId = trip.UserId ?? 0,
+                    Title = "Hủy đặt phòng thành công",
+                    Message = notificationMessage,
+                    Type = "booking.cancelled",
+                    ReferenceType = "booking",
+                    ReferenceId = trip.Id,
+                    ActionUrl = $"/trips/{trip.Id}"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send cancellation notification for trip {TripId}", trip.Id);
+            }
+
+            // Send cancellation email
+            try
+            {
+                var user = trip.User ?? await _context.Users.FirstOrDefaultAsync(u => u.Id == trip.UserId);
+                if (user != null && !string.IsNullOrWhiteSpace(user.Email))
+                {
+                    string statusMsg = "Đã hủy (Không hoàn cọc)";
+                    if (refundAmount > 0)
+                    {
+                        statusMsg = refundPercentage < 1.0m 
+                            ? $"Đã hủy & Hoàn tiền {(refundPercentage * 100):N0}% ({refundAmount:N0}đ) vào ví" 
+                            : $"Đã hủy & Hoàn tiền {refundAmount:N0}đ vào ví";
+                    }
+
+                    await _emailService.SendBookingStatusChangedEmailAsync(
+                        user.Email,
+                        user.FullName ?? user.Email,
+                        trip.Title ?? $"Booking #{trip.Id}",
+                        statusMsg,
+                        trip.TotalAmount
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send cancellation email for trip {TripId}", trip.Id);
+            }
+
+            return Ok(new 
+            { 
+                message = "Hủy phòng thành công.", 
+                refunded = refundAmount > 0, 
+                refundAmount = refundAmount, 
+                status = "CANCELLED" 
+            });
         }
         catch (Exception ex)
         {
@@ -956,6 +1233,6 @@ public class ConfirmPaymentDto
     public decimal Amount { get; set; }
     public int? ScheduleId { get; set; }
     public List<string>? SelectedSeats { get; set; }
+    public bool IsDeposit { get; set; }
+    public int? UsedCoins { get; set; }
 }
-
-

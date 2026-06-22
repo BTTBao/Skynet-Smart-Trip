@@ -3,6 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using SmartTrip.Application.DTOs.Payment;
 using SmartTrip.Application.Interfaces.Payment;
 using System.Net;
+using System.Security.Claims;
+using System.Text.Json;
+using SmartTrip.Domain.Entities;
+using SmartTrip.Domain.Enums;
+using Microsoft.EntityFrameworkCore;
 
 namespace SmartTrip.API.Controllers;
 
@@ -12,11 +17,16 @@ namespace SmartTrip.API.Controllers;
 public class PaymentController : ControllerBase
 {
     private readonly IPaymentService _paymentService;
+    private readonly ApplicationDbContext _context;
     private readonly ILogger<PaymentController> _logger;
 
-    public PaymentController(IPaymentService paymentService, ILogger<PaymentController> logger)
+    public PaymentController(
+        IPaymentService paymentService,
+        ApplicationDbContext context,
+        ILogger<PaymentController> logger)
     {
         _paymentService = paymentService;
+        _context = context;
         _logger = logger;
     }
 
@@ -420,5 +430,319 @@ public class PaymentController : ControllerBase
 </body>
 </html>
 """;
+    }
+
+    [HttpPost("wallet/deposit")]
+    public async Task<IActionResult> CreateWalletDeposit([FromBody] CreateWalletDepositRequestDto request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null) return Unauthorized();
+
+            if (request.Amount <= 0)
+            {
+                return BadRequest(new { message = "Số tiền nạp phải lớn hơn 0." });
+            }
+
+            var metadataJson = $"{{\"userId\":{userId},\"type\":\"wallet_deposit\"}}";
+            var metadataElement = JsonSerializer.Deserialize<JsonElement>(metadataJson);
+
+            if (request.PaymentMethod?.ToUpper() == "PAYOS")
+            {
+                if (request.OrderCode == null || string.IsNullOrEmpty(request.ReturnUrl) || string.IsNullOrEmpty(request.CancelUrl))
+                {
+                    return BadRequest(new { message = "Thiếu thông tin OrderCode, ReturnUrl hoặc CancelUrl cho PayOS." });
+                }
+
+                var payOsRequest = new CreatePaymentRequestDto
+                {
+                    Amount = request.Amount,
+                    Description = $"Nap tien vao vi SmartTrip (User #{userId})",
+                    OrderCode = request.OrderCode.Value,
+                    ReturnUrl = request.ReturnUrl,
+                    CancelUrl = request.CancelUrl,
+                    Metadata = metadataElement
+                };
+
+                var payment = await _paymentService.CreatePaymentAsync(payOsRequest, cancellationToken);
+                return Ok(payment);
+            }
+            else
+            {
+                // Mặc định là VNPAY
+                var vnpayRequest = new CreateVnPayPaymentRequestDto
+                {
+                    Amount = request.Amount,
+                    Description = $"Nap tien vao vi SmartTrip (User #{userId})",
+                    Locale = request.Locale,
+                    Metadata = metadataElement
+                };
+
+                var payment = await _paymentService.CreateVnPayPaymentAsync(
+                    vnpayRequest,
+                    ResolveClientIpAddress(),
+                    cancellationToken);
+
+                return Ok(payment);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi tạo yêu cầu nạp tiền vào ví.");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("wallet/deposit/simulate")]
+    public async Task<IActionResult> SimulateWalletDeposit([FromBody] CreateWalletDepositRequestDto request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            if (env != "Development")
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Endpoint này chỉ khả dụng trong môi trường Development." });
+            }
+
+            var userId = GetCurrentUserId();
+            if (userId == null) return Unauthorized();
+
+            if (request.Amount <= 0)
+            {
+                return BadRequest(new { message = "Số tiền nạp phải lớn hơn 0." });
+            }
+
+            var wallet = await _context.UserWallets.FirstOrDefaultAsync(w => w.UserId == userId.Value, cancellationToken);
+            if (wallet == null)
+            {
+                wallet = new UserWallet
+                {
+                    UserId = userId.Value,
+                    Balance = 0,
+                    LoyaltyPoints = 0
+                };
+                _context.UserWallets.Add(wallet);
+            }
+            wallet.Balance = (wallet.Balance ?? 0m) + request.Amount;
+
+            var depositPayment = new Payment
+            {
+                Amount = request.Amount,
+                PaymentMethod = PaymentMethod.Wallet,
+                Status = PaymentStatus.Paid,
+                TransactionId = $"DEMO-{userId}-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                Description = $"Nạp tiền demo vào ví: +{request.Amount:N0}đ",
+                PaidAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _context.Payments.Add(depositPayment);
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return Ok(new { message = "Nạp tiền demo thành công.", remainingBalance = wallet.Balance });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi nạp tiền demo.");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("wallet/withdraw")]
+    public async Task<IActionResult> WithdrawFromWallet([FromBody] WalletWithdrawRequestDto request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null) return Unauthorized();
+
+            if (request.Amount <= 0)
+            {
+                return BadRequest(new { message = "Số tiền rút phải lớn hơn 0." });
+            }
+
+            var wallet = await _context.UserWallets.FirstOrDefaultAsync(w => w.UserId == userId.Value);
+            if (wallet == null || (wallet.Balance ?? 0m) < request.Amount)
+            {
+                return BadRequest(new { message = "Số dư ví không đủ để thực hiện giao dịch." });
+            }
+
+            var payoutRequest = new CreatePayoutRequestDto
+            {
+                Amount = request.Amount,
+                BankCode = request.BankName, // Frontend will send BankCode here
+                AccountNumber = request.AccountNumber,
+                AccountName = request.AccountName,
+                Description = $"Rut tien SmartTrip - {request.AccountNumber}"
+            };
+
+            var payoutResult = await _paymentService.CreatePayoutAsync(payoutRequest);
+
+            if (!payoutResult.Success)
+            {
+                return BadRequest(new { message = $"Chi hộ thất bại: {payoutResult.Message}" });
+            }
+
+            wallet.Balance -= request.Amount;
+
+            var withdrawalPayment = new Payment
+            {
+                Amount = -request.Amount,
+                PaymentMethod = PaymentMethod.BankTransfer,
+                Status = PaymentStatus.Paid,
+                TransactionId = string.IsNullOrEmpty(payoutResult.TransactionId) ? $"WITHDRAW-{userId}-{DateTime.UtcNow:yyyyMMddHHmmss}" : payoutResult.TransactionId,
+                Description = $"Rút tiền về tài khoản: {request.BankName} - {request.AccountNumber}",
+                PaidAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _context.Payments.Add(withdrawalPayment);
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return Ok(new { message = payoutResult.Message ?? "Rút tiền thành công.", remainingBalance = wallet.Balance });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi xử lý rút tiền.");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("wallet/pay")]
+    public async Task<IActionResult> PayWithWallet([FromBody] WalletPayRequestDto request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null) return Unauthorized();
+
+            if (request.Amount <= 0)
+            {
+                return BadRequest(new { message = "Số tiền thanh toán phải lớn hơn 0." });
+            }
+
+            var trip = await _context.Trips
+                .Include(t => t.User)
+                .Include(t => t.TripItineraries)
+                .Include(t => t.Payments)
+                .FirstOrDefaultAsync(t => t.Id == request.TripId && t.UserId == userId.Value);
+
+            if (trip == null)
+            {
+                return NotFound(new { message = "Không tìm thấy chuyến đi." });
+            }
+
+            if (trip.Status == TripStatus.Paid)
+            {
+                return BadRequest(new { message = "Chuyến đi này đã được thanh toán đầy đủ." });
+            }
+
+            var wallet = await _context.UserWallets.FirstOrDefaultAsync(w => w.UserId == userId.Value);
+            if (wallet == null || (wallet.Balance ?? 0m) < request.Amount)
+            {
+                return BadRequest(new { message = "Số dư ví không đủ để thực hiện giao dịch." });
+            }
+
+            // Deduct coins if used
+            if (request.UsedCoins.HasValue && request.UsedCoins.Value > 0)
+            {
+                var availableCoins = wallet.LoyaltyPoints ?? 0;
+                if (availableCoins < request.UsedCoins.Value)
+                {
+                    return BadRequest(new { message = "Số dư xu không đủ để thực hiện giao dịch." });
+                }
+                wallet.LoyaltyPoints = availableCoins - request.UsedCoins.Value;
+            }
+
+            // Deduct wallet balance
+            wallet.Balance -= request.Amount;
+
+            // Reward loyalty points (1% of actual paid cash amount)
+            int earnedCoins = (int)(request.Amount / 100000m);
+            if (earnedCoins > 0)
+            {
+                wallet.LoyaltyPoints = (wallet.LoyaltyPoints ?? 0) + earnedCoins;
+            }
+
+            // Log the payment
+            var payment = new Payment
+            {
+                TripId = request.TripId,
+                Amount = request.Amount,
+                PaymentMethod = PaymentMethod.Wallet,
+                Status = PaymentStatus.Paid,
+                TransactionId = $"WALLET-{request.TripId}-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                Description = request.IsDeposit ? $"Thanh toán đặt cọc chuyến đi #{request.TripId}" : $"Thanh toán chuyến đi #{request.TripId}",
+                PaidAt = DateTime.UtcNow,
+                MetadataJson = request.UsedCoins.HasValue && request.UsedCoins.Value > 0
+                    ? $"{{\"usedCoins\": {request.UsedCoins.Value}}}"
+                    : null,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _context.Payments.Add(payment);
+
+            var totalPaidSoFar = trip.Payments
+                .Where(p => p.Status == PaymentStatus.Paid)
+                .Sum(p => p.Amount ?? 0m) + request.Amount;
+            var totalRequired = trip.TotalAmount ?? 0m;
+            var isFullyPaid = totalPaidSoFar >= totalRequired;
+
+            if (trip.Status != TripStatus.BookingOnly)
+            {
+                trip.Status = TripStatus.Paid;
+            }
+            
+            // Generate Invoice if fully paid
+            if (isFullyPaid)
+            {
+                var invoice = new Invoice
+                {
+                    TripId = request.TripId,
+                    InvoiceNumber = $"INV-{DateTime.UtcNow:yyyyMMdd}-{request.TripId:D6}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}",
+                    TaxAmount = 0,
+                    IssuedAt = DateTime.UtcNow
+                };
+                _context.Invoices.Add(invoice);
+            }
+
+            // If it is a BUS booking, lock/book the seats
+            var busItinerary = trip.TripItineraries.FirstOrDefault(i => i.ServiceType == TripServiceType.Bus);
+            if (busItinerary != null && busItinerary.ServiceId.HasValue && !string.IsNullOrEmpty(busItinerary.SelectedSeats))
+            {
+                var seatNumbers = busItinerary.SelectedSeats.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim())
+                    .ToList();
+                var seats = await _context.Seats
+                    .Where(s => s.ScheduleId == busItinerary.ServiceId.Value && s.SeatNumber != null && seatNumbers.Contains(s.SeatNumber))
+                    .ToListAsync();
+                foreach (var seat in seats)
+                {
+                    seat.Status = SeatStatus.Booked;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, message = "Thanh toán qua ví thành công.", remainingBalance = wallet.Balance });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi thanh toán bằng ví.");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    private int? GetCurrentUserId()
+    {
+        var rawUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue(ClaimTypes.Name)
+            ?? User.FindFirstValue(ClaimTypes.Sid)
+            ?? User.FindFirstValue("sub");
+
+        return int.TryParse(rawUserId, out var userId) ? userId : null;
     }
 }

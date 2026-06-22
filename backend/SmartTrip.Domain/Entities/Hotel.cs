@@ -19,6 +19,8 @@ public class Hotel
 
     public bool? IsAvailable { get; set; }
 
+    public double? CommissionRate { get; set; }
+
     public virtual Destination? Destination { get; set; }
 
     public virtual ICollection<Room> Rooms { get; set; } = new List<Room>();

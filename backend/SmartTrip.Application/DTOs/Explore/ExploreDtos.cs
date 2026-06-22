@@ -68,6 +68,8 @@ public class ExplorePostDto
     public List<ExploreCommentDto> Comments { get; set; } = [];
 
     public List<string> Tags { get; set; } = [];
+
+    public string? LinkedTripCode { get; set; }
 }
 
 public class ExploreCommentDto
@@ -143,6 +145,8 @@ public class CreateExplorePostDto
     public List<string> ImageUrls { get; set; } = [];
 
     public List<string> Tags { get; set; } = [];
+
+    public string? LinkedTripCode { get; set; }
 }
 
 public class CreateExploreCommentDto

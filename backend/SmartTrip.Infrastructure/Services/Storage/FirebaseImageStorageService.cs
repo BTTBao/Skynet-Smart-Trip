@@ -40,14 +40,34 @@ public sealed class FirebaseImageStorageService : IImageStorageService
         string folder,
         CancellationToken cancellationToken = default)
     {
-        var buckets = ResolveStorageBuckets();
         var shouldFallbackToLocalStorage = ShouldFallbackToLocalStorage();
+        var buckets = ResolveStorageBuckets();
         var extension = Path.GetExtension(originalFileName);
         var safeExtension = string.IsNullOrWhiteSpace(extension) ? ".jpg" : extension.ToLowerInvariant();
         var fileName = $"{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}{safeExtension}";
         var imagePath = $"{NormalizeFolder(folder)}/{fileName}";
         var downloadToken = Guid.NewGuid().ToString("D");
         await using var uploadStream = await CreateReplayableStreamAsync(fileStream, cancellationToken);
+
+        if (buckets.Count == 0)
+        {
+            if (shouldFallbackToLocalStorage)
+            {
+                _logger.LogWarning(
+                    "Firebase Storage bucket is not configured. Falling back to local image storage for {FileName}.",
+                    originalFileName);
+
+                uploadStream.Position = 0;
+                return await UploadToLocalStorageAsync(
+                    uploadStream,
+                    fileName,
+                    folder,
+                    cancellationToken);
+            }
+
+            throw new ImageStorageUnavailableException(
+                "Firebase Storage bucket is not configured. Set Firebase:StorageBucket or FIREBASE_STORAGE_BUCKET.");
+        }
 
         GoogleApiException? lastNotFoundException = null;
 
@@ -134,12 +154,6 @@ public sealed class FirebaseImageStorageService : IImageStorageService
         {
             AddBucketCandidate(buckets, $"{projectId}.firebasestorage.app");
             AddBucketCandidate(buckets, $"{projectId}.appspot.com");
-        }
-
-        if (buckets.Count == 0)
-        {
-            throw new ImageStorageUnavailableException(
-                "Firebase Storage bucket is not configured. Set Firebase:StorageBucket or FIREBASE_STORAGE_BUCKET.");
         }
 
         return buckets;

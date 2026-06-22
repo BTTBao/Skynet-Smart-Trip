@@ -54,4 +54,7 @@ public interface IAdminService
     Task DeleteExplorePostAsync(int postId);
     Task<AdminNotificationStatsDto> GetNotificationsAsync(string? search = null);
     Task<AdminNotificationSendResultDto> SendNotificationAsync(AdminSendNotificationRequest request);
+    Task<List<AdminPaymentHistoryDto>> GetPaymentHistoryAsync();
+    Task<List<AdminReviewDto>> GetReviewsAsync();
+    Task DeleteReviewAsync(int reviewId);
 }

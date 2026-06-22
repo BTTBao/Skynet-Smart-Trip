@@ -101,6 +101,7 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.ViewCount).HasDefaultValue(0);
             entity.Property(e => e.IsVisible).HasDefaultValue(true);
             entity.Property(e => e.Tags).HasMaxLength(500);
+            entity.Property(e => e.LinkedTripCode).HasMaxLength(20).IsUnicode(false);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
             entity.Property(e => e.UpdatedAt).HasColumnType("datetime");
 

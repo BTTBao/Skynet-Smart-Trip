@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace SmartTrip.Application.DTOs.Admin;
@@ -36,7 +37,7 @@ public class AdminHotelDto
     public decimal LowestPrice { get; set; }
     public decimal TotalRevenue { get; set; }
     public decimal TotalProfit { get; set; }
-    public int BookedRoomQty { get; set; }
+    public double CommissionRate { get; set; }
 }
 
 public class AdminHotelRequest
@@ -47,12 +48,14 @@ public class AdminHotelRequest
     public int StarRating { get; set; }
     public string Description { get; set; } = string.Empty;
     public bool IsAvailable { get; set; }
+    public double CommissionRate { get; set; }
 }
 
 public class AdminHotelDetailDto : AdminHotelDto
 {
     public List<AdminRoomDto> Rooms { get; set; } = new();
 }
+
 
 public class AdminRoomDto
 {

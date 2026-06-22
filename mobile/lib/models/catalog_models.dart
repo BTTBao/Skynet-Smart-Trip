@@ -431,7 +431,33 @@ class CatalogReview {
       userName: json['userName'] as String? ?? 'Khach hang',
       rating: json['rating'] as int? ?? 5,
       comment: json['comment'] as String? ?? '',
-      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+    );
+  }
+}
+
+class CatalogPromotion {
+  const CatalogPromotion({
+    required this.code,
+    required this.discountPercent,
+    required this.maxDiscountAmount,
+    required this.title,
+    required this.description,
+  });
+
+  final String code;
+  final double discountPercent;
+  final double maxDiscountAmount;
+  final String title;
+  final String description;
+
+  factory CatalogPromotion.fromJson(Map<String, dynamic> json) {
+    return CatalogPromotion(
+      code: json['code'] as String? ?? '',
+      discountPercent: (json['discountPercent'] as num?)?.toDouble() ?? 0,
+      maxDiscountAmount: (json['maxDiscountAmount'] as num?)?.toDouble() ?? 0,
+      title: json['title'] as String? ?? '',
+      description: json['description'] as String? ?? '',
     );
   }
 }

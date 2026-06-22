@@ -298,11 +298,28 @@ public class PayOsPaymentService : IPaymentService
                     .FirstOrDefaultAsync(item => item.Id == payment.TripId.Value, cancellationToken);
                 if (trip != null && trip.Status != TripStatus.Cancelled)
                 {
+                    var paymentsList = await _context.Payments
+                        .Where(p => p.TripId == trip.Id)
+                        .ToListAsync(cancellationToken);
+                    
+                    var totalPaidAmountSoFar = paymentsList
+                        .Where(p => p.Status == PaymentStatus.Paid || p.Id == payment.Id)
+                        .Sum(p => p.Amount ?? 0m);
+                    var totalRequired = trip.TotalAmount ?? 0m;
+                    var isFullyPaid = totalPaidAmountSoFar >= totalRequired;
+
                     if (trip.Status != TripStatus.BookingOnly)
                     {
-                        trip.Status = TripStatus.Paid;
+                        trip.Status = isFullyPaid ? TripStatus.Paid : TripStatus.DepositPaid;
                     }
-                    trip.TotalProfit = CalculateTripProfitFromPaidAmount(trip, payment.Amount ?? 0m);
+                    trip.TotalProfit = CalculateTripProfitFromPaidAmount(trip, totalPaidAmountSoFar);
+
+                    // Deduct used coins and reward points
+                    await DeductUsedCoinsAsync(payment, cancellationToken);
+                    if (trip.UserId.HasValue)
+                    {
+                        await RewardLoyaltyPointsAsync(trip.UserId.Value, payment.Amount ?? 0m, cancellationToken);
+                    }
                 }
 
                 await MarkBusSeatsBookedAsync(payment, cancellationToken);
@@ -520,14 +537,74 @@ public class PayOsPaymentService : IPaymentService
                     .FirstOrDefaultAsync(item => item.Id == payment.TripId.Value, cancellationToken);
                 if (trip != null && trip.Status != TripStatus.Cancelled)
                 {
+                    var paymentsList = await _context.Payments
+                        .Where(p => p.TripId == trip.Id)
+                        .ToListAsync(cancellationToken);
+                    
+                    var totalPaidAmountSoFar = paymentsList
+                        .Where(p => p.Status == PaymentStatus.Paid || p.Id == payment.Id)
+                        .Sum(p => p.Amount ?? 0m);
+                    var totalRequired = trip.TotalAmount ?? 0m;
+                    var isFullyPaid = totalPaidAmountSoFar >= totalRequired;
+
                     if (trip.Status != TripStatus.BookingOnly)
                     {
-                        trip.Status = TripStatus.Paid;
+                        trip.Status = isFullyPaid ? TripStatus.Paid : TripStatus.DepositPaid;
                     }
-                    trip.TotalProfit = CalculateTripProfitFromPaidAmount(trip, payment.Amount ?? 0m);
+                    trip.TotalProfit = CalculateTripProfitFromPaidAmount(trip, totalPaidAmountSoFar);
+
+                    // Deduct used coins and reward points
+                    await DeductUsedCoinsAsync(payment, cancellationToken);
+                    if (trip.UserId.HasValue)
+                    {
+                        await RewardLoyaltyPointsAsync(trip.UserId.Value, payment.Amount ?? 0m, cancellationToken);
+                    }
                 }
 
                 await MarkBusSeatsBookedAsync(payment, cancellationToken);
+            }
+            else if (!string.IsNullOrWhiteSpace(payment.MetadataJson))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(payment.MetadataJson);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "wallet_deposit")
+                    {
+                        int? userId = null;
+                        if (root.TryGetProperty("userId", out var userProp))
+                        {
+                            if (userProp.ValueKind == JsonValueKind.Number && userProp.TryGetInt32(out var uId))
+                            {
+                                userId = uId;
+                            }
+                            else if (userProp.ValueKind == JsonValueKind.String && int.TryParse(userProp.GetString(), out var uId2))
+                            {
+                                userId = uId2;
+                            }
+                        }
+
+                        if (userId.HasValue)
+                        {
+                            var wallet = await _context.UserWallets.FirstOrDefaultAsync(w => w.UserId == userId.Value, cancellationToken);
+                            if (wallet == null)
+                            {
+                                wallet = new UserWallet
+                                {
+                                    UserId = userId.Value,
+                                    Balance = 0m,
+                                    LoyaltyPoints = 0
+                                };
+                                _context.UserWallets.Add(wallet);
+                            }
+                            wallet.Balance = (wallet.Balance ?? 0m) + (payment.Amount ?? 0m);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to apply wallet deposit from payment metadata: {Metadata}", payment.MetadataJson);
+                }
             }
         }
 
@@ -878,6 +955,72 @@ public class PayOsPaymentService : IPaymentService
                parsedTripId > 0
             ? parsedTripId
             : null;
+    }
+
+    private async Task DeductUsedCoinsAsync(SmartTrip.Domain.Entities.Payment payment, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(payment.MetadataJson)) return;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(payment.MetadataJson);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("usedCoins", out var coinsProp) || root.TryGetProperty("UsedCoins", out coinsProp))
+            {
+                int usedCoins = 0;
+                if (coinsProp.ValueKind == JsonValueKind.Number)
+                {
+                    usedCoins = coinsProp.GetInt32();
+                }
+                else if (coinsProp.ValueKind == JsonValueKind.String)
+                {
+                    int.TryParse(coinsProp.GetString(), out usedCoins);
+                }
+
+                var userId = payment.Trip?.UserId;
+                if (!userId.HasValue && payment.TripId.HasValue)
+                {
+                    var trip = await _context.Trips.FirstOrDefaultAsync(t => t.Id == payment.TripId.Value, cancellationToken);
+                    userId = trip?.UserId;
+                }
+
+                if (usedCoins > 0 && userId.HasValue)
+                {
+                    var wallet = await _context.UserWallets.FirstOrDefaultAsync(w => w.UserId == userId.Value, cancellationToken);
+                    if (wallet != null)
+                    {
+                        wallet.LoyaltyPoints = Math.Max(0, (wallet.LoyaltyPoints ?? 0) - usedCoins);
+                        _logger.LogInformation("Deducted {Coins} loyalty points from User #{UserId} for payment #{PaymentId}", usedCoins, userId.Value, payment.Id);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to parse metadata and deduct used coins for payment #{PaymentId}", payment.Id);
+        }
+    }
+
+    private async Task RewardLoyaltyPointsAsync(int userId, decimal amount, CancellationToken cancellationToken)
+    {
+        if (amount <= 0m) return;
+        var wallet = await _context.UserWallets.FirstOrDefaultAsync(w => w.UserId == userId, cancellationToken);
+        if (wallet == null)
+        {
+            wallet = new UserWallet
+            {
+                UserId = userId,
+                Balance = 0m,
+                LoyaltyPoints = 0
+            };
+            _context.UserWallets.Add(wallet);
+        }
+        int earnedPoints = (int)(amount / 100000m);
+        if (earnedPoints > 0)
+        {
+            wallet.LoyaltyPoints = (wallet.LoyaltyPoints ?? 0) + earnedPoints;
+            _logger.LogInformation("Rewarded {Points} loyalty points to User #{UserId} for spending {Amount}", earnedPoints, userId, amount);
+        }
     }
 
     private async Task MarkBusSeatsBookedAsync(SmartTrip.Domain.Entities.Payment payment, CancellationToken cancellationToken)
@@ -1366,6 +1509,27 @@ public class PayOsPaymentService : IPaymentService
     {
         var value = (decimal)(rate ?? 0d);
         return value > 1m ? value / 100m : value;
+    }
+
+    public async Task<PayoutResultDto> CreatePayoutAsync(CreatePayoutRequestDto request, CancellationToken cancellationToken = default)
+    {
+        // Gửi yêu cầu chi hộ (Payout) đến cổng thanh toán (PayOS/VNPAY)
+        // Trong môi trường Sandbox, chúng ta giả lập phản hồi thành công.
+        
+        _logger.LogInformation("Creating Payout for Bank: {BankCode}, Account: {AccountNumber}, Amount: {Amount}", 
+            request.BankCode, request.AccountNumber, request.Amount);
+
+        // TODO: Call actual PayOS Transfer/Payout API here
+        // var response = await _httpClient.PostAsJsonAsync("https://api-merchant.payos.vn/v2/payment-requests", ...);
+
+        await Task.Delay(500, cancellationToken); // Simulate network delay
+
+        return new PayoutResultDto
+        {
+            Success = true,
+            Message = "Giao dịch chi hộ thành công (Sandbox)",
+            TransactionId = $"PAYOUT-{DateTime.UtcNow:yyyyMMddHHmmss}-{RandomNumberGenerator.GetInt32(1000, 9999)}"
+        };
     }
 }
 

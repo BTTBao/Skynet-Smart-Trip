@@ -129,6 +129,15 @@ public class CatalogReviewDto
     public DateTime? CreatedAt { get; set; }
 }
 
+public class CatalogPromotionDto
+{
+    public string Code { get; set; } = string.Empty;
+    public double DiscountPercent { get; set; }
+    public decimal MaxDiscountAmount { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+}
+
 public class CatalogVehicleRentalSearchResultDto
 {
     public int Total { get; set; }

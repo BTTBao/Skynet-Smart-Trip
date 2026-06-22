@@ -123,6 +123,14 @@ class MyTripSummary {
       );
     }
 
+    if (status == 'DEPOSIT_PAID' || status == 'DEPOSITPAID') {
+      return const _TripStatusStyle(
+        label: 'DA DAT COC',
+        textColor: Color(0xFFB54708),
+        backgroundColor: Color(0xFFFFFAEB),
+      );
+    }
+
     if (status == 'PENDING') {
       return const _TripStatusStyle(
         label: 'SẮP TỚI',

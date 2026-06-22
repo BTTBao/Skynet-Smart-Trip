@@ -81,13 +81,6 @@ export default function Sidebar() {
 
       {/* Bottom Actions */}
       <div className="px-4 mt-auto">
-        <button
-          onClick={() => navigate('/transport')}
-          className="w-full bg-primary-container text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary-container/20 active:scale-95 transition-transform"
-        >
-          <span className="material-symbols-outlined">add</span>
-          <span>Tạo chuyến mới</span>
-        </button>
         <div className="mt-4 rounded-3xl bg-white/70 px-5 py-4">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Phiên hiện tại</p>
           <p className="mt-2 text-sm font-bold text-on-surface">{user?.fullName ?? 'Admin'}</p>
