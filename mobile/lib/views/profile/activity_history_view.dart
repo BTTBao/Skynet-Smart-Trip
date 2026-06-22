@@ -619,6 +619,7 @@ class _ActivityHistoryViewState extends State<ActivityHistoryView> {
           invoiceNumber: item.invoiceNumber,
           transactionId: item.transactionId,
           paymentMethod: item.paymentMethod,
+          usedCoins: item.usedCoins,
         ),
       ),
     );

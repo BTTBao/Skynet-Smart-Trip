@@ -15,6 +15,7 @@ class InvoiceDetailView extends StatelessWidget {
     required this.invoiceNumber,
     this.transactionId,
     this.paymentMethod,
+    this.usedCoins,
   });
 
   final String title;
@@ -28,6 +29,7 @@ class InvoiceDetailView extends StatelessWidget {
   final String? invoiceNumber;
   final String? transactionId;
   final String? paymentMethod;
+  final int? usedCoins;
 
   @override
   Widget build(BuildContext context) {
@@ -113,6 +115,21 @@ class InvoiceDetailView extends StatelessWidget {
                 if ((transactionId ?? '').isNotEmpty)
                   _InfoRow(label: 'Mã giao dịch', value: transactionId!),
                 const Divider(height: 28),
+                if (usedCoins != null && usedCoins! > 0) ...[
+                  _InfoRow(
+                    label: 'Giá gốc',
+                    value: currency.format(amount + usedCoins!),
+                  ),
+                  _InfoRow(
+                    label: 'Xu sử dụng',
+                    value: '-$usedCoins xu (≈ -${currency.format(usedCoins!.toDouble())})',
+                  ),
+                  _InfoRow(
+                    label: 'Thanh toán ví',
+                    value: currency.format(amount),
+                  ),
+                  const Divider(height: 28),
+                ],
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

@@ -494,8 +494,64 @@ public class PaymentController : ControllerBase
         }
     }
 
+    [HttpPost("wallet/deposit/simulate")]
+    public async Task<IActionResult> SimulateWalletDeposit([FromBody] CreateWalletDepositRequestDto request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            if (env != "Development")
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Endpoint này chỉ khả dụng trong môi trường Development." });
+            }
+
+            var userId = GetCurrentUserId();
+            if (userId == null) return Unauthorized();
+
+            if (request.Amount <= 0)
+            {
+                return BadRequest(new { message = "Số tiền nạp phải lớn hơn 0." });
+            }
+
+            var wallet = await _context.UserWallets.FirstOrDefaultAsync(w => w.UserId == userId.Value, cancellationToken);
+            if (wallet == null)
+            {
+                wallet = new UserWallet
+                {
+                    UserId = userId.Value,
+                    Balance = 0,
+                    LoyaltyPoints = 0
+                };
+                _context.UserWallets.Add(wallet);
+            }
+            wallet.Balance = (wallet.Balance ?? 0m) + request.Amount;
+
+            var depositPayment = new Payment
+            {
+                Amount = request.Amount,
+                PaymentMethod = PaymentMethod.Wallet,
+                Status = PaymentStatus.Paid,
+                TransactionId = $"DEMO-{userId}-{DateTime.UtcNow:yyyyMMddHHmmss}",
+                Description = $"Nạp tiền demo vào ví: +{request.Amount:N0}đ",
+                PaidAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _context.Payments.Add(depositPayment);
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return Ok(new { message = "Nạp tiền demo thành công.", remainingBalance = wallet.Balance });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi nạp tiền demo.");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("wallet/withdraw")]
-    public async Task<IActionResult> WithdrawFromWallet([FromBody] WalletWithdrawRequestDto request)
+    public async Task<IActionResult> WithdrawFromWallet([FromBody] WalletWithdrawRequestDto request, CancellationToken cancellationToken)
     {
         try
         {
@@ -522,7 +578,7 @@ public class PaymentController : ControllerBase
                 Description = $"Rut tien SmartTrip - {request.AccountNumber}"
             };
 
-            var payoutResult = await _paymentService.CreatePayoutAsync(payoutRequest, cancellationToken);
+            var payoutResult = await _paymentService.CreatePayoutAsync(payoutRequest);
 
             if (!payoutResult.Success)
             {

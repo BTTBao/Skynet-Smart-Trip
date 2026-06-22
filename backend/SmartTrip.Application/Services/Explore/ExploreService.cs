@@ -76,6 +76,7 @@ public class ExploreService : IExploreService
                 IsLiked = currentUserId.HasValue && post.Likes.Any(like => like.UserId == currentUserId.Value),
                 IsBookmarked = currentUserId.HasValue && post.Saves.Any(save => save.UserId == currentUserId.Value),
                 Tags = SplitTags(post.Tags),
+                LinkedTripCode = post.LinkedTripCode,
             })
             .ToListAsync();
 
@@ -142,6 +143,7 @@ public class ExploreService : IExploreService
             Longitude = request.Longitude,
             CostLevel = request.CostLevel,
             Tags = JoinTags(request.Tags),
+            LinkedTripCode = request.LinkedTripCode,
             AverageRating = 0m,
             RatingCount = 0,
             ViewCount = 0,
@@ -569,7 +571,8 @@ public class ExploreService : IExploreService
                 PriceLevel = item.CostLevel,
                 IsLiked = currentUserId.HasValue && item.Likes.Any(like => like.UserId == currentUserId.Value),
                 IsBookmarked = currentUserId.HasValue && item.Saves.Any(save => save.UserId == currentUserId.Value),
-                Tags = SplitTags(item.Tags)
+                Tags = SplitTags(item.Tags),
+                LinkedTripCode = item.LinkedTripCode
             })
             .FirstOrDefaultAsync();
 

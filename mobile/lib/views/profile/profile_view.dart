@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -572,6 +573,48 @@ class _ProfileViewState extends State<ProfileView> {
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                             ),
                     ),
+                    if (kDebugMode) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton(
+                        onPressed: isDepositing
+                            ? null
+                            : () async {
+                                final amountStr = amountController.text.replaceAll('.', '').replaceAll(',', '').trim();
+                                final amount = double.tryParse(amountStr) ?? 10000000.0; // default 10M if empty
+                                setSheetState(() => isDepositing = true);
+                                try {
+                                  final result = await PaymentService().simulateWalletDeposit(amount);
+                                  Navigator.pop(sheetContext); // Close sheet
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(result['message'] ?? 'Nạp tiền demo thành công!'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                    context.read<ProfileProvider>().fetchProfile(forceRefresh: true);
+                                  }
+                                } catch (e) {
+                                  setSheetState(() => isDepositing = false);
+                                  ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                    SnackBar(content: Text('Lỗi nạp tiền demo: ${e.toString()}')),
+                                  );
+                                }
+                              },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.orange.shade800,
+                          side: BorderSide(color: Colors.orange.shade300),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          context.tr(vi: 'Nạp Demo (Cộng tiền ngay)', en: 'Deposit Demo (Instant Credit)'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

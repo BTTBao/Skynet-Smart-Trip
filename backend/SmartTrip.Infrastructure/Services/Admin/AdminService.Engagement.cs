@@ -71,6 +71,7 @@ public partial class AdminService
             Longitude = request.Longitude,
             CostLevel = request.CostLevel,
             Tags = JoinExploreTags(request.Tags),
+            LinkedTripCode = request.LinkedTripCode,
             IsVisible = request.IsVisible,
             AverageRating = 0m,
             RatingCount = 0,
@@ -116,6 +117,7 @@ public partial class AdminService
         post.Longitude = request.Longitude;
         post.CostLevel = request.CostLevel;
         post.Tags = JoinExploreTags(request.Tags);
+        post.LinkedTripCode = request.LinkedTripCode;
         post.IsVisible = request.IsVisible;
         post.UpdatedAt = DateTime.UtcNow;
 
@@ -350,7 +352,8 @@ public partial class AdminService
             CommentCount = post.Comments.Count,
             Rating = (double)post.AverageRating,
             RatingCount = post.RatingCount,
-            Tags = SplitExploreTags(post.Tags)
+            Tags = SplitExploreTags(post.Tags),
+            LinkedTripCode = post.LinkedTripCode
         };
     }
 

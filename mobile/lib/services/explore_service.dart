@@ -77,6 +77,7 @@ class ExploreService extends ApiService {
     double? latitude,
     double? longitude,
     List<String> tags = const [],
+    String? linkedTripCode,
   }) async {
     final response = await postWithFallback(
       '/explore/posts',
@@ -92,6 +93,7 @@ class ExploreService extends ApiService {
         'costLevel': costLevel,
         'imageUrls': imageUrls,
         'tags': tags,
+        'linkedTripCode': linkedTripCode,
       }),
     );
 

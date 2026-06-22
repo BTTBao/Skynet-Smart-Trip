@@ -476,6 +476,33 @@ export interface AdminBookingStats {
   bookings: AdminBooking[];
 }
 
+export interface AdminPaymentHistoryItem {
+  paymentId: number;
+  userId?: number | null;
+  userName: string;
+  userEmail: string;
+  amount: number;
+  paymentMethod: string;
+  status: string;
+  paidAt?: string | null;
+  transactionId?: string | null;
+  description: string;
+  createdAt: string;
+}
+
+export interface AdminReview {
+  reviewId: number;
+  userId?: number | null;
+  userName: string;
+  userEmail: string;
+  targetType: string;
+  targetId: number;
+  targetName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
 export const adminService = {
   getDashboardStats: async (params?: { startDate?: string; endDate?: string }): Promise<AdminDashboardStats> => {
     return fetchClient.get<AdminDashboardStats>('/admin/dashboard', { params });
@@ -711,6 +738,18 @@ export const adminService = {
 
   sendNotification: async (payload: AdminSendNotificationRequest): Promise<AdminNotificationSendResult> => {
     return fetchClient.post<AdminNotificationSendResult>('/admin/notifications/send', payload);
+  },
+
+  getPayments: async (): Promise<AdminPaymentHistoryItem[]> => {
+    return fetchClient.get<AdminPaymentHistoryItem[]>('/admin/payments');
+  },
+
+  getReviews: async (): Promise<AdminReview[]> => {
+    return fetchClient.get<AdminReview[]>('/admin/reviews');
+  },
+
+  deleteReview: async (reviewId: number): Promise<void> => {
+    await fetchClient.delete(`/admin/reviews/${reviewId}`);
   },
 };
 

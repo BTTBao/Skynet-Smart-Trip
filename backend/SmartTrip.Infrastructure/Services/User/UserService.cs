@@ -297,6 +297,23 @@ public class UserService : IUserService
                     .OrderByDescending(i => i.IssuedAt)
                     .FirstOrDefault();
 
+                int? usedCoins = null;
+                if (!string.IsNullOrEmpty(p.MetadataJson))
+                {
+                    try
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(p.MetadataJson);
+                        if (doc.RootElement.TryGetProperty("usedCoins", out var prop) && prop.ValueKind == System.Text.Json.JsonValueKind.Number)
+                        {
+                            usedCoins = prop.GetInt32();
+                        }
+                    }
+                    catch
+                    {
+                        // ignore parsing errors
+                    }
+                }
+
                 return new PaymentHistoryItemDto
                 {
                     PaymentId = p.Id,
@@ -309,7 +326,8 @@ public class UserService : IUserService
                     TransactionId = p.TransactionId,
                     InvoiceNumber = latestInvoice?.InvoiceNumber,
                     InvoicePdfUrl = latestInvoice?.PdfUrl,
-                    IsBookingOnly = p.Trip?.Status == TripStatus.BookingOnly
+                    IsBookingOnly = p.Trip?.Status == TripStatus.BookingOnly,
+                    UsedCoins = usedCoins
                 };
             })
             .ToList();

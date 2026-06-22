@@ -8,4 +8,5 @@ public enum PaymentMethod
     PayOS = 4,
     Promotion = 5,
     Wallet = 6,
+    BankTransfer = 7,
 }

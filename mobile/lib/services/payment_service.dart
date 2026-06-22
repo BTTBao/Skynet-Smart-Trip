@@ -142,4 +142,16 @@ class PaymentService extends ApiService {
 
     return Map<String, dynamic>.from(handleResponse(response));
   }
+
+  Future<Map<String, dynamic>> simulateWalletDeposit(double amount) async {
+    final response = await postWithFallback(
+      '/payments/wallet/deposit/simulate',
+      requireAuth: true,
+      body: jsonEncode({
+        'amount': amount,
+      }),
+    );
+
+    return Map<String, dynamic>.from(handleResponse(response));
+  }
 }
