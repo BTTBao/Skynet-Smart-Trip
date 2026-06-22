@@ -41,6 +41,11 @@ public interface IAdminService
     Task<AdminPromotionDto> CreatePromotionAsync(AdminPromotionRequest request);
     Task<AdminPromotionDto> UpdatePromotionAsync(int promotionId, AdminPromotionRequest request);
     Task DeletePromotionAsync(int promotionId);
+    Task<List<AdminVehicleRentalShopDto>> GetVehicleRentalShopsAsync();
+    Task<AdminVehicleRentalShopDto> GetVehicleRentalShopDetailAsync(int shopId);
+    Task<AdminVehicleRentalShopDto> CreateVehicleRentalShopAsync(AdminVehicleRentalShopRequest request);
+    Task<AdminVehicleRentalShopDto> UpdateVehicleRentalShopAsync(int shopId, AdminVehicleRentalShopRequest request);
+    Task DeleteVehicleRentalShopAsync(int shopId);
     Task<AdminReportSummaryDto> GetReportSummaryAsync();
     Task<List<AdminExplorePostDto>> GetExplorePostsAsync(string? search = null);
     Task<AdminExplorePostDto> CreateExplorePostAsync(AdminExplorePostRequest request, int adminUserId);
@@ -49,4 +54,7 @@ public interface IAdminService
     Task DeleteExplorePostAsync(int postId);
     Task<AdminNotificationStatsDto> GetNotificationsAsync(string? search = null);
     Task<AdminNotificationSendResultDto> SendNotificationAsync(AdminSendNotificationRequest request);
+    Task<List<AdminPaymentHistoryDto>> GetPaymentHistoryAsync();
+    Task<List<AdminReviewDto>> GetReviewsAsync();
+    Task DeleteReviewAsync(int reviewId);
 }

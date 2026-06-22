@@ -25,6 +25,7 @@ public class AdminExplorePostDto
     public double Rating { get; set; }
     public int RatingCount { get; set; }
     public List<string> Tags { get; set; } = [];
+    public string? LinkedTripCode { get; set; }
 }
 
 public class AdminExplorePostRequest
@@ -41,6 +42,7 @@ public class AdminExplorePostRequest
     public bool IsVisible { get; set; } = true;
     public List<string> ImageUrls { get; set; } = [];
     public List<string> Tags { get; set; } = [];
+    public string? LinkedTripCode { get; set; }
 }
 
 public class AdminExploreVisibilityRequest

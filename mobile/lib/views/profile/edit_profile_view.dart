@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/profile_provider.dart';
@@ -33,9 +32,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     _emailController = TextEditingController(text: user?.email ?? '');
     _phoneController = TextEditingController(text: user?.phone ?? '');
     _birthDateController = TextEditingController(text: user?.birthDate ?? '');
-    _identityController = TextEditingController(
-      text: user?.identityNumber ?? '',
-    );
+    _identityController = TextEditingController(text: user?.identityNumber ?? '');
   }
 
   @override
@@ -110,7 +107,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                             SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'Hoàn tất ngày sinh, CCCD và ảnh mặt trước CCCD để tiếp tục đặt phòng.',
+                                'Hoàn tất ngày sinh và số CCCD để tiếp tục đặt phòng.',
                                 style: TextStyle(
                                   color: Color(0xFF0D6B42),
                                   fontWeight: FontWeight.w600,
@@ -127,7 +124,6 @@ class _EditProfileViewState extends State<EditProfileView> {
                       child: ProfileAvatar(
                         avatarUrl: provider.profileData?.avatarUrl ?? '',
                         isEditing: true,
-                        onCameraTap: _showImagePicker,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -273,16 +269,13 @@ class _EditProfileViewState extends State<EditProfileView> {
                             en: 'Please enter your ID number.',
                           );
                         }
-                        if (text.isNotEmpty &&
-                            !RegExp(r'^\d+$').hasMatch(text)) {
+                        if (!RegExp(r'^\d+$').hasMatch(text)) {
                           return context.trRead(
                             vi: 'Số CCCD/CMND chỉ được gồm các chữ số.',
                             en: 'ID number must contain digits only.',
                           );
                         }
-                        if (text.isNotEmpty &&
-                            text.length != 9 &&
-                            text.length != 12) {
+                        if (text.length != 9 && text.length != 12) {
                           return context.trRead(
                             vi: 'Số CCCD/CMND không hợp lệ (9 hoặc 12 số).',
                             en: 'ID number must be 9 or 12 digits.',
@@ -290,150 +283,6 @@ class _EditProfileViewState extends State<EditProfileView> {
                         }
                         return null;
                       },
-                    ),
-                    const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4, bottom: 6),
-                      child: Text(
-                        context.tr(
-                          vi: 'Ảnh mặt trước CCCD / CMND',
-                          en: 'Front Side of Identity Card',
-                        ),
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: provider.isUploadingIdentityPhoto
-                          ? null
-                          : _showIdentityCardPhotoPicker,
-                      child: Container(
-                        height: 180,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFF0D6B42).withOpacity(0.3),
-                            width: 1.5,
-                            style: BorderStyle.solid,
-                          ),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: provider.isUploadingIdentityPhoto
-                            ? const Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Color(0xFF0D6B42),
-                                      ),
-                                    ),
-                                    SizedBox(height: 10),
-                                    Text('Đang tải ảnh lên...'),
-                                  ],
-                                ),
-                              )
-                            : (provider.profileData?.identityCardPhotoUrl !=
-                                      null &&
-                                  provider
-                                      .profileData!
-                                      .identityCardPhotoUrl!
-                                      .isNotEmpty)
-                            ? Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  Image.network(
-                                    provider.profileData!.identityCardPhotoUrl!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Center(
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            const Icon(
-                                              Icons.broken_image_outlined,
-                                              color: Colors.redAccent,
-                                              size: 40,
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              context.tr(
-                                              vi: 'Không thể tải ảnh. Chạm để thử lại.',
-                                              en: 'Failed to load image. Tap to retry.',
-                                              ),
-                                              style: const TextStyle(
-                                                color: Colors.redAccent,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  Positioned(
-                                    right: 10,
-                                    bottom: 10,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFF0D6B42),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.edit,
-                                        color: Colors.white,
-                                        size: 18,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.add_a_photo_outlined,
-                                      color: const Color(
-                                        0xFF0D6B42,
-                                      ).withOpacity(0.8),
-                                      size: 40,
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      context.tr(
-                                      vi: 'Bấm để chụp hoặc chọn ảnh CCCD',
-                                        en: 'Tap to take or choose ID card photo',
-                                      ),
-                                      style: TextStyle(
-                                        color: const Color(
-                                          0xFF0D6B42,
-                                        ).withOpacity(0.8),
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      context.tr(
-                                        vi: 'Hình ảnh cần rõ ràng, không bị mờ',
-                                        en: 'Image must be clear and readable',
-                                      ),
-                                      style: TextStyle(
-                                        color: Colors.grey.shade500,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                      ),
                     ),
                   ],
                 ),
@@ -470,158 +319,6 @@ class _EditProfileViewState extends State<EditProfileView> {
       return null;
     }
     return DateTime.tryParse(value);
-  }
-
-  Future<void> _pickAndUploadImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final image = await picker.pickImage(source: source, imageQuality: 75);
-    if (image == null) {
-      return;
-    }
-
-    final provider = context.read<ProfileProvider>();
-    final success = await provider.uploadAvatar(image);
-    if (!mounted) {
-      return;
-    }
-
-    if (provider.hasSessionExpired) {
-      await _handleSessionExpired(provider);
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? context.trRead(
-              vi: 'Đã cập nhật ảnh đại diện.',
-                  en: 'Profile photo updated.',
-                )
-              : (provider.error ??
-                    context.trRead(
-                      vi: 'Không thể tải ảnh lên.',
-                      en: 'Unable to upload image.',
-                    )),
-        ),
-      ),
-    );
-  }
-
-  void _showImagePicker() {
-    showModalBottomSheet<void>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library_outlined),
-                title: Text(
-                  context.trRead(
-                    vi: 'Chọn từ thư viện',
-                    en: 'Choose from gallery',
-                  ),
-                ),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _pickAndUploadImage(ImageSource.gallery);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt_outlined),
-                title: Text(
-                  context.trRead(vi: 'Chụp ảnh mới', en: 'Take a new photo'),
-                ),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _pickAndUploadImage(ImageSource.camera);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _pickAndUploadIdentityCardPhoto(ImageSource source) async {
-    final picker = ImagePicker();
-    final image = await picker.pickImage(source: source, imageQuality: 75);
-    if (image == null) {
-      return;
-    }
-
-    final provider = context.read<ProfileProvider>();
-    final success = await provider.uploadIdentityCardPhoto(image);
-    if (!mounted) {
-      return;
-    }
-
-    if (provider.hasSessionExpired) {
-      await _handleSessionExpired(provider);
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? context.trRead(
-              vi: 'Đã cập nhật ảnh CCCD / CMND.',
-                  en: 'Identity card photo updated.',
-                )
-              : (provider.error ??
-                    context.trRead(
-                      vi: 'Không thể tải ảnh lên.',
-                      en: 'Unable to upload image.',
-                    )),
-        ),
-      ),
-    );
-  }
-
-  void _showIdentityCardPhotoPicker() {
-    showModalBottomSheet<void>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library_outlined),
-                title: Text(
-                  context.trRead(
-                    vi: 'Chọn từ thư viện',
-                    en: 'Choose from gallery',
-                  ),
-                ),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _pickAndUploadIdentityCardPhoto(ImageSource.gallery);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt_outlined),
-                title: Text(
-                  context.trRead(vi: 'Chụp ảnh mới', en: 'Take a new photo'),
-                ),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _pickAndUploadIdentityCardPhoto(ImageSource.camera);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   bool _hasUnsavedChanges(ProfileProvider provider) {
@@ -665,21 +362,15 @@ class _EditProfileViewState extends State<EditProfileView> {
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(_LeaveAction.cancel);
-              },
+              onPressed: () => Navigator.of(dialogContext).pop(_LeaveAction.cancel),
               child: Text(context.trRead(vi: 'Ở lại', en: 'Stay')),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(_LeaveAction.discard);
-              },
+              onPressed: () => Navigator.of(dialogContext).pop(_LeaveAction.discard),
               child: Text(context.trRead(vi: 'Không lưu', en: 'Discard')),
             ),
             FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(_LeaveAction.save);
-              },
+              onPressed: () => Navigator.of(dialogContext).pop(_LeaveAction.save),
               child: Text(context.trRead(vi: 'Lưu', en: 'Save')),
             ),
           ],

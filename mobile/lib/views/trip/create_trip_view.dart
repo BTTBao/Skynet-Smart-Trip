@@ -14,6 +14,8 @@ class CreateTripView extends StatefulWidget {
   final int? editTripId;
   final String? initialTitle;
   final String? initialDestination;
+  final int? initialDestinationId;
+  final String? initialShareCode;
   final DateTime? initialStartDate;
   final DateTime? initialEndDate;
 
@@ -22,6 +24,8 @@ class CreateTripView extends StatefulWidget {
     this.editTripId,
     this.initialTitle,
     this.initialDestination,
+    this.initialDestinationId,
+    this.initialShareCode,
     this.initialStartDate,
     this.initialEndDate,
   });
@@ -37,6 +41,7 @@ class _CreateTripViewState extends State<CreateTripView> {
   DateTime? _startDate;
   DateTime? _endDate;
   Destination? _selectedDestination;
+  int? _originalDestinationId;
   bool _tripNameTouched = false;
   bool _destinationTouched = false;
   bool _startDateTouched = false;
@@ -51,6 +56,7 @@ class _CreateTripViewState extends State<CreateTripView> {
     );
     _startDate = widget.initialStartDate;
     _endDate = widget.initialEndDate;
+    _originalDestinationId = widget.initialDestinationId;
     if (widget.editTripId != null) {
       _tripNameTouched = true;
       _destinationTouched = true;
@@ -76,6 +82,19 @@ class _CreateTripViewState extends State<CreateTripView> {
       return;
     }
 
+    final initialId = widget.initialDestinationId;
+    if (initialId != null) {
+      for (final destination in provider.destinations) {
+        if (destination.id == initialId) {
+          setState(() {
+            _selectedDestination = destination;
+            _destinationController.text = destination.name;
+          });
+          return;
+        }
+      }
+    }
+
     final initialName = widget.initialDestination?.trim().toLowerCase();
     if (initialName == null || initialName.isEmpty) {
       return;
@@ -97,6 +116,10 @@ class _CreateTripViewState extends State<CreateTripView> {
     return DateTime(now.year, now.month, now.day);
   }
 
+  DateTime _laterDate(DateTime first, DateTime second) {
+    return first.isBefore(second) ? second : first;
+  }
+
   String? get _tripNameValidation {
     if (_tripNameController.text.trim().isEmpty) {
       return 'Nhap ten chuyen di';
@@ -115,8 +138,7 @@ class _CreateTripViewState extends State<CreateTripView> {
     if (_startDate == null) {
       return 'Chon ngay di';
     }
-    // Only validate past date for NEW trips
-    if (!_isEditMode && _startDate!.isBefore(_today)) {
+    if (_startDate!.isBefore(_today)) {
       return 'Ngay di khong duoc o qua khu';
     }
     return null;
@@ -126,7 +148,7 @@ class _CreateTripViewState extends State<CreateTripView> {
     if (_endDate == null) {
       return 'Chon ngay ve';
     }
-    if (!_isEditMode && _endDate!.isBefore(_today)) {
+    if (_endDate!.isBefore(_today)) {
       return 'Ngay ve khong duoc o qua khu';
     }
     if (_startDate == null) {
@@ -157,20 +179,28 @@ class _CreateTripViewState extends State<CreateTripView> {
 
   Future<void> _pickDate({required bool isStartDate}) async {
     final today = _today;
-    final initialDate = isStartDate
+    final preferredInitialDate = isStartDate
         ? _startDate ?? today
         : _endDate ?? _startDate ?? today;
-    final firstDate = _isEditMode
-        ? DateTime(2000)
-        : (isStartDate ? today : (_startDate ?? today));
-    final lastDate = isStartDate
+    final firstDate = isStartDate
+        ? today
+        : _laterDate(_startDate ?? today, today);
+    final allowedLastDate = isStartDate
         ? DateTime(today.year + 5, today.month, today.day)
         : (_startDate?.add(const Duration(days: 30)) ??
               DateTime(today.year + 5, today.month, today.day));
+    final lastDate = allowedLastDate.isBefore(firstDate)
+        ? firstDate
+        : allowedLastDate;
+    final initialDate = preferredInitialDate.isBefore(firstDate)
+        ? firstDate
+        : (preferredInitialDate.isAfter(lastDate)
+              ? lastDate
+              : preferredInitialDate);
 
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: initialDate.isBefore(firstDate) ? firstDate : initialDate,
+      initialDate: initialDate,
       firstDate: firstDate,
       lastDate: lastDate,
       builder: (context, child) {
@@ -207,15 +237,58 @@ class _CreateTripViewState extends State<CreateTripView> {
     });
   }
 
+  bool get _destinationChangedInEdit {
+    if (!_isEditMode || _selectedDestination == null) {
+      return false;
+    }
+    return _selectedDestination!.id != _originalDestinationId;
+  }
+
   Future<void> _handleSave() async {
     if (!_isFormValid || _startDate == null || _endDate == null) {
       return;
     }
 
+    if (_isEditMode && _destinationChangedInEdit) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Đổi điểm đến?',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          content: const Text(
+            'Điểm đến mới khác điểm đến cũ. Toàn bộ lịch trình hiện tại sẽ bị xóa vì các địa điểm trên bản đồ gắn với khu vực du lịch trước đó.',
+            style: TextStyle(height: 1.45),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: TripUiColors.timelineGreen,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Đồng ý'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) {
+        return;
+      }
+    }
+
     final tripProvider = context.read<TripProvider>();
 
     if (_isEditMode) {
-      final success = await tripProvider.updateTrip(
+      final updated = await tripProvider.updateTrip(
         widget.editTripId!,
         UpdateTripRequest(
           title: _tripNameController.text.trim(),
@@ -228,14 +301,20 @@ class _CreateTripViewState extends State<CreateTripView> {
 
       if (!mounted) return;
 
-      if (success) {
+      if (updated != null) {
         Navigator.of(context).maybePop();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Da cap nhat chuyen di.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              updated.itinerariesCleared
+                  ? 'Đã cập nhật chuyến đi. Lịch trình cũ đã được xóa do đổi điểm đến.'
+                  : 'Đã cập nhật chuyến đi.',
+            ),
+          ),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tripProvider.error ?? 'Cap nhat that bai.')),
+          SnackBar(content: Text(tripProvider.error ?? 'Cập nhật thất bại.')),
         );
       }
       return;
@@ -355,6 +434,54 @@ class _CreateTripViewState extends State<CreateTripView> {
                   });
                 },
               ),
+              if (_isEditMode && _destinationChangedInEdit) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8E1),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFFFE082)),
+                  ),
+                  child: const Text(
+                    'Đổi điểm đến sẽ xóa toàn bộ lịch trình hiện tại.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: Color(0xFF6D4C00),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+              if (_isEditMode &&
+                  widget.initialShareCode != null &&
+                  widget.initialShareCode!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const TripSectionLabel('Mã chuyến đi'),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F4F6),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    widget.initialShareCode!,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: TripUiColors.timelineGreen,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 18),
               const Row(
                 children: [
@@ -451,20 +578,14 @@ class _DestinationDropdownField extends StatelessWidget {
       items: destinations.map((destination) {
         return DropdownMenuItem<Destination>(
           value: destination,
-          child: Text(
-            destination.name,
-            overflow: TextOverflow.ellipsis,
-          ),
+          child: Text(destination.name, overflow: TextOverflow.ellipsis),
         );
       }).toList(),
       onChanged: isLoading ? null : onChanged,
       decoration: InputDecoration(
         hintText: isLoading ? 'Dang tai diem den...' : 'Chon diem den...',
         errorText: errorText,
-        hintStyle: const TextStyle(
-          color: Color(0xFFA0A7AF),
-          fontSize: 13,
-        ),
+        hintStyle: const TextStyle(color: Color(0xFFA0A7AF), fontSize: 13),
         prefixIcon: const Icon(
           Icons.place_outlined,
           color: TripUiColors.primaryGreen,

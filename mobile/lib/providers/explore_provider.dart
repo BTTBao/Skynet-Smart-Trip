@@ -186,6 +186,7 @@ class ExploreProvider with ChangeNotifier {
     required List<String> imageUrls,
     double? latitude,
     double? longitude,
+    String? linkedTripCode,
   }) async {
     _isLoading = true;
     _error = null;
@@ -205,6 +206,7 @@ class ExploreProvider with ChangeNotifier {
         region: city == null
             ? null
             : kPopularCities.firstWhere((item) => item.slug == city).region,
+        linkedTripCode: linkedTripCode,
       );
 
       _allPosts = [created, ..._allPosts];

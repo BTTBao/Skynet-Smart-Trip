@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="800" viewBox="0 0 1400 800" role="img" aria-labelledby="title desc">
+  <title id="title">Kiến trúc tổng thể hệ thống</title>
+  <desc id="desc">Sơ đồ kiến trúc tổng thể gồm Mobile App, Backend API, Database, AI Service và Payment Gateway.</desc>
+
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .title { font: 700 34px Arial, sans-serif; fill: #172033; }
+      .subtitle { font: 400 16px Arial, sans-serif; fill: #59677a; }
+      .box-title { font: 700 22px Arial, sans-serif; fill: #172033; }
+      .box-text { font: 400 15px Arial, sans-serif; fill: #445269; }
+      .small { font: 400 14px Arial, sans-serif; fill: #536173; }
+      .mobile { fill: #eaf6ff; stroke: #3793d1; stroke-width: 2; rx: 18; }
+      .backend { fill: #eefdf5; stroke: #2f9d68; stroke-width: 2; rx: 18; }
+      .database { fill: #f1f5f9; stroke: #64748b; stroke-width: 2; rx: 18; }
+      .ai { fill: #fff7e6; stroke: #d49a22; stroke-width: 2; rx: 18; }
+      .payment { fill: #fff0f0; stroke: #d75b5b; stroke-width: 2; rx: 18; }
+      .arrow { stroke: #334155; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .arrow2 { stroke: #64748b; stroke-width: 2.5; fill: none; marker-end: url(#arrow2); stroke-dasharray: 8 7; }
+      .label { font: 700 14px Arial, sans-serif; fill: #334155; }
+      .icon { font: 700 42px Arial, sans-serif; fill: #1f2937; opacity: .9; }
+    </style>
+
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto">
+      <path d="M2,2 L12,7 L2,12 Z" fill="#334155" />
+    </marker>
+    <marker id="arrow2" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto">
+      <path d="M2,2 L12,7 L2,12 Z" fill="#64748b" />
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1400" height="800" />
+
+  <text class="title" x="70" y="70">Kiến trúc tổng thể hệ thống</text>
+  <text class="subtitle" x="70" y="100">Mobile App gửi thao tác người dùng đến Backend API; Backend xử lý nghiệp vụ, lưu dữ liệu, gọi AI Service và Payment Gateway khi cần.</text>
+
+  <rect class="mobile" x="80" y="260" width="270" height="180" />
+  <text class="icon" x="112" y="322">APP</text>
+  <text class="box-title" x="112" y="358">Mobile App</text>
+  <text class="box-text" x="112" y="390">Giao diện người dùng</text>
+  <text class="box-text" x="112" y="416">Nhận thao tác đặt dịch vụ</text>
+
+  <rect class="backend" x="545" y="230" width="310" height="240" />
+  <text class="icon" x="582" y="292">API</text>
+  <text class="box-title" x="582" y="330">Backend API</text>
+  <text class="box-text" x="582" y="362">Tiếp nhận request</text>
+  <text class="box-text" x="582" y="388">Kiểm tra dữ liệu</text>
+  <text class="box-text" x="582" y="414">Xử lý nghiệp vụ</text>
+  <text class="box-text" x="582" y="440">Trả kết quả về ứng dụng</text>
+
+  <rect class="database" x="505" y="575" width="390" height="120" />
+  <text class="box-title" x="548" y="620">Database</text>
+  <text class="small" x="548" y="650">Users, Destinations, Hotels, Bookings</text>
+  <text class="small" x="548" y="674">Trips, Itineraries, Blogs, Reviews</text>
+
+  <rect class="ai" x="1030" y="180" width="290" height="150" />
+  <text class="box-title" x="1070" y="235">AI Service</text>
+  <text class="box-text" x="1070" y="268">Chatbot du lịch</text>
+  <text class="box-text" x="1070" y="294">Gợi ý lịch trình</text>
+
+  <rect class="payment" x="1030" y="430" width="290" height="150" />
+  <text class="box-title" x="1070" y="485">Payment Gateway</text>
+  <text class="box-text" x="1070" y="518">Xử lý thanh toán</text>
+  <text class="box-text" x="1070" y="544">Khi người dùng đặt dịch vụ</text>
+
+  <path class="arrow" d="M350 350 H545" />
+  <text class="label" x="392" y="332">Request</text>
+
+  <path class="arrow" d="M545 390 H350" />
+  <text class="label" x="392" y="424">Response</text>
+
+  <path class="arrow2" d="M700 470 V575" />
+  <text class="label" x="724" y="528">Lưu / truy vấn dữ liệu</text>
+
+  <path class="arrow2" d="M855 295 C930 260, 965 250, 1030 250" />
+  <text class="label" x="902" y="236">Chatbot / gợi ý</text>
+
+  <path class="arrow2" d="M855 410 C930 465, 965 505, 1030 505" />
+  <text class="label" x="900" y="494">Thanh toán</text>
+
+  <rect x="80" y="720" width="1240" height="1.5" fill="#dbe4ef" />
+  <text class="small" x="80" y="750">Luồng chính: Người dùng thao tác trên Mobile App → Backend API xử lý → Database lưu dữ liệu; AI Service và Payment Gateway được gọi theo từng nghiệp vụ.</text>
+</svg>

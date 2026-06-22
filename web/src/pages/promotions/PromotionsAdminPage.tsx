@@ -16,6 +16,45 @@ const initialForm: AdminPromotionRequest = {
   usageLimit: 100,
 };
 
+function Field({
+  label,
+  required,
+  children,
+  className = '',
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`flex flex-col gap-1.5 min-w-0 ${className}`}>
+      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider select-none">
+        {label}
+        {required && <span className="text-red-400 ml-0.5">*</span>}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+const inputCls =
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 min-w-0';
+
+function StatCard({ label, value, icon }: { label: string; value: string | number; icon: string }) {
+  return (
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <span className="material-symbols-outlined rounded-xl bg-primary/10 p-2.5 text-primary text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>{icon}</span>
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+        <h2 className="mt-1 text-3xl font-black text-on-surface">{value}</h2>
+      </div>
+    </div>
+  );
+}
+
 export default function PromotionsAdminPage() {
   const { query } = useAdminSearch();
   const { showToast } = useToast();
@@ -24,6 +63,7 @@ export default function PromotionsAdminPage() {
   const [editingPromotion, setEditingPromotion] = useState<AdminPromotion | null>(null);
   const [form, setForm] = useState<AdminPromotionRequest>(initialForm);
   const [submitting, setSubmitting] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   const loadPromotions = async () => {
     const data = await adminService.getPromotions();
@@ -95,92 +135,198 @@ export default function PromotionsAdminPage() {
   }
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6">
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Catalog quản trị</p>
-          <h1 className="mt-3 text-4xl font-black text-on-surface">Khuyến mãi</h1>
-          <p className="mt-3 max-w-3xl text-sm text-on-surface-variant">Màn khuyến mãi đã thay placeholder bằng CRUD coupon thật cho admin.</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-primary mb-1">Catalog quản trị</p>
+          <h1 className="text-3xl font-black text-on-surface">Khuyến mãi</h1>
+          <p className="text-sm text-slate-500 mt-1 max-w-xl">
+            Quản lý mã giảm giá, cấu hình phần trăm giảm, thời hạn sử dụng và số lượng lượt dùng tối đa.
+          </p>
         </div>
-        <button onClick={() => downloadCsv('promotions.csv', filteredPromotions, [{ key: 'code', header: 'Code' }, { key: 'discountPercent', header: 'Discount %' }, { key: 'maxDiscountAmount', header: 'Max Discount' }, { key: 'validUntil', header: 'Valid Until' }, { key: 'usageLimit', header: 'Usage Limit' }, { key: 'usedCount', header: 'Used' }])} className="rounded-full bg-primary-container px-6 py-3 text-sm font-bold text-white">Xuất CSV</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setShowGuide(true)}
+            className="rounded-full bg-amber-500 hover:bg-amber-600 px-5 py-2.5 text-sm font-bold text-white transition-all shadow-sm"
+          >
+            💡 Hướng dẫn
+          </button>
+          <button
+            onClick={() => downloadCsv('promotions.csv', filteredPromotions, [
+              { key: 'code', header: 'Mã giảm giá' },
+              { key: 'discountPercent', header: 'Phần trăm giảm' },
+              { key: 'maxDiscountAmount', header: 'Giảm tối đa' },
+              { key: 'validUntil', header: 'Hạn dùng' },
+              { key: 'usageLimit', header: 'Giới hạn dùng' },
+              { key: 'usedCount', header: 'Đã dùng' },
+            ])}
+            className="rounded-full bg-slate-100 text-slate-700 px-5 py-2.5 text-sm font-bold hover:bg-slate-200 transition"
+          >
+            Xuất CSV
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="rounded-[2rem] bg-white p-8 shadow-[0px_20px_40px_rgba(21,28,39,0.04)]">
-          <p className="text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Tổng mã</p>
-          <h2 className="mt-3 text-4xl font-black text-on-surface">{promotions.length}</h2>
-        </div>
-        <div className="rounded-[2rem] bg-white p-8 shadow-[0px_20px_40px_rgba(21,28,39,0.04)]">
-          <p className="text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Mã còn hiệu lực</p>
-          <h2 className="mt-3 text-4xl font-black text-on-surface">{activeCount}</h2>
-        </div>
-        <div className="rounded-[2rem] bg-white p-8 shadow-[0px_20px_40px_rgba(21,28,39,0.04)]">
-          <p className="text-[11px] font-black uppercase tracking-wider text-on-surface-variant">Kết quả lọc</p>
-          <h2 className="mt-3 text-4xl font-black text-on-surface">{filteredPromotions.length}</h2>
-        </div>
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard label="Tổng mã" value={promotions.length} icon="local_offer" />
+        <StatCard label="Mã còn hiệu lực" value={activeCount} icon="check_circle" />
+        <StatCard label="Kết quả lọc" value={filteredPromotions.length} icon="filter_list" />
       </div>
 
-      <form onSubmit={handleSubmit} className="rounded-[2rem] bg-white p-8 shadow-[0px_20px_40px_rgba(21,28,39,0.04)] ring-1 ring-outline-variant/10">
-        <div className="flex items-center justify-between gap-4 mb-6">
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+        <div className="flex items-center justify-between gap-4 mb-5">
           <div>
-            <h2 className="text-xl font-black text-on-surface">{editingPromotion ? 'Cập nhật mã khuyến mãi' : 'Tạo mã khuyến mãi mới'}</h2>
-            <p className="mt-1 text-sm text-on-surface-variant">Top bar đang hỗ trợ tìm nhanh theo code.</p>
+            <h2 className="text-lg font-black text-on-surface">{editingPromotion ? 'Cập nhật mã khuyến mãi' : 'Tạo mã khuyến mãi mới'}</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Thiết lập các điều kiện áp dụng mã giảm giá.</p>
           </div>
-          {editingPromotion ? <button type="button" onClick={() => { setEditingPromotion(null); setForm(initialForm); }} className="rounded-full bg-surface-container-low px-5 py-2.5 text-sm font-bold text-on-surface">Hủy sửa</button> : null}
+          {editingPromotion ? (
+            <button
+              type="button"
+              onClick={() => { setEditingPromotion(null); setForm(initialForm); }}
+              className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 transition"
+            >
+              Hủy sửa
+            </button>
+          ) : null}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <input value={form.code} onChange={(event) => setForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))} placeholder="Mã giảm giá" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
-          <input value={form.discountPercent} onChange={(event) => setForm((current) => ({ ...current, discountPercent: Number(event.target.value) }))} type="number" min={0} max={100} placeholder="% giảm" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
-          <input value={form.maxDiscountAmount} onChange={(event) => setForm((current) => ({ ...current, maxDiscountAmount: Number(event.target.value) }))} type="number" min={0} placeholder="Giảm tối đa" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
-          <input value={form.validUntil} onChange={(event) => setForm((current) => ({ ...current, validUntil: event.target.value }))} type="date" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
-          <input value={form.usageLimit} onChange={(event) => setForm((current) => ({ ...current, usageLimit: Number(event.target.value) }))} type="number" min={1} placeholder="Giới hạn lượt dùng" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Field label="Mã giảm giá" required>
+            <input
+              value={form.code}
+              onChange={(e) => setForm((current) => ({ ...current, code: e.target.value.toUpperCase() }))}
+              placeholder="Ví dụ: SUMMER20"
+              className={inputCls}
+              required
+            />
+          </Field>
+          <Field label="Phần trăm giảm (%)" required>
+            <input
+              value={form.discountPercent}
+              onChange={(e) => setForm((current) => ({ ...current, discountPercent: Number(e.target.value) }))}
+              type="number"
+              min={0}
+              max={100}
+              placeholder="0 – 100%"
+              className={inputCls}
+              required
+            />
+          </Field>
+          <Field label="Số tiền giảm tối đa (đ)" required>
+            <input
+              value={form.maxDiscountAmount}
+              onChange={(e) => setForm((current) => ({ ...current, maxDiscountAmount: Number(e.target.value) }))}
+              type="number"
+              min={0}
+              placeholder="Ví dụ: 100000"
+              className={inputCls}
+              required
+            />
+          </Field>
+          <Field label="Hạn sử dụng" required>
+            <input
+              value={form.validUntil}
+              onChange={(e) => setForm((current) => ({ ...current, validUntil: e.target.value }))}
+              type="date"
+              className={inputCls}
+              required
+            />
+          </Field>
+          <Field label="Giới hạn lượt dùng" required>
+            <input
+              value={form.usageLimit}
+              onChange={(e) => setForm((current) => ({ ...current, usageLimit: Number(e.target.value) }))}
+              type="number"
+              min={1}
+              placeholder="Số lượt tối đa"
+              className={inputCls}
+              required
+            />
+          </Field>
         </div>
-        <div className="mt-6">
-          <button type="submit" disabled={submitting} className="rounded-full bg-primary-container px-8 py-3 text-sm font-bold text-white disabled:opacity-50">
+        <div className="mt-5">
+          <button type="submit" disabled={submitting} className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-full disabled:opacity-50 hover:brightness-110 transition">
             {submitting ? 'Đang lưu...' : editingPromotion ? 'Lưu thay đổi' : 'Tạo khuyến mãi'}
           </button>
         </div>
       </form>
 
-      <div className="rounded-[2rem] bg-white shadow-[0px_20px_40px_rgba(21,28,39,0.04)] overflow-hidden">
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-surface-container-low/50">
-                <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Code</th>
-                <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Ưu đãi</th>
-                <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Hạn dùng</th>
-                <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Đã dùng</th>
-                <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Trạng thái</th>
-                <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant text-right">Hành động</th>
+            <thead className="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Mã code</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Ưu đãi</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Hạn dùng</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Đã dùng</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Trạng thái</th>
+                <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">Hành động</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant/10">
+            <tbody className="divide-y divide-slate-50">
               {filteredPromotions.map((promotion) => (
-                <tr key={promotion.id}>
-                  <td className="px-8 py-6 text-sm font-black text-on-surface">{promotion.code}</td>
-                  <td className="px-8 py-6 text-sm text-on-surface">{promotion.discountPercent}% • max {promotion.maxDiscountAmount.toLocaleString()}đ</td>
-                  <td className="px-8 py-6 text-sm text-on-surface-variant">{promotion.validUntil}</td>
-                  <td className="px-8 py-6 text-sm text-on-surface">{promotion.usedCount}/{promotion.usageLimit}</td>
-                  <td className="px-8 py-6">
-                    <span className={`rounded-full px-4 py-1.5 text-xs font-bold ${
-                      promotion.isActive 
-                        ? 'bg-primary-container/10 text-primary-container' 
-                        : promotion.usedCount >= promotion.usageLimit 
-                          ? 'bg-slate-100 text-slate-500' 
-                          : 'bg-error-container text-error'
+                <tr key={promotion.id} className="hover:bg-slate-50/70 transition-colors">
+                  <td className="px-6 py-4">
+                    <span className="font-black text-on-surface tracking-widest bg-slate-100 px-3 py-1 rounded-lg text-sm">{promotion.code}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="text-sm font-semibold text-on-surface">{promotion.discountPercent}% giảm</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Tối đa {promotion.maxDiscountAmount.toLocaleString()}đ</p>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-500">{promotion.validUntil}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 max-w-[80px] bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full"
+                          style={{ width: `${Math.min(100, (promotion.usedCount / promotion.usageLimit) * 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-slate-500 tabular-nums">{promotion.usedCount}/{promotion.usageLimit}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      promotion.isActive
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : promotion.usedCount >= promotion.usageLimit
+                          ? 'bg-slate-100 text-slate-500'
+                          : 'bg-red-50 text-red-600'
                     }`}>
-                      {promotion.isActive 
-                        ? 'Active' 
-                        : promotion.usedCount >= promotion.usageLimit 
-                          ? 'Used Up' 
-                          : 'Expired'}
+                      {promotion.isActive
+                        ? 'Đang chạy'
+                        : promotion.usedCount >= promotion.usageLimit
+                          ? 'Hết lượt'
+                          : 'Hết hạn'}
                     </span>
                   </td>
-                  <td className="px-8 py-6 text-right">
+                  <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => { setEditingPromotion(promotion); setForm({ code: promotion.code, discountPercent: promotion.discountPercent, maxDiscountAmount: promotion.maxDiscountAmount, validUntil: promotion.validUntil, usageLimit: promotion.usageLimit }); }} className="rounded-full bg-surface-container-low px-4 py-2 text-xs font-bold text-on-surface">Sửa</button>
-                      <button onClick={() => handleDelete(promotion)} className="rounded-full bg-error-container px-4 py-2 text-xs font-bold text-error">Xóa</button>
+                      <button
+                        onClick={() => {
+                          setEditingPromotion(promotion);
+                          setForm({
+                            code: promotion.code,
+                            discountPercent: promotion.discountPercent,
+                            maxDiscountAmount: promotion.maxDiscountAmount,
+                            validUntil: promotion.validUntil,
+                            usageLimit: promotion.usageLimit,
+                          });
+                        }}
+                        className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 transition"
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        onClick={() => handleDelete(promotion)}
+                        className="rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 transition"
+                      >
+                        Xóa
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -188,7 +334,44 @@ export default function PromotionsAdminPage() {
             </tbody>
           </table>
         </div>
+        {filteredPromotions.length === 0 && (
+          <div className="py-12 text-center">
+            <span className="material-symbols-outlined text-4xl text-slate-300">local_offer</span>
+            <p className="mt-3 text-slate-500 font-medium">Chưa có mã khuyến mãi nào</p>
+          </div>
+        )}
       </div>
+
+      {/* Guide Modal */}
+      {showGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-2xl ring-1 ring-black/5">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-amber-600">Hướng dẫn sử dụng</p>
+                <h3 className="mt-1 text-xl font-black text-slate-900">Quản lý Khuyến mãi</h3>
+              </div>
+              <button type="button" onClick={() => setShowGuide(false)} className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-2 text-xs font-bold text-slate-900 transition-colors">Đóng</button>
+            </div>
+            <div className="mt-6 space-y-5 text-sm text-slate-600 leading-relaxed max-h-[55vh] overflow-y-auto pr-1">
+              <div className="rounded-2xl bg-amber-50 p-5 border border-amber-100">
+                <h4 className="font-bold text-amber-800 text-base">📌 Chính sách chịu chi phí khuyến mãi</h4>
+                <ul className="mt-3 list-disc list-inside space-y-2 text-amber-900 font-medium">
+                  <li><strong>Nền tảng chịu 100%:</strong> Các coupon hệ thống phát hành sẽ do SmartTrip chịu 100% kinh phí.</li>
+                  <li><strong>Doanh thu đối tác không đổi:</strong> Doanh thu chuyển cho Khách sạn/Nhà xe vẫn tính theo giá gốc trừ đi hoa hồng thỏa thuận ban đầu, không bị giảm trừ do khuyến mãi.</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-black text-slate-900 text-base">⚙️ Cách thiết lập mã giảm giá</h4>
+                <ul className="mt-2 list-disc list-inside space-y-2">
+                  <li><strong>Giới hạn lượt dùng:</strong> Khi số lượt sử dụng thực tế đạt giới hạn thiết lập, trạng thái mã tự động chuyển sang <em>"Hết lượt"</em>.</li>
+                  <li><strong>Hạn dùng (Valid Until):</strong> Khi vượt quá ngày hết hạn thiết lập, trạng thái mã tự động chuyển sang <em>"Hết hạn"</em>.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

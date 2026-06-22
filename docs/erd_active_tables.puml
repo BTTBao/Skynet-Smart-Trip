@@ -1,0 +1,462 @@
+@startuml SkynetSmartTripActiveERD
+' ERD for active EF Core tables.
+' Render with PlantUML. Orthogonal lines are enabled to keep connectors square.
+
+!pragma layout smetana
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam linetype ortho
+skinparam roundcorner 4
+skinparam handwritten false
+skinparam defaultFontName Arial
+skinparam classAttributeIconSize 0
+skinparam nodesep 70
+skinparam ranksep 80
+skinparam packageStyle rectangle
+skinparam package {
+  BackgroundColor #F8FAFC
+  BorderColor #CBD5E1
+  FontColor #0F172A
+}
+skinparam entity {
+  BackgroundColor #FFFFFF
+  BorderColor #334155
+  FontColor #0F172A
+}
+
+hide circle
+left to right direction
+
+package "Users & Auth" as P_USERS {
+  entity "Users" as users {
+    * Id : int <<PK>>
+    --
+    * Email : varchar(100) <<UQ>>
+    UserName : varchar(50) <<UQ>>
+    PasswordHash : varchar(255)
+    FullName : nvarchar(100)
+    Phone : varchar(20)
+    AvatarUrl : varchar(255)
+    BirthDate : date
+    IdentityNumber : varchar(20) <<UQ>>
+    IdentityCardPhotoUrl : varchar(500)
+    AuthProvider : enum(AuthProvider)
+    SocialId : varchar(255)
+    Role : enum(UserRole)
+    IsActive : bit
+    IsEmailVerified : bit
+    EmailVerificationToken : nvarchar(max)
+    EmailVerificationTokenExpiry : datetime
+    PasswordResetToken : nvarchar(max)
+    PasswordResetTokenExpiry : datetime
+    RefreshToken : nvarchar(max)
+    RefreshTokenExpiry : datetime
+    LastLoginAt : datetime
+    CreatedAt : datetime
+  }
+
+  entity "UserWallets" as user_wallets {
+    * Id : int <<PK>>
+    --
+    UserId : int <<FK>>
+    Balance : decimal(18,2)
+    LoyaltyPoints : int
+  }
+
+  entity "UserFcmTokens" as user_fcm_tokens {
+    * Id : int <<PK>>
+    --
+    * UserId : int <<FK>>
+    * Token : varchar(512) <<UQ>>
+    * Platform : varchar(30)
+    DeviceId : varchar(120)
+    * IsActive : bit
+    * CreatedAt : datetime
+    * UpdatedAt : datetime
+    LastUsedAt : datetime
+  }
+
+  entity "UserPreferences" as user_preferences {
+    * Id : int <<PK>>
+    --
+    * UserId : int <<FK>>
+    * PreferenceKey : nvarchar(100) <<UQ>>
+    * PreferenceValue : nvarchar(500)
+    * UpdatedAt : datetime
+  }
+}
+
+package "Catalog & Content" as P_CATALOG {
+  entity "Destinations" as destinations {
+    * Id : int <<PK>>
+    --
+    * Name : nvarchar(100)
+    Description : nvarchar(max)
+    CoverImageUrl : varchar(255)
+    IsHot : bit
+  }
+
+  entity "BlogPosts" as blog_posts {
+    * Id : int <<PK>>
+    --
+    AuthorId : int <<FK>>
+    DestinationId : int <<FK>>
+    Title : nvarchar(255)
+    ContentHtml : nvarchar(max)
+    ThumbnailUrl : varchar(255)
+    PublishedAt : datetime
+  }
+
+  entity "Galleries" as galleries {
+    * Id : int <<PK>>
+    --
+    ReferenceType : enum(GalleryReferenceType)
+    ReferenceId : int
+    ImageUrl : varchar(255)
+  }
+}
+
+package "Hotels" as P_HOTEL {
+  entity "Hotels" as hotels {
+    * Id : int <<PK>>
+    --
+    DestinationId : int <<FK>>
+    * Name : nvarchar(200)
+    Address : nvarchar(255)
+    StarRating : int
+    Description : nvarchar(max)
+    IsAvailable : bit
+  }
+
+  entity "Rooms" as rooms {
+    * Id : int <<PK>>
+    --
+    HotelId : int <<FK>>
+    RoomType : nvarchar(100)
+    Capacity : int
+    PricePerNight : decimal(18,2)
+    CommissionRate : float
+    AvailableQty : int
+  }
+
+  entity "Amenities" as amenities {
+    * Id : int <<PK>>
+    --
+    Name : nvarchar(100)
+    IconUrl : varchar(255)
+  }
+
+  entity "HotelAmenityMapping" as hotel_amenity_mapping {
+    * HotelId : int <<PK, FK>>
+    * AmenityId : int <<PK, FK>>
+  }
+}
+
+package "Transport" as P_TRANSPORT {
+  entity "BusCompanies" as bus_companies {
+    * Id : int <<PK>>
+    --
+    Name : nvarchar(100)
+    Hotline : varchar(20)
+    LogoUrl : varchar(255)
+  }
+
+  entity "BusSchedules" as bus_schedules {
+    * Id : int <<PK>>
+    --
+    CompanyId : int <<FK>>
+    FromDestId : int <<FK>>
+    ToDestId : int <<FK>>
+    DepartureTime : datetime
+    ArrivalTime : datetime
+    Price : decimal(18,2)
+    CommissionRate : float
+    TotalSeats : int
+  }
+
+  entity "Seats" as seats {
+    * Id : int <<PK>>
+    --
+    ScheduleId : int <<FK>>
+    SeatNumber : varchar(10)
+    Status : enum(SeatStatus)
+    LockedUntil : datetime
+    LockedByTripId : int
+  }
+}
+
+package "Trips & Payments" as P_TRIP {
+  entity "Promotions" as promotions {
+    * Id : int <<PK>>
+    --
+    Code : varchar(50) <<UQ>>
+    DiscountPercent : float
+    MaxDiscountAmount : decimal(18,2)
+    ValidUntil : datetime
+    UsageLimit : int
+    UsedCount : int
+  }
+
+  entity "Trips" as trips {
+    * Id : int <<PK>>
+    --
+    UserId : int <<FK>>
+    DestinationId : int <<FK>>
+    Title : nvarchar(200)
+    StartDate : date
+    EndDate : date
+    TotalAmount : decimal(18,2)
+    TotalProfit : decimal(18,2)
+    Status : enum(TripStatus)
+    CreatedAt : datetime
+  }
+
+  entity "TripItineraries" as trip_itineraries {
+    * Id : int <<PK>>
+    --
+    TripId : int <<FK>>
+    DayNumber : int
+    ServiceType : enum(TripServiceType)
+    ServiceId : int
+    Quantity : int
+    AdultCount : int
+    ChildCount : int
+    InfantCount : int
+    BookedPrice : decimal(18,2)
+    BookedCommissionRate : float
+    ServiceDate : date
+    DepartureTime : time
+    ServiceAddress : nvarchar(500)
+    SelectedSeats : nvarchar(max)
+  }
+
+  entity "Payments" as payments {
+    * Id : int <<PK>>
+    --
+    TripId : int <<FK>>
+    PaymentMethod : enum(PaymentMethod)
+    TransactionId : varchar(100)
+    Amount : decimal(18,2)
+    Status : enum(PaymentStatus)
+    PaidAt : datetime
+    OrderCode : bigint <<UQ>>
+    Description : nvarchar(255)
+    CheckoutUrl : varchar(2048)
+    QrCode : nvarchar(max)
+    PaymentLinkId : varchar(100)
+    ReturnUrl : varchar(2048)
+    CancelUrl : varchar(2048)
+    MetadataJson : nvarchar(max)
+    RawResponseJson : nvarchar(max)
+    CreatedAt : datetime
+    UpdatedAt : datetime
+  }
+
+  entity "Invoices" as invoices {
+    * Id : int <<PK>>
+    --
+    TripId : int <<FK>>
+    InvoiceNumber : varchar(50) <<UQ>>
+    TaxAmount : decimal(18,2)
+    PdfUrl : varchar(255)
+    IssuedAt : datetime
+  }
+}
+
+package "Engagement" as P_ENGAGEMENT {
+  entity "Reviews" as reviews {
+    * Id : int <<PK>>
+    --
+    UserId : int <<FK>>
+    TripId : int <<FK>>
+    TargetType : enum(ReviewTargetType)
+    TargetId : int
+    Rating : int
+    Comment : nvarchar(max)
+    CreatedAt : datetime
+  }
+
+  entity "Wishlists" as wishlists {
+    * WishId : int <<PK>>
+    --
+    UserId : int <<FK>>
+    ItemType : enum(WishlistItemType)
+    ItemId : int
+    CreatedAt : datetime
+  }
+
+  entity "Notifications" as notifications {
+    * Id : int <<PK>>
+    --
+    UserId : int <<FK>>
+    Title : nvarchar(200)
+    Message : nvarchar(max)
+    Type : varchar(80)
+    ReferenceType : varchar(50)
+    ReferenceId : int
+    ActionUrl : nvarchar(255)
+    IsRead : bit
+    CreatedAt : datetime
+  }
+}
+
+package "Explore" as P_EXPLORE {
+  entity "ExplorePosts" as explore_posts {
+    * Id : int <<PK>>
+    --
+    * AuthorId : int <<FK>>
+    * Title : nvarchar(200)
+    * Excerpt : nvarchar(500)
+    * Content : nvarchar(max)
+    ThumbnailUrl : varchar(500)
+    * Location : nvarchar(120)
+    * CitySlug : varchar(80)
+    * Province : nvarchar(120)
+    * Region : varchar(20)
+    Latitude : float
+    Longitude : float
+    * CostLevel : int
+    * AverageRating : decimal(3,2)
+    * RatingCount : int
+    * ViewCount : int
+    * IsVisible : bit
+    Tags : nvarchar(500)
+    * CreatedAt : datetime
+    UpdatedAt : datetime
+  }
+
+  entity "ExplorePostImages" as explore_post_images {
+    * Id : int <<PK>>
+    --
+    * ExplorePostId : int <<FK>>
+    * ImageUrl : varchar(500)
+    * SortOrder : int
+  }
+
+  entity "ExplorePostLikes" as explore_post_likes {
+    * Id : int <<PK>>
+    --
+    * ExplorePostId : int <<FK>>
+    * UserId : int <<FK>>
+    * CreatedAt : datetime
+  }
+
+  entity "ExplorePostSaves" as explore_post_saves {
+    * Id : int <<PK>>
+    --
+    * ExplorePostId : int <<FK>>
+    * UserId : int <<FK>>
+    * CreatedAt : datetime
+  }
+
+  entity "ExplorePostRatings" as explore_post_ratings {
+    * Id : int <<PK>>
+    --
+    * ExplorePostId : int <<FK>>
+    * UserId : int <<FK>>
+    * Rating : decimal(3,2)
+    * CreatedAt : datetime
+    UpdatedAt : datetime
+  }
+
+  entity "ExploreComments" as explore_comments {
+    * Id : int <<PK>>
+    --
+    * ExplorePostId : int <<FK>>
+    ParentCommentId : int <<FK>>
+    * UserId : int <<FK>>
+    * Content : nvarchar(1000)
+    * LikeCount : int
+    * CreatedAt : datetime
+    ImageUrl : nvarchar(max)
+  }
+}
+
+package "AI Chat" as P_CHAT {
+  entity "ChatHistories" as chat_histories {
+    * Id : int <<PK>>
+    --
+    * UserId : int <<FK>>
+    * UserMessage : nvarchar(max)
+    * BotResponse : nvarchar(max)
+    ResponseType : nvarchar(50)
+    ResponseDataJson : nvarchar(max)
+    DetectedIntent : nvarchar(50)
+    SessionId : varchar(100)
+    * CreatedAt : datetime
+  }
+}
+
+' Main relationships
+users ||--o{ user_wallets : owns
+users ||--o{ user_fcm_tokens : receives
+users ||--o{ user_preferences : configures
+users ||--o{ blog_posts : writes
+users ||--o{ trips : books
+users ||--o{ reviews : writes
+users ||--o{ wishlists : saves
+users ||--o{ notifications : receives
+users ||--o{ chat_histories : chats
+
+destinations ||--o{ blog_posts : has
+destinations ||--o{ hotels : contains
+destinations ||--o{ trips : target
+destinations ||--o{ bus_schedules : from
+destinations ||--o{ bus_schedules : to
+
+hotels ||--o{ rooms : offers
+hotels ||--o{ hotel_amenity_mapping
+amenities ||--o{ hotel_amenity_mapping
+
+bus_companies ||--o{ bus_schedules : operates
+bus_schedules ||--o{ seats : has
+
+trips ||--o{ trip_itineraries : includes
+trips ||--o{ payments : paid_by
+trips ||--o{ invoices : billed_by
+trips ||--o{ reviews : reviewed_by
+
+users ||--o{ explore_posts : authors
+explore_posts ||--o{ explore_post_images : has
+explore_posts ||--o{ explore_post_likes : liked_by
+explore_posts ||--o{ explore_post_saves : saved_by
+explore_posts ||--o{ explore_post_ratings : rated_by
+explore_posts ||--o{ explore_comments : commented_on
+users ||--o{ explore_post_likes : likes
+users ||--o{ explore_post_saves : saves
+users ||--o{ explore_post_ratings : rates
+users ||--o{ explore_comments : comments
+explore_comments ||--o{ explore_comments : replies
+
+' Soft/polymorphic references used by application logic.
+trip_itineraries ..> hotels : ServiceType=Hotel\nServiceId
+trip_itineraries ..> bus_schedules : ServiceType=Bus\nServiceId
+reviews ..> hotels : TargetType=Hotel\nTargetId
+reviews ..> bus_companies : TargetType=BusCompany\nTargetId
+wishlists ..> hotels : ItemType=Hotel\nItemId
+wishlists ..> bus_schedules : ItemType=Bus\nItemId
+galleries ..> hotels : ReferenceType=Hotel\nReferenceId
+galleries ..> rooms : ReferenceType=Room\nReferenceId
+galleries ..> destinations : ReferenceType=Destination\nReferenceId
+notifications ..> trips : ReferenceId
+seats ..> trips : LockedByTripId
+
+' Invisible ordering hints to keep large groups cleaner.
+P_USERS -[hidden]right- P_CATALOG
+P_CATALOG -[hidden]right- P_HOTEL
+P_HOTEL -[hidden]right- P_TRANSPORT
+P_TRANSPORT -[hidden]right- P_TRIP
+P_TRIP -[hidden]right- P_ENGAGEMENT
+P_ENGAGEMENT -[hidden]right- P_EXPLORE
+P_EXPLORE -[hidden]right- P_CHAT
+
+legend right
+  * = NOT NULL in EF model
+  PK = Primary Key
+  FK = Foreign Key
+  UQ = Unique index
+  Dotted arrows = soft/polymorphic reference
+endlegend
+
+@enduml

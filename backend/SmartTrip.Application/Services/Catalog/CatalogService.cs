@@ -16,6 +16,58 @@ public class CatalogService : ICatalogService
         _context = context;
     }
 
+    public async Task<List<CatalogDestinationDto>> GetPopularDestinationsAsync()
+    {
+        var home = await GetHomeAsync();
+        return home.PopularDestinations;
+    }
+
+    public async Task<List<CatalogHotelCardDto>> GetFeaturedHotelsAsync()
+    {
+        var home = await GetHomeAsync();
+        return home.FeaturedHotels;
+    }
+
+    public async Task<List<CatalogBusCardDto>> GetFeaturedBusesAsync()
+    {
+        var home = await GetHomeAsync();
+        return home.FeaturedBuses;
+    }
+
+    public Task<CatalogHotelSearchResultDto> SearchHotelsAsync(
+        int? destinationId,
+        string? query,
+        int page,
+        int pageSize,
+        decimal? minPrice,
+        decimal? maxPrice,
+        int? starRating,
+        string? sort)
+    {
+        return SearchHotelsAsync(
+            query,
+            destinationId,
+            minPrice,
+            maxPrice,
+            starRating.HasValue ? (double)starRating.Value : null,
+            starRating?.ToString(),
+            sort);
+    }
+
+    public Task<CatalogBusSearchResultDto> SearchBusesAsync(
+        int? fromDestinationId,
+        int? toDestinationId,
+        DateTime? departureDate,
+        string? query,
+        int page,
+        int pageSize,
+        decimal? minPrice,
+        decimal? maxPrice,
+        string? sort)
+    {
+        return SearchBusesAsync(query, fromDestinationId, toDestinationId, minPrice, maxPrice, sort);
+    }
+
     public async Task<CatalogHomeDto> GetHomeAsync()
     {
         var destinationBookingCounts = await _context.Trips
@@ -85,6 +137,19 @@ public class CatalogService : ICatalogService
             .ThenBy(hotel => hotel.PricePerNight)
             .ToList();
 
+        var vehicleRentalShops = await _context.VehicleRentalShops
+            .AsNoTracking()
+            .Include(shop => shop.Destination)
+            .Include(shop => shop.VehicleOptions)
+            .Where(shop => shop.IsActive)
+            .Take(12)
+            .ToListAsync();
+
+        var mappedVehicleShops = vehicleRentalShops
+            .Select(MapVehicleRentalShopCard)
+            .OrderBy(shop => shop.MinPricePerDay)
+            .ToList();
+
         return new CatalogHomeDto
         {
             PopularDestinations = destinations.Select(destination => new CatalogDestinationDto
@@ -103,7 +168,8 @@ public class CatalogService : ICatalogService
                 .ThenByDescending(bus => bus.ReviewCount)
                 .ThenBy(bus => bus.DepartureTime)
                 .Take(6)
-                .ToList()
+                .ToList(),
+            FeaturedVehicleRentalShops = mappedVehicleShops.Take(6).ToList()
         };
     }
 
@@ -408,6 +474,92 @@ public class CatalogService : ICatalogService
         };
     }
 
+    public async Task<CatalogVehicleRentalSearchResultDto> SearchVehicleRentalShopsAsync(
+        string? query,
+        int? destinationId,
+        decimal? minPrice,
+        decimal? maxPrice,
+        string? vehicleType,
+        string? sort)
+    {
+        var shops = await _context.VehicleRentalShops
+            .AsNoTracking()
+            .Include(shop => shop.Destination)
+            .Include(shop => shop.VehicleOptions)
+            .Where(shop => shop.IsActive)
+            .ToListAsync();
+
+        VehicleRentalType? parsedVehicleType = null;
+        if (!string.IsNullOrWhiteSpace(vehicleType) &&
+            Enum.TryParse<VehicleRentalType>(vehicleType, true, out var type))
+        {
+            parsedVehicleType = type;
+        }
+
+        var mapped = shops
+            .Select(MapVehicleRentalShopCard)
+            .Where(shop =>
+                string.IsNullOrWhiteSpace(query) ||
+                shop.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                shop.Address.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                shop.DestinationName.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Where(shop => !destinationId.HasValue || shop.DestinationId == destinationId.Value)
+            .Where(shop => !minPrice.HasValue || shop.MinPricePerDay >= minPrice.Value)
+            .Where(shop => !maxPrice.HasValue || shop.MinPricePerDay <= maxPrice.Value)
+            .Where(shop =>
+                !parsedVehicleType.HasValue ||
+                shops.Any(item =>
+                    item.Id == shop.Id &&
+                    item.VehicleOptions.Any(option =>
+                        option.IsAvailable && option.VehicleType == parsedVehicleType.Value)))
+            .ToList();
+
+        mapped = NormalizeVehicleRentalSort(sort) switch
+        {
+            "priceasc" => mapped.OrderBy(shop => shop.MinPricePerDay).ToList(),
+            "pricedesc" => mapped.OrderByDescending(shop => shop.MinPricePerDay).ToList(),
+            _ => mapped.OrderBy(shop => shop.Name).ToList()
+        };
+
+        return new CatalogVehicleRentalSearchResultDto
+        {
+            Total = mapped.Count,
+            Items = mapped
+        };
+    }
+
+    public async Task<CatalogVehicleRentalShopDetailDto?> GetVehicleRentalShopDetailAsync(int shopId)
+    {
+        var shop = await _context.VehicleRentalShops
+            .AsNoTracking()
+            .Include(item => item.Destination)
+            .Include(item => item.VehicleOptions)
+            .FirstOrDefaultAsync(item => item.Id == shopId && item.IsActive);
+
+        if (shop is null)
+        {
+            return null;
+        }
+
+        var card = MapVehicleRentalShopCard(shop);
+
+        return new CatalogVehicleRentalShopDetailDto
+        {
+            Id = shop.Id,
+            Name = shop.Name,
+            PhoneNumber = shop.PhoneNumber,
+            Address = shop.Address,
+            DestinationId = shop.DestinationId,
+            DestinationName = shop.Destination?.Name ?? string.Empty,
+            Description = shop.Description,
+            ImageUrl = card.ImageUrl,
+            VehicleOptions = shop.VehicleOptions
+                .OrderBy(option => option.PricePerDay)
+                .Select(MapVehicleRentalOption)
+                .ToList()
+        };
+    }
+
     private async Task<Dictionary<int, List<string>>> GetGalleryLookupAsync(GalleryReferenceType referenceType, List<int> referenceIds)
     {
         if (referenceIds.Count == 0)
@@ -483,6 +635,56 @@ public class CatalogService : ICatalogService
         };
     }
 
+    private static CatalogVehicleRentalShopCardDto MapVehicleRentalShopCard(VehicleRentalShop shop)
+    {
+        var availableOptions = shop.VehicleOptions.Where(option => option.IsAvailable).ToList();
+        var minPrice = availableOptions.Count == 0
+            ? 0
+            : availableOptions.Min(option => option.PricePerDay);
+
+        return new CatalogVehicleRentalShopCardDto
+        {
+            Id = shop.Id,
+            Name = shop.Name,
+            PhoneNumber = shop.PhoneNumber,
+            Address = shop.Address,
+            DestinationId = shop.DestinationId,
+            DestinationName = shop.Destination?.Name ?? string.Empty,
+            Description = shop.Description,
+            ImageUrl = shop.ImageUrl ?? shop.Destination?.CoverImageUrl ?? string.Empty,
+            MinPricePerDay = minPrice,
+            VehicleTypeLabels = availableOptions
+                .Select(option => GetVehicleTypeLabel(option.VehicleType))
+                .Distinct()
+                .ToList()
+        };
+    }
+
+    private static CatalogVehicleRentalOptionDto MapVehicleRentalOption(VehicleRentalOption option)
+    {
+        return new CatalogVehicleRentalOptionDto
+        {
+            Id = option.Id,
+            VehicleType = option.VehicleType.ToString(),
+            VehicleTypeLabel = GetVehicleTypeLabel(option.VehicleType),
+            MaxSeats = option.MaxSeats,
+            PricePerDay = option.PricePerDay,
+            IsAvailable = option.IsAvailable
+        };
+    }
+
+    private static string GetVehicleTypeLabel(VehicleRentalType vehicleType)
+    {
+        return vehicleType switch
+        {
+            VehicleRentalType.ManualMotorbike => "Xe số",
+            VehicleRentalType.Scooter => "Xe tay ga",
+            VehicleRentalType.Car => "Xe ô tô",
+            VehicleRentalType.MultiSeatCar => "Xe nhiều chỗ",
+            _ => vehicleType.ToString()
+        };
+    }
+
     private static CatalogReviewDto MapReview(Review review)
     {
         return new CatalogReviewDto
@@ -519,6 +721,11 @@ public class CatalogService : ICatalogService
         return sort?.Trim().ToLowerInvariant() ?? "earliest";
     }
 
+    private static string NormalizeVehicleRentalSort(string? sort)
+    {
+        return sort?.Trim().ToLowerInvariant() ?? "name";
+    }
+
     private static int GetPeakBookedQtyForDateRange(
         DateOnly checkInDate,
         DateOnly checkOutDate,
@@ -551,4 +758,84 @@ public class CatalogService : ICatalogService
     private static double BuildLatitude(int id) => 11.9404 + (id * 0.0035);
 
     private static double BuildLongitude(int id) => 108.4583 + (id * 0.0041);
+
+    public async Task<CatalogPromotionDto?> ValidatePromotionAsync(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return null;
+        }
+
+        var normalizedCode = code.Trim().ToUpperInvariant();
+        var promotion = await _context.Promotions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Code == normalizedCode);
+
+        if (promotion == null)
+        {
+            return null;
+        }
+
+        var now = DateTime.UtcNow;
+        if (promotion.ValidUntil.HasValue && promotion.ValidUntil.Value < now)
+        {
+            return null;
+        }
+
+        if (promotion.UsageLimit.HasValue && promotion.UsedCount.HasValue && promotion.UsedCount.Value >= promotion.UsageLimit.Value)
+        {
+            return null;
+        }
+
+        return new CatalogPromotionDto
+        {
+            Code = promotion.Code ?? string.Empty,
+            DiscountPercent = promotion.DiscountPercent ?? 0,
+            MaxDiscountAmount = promotion.MaxDiscountAmount ?? 0,
+            Title = GetPromotionTitle(promotion),
+            Description = GetPromotionDescription(promotion)
+        };
+    }
+
+    public async Task<List<CatalogPromotionDto>> GetPromotionsAsync()
+    {
+        var now = DateTime.UtcNow;
+        var promotions = await _context.Promotions
+            .AsNoTracking()
+            .Where(p => (!p.ValidUntil.HasValue || p.ValidUntil.Value >= now) &&
+                        (!p.UsageLimit.HasValue || !p.UsedCount.HasValue || p.UsedCount.Value < p.UsageLimit.Value))
+            .ToListAsync();
+
+        return promotions.Select(p => new CatalogPromotionDto
+        {
+            Code = p.Code ?? string.Empty,
+            DiscountPercent = p.DiscountPercent ?? 0,
+            MaxDiscountAmount = p.MaxDiscountAmount ?? 0,
+            Title = GetPromotionTitle(p),
+            Description = GetPromotionDescription(p)
+        }).ToList();
+    }
+
+    private static string GetPromotionTitle(Promotion p)
+    {
+        if (p.Code == "WELCOME10") return "Mừng Bạn Mới";
+        if (p.Code == "SUMMER20") return "Chào Hè Rực Rỡ";
+        if (p.Code == "HOTEL5") return "Ưu Đãi Đặt Phòng";
+        
+        return p.DiscountPercent.HasValue && p.DiscountPercent > 0 
+            ? $"Giảm Giá {p.DiscountPercent.Value}%" 
+            : "Khuyến Mãi Đặc Biệt";
+    }
+
+    private static string GetPromotionDescription(Promotion p)
+    {
+        if (p.Code == "WELCOME10") return "Giảm ngay 10% cho khách hàng mới đăng ký trải nghiệm.";
+        if (p.Code == "SUMMER20") return "Giảm 20% đặt khách sạn và vé xe, tối đa 250k.";
+        if (p.Code == "HOTEL5") return "Giảm 5% cho tất cả phòng khách sạn trong tháng này.";
+        
+        var maxDesc = p.MaxDiscountAmount.HasValue && p.MaxDiscountAmount.Value > 0 
+            ? $" tối đa {p.MaxDiscountAmount.Value:N0}đ" 
+            : "";
+        return $"Áp dụng giảm {p.DiscountPercent ?? 0}%{maxDesc} cho đơn hàng.";
+    }
 }

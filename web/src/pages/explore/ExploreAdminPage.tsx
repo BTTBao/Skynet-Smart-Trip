@@ -24,22 +24,10 @@ const initialForm: AdminExplorePostRequest = {
 };
 
 const regionOptions = [
-  { value: 'north', label: 'Miền Bắc' },
-  { value: 'central', label: 'Miền Trung' },
-  { value: 'south', label: 'Miền Nam' },
+  { value: 'north', label: 'Mien Bac' },
+  { value: 'central', label: 'Mien Trung' },
+  { value: 'south', label: 'Mien Nam' },
 ] as const;
-
-function StatCard({ label, value, icon }: { label: string; value: string; icon: string }) {
-  return (
-    <div className="rounded-[2rem] bg-white p-8 shadow-[0px_20px_40px_rgba(21,28,39,0.04)]">
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] font-black uppercase tracking-wider text-on-surface-variant">{label}</p>
-        <span className="material-symbols-outlined rounded-2xl bg-primary-container/10 p-3 text-primary-container">{icon}</span>
-      </div>
-      <h2 className="mt-4 text-4xl font-black text-on-surface">{value}</h2>
-    </div>
-  );
-}
 
 export default function ExploreAdminPage() {
   const { query } = useAdminSearch();
@@ -53,7 +41,7 @@ export default function ExploreAdminPage() {
   const [tagDraft, setTagDraft] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const hasExploreImages = form.imageUrls.length > 0;
+  const [showGuide, setShowGuide] = useState(false);
 
   const loadPosts = async (search = query) => {
     const data = await adminService.getExplorePosts({ search: search.trim() || undefined });
@@ -68,13 +56,13 @@ export default function ExploreAdminPage() {
       } catch (err) {
         const message = getErrorMessage(err);
         setError(message);
-        showToast({ type: 'error', title: 'Không thể tải Explore', message });
+        showToast({ type: 'error', title: 'Khong the tai Explore', message });
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    void fetchData();
   }, []);
 
   useEffect(() => {
@@ -85,7 +73,7 @@ export default function ExploreAdminPage() {
       } catch (err) {
         const message = getErrorMessage(err);
         setError(message);
-        showToast({ type: 'error', title: 'Không thể tìm Explore', message });
+        showToast({ type: 'error', title: 'Khong the tim Explore', message });
       }
     }, 250);
 
@@ -95,6 +83,7 @@ export default function ExploreAdminPage() {
   const visibleCount = posts.filter((post) => post.isVisible).length;
   const hiddenCount = posts.length - visibleCount;
   const totalInteractions = posts.reduce((sum, post) => sum + post.likes + post.saves + post.commentCount, 0);
+  const hasExploreImages = form.imageUrls.length > 0;
 
   const filteredPosts = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -109,12 +98,12 @@ export default function ExploreAdminPage() {
 
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
-    if (form.title.trim().length < 5) errors.push('Tiêu đề tối thiểu 5 ký tự.');
-    if (form.content.trim().length < 10) errors.push('Nội dung tối thiểu 10 ký tự.');
-    if (form.location.trim().length < 2) errors.push('Vị trí không được để trống.');
-    if (form.costLevel < 1 || form.costLevel > 4) errors.push('Mức chi phí phải từ 1 đến 4.');
-    if (form.latitude !== null && form.latitude !== undefined && (form.latitude < -90 || form.latitude > 90)) errors.push('Vĩ độ không hợp lệ.');
-    if (form.longitude !== null && form.longitude !== undefined && (form.longitude < -180 || form.longitude > 180)) errors.push('Kinh độ không hợp lệ.');
+    if (form.title.trim().length < 5) errors.push('Tieu de toi thieu 5 ky tu.');
+    if (form.content.trim().length < 10) errors.push('Noi dung toi thieu 10 ky tu.');
+    if (form.location.trim().length < 2) errors.push('Vi tri khong duoc de trong.');
+    if (form.costLevel < 1 || form.costLevel > 4) errors.push('Muc chi phi phai tu 1 den 4.');
+    if (form.latitude !== null && form.latitude !== undefined && (form.latitude < -90 || form.latitude > 90)) errors.push('Vi do khong hop le.');
+    if (form.longitude !== null && form.longitude !== undefined && (form.longitude < -180 || form.longitude > 180)) errors.push('Kinh do khong hop le.');
     return errors;
   }, [form]);
 
@@ -148,7 +137,7 @@ export default function ExploreAdminPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (validationErrors.length > 0) {
-      showToast({ type: 'error', title: 'Dữ liệu Explore chưa hợp lệ', message: validationErrors[0] });
+      showToast({ type: 'error', title: 'Du lieu Explore chua hop le', message: validationErrors[0] });
       return;
     }
 
@@ -162,12 +151,9 @@ export default function ExploreAdminPage() {
 
       await loadPosts('');
       resetForm();
-      showToast({
-        type: 'success',
-        title: editingPost ? 'Đã cập nhật bài Explore' : 'Đã tạo bài Explore',
-      });
+      showToast({ type: 'success', title: editingPost ? 'Da cap nhat bai Explore' : 'Da tao bai Explore' });
     } catch (err) {
-      showToast({ type: 'error', title: 'Không thể lưu Explore', message: getErrorMessage(err) });
+      showToast({ type: 'error', title: 'Khong the luu Explore', message: getErrorMessage(err) });
     } finally {
       setSubmitting(false);
     }
@@ -177,14 +163,14 @@ export default function ExploreAdminPage() {
     try {
       await adminService.updateExplorePostVisibility(post.id, !post.isVisible);
       await loadPosts();
-      showToast({ type: 'success', title: !post.isVisible ? 'Đã bật hiển thị' : 'Đã tắt hiển thị', message: post.title });
+      showToast({ type: 'success', title: !post.isVisible ? 'Da bat hien thi' : 'Da tat hien thi', message: post.title });
     } catch (err) {
-      showToast({ type: 'error', title: 'Không thể đổi trạng thái', message: getErrorMessage(err) });
+      showToast({ type: 'error', title: 'Khong the doi trang thai', message: getErrorMessage(err) });
     }
   };
 
   const handleDelete = async (post: AdminExplorePost) => {
-    if (!window.confirm(`Xóa bài Explore "${post.title}"?`)) {
+    if (!window.confirm(`Xoa bai Explore "${post.title}"?`)) {
       return;
     }
 
@@ -192,9 +178,9 @@ export default function ExploreAdminPage() {
       await adminService.deleteExplorePost(post.id);
       await loadPosts();
       if (editingPost?.id === post.id) resetForm();
-      showToast({ type: 'success', title: 'Đã xóa bài Explore', message: post.title });
+      showToast({ type: 'success', title: 'Da xoa bai Explore', message: post.title });
     } catch (err) {
-      showToast({ type: 'error', title: 'Không thể xóa Explore', message: getErrorMessage(err) });
+      showToast({ type: 'error', title: 'Khong the xoa Explore', message: getErrorMessage(err) });
     }
   };
 
@@ -217,10 +203,7 @@ export default function ExploreAdminPage() {
   };
 
   const removeImage = (imageUrl: string) => {
-    setForm((current) => ({
-      ...current,
-      imageUrls: current.imageUrls.filter((item) => item !== imageUrl),
-    }));
+    setForm((current) => ({ ...current, imageUrls: current.imageUrls.filter((item) => item !== imageUrl) }));
   };
 
   const handleUploadImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -231,9 +214,9 @@ export default function ExploreAdminPage() {
     try {
       const result = await adminService.uploadExplorePostImage(file);
       setForm((current) => ({ ...current, imageUrls: [...current.imageUrls, result.imageUrl].slice(0, 10) }));
-      showToast({ type: 'success', title: 'Đã tải ảnh Explore' });
+      showToast({ type: 'success', title: 'Da tai anh Explore' });
     } catch (err) {
-      showToast({ type: 'error', title: 'Không thể tải ảnh', message: getErrorMessage(err) });
+      showToast({ type: 'error', title: 'Khong the tai anh', message: getErrorMessage(err) });
     } finally {
       setUploading(false);
       event.target.value = '';
@@ -242,14 +225,14 @@ export default function ExploreAdminPage() {
 
   const exportPosts = () => {
     downloadCsv('explore-posts.csv', filteredPosts, [
-      { key: 'title', header: 'Tiêu đề' },
-      { key: 'location', header: 'Vị trí' },
-      { key: 'province', header: 'Tỉnh/TP' },
-      { key: 'authorName', header: 'Tác giả' },
-      { key: 'views', header: 'Lượt xem' },
-      { key: 'isVisible', header: 'Hiển thị' },
+      { key: 'title', header: 'Tieu de' },
+      { key: 'location', header: 'Vi tri' },
+      { key: 'province', header: 'Tinh/TP' },
+      { key: 'authorName', header: 'Tac gia' },
+      { key: 'views', header: 'Luot xem' },
+      { key: 'isVisible', header: 'Hien thi' },
     ]);
-    showToast({ type: 'success', title: 'Đã xuất danh sách Explore' });
+    showToast({ type: 'success', title: 'Da xuat danh sach Explore' });
   };
 
   if (loading) {
@@ -258,73 +241,86 @@ export default function ExploreAdminPage() {
 
   if (error) {
     return (
-      <div className="rounded-[2rem] bg-white p-10 text-center shadow-[0px_20px_40px_rgba(21,28,39,0.04)]">
+      <div className="rounded-2xl border border-slate-100 bg-white p-10 text-center shadow-sm">
         <span className="material-symbols-outlined text-5xl text-error">error</span>
-        <h1 className="mt-4 text-2xl font-black text-on-surface">Không thể tải Explore</h1>
-        <p className="mt-2 text-sm text-on-surface-variant">{error}</p>
-        <button onClick={() => { setLoading(true); loadPosts().finally(() => setLoading(false)); }} className="mt-6 rounded-full bg-primary-container px-6 py-3 text-sm font-bold text-white">Tải lại</button>
+        <h1 className="mt-4 text-2xl font-black text-on-surface">Khong the tai Explore</h1>
+        <p className="mt-2 text-sm text-slate-500">{error}</p>
+        <button onClick={() => { setLoading(true); loadPosts().finally(() => setLoading(false)); }} className="mt-6 rounded-full bg-primary px-6 py-2.5 text-sm font-bold text-white">Tai lai</button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+    <div className="space-y-8">
+      <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-start">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Nội dung cộng đồng</p>
-          <h1 className="mt-3 text-4xl font-black text-on-surface">Quản lý Explore</h1>
-          <p className="mt-3 max-w-3xl text-sm text-on-surface-variant">Quản trị bài viết, ảnh, vị trí, tag và trạng thái hiển thị trong Explore.</p>
+          <p className="mb-1 text-xs font-bold uppercase tracking-widest text-primary">Noi dung cong dong</p>
+          <h1 className="text-3xl font-black text-on-surface">Quan ly Explore</h1>
+          <p className="mt-1 max-w-xl text-sm text-slate-500">Quan tri bai viet, anh, vi tri, tag va trang thai hien thi trong Explore.</p>
         </div>
-        <button onClick={exportPosts} className="rounded-full bg-primary-container px-6 py-3 text-sm font-bold text-white">Xuất CSV</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => setShowGuide(true)} className="rounded-full bg-amber-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-amber-600">Huong dan</button>
+          <button onClick={exportPosts} className="rounded-full bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-200">Xuat CSV</button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-        <StatCard label="Tổng bài" value={posts.length.toLocaleString()} icon="travel_explore" />
-        <StatCard label="Đang hiển thị" value={visibleCount.toLocaleString()} icon="visibility" />
-        <StatCard label="Đang ẩn" value={hiddenCount.toLocaleString()} icon="visibility_off" />
-        <StatCard label="Tương tác" value={totalInteractions.toLocaleString()} icon="forum" />
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="Tong bai" value={posts.length.toLocaleString()} icon="travel_explore" />
+        <StatCard label="Dang hien thi" value={visibleCount.toLocaleString()} icon="visibility" />
+        <StatCard label="Dang an" value={hiddenCount.toLocaleString()} icon="visibility_off" />
+        <StatCard label="Tong tuong tac" value={totalInteractions.toLocaleString()} icon="forum" />
       </div>
 
-      <form onSubmit={handleSubmit} className="rounded-[2rem] bg-white p-8 shadow-[0px_20px_40px_rgba(21,28,39,0.04)] ring-1 ring-outline-variant/10">
-        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div>
-            <h2 className="text-xl font-black text-on-surface">{editingPost ? 'Cập nhật bài Explore' : 'Tạo bài Explore'}</h2>
-            {validationErrors.length > 0 ? <p className="mt-1 text-sm font-semibold text-error">{validationErrors[0]}</p> : null}
+            <h2 className="text-lg font-black text-on-surface">{editingPost ? 'Cap nhat bai Explore' : 'Tao bai Explore moi'}</h2>
+            {validationErrors.length > 0 ? (
+              <p className="mt-0.5 text-sm font-semibold text-red-500">{validationErrors[0]}</p>
+            ) : (
+              <p className="mt-0.5 text-sm text-slate-400">Dien thong tin dia diem, noi dung va anh.</p>
+            )}
           </div>
-          {editingPost ? <button type="button" onClick={resetForm} className="rounded-full bg-surface-container-low px-5 py-2.5 text-sm font-bold text-on-surface">Hủy sửa</button> : null}
+          {editingPost ? (
+            <button type="button" onClick={resetForm} className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-200">Huy sua</button>
+          ) : null}
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-          <input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Tiêu đề" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none lg:col-span-2" required />
-          <input value={form.location} onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))} placeholder="Vị trí" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" required />
-          <input value={form.province ?? ''} onChange={(event) => setForm((current) => ({ ...current, province: event.target.value }))} placeholder="Tỉnh/TP" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
-          <input value={form.city ?? ''} onChange={(event) => setForm((current) => ({ ...current, city: event.target.value }))} placeholder="Slug thành phố" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
-          <select value={form.region} onChange={(event) => setForm((current) => ({ ...current, region: event.target.value as AdminExplorePostRequest['region'] }))} className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none">
-            {regionOptions.map((region) => <option key={region.value} value={region.value}>{region.label}</option>)}
-          </select>
-          <input value={form.latitude ?? ''} onChange={(event) => setForm((current) => ({ ...current, latitude: event.target.value === '' ? null : Number(event.target.value) }))} type="number" step="any" placeholder="Vĩ độ" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
-          <input value={form.longitude ?? ''} onChange={(event) => setForm((current) => ({ ...current, longitude: event.target.value === '' ? null : Number(event.target.value) }))} type="number" step="any" placeholder="Kinh độ" className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none" />
-          <select value={form.costLevel} onChange={(event) => setForm((current) => ({ ...current, costLevel: Number(event.target.value) }))} className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none">
-            <option value={1}>Tiết kiệm</option>
-            <option value={2}>Trung bình</option>
-            <option value={3}>Cao cấp</option>
-            <option value={4}>Sang trọng</option>
-          </select>
-          <label className="flex items-center justify-between rounded-2xl bg-surface-container-low px-5 py-3">
-            <span className="text-sm font-bold text-on-surface">Hiển thị</span>
-            <input checked={form.isVisible} onChange={(event) => setForm((current) => ({ ...current, isVisible: event.target.checked }))} type="checkbox" className="h-4 w-4 accent-[#10B981]" />
+          <Field label="Tieu de" required><input value={form.title} onChange={(e) => setForm((c) => ({ ...c, title: e.target.value }))} className={inputCls} required /></Field>
+          <Field label="Vi tri" required><input value={form.location} onChange={(e) => setForm((c) => ({ ...c, location: e.target.value }))} className={inputCls} required /></Field>
+          <Field label="Thanh pho"><input value={form.city ?? ''} onChange={(e) => setForm((c) => ({ ...c, city: e.target.value }))} className={inputCls} /></Field>
+          <Field label="Tinh/TP"><input value={form.province ?? ''} onChange={(e) => setForm((c) => ({ ...c, province: e.target.value }))} className={inputCls} /></Field>
+          <Field label="Vung mien">
+            <select value={form.region ?? 'north'} onChange={(e) => setForm((c) => ({ ...c, region: e.target.value as AdminExplorePostRequest['region'] }))} className={inputCls}>
+              {regionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </Field>
+          <Field label="Chi phi">
+            <input value={form.costLevel} onChange={(e) => setForm((c) => ({ ...c, costLevel: Number(e.target.value) }))} type="number" min={1} max={4} className={inputCls} />
+          </Field>
+          <Field label="Vi do"><input value={form.latitude ?? ''} onChange={(e) => setForm((c) => ({ ...c, latitude: e.target.value === '' ? null : Number(e.target.value) }))} type="number" step="any" className={inputCls} /></Field>
+          <Field label="Kinh do"><input value={form.longitude ?? ''} onChange={(e) => setForm((c) => ({ ...c, longitude: e.target.value === '' ? null : Number(e.target.value) }))} type="number" step="any" className={inputCls} /></Field>
+        </div>
+        <div className="mt-4">
+          <Field label="Noi dung bai viet" required><textarea value={form.content} onChange={(e) => setForm((c) => ({ ...c, content: e.target.value }))} rows={4} className={`${inputCls} resize-none`} required /></Field>
+        </div>
+
+        <div className="mt-4">
+          <label className="inline-flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 transition hover:bg-slate-50">
+            <input checked={form.isVisible} onChange={(e) => setForm((c) => ({ ...c, isVisible: e.target.checked }))} type="checkbox" className="h-4 w-4 accent-emerald-500" />
+            <span className="text-sm font-medium text-on-surface">Cho phep hien thi tren Explore</span>
           </label>
         </div>
 
-        <textarea value={form.content} onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))} placeholder="Nội dung" rows={6} className="mt-4 w-full rounded-2xl bg-surface-container-low px-5 py-4 outline-none" required />
-
         <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <div className="rounded-2xl bg-surface-container-low p-5">
-            <div className="flex gap-3">
-              <input value={imageDraft} onChange={(event) => setImageDraft(event.target.value)} placeholder="URL ảnh" className="min-w-0 flex-1 rounded-full bg-white px-5 py-3 text-sm outline-none" />
-              <button type="button" onClick={addImageUrl} className="rounded-full bg-primary-container px-5 py-3 text-sm font-bold text-white">Thêm</button>
-              <label className="rounded-full bg-white px-5 py-3 text-sm font-bold text-on-surface">
-                {uploading ? 'Đang tải' : 'Upload'}
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Thu vien anh toi da 10</p>
+            <div className="flex gap-2">
+              <input value={imageDraft} onChange={(e) => setImageDraft(e.target.value)} placeholder="Nhap URL anh..." className={`${inputCls} flex-1`} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addImageUrl(); } }} />
+              <button type="button" onClick={addImageUrl} className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white">Them</button>
+              <label className="shrink-0 cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
+                {uploading ? 'Dang tai...' : 'Upload'}
                 <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleUploadImage} className="hidden" disabled={uploading} />
               </label>
             </div>
@@ -335,110 +331,100 @@ export default function ExploreAdminPage() {
                     <div key={`${url}-${index}`} className="group overflow-hidden rounded-[1.4rem] bg-white ring-1 ring-outline-variant/10">
                       <div className="relative aspect-[4/3] w-full overflow-hidden">
                         <img src={url} alt="" className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(url)}
-                          className="absolute right-2 top-2 rounded-full bg-white/95 px-2.5 py-1 text-xs font-black text-on-surface shadow-sm"
-                        >
-                          Xóa
-                        </button>
+                        <button type="button" onClick={() => removeImage(url)} className="absolute right-2 top-2 rounded-full bg-white/95 px-2.5 py-1 text-xs font-black text-on-surface shadow-sm">Xoa</button>
                       </div>
                       <div className="flex items-center justify-between px-3 py-2">
-                        <span className="text-[11px] font-bold text-on-surface-variant">Ảnh {index + 1}</span>
+                        <span className="text-[11px] font-bold text-on-surface-variant">Anh {index + 1}</span>
                         {index === 0 ? <span className="rounded-full bg-primary-container/10 px-2 py-1 text-[10px] font-black text-primary-container">Thumbnail</span> : null}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="rounded-[1.4rem] border border-dashed border-outline-variant/20 bg-white px-5 py-8 text-center text-sm font-bold text-on-surface-variant">
-                  Upload ảnh để xem preview tại đây
-                </div>
+                <div className="rounded-[1.4rem] border border-dashed border-outline-variant/20 bg-white px-5 py-8 text-center text-sm font-bold text-on-surface-variant">Upload anh de xem preview tai day</div>
               )}
-            </div>
-            <div className="hidden mt-4 flex flex-wrap gap-3">
-              {form.imageUrls.map((url) => (
-                <button key={url} type="button" onClick={() => setForm((current) => ({ ...current, imageUrls: current.imageUrls.filter((item) => item !== url) }))} className="group flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold text-on-surface">
-                  <span className="max-w-[220px] truncate">{url}</span>
-                  <span className="material-symbols-outlined text-sm text-error">close</span>
-                </button>
-              ))}
-              {form.imageUrls.length === 0 ? <span className="text-sm text-on-surface-variant">Chưa có ảnh</span> : null}
             </div>
           </div>
 
-          <div className="rounded-2xl bg-surface-container-low p-5">
-            <div className="flex gap-3">
-              <input value={tagDraft} onChange={(event) => setTagDraft(event.target.value)} placeholder="Tag" className="min-w-0 flex-1 rounded-full bg-white px-5 py-3 text-sm outline-none" />
-              <button type="button" onClick={addTag} className="rounded-full bg-primary-container px-5 py-3 text-sm font-bold text-white">Thêm</button>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">The tu khoa toi da 20</p>
+            <div className="flex gap-2">
+              <input value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} placeholder="bien, nui, resort..." className={`${inputCls} flex-1`} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }} />
+              <button type="button" onClick={addTag} className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white">Them</button>
             </div>
-            <div className="mt-4 flex flex-wrap gap-3">
+            <div className="mt-3 flex flex-wrap gap-2">
               {form.tags.map((tag) => (
-                <button key={tag} type="button" onClick={() => setForm((current) => ({ ...current, tags: current.tags.filter((item) => item !== tag) }))} className="rounded-full bg-white px-4 py-2 text-xs font-bold text-on-surface">
-                  #{tag} <span className="text-error">×</span>
-                </button>
+                <button key={tag} type="button" onClick={() => setForm((c) => ({ ...c, tags: c.tags.filter((item) => item !== tag) }))} className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:border-red-200 hover:bg-red-50 hover:text-red-500">#{tag}</button>
               ))}
-              {form.tags.length === 0 ? <span className="text-sm text-on-surface-variant">Chưa có tag</span> : null}
+              {form.tags.length === 0 ? <span className="text-xs text-slate-400">Chua co tag nao</span> : null}
             </div>
           </div>
         </div>
 
-        <div className="mt-6">
-          <button type="submit" disabled={submitting || validationErrors.length > 0} className="rounded-full bg-primary-container px-8 py-3 text-sm font-bold text-white disabled:opacity-50">
-            {submitting ? 'Đang lưu...' : editingPost ? 'Lưu thay đổi' : 'Tạo bài Explore'}
+        <div className="mt-5">
+          <button type="submit" disabled={submitting || validationErrors.length > 0} className="rounded-full bg-primary px-6 py-2.5 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-50">
+            {submitting ? 'Dang luu...' : editingPost ? 'Luu thay doi' : 'Tao bai viet'}
           </button>
         </div>
       </form>
 
-      <div className="overflow-hidden rounded-[2rem] bg-white shadow-[0px_20px_40px_rgba(21,28,39,0.04)]">
+      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         {filteredPosts.length === 0 ? (
           <div className="p-12 text-center">
-            <span className="material-symbols-outlined text-5xl text-on-surface-variant">travel_explore</span>
-            <p className="mt-4 text-lg font-black text-on-surface">Chưa có bài Explore</p>
-            <p className="mt-2 text-sm text-on-surface-variant">{query.trim() ? 'Không có kết quả phù hợp.' : 'Danh sách hiện đang trống.'}</p>
+            <span className="material-symbols-outlined text-4xl text-slate-300">travel_explore</span>
+            <p className="mt-3 font-medium text-slate-500">Chua co bai Explore</p>
+            <p className="mt-1 text-sm text-slate-400">{query.trim() ? 'Khong co ket qua phu hop.' : 'Danh sach hien dang trong.'}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="bg-surface-container-low/50">
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Bài viết</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Vị trí</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Tương tác</th>
-                  <th className="px-8 py-5 text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Trạng thái</th>
-                  <th className="px-8 py-5 text-right text-[11px] font-black uppercase tracking-widest text-on-surface-variant">Hành động</th>
+              <thead className="border-b border-slate-100 bg-slate-50">
+                <tr>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Bai viet</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Vi tri</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Tuong tac</th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Trang thai</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">Hanh dong</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant/10">
+              <tbody className="divide-y divide-slate-50">
                 {filteredPosts.map((post) => (
-                  <tr key={post.id}>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="h-16 w-20 overflow-hidden rounded-2xl bg-surface-container-low">
+                  <tr key={post.id} className="transition-colors hover:bg-slate-50/70">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-14 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100">
                           {post.thumbnailUrl ? <img src={post.thumbnailUrl} alt="" className="h-full w-full object-cover" /> : null}
                         </div>
-                        <div>
-                          <p className="font-bold text-on-surface">{post.title}</p>
-                          <p className="mt-1 text-xs text-on-surface-variant">{post.authorName} • {post.createdAt}</p>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {post.tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-surface-container-low px-3 py-1 text-[11px] font-bold text-on-surface-variant">#{tag}</span>)}
+                        <div className="min-w-0">
+                          <p className="max-w-[220px] truncate text-sm font-semibold text-on-surface">{post.title}</p>
+                          <p className="mt-0.5 max-w-[220px] truncate text-xs text-slate-400">{post.authorName} . {post.createdAt}</p>
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {post.tags.slice(0, 3).map((tag) => <span key={tag} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">#{tag}</span>)}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-8 py-6">
-                      <p className="text-sm font-bold text-on-surface">{post.location}</p>
-                      <p className="mt-1 text-xs text-on-surface-variant">{post.province} • {post.region}</p>
+                    <td className="px-6 py-4">
+                      <p className="text-sm font-semibold text-on-surface">{post.location}</p>
+                      <p className="mt-0.5 text-xs text-slate-400">{post.province} . {post.region}</p>
                     </td>
-                    <td className="px-8 py-6 text-sm text-on-surface-variant">{post.views} xem • {post.likes} thích • {post.commentCount} bình luận</td>
-                    <td className="px-8 py-6">
-                      <span className={`rounded-full px-4 py-1.5 text-xs font-bold ${post.isVisible ? 'bg-primary-container/10 text-primary-container' : 'bg-error-container text-error'}`}>{post.isVisible ? 'Đang hiển thị' : 'Đang ẩn'}</span>
+                    <td className="px-6 py-4 text-xs text-slate-500">
+                      <div className="flex flex-col gap-0.5">
+                        <span>{post.views.toLocaleString()} luot xem</span>
+                        <span>{post.likes.toLocaleString()} thich</span>
+                        <span>{post.commentCount.toLocaleString()} binh luan</span>
+                      </div>
                     </td>
-                    <td className="px-8 py-6 text-right">
+                    <td className="px-6 py-4">
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${post.isVisible ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                        {post.isVisible ? 'Dang hien thi' : 'Dang an'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
-                        <button onClick={() => handleToggleVisibility(post)} className="rounded-full bg-surface-container-low px-4 py-2 text-xs font-bold text-on-surface">{post.isVisible ? 'Ẩn' : 'Hiện'}</button>
-                        <button onClick={() => startEdit(post)} className="rounded-full bg-surface-container-low px-4 py-2 text-xs font-bold text-on-surface">Sửa</button>
-                        <button onClick={() => handleDelete(post)} className="rounded-full bg-error-container px-4 py-2 text-xs font-bold text-error">Xóa</button>
+                        <button onClick={() => handleToggleVisibility(post)} className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200">{post.isVisible ? 'An' : 'Hien'}</button>
+                        <button onClick={() => startEdit(post)} className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200">Sua</button>
+                        <button onClick={() => handleDelete(post)} className="rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100">Xoa</button>
                       </div>
                     </td>
                   </tr>
@@ -447,6 +433,56 @@ export default function ExploreAdminPage() {
             </table>
           </div>
         )}
+      </div>
+
+      {showGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-2xl ring-1 ring-black/5">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-amber-600">Huong dan su dung</p>
+                <h3 className="mt-1 text-xl font-black text-slate-900">Van hanh Explore</h3>
+              </div>
+              <button type="button" onClick={() => setShowGuide(false)} className="rounded-full bg-slate-100 px-4 py-2 text-xs font-bold text-slate-900 transition-colors hover:bg-slate-200">Dong</button>
+            </div>
+            <div className="mt-6 max-h-[55vh] space-y-5 overflow-y-auto pr-1 text-sm leading-relaxed text-slate-600">
+              <div className="rounded-2xl border border-amber-100 bg-amber-50 p-5">
+                <h4 className="text-base font-bold text-amber-800">Toa do, media va tag</h4>
+                <ul className="mt-3 list-inside list-disc space-y-2 font-medium text-amber-900">
+                  <li>Region dung cho tab loc tren mobile.</li>
+                  <li>Anh dau tien duoc xem la thumbnail.</li>
+                  <li>Tag giup tim kiem va gom nhom noi dung explore.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const inputCls = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 min-w-0';
+
+function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <span className="select-none text-xs font-semibold uppercase tracking-wider text-slate-500">
+        {label}
+        {required ? <span className="ml-0.5 text-red-400">*</span> : null}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function StatCard({ label, value, icon }: { label: string; value: string; icon: string }) {
+  return (
+    <div className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+      <span className="material-symbols-outlined w-fit rounded-xl bg-primary/10 p-2.5 text-xl text-primary">{icon}</span>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+        <h2 className="mt-1 text-3xl font-black text-on-surface">{value}</h2>
       </div>
     </div>
   );

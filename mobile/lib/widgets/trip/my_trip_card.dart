@@ -9,11 +9,15 @@ class MyTripCard extends StatelessWidget {
     required this.trip,
     required this.onTap,
     this.onReviewTap,
+    this.onEditTap,
+    this.onDeleteTap,
   });
 
   final MyTripSummary trip;
   final VoidCallback onTap;
   final VoidCallback? onReviewTap;
+  final VoidCallback? onEditTap;
+  final VoidCallback? onDeleteTap;
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +80,31 @@ class MyTripCard extends StatelessWidget {
                   ),
                 ),
               ),
+              if (onEditTap != null || onDeleteTap != null)
+                Positioned(
+                  right: 10,
+                  top: 10,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (onEditTap != null)
+                        _TripCardActionIcon(
+                          icon: Icons.edit_outlined,
+                          tooltip: 'Sửa chuyến đi',
+                          onTap: onEditTap!,
+                        ),
+                      if (onEditTap != null && onDeleteTap != null)
+                        const SizedBox(width: 8),
+                      if (onDeleteTap != null)
+                        _TripCardActionIcon(
+                          icon: Icons.delete_outline_rounded,
+                          tooltip: 'Xóa chuyến đi',
+                          onTap: onDeleteTap!,
+                          isDestructive: true,
+                        ),
+                    ],
+                  ),
+                ),
               Positioned(
                 left: 0,
                 right: 0,
@@ -119,11 +148,21 @@ class MyTripCard extends StatelessWidget {
                         color: TripUiColors.textMuted,
                       ),
                     ),
+                    if (trip.shareCode.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Mã: ${trip.shareCode}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: TripUiColors.timelineGreen,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              _AvatarGroup(colors: trip.avatarColors),
             ],
           ),
           const SizedBox(height: 12),
@@ -158,21 +197,8 @@ class MyTripCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              if (onReviewTap == null)
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF2F5F7),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(
-                    Icons.share_outlined,
-                    color: TripUiColors.textSecondary,
-                  ),
-                )
-              else
+              if (onReviewTap != null) ...[
+                const SizedBox(width: 10),
                 Tooltip(
                   message: 'Đánh giá dịch vụ',
                   child: InkWell(
@@ -193,6 +219,7 @@ class MyTripCard extends StatelessWidget {
                     ),
                   ),
                 ),
+              ],
             ],
           ),
         ],
@@ -201,45 +228,42 @@ class MyTripCard extends StatelessWidget {
   }
 }
 
-class _AvatarGroup extends StatelessWidget {
-  const _AvatarGroup({
-    required this.colors,
+class _TripCardActionIcon extends StatelessWidget {
+  const _TripCardActionIcon({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.isDestructive = false,
   });
 
-  final List<Color> colors;
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final bool isDestructive;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 68,
-      height: 28,
-      child: Stack(
-        children: List.generate(colors.length, (index) {
-          final isLast = index == colors.length - 1;
-          return Positioned(
-            left: index * 16,
-            child: Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors[index],
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              alignment: Alignment.center,
-              child: isLast
-                  ? const Text(
-                      '+2',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    )
-                  : null,
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            child: Icon(
+              icon,
+              size: 18,
+              color: isDestructive
+                  ? const Color(0xFFDC2626)
+                  : TripUiColors.timelineGreen,
             ),
-          );
-        }),
+          ),
+        ),
       ),
     );
   }

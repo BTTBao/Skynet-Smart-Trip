@@ -15,15 +15,17 @@ const PAGE_SIZE = 6;
 const statusConfig = {
   active: {
     label: 'Hoạt động',
-    bgClass: 'bg-primary-container/10',
-    textClass: 'text-primary-container',
-    avatarClass: 'bg-primary-container/20 text-primary',
+    bgClass: 'bg-emerald-50',
+    textClass: 'text-emerald-700',
+    avatarClass: 'bg-emerald-100 text-emerald-700',
+    dotClass: 'bg-emerald-500',
   },
   blocked: {
     label: 'Đã khóa',
-    bgClass: 'bg-error-container/30',
-    textClass: 'text-error',
-    avatarClass: 'bg-error-container/30 text-error',
+    bgClass: 'bg-red-50',
+    textClass: 'text-red-600',
+    avatarClass: 'bg-red-100 text-red-600',
+    dotClass: 'bg-red-500',
   },
 };
 
@@ -42,6 +44,34 @@ const initialForm: AdminCreateUserRequest = {
   isActive: true,
 };
 
+/** Reusable styled form field */
+function Field({
+  label,
+  required,
+  children,
+  className = '',
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`flex flex-col gap-1.5 min-w-0 ${className}`}>
+      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider select-none">
+        {label}
+        {required && <span className="text-red-400 ml-0.5">*</span>}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+const inputCls =
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 min-w-0';
+const selectCls =
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-on-surface outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer min-w-0';
+
 function UserStatCard({
   label,
   value,
@@ -56,15 +86,22 @@ function UserStatCard({
   iconClass: string;
 }) {
   return (
-    <div className="bg-white p-8 rounded-xl shadow-[0px_20px_40px_rgba(21,28,39,0.03)] border border-surface-container-high/50">
-      <div className="flex items-center justify-between mb-5">
-        <span className={`material-symbols-outlined p-3 rounded-2xl ${iconClass}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <span
+          className={`material-symbols-outlined p-2.5 rounded-xl text-xl ${iconClass}`}
+          style={{ fontVariationSettings: "'FILL' 1" }}
+        >
           {icon}
         </span>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{badge}</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full">
+          {badge}
+        </span>
       </div>
-      <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">{label}</p>
-      <h3 className="text-3xl font-black text-on-surface mt-2">{value}</h3>
+      <div>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+        <h3 className="text-3xl font-black text-on-surface mt-1">{value}</h3>
+      </div>
     </div>
   );
 }
@@ -84,6 +121,7 @@ export default function UsersAdminPage() {
   const [createForm, setCreateForm] = useState<AdminCreateUserRequest>(initialForm);
   const [editForm, setEditForm] = useState<AdminUpdateUserRequest>(initialForm);
   const [submitting, setSubmitting] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   const loadUsers = async (search = query) => {
     const data = await adminService.getUsers({ search: search.trim() || undefined });
@@ -301,128 +339,217 @@ export default function UsersAdminPage() {
   }
 
   return (
-    <div className="space-y-12">
-      <div className="flex justify-between items-end gap-6 flex-wrap">
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
-          <h1 className="text-[3.5rem] font-bold tracking-tight text-on-surface leading-none mb-2">Quản lý người dùng</h1>
-          <p className="text-on-surface-variant font-medium">
-            Quản trị tài khoản khách hàng, staff, partner và admin nội bộ. Ô tìm kiếm trên top bar đang lọc theo tên, email, điện thoại và mã người dùng.
+          <p className="text-xs font-bold uppercase tracking-widest text-primary mb-1">Quản trị hệ thống</p>
+          <h1 className="text-3xl font-black text-on-surface">Quản lý người dùng</h1>
+          <p className="text-sm text-slate-500 mt-1 max-w-xl">
+            Quản trị tài khoản khách hàng, staff, partner và admin nội bộ.
           </p>
         </div>
-        <div className="flex gap-4">
-          <button onClick={exportUsers} className="px-8 py-3 bg-surface-container-high text-on-surface font-bold rounded-full hover:brightness-95 transition-all">Xuất CSV</button>
-          <button onClick={() => setShowCreateForm((value) => !value)} className="px-8 py-3 bg-primary-container text-white font-bold rounded-full hover:brightness-110 transition-all shadow-lg shadow-primary-container/30">
-            {showCreateForm ? 'Ẩn biểu mẫu' : 'Thêm thành viên'}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setShowGuide(true)}
+            className="rounded-full bg-amber-500 hover:bg-amber-600 px-5 py-2.5 text-sm font-bold text-white transition-all shadow-sm"
+          >
+            💡 Hướng dẫn
+          </button>
+          <button onClick={exportUsers} className="px-5 py-2.5 bg-slate-100 text-slate-700 text-sm font-bold rounded-full hover:bg-slate-200 transition-all">
+            Xuất CSV
+          </button>
+          <button
+            onClick={() => setShowCreateForm((value) => !value)}
+            className="px-5 py-2.5 bg-primary text-white text-sm font-bold rounded-full hover:brightness-110 transition-all shadow-lg shadow-primary/25"
+          >
+            {showCreateForm ? 'Ẩn biểu mẫu' : '+ Thêm thành viên'}
           </button>
         </div>
       </div>
 
+      {/* Create Form */}
       {showCreateForm ? (
-        <form onSubmit={handleCreateUser} className="bg-white rounded-[2rem] p-8 shadow-[0px_20px_40px_rgba(21,28,39,0.03)] border border-surface-container-high/50">
-          <div className="flex items-center justify-between gap-4 mb-6">
+        <form onSubmit={handleCreateUser} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+          <div className="flex items-center justify-between gap-4 mb-5">
             <div>
-              <h2 className="text-xl font-black text-on-surface">Tạo thành viên mới</h2>
-              <p className="text-sm text-on-surface-variant mt-1">Admin có thể cấp quyền trực tiếp khi tạo tài khoản.</p>
+              <h2 className="text-lg font-black text-on-surface">Tạo thành viên mới</h2>
+              <p className="text-sm text-slate-500 mt-0.5">Cấp quyền trực tiếp khi tạo tài khoản.</p>
             </div>
-            <button type="button" onClick={() => { setShowCreateForm(false); setCreateForm(initialForm); }} className="px-5 py-2.5 rounded-full bg-surface-container-low text-on-surface font-bold">Hủy</button>
+            <button
+              type="button"
+              onClick={() => { setShowCreateForm(false); setCreateForm(initialForm); }}
+              className="px-4 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold hover:bg-slate-200 transition"
+            >
+              Hủy
+            </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <input value={createForm.name} onChange={(event) => setCreateForm((form) => ({ ...form, name: event.target.value }))} placeholder="Họ tên" className="px-5 py-3 rounded-2xl bg-surface-container-low outline-none" required />
-            <input value={createForm.email} onChange={(event) => setCreateForm((form) => ({ ...form, email: event.target.value }))} placeholder="Email" type="email" className="px-5 py-3 rounded-2xl bg-surface-container-low outline-none" required />
-            <input value={createForm.phone} onChange={(event) => setCreateForm((form) => ({ ...form, phone: event.target.value }))} placeholder="Số điện thoại" className="px-5 py-3 rounded-2xl bg-surface-container-low outline-none" />
-            <select value={createForm.role} onChange={(event) => setCreateForm((form) => ({ ...form, role: event.target.value as AdminUser['role'] }))} className="px-5 py-3 rounded-2xl bg-surface-container-low outline-none">
-              {roleOptions.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
-            </select>
-            <label className="flex items-center justify-between px-5 py-3 rounded-2xl bg-surface-container-low">
-              <span className="text-sm font-semibold text-on-surface">Kích hoạt ngay</span>
-              <input checked={createForm.isActive} onChange={(event) => setCreateForm((form) => ({ ...form, isActive: event.target.checked }))} type="checkbox" className="w-4 h-4 accent-[#10B981]" />
-            </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Field label="Họ và tên" required>
+              <input
+                value={createForm.name}
+                onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Nhập họ tên"
+                className={inputCls}
+                required
+              />
+            </Field>
+            <Field label="Địa chỉ Email" required>
+              <input
+                value={createForm.email}
+                onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
+                placeholder="email@vi-du.com"
+                type="email"
+                className={inputCls}
+                required
+              />
+            </Field>
+            <Field label="Số điện thoại">
+              <input
+                value={createForm.phone}
+                onChange={(e) => setCreateForm((f) => ({ ...f, phone: e.target.value }))}
+                placeholder="Nhập số điện thoại"
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Phân quyền vai trò" required>
+              <select
+                value={createForm.role}
+                onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value as AdminUser['role'] }))}
+                className={selectCls}
+              >
+                {roleOptions.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
+              </select>
+            </Field>
+            <Field label="Trạng thái">
+              <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 cursor-pointer hover:bg-slate-50 transition">
+                <input
+                  checked={createForm.isActive}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, isActive: e.target.checked }))}
+                  type="checkbox"
+                  className="w-4 h-4 accent-emerald-500"
+                />
+                <span className="text-sm font-medium text-on-surface">Kích hoạt ngay</span>
+              </label>
+            </Field>
           </div>
-          <div className="mt-6">
-            <button type="submit" disabled={submitting} className="px-8 py-3 bg-primary-container text-white font-bold rounded-full disabled:opacity-50">
+          <div className="mt-5 flex gap-3">
+            <button type="submit" disabled={submitting} className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-full disabled:opacity-50 hover:brightness-110 transition">
               {submitting ? 'Đang tạo...' : 'Tạo thành viên'}
             </button>
           </div>
         </form>
       ) : null}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <UserStatCard label="Tổng người dùng" value={stats.totalUsers.toLocaleString()} icon="groups" badge="Toàn hệ thống" iconClass="bg-surface-container text-on-surface" />
-        <UserStatCard label="Đang hoạt động" value={stats.activeUsers.toLocaleString()} icon="person_check" badge="Khả dụng" iconClass="bg-primary-container/10 text-primary-container" />
-        <UserStatCard label="Thành viên mới" value={stats.newUsers.toLocaleString()} icon="person_add" badge="Tháng này" iconClass="bg-tertiary-container/10 text-tertiary" />
-        <UserStatCard label="Tài khoản bị khóa" value={stats.blockedUsers.toLocaleString()} icon="block" badge="Cần chú ý" iconClass="bg-secondary-container/10 text-secondary-container" />
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <UserStatCard label="Tổng người dùng" value={stats.totalUsers.toLocaleString()} icon="groups" badge="Toàn hệ thống" iconClass="bg-slate-100 text-slate-600" />
+        <UserStatCard label="Đang hoạt động" value={stats.activeUsers.toLocaleString()} icon="person_check" badge="Khả dụng" iconClass="bg-emerald-100 text-emerald-700" />
+        <UserStatCard label="Thành viên mới" value={stats.newUsers.toLocaleString()} icon="person_add" badge="Tháng này" iconClass="bg-blue-100 text-blue-700" />
+        <UserStatCard label="Tài khoản bị khóa" value={stats.blockedUsers.toLocaleString()} icon="block" badge="Cần chú ý" iconClass="bg-red-100 text-red-600" />
       </div>
 
-      <div className="flex flex-wrap gap-4 items-center justify-between bg-surface-container-low p-6 rounded-[2rem]">
-        <div className="flex gap-4 items-center flex-wrap">
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | AdminUser['status'])} className="bg-white rounded-full px-5 py-3 text-sm font-bold outline-none">
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-100">
+        <div className="flex gap-3 items-center flex-wrap">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as 'all' | AdminUser['status'])}
+            className="bg-white rounded-full px-4 py-2 text-sm font-semibold outline-none border border-slate-200 focus:border-primary transition"
+          >
             <option value="all">Tất cả trạng thái</option>
             <option value="active">Đang hoạt động</option>
             <option value="blocked">Đã khóa</option>
           </select>
-          <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as 'all' | AdminUser['role'])} className="bg-white rounded-full px-5 py-3 text-sm font-bold outline-none">
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value as 'all' | AdminUser['role'])}
+            className="bg-white rounded-full px-4 py-2 text-sm font-semibold outline-none border border-slate-200 focus:border-primary transition"
+          >
             <option value="all">Tất cả quyền</option>
             {roleOptions.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
           </select>
-          <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value as 'newest' | 'oldest')} className="bg-white rounded-full px-5 py-3 text-sm font-bold outline-none">
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+            className="bg-white rounded-full px-4 py-2 text-sm font-semibold outline-none border border-slate-200 focus:border-primary transition"
+          >
             <option value="newest">Mới nhất</option>
             <option value="oldest">Cũ nhất</option>
           </select>
         </div>
-        <div className="text-sm font-medium text-on-surface-variant">
-          Hiển thị {filteredUsers.length} kết quả{query.trim() ? ` cho "${query}"` : ''}
+        <div className="text-sm font-medium text-slate-500">
+          {filteredUsers.length} kết quả{query.trim() ? ` · "${query}"` : ''}
         </div>
       </div>
 
-      <div className="bg-surface-container-lowest rounded-[2rem] overflow-hidden shadow-sm">
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-surface-container-low">
+            <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
-                <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Thành viên</th>
-                <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Liên hệ</th>
-                <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Quyền</th>
-                <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Lần đăng nhập</th>
-                <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Trạng thái</th>
-                <th className="px-8 py-6 text-right text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Hành động</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Thành viên</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Liên hệ</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Quyền</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Đăng nhập gần nhất</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Trạng thái</th>
+                <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">Hành động</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-50">
               {paginatedUsers.map((user) => {
                 const status = statusConfig[user.status];
                 return (
-                  <tr key={user.id} className="hover:bg-surface-container-low/50 transition-colors">
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-full ${status.avatarClass} flex items-center justify-center`}>
-                          <span className="material-symbols-outlined text-[20px]">person</span>
+                  <tr key={user.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-9 h-9 rounded-full ${status.avatarClass} flex items-center justify-center shrink-0`}>
+                          <span className="material-symbols-outlined text-[16px]">person</span>
                         </div>
-                        <div>
-                          <p className="font-bold text-on-surface">{user.name}</p>
-                          <p className="text-[10px] text-on-surface-variant">ID: {user.displayId}</p>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-on-surface text-sm truncate">{user.name}</p>
+                          <p className="text-[11px] text-slate-400 truncate">ID: {user.displayId}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-8 py-6">
-                      <p className="text-sm font-medium text-on-surface">{user.email}</p>
-                      <p className="text-xs text-on-surface-variant mt-1">{user.phone || 'Chưa cập nhật số điện thoại'}</p>
+                    <td className="px-6 py-4 min-w-0">
+                      <p className="text-sm text-on-surface truncate max-w-[200px]">{user.email}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{user.phone || 'Chưa có SĐT'}</p>
                     </td>
-                    <td className="px-8 py-6">
-                      <span className="inline-flex rounded-full bg-surface-container-low px-4 py-2 text-xs font-bold uppercase tracking-wider text-on-surface">{user.role}</span>
-                      <p className="mt-2 text-xs text-on-surface-variant">Tham gia {user.joinDate}</p>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase text-slate-600">{user.role}</span>
+                      <p className="mt-1.5 text-xs text-slate-400">Tham gia {user.joinDate}</p>
                     </td>
-                    <td className="px-8 py-6 text-sm font-medium text-on-surface-variant">{user.lastLoginAt}</td>
-                    <td className="px-8 py-6">
-                      <span className={`inline-flex items-center px-4 py-1.5 ${status.bgClass} ${status.textClass} text-xs font-bold rounded-full`}>{status.label}</span>
+                    <td className="px-6 py-4 text-sm text-slate-500">{user.lastLoginAt}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 ${status.bgClass} ${status.textClass} text-xs font-semibold rounded-full`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${status.dotClass}`} />
+                        {status.label}
+                      </span>
                     </td>
-                    <td className="px-8 py-6 text-right">
+                    <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => handleToggleStatus(user)} className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${user.status === 'active' ? 'bg-error-container text-error' : 'bg-primary-container/10 text-primary-container'}`}>
+                        <button
+                          onClick={() => handleToggleStatus(user)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${user.status === 'active' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}
+                        >
                           {user.status === 'active' ? 'Khóa' : 'Mở khóa'}
                         </button>
-                        <button onClick={() => { setEditingUser(user); setEditForm({ name: user.name, email: user.email, phone: user.phone === 'No Phone' ? '' : user.phone, role: user.role, isActive: user.status === 'active' }); }} className="px-4 py-2 rounded-full bg-surface-container-low text-xs font-bold text-on-surface">Sửa</button>
-                        <button onClick={() => setSelectedUser(user)} className="p-2 hover:bg-surface-container rounded-full transition-all">
-                          <span className="material-symbols-outlined">more_vert</span>
+                        <button
+                          onClick={() => {
+                            setEditingUser(user);
+                            setEditForm({ name: user.name, email: user.email, phone: user.phone === 'No Phone' ? '' : user.phone, role: user.role, isActive: user.status === 'active' });
+                          }}
+                          className="px-3 py-1.5 rounded-full bg-slate-100 text-xs font-semibold text-slate-700 hover:bg-slate-200 transition"
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          onClick={() => setSelectedUser(user)}
+                          className="p-1.5 hover:bg-slate-100 rounded-full transition-all"
+                        >
+                          <span className="material-symbols-outlined text-base text-slate-500">more_vert</span>
                         </button>
                       </div>
                     </td>
@@ -432,89 +559,151 @@ export default function UsersAdminPage() {
             </tbody>
           </table>
         </div>
+        {paginatedUsers.length === 0 && (
+          <div className="py-12 text-center">
+            <span className="material-symbols-outlined text-4xl text-slate-300">group_off</span>
+            <p className="mt-3 text-slate-500 font-medium">Không có kết quả phù hợp</p>
+          </div>
+        )}
       </div>
 
+      {/* User Detail Panel */}
       {selectedUser ? (
-        <div className="bg-white rounded-[2rem] shadow-[0px_20px_40px_rgba(21,28,39,0.03)] border border-surface-container-high/50 p-8">
-          <div className="flex flex-col md:flex-row justify-between gap-6">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-primary mb-2">Chi tiết thành viên</p>
-              <h2 className="text-2xl font-black text-on-surface">{selectedUser.name}</h2>
-              <p className="text-on-surface-variant mt-2">{selectedUser.displayId} • {selectedUser.role}</p>
+              <p className="text-[10px] uppercase tracking-widest font-bold text-primary mb-1">Chi tiết thành viên</p>
+              <h2 className="text-xl font-black text-on-surface">{selectedUser.name}</h2>
+              <p className="text-slate-500 text-sm mt-0.5">{selectedUser.displayId} · {selectedUser.role}</p>
             </div>
-            <div className="flex gap-3 flex-wrap">
-              <button onClick={() => handleResetPassword(selectedUser)} className="px-5 py-2.5 rounded-full bg-surface-container-low text-on-surface font-bold">Reset mật khẩu</button>
-              <button onClick={() => handleDeleteUser(selectedUser)} className="px-5 py-2.5 rounded-full bg-error-container text-error font-bold">Xóa mềm</button>
-              <button onClick={() => setSelectedUser(null)} className="px-5 py-2.5 rounded-full bg-primary-container text-white font-bold">Đóng</button>
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={() => handleResetPassword(selectedUser)} className="px-4 py-2 rounded-full bg-slate-100 text-slate-700 text-sm font-semibold hover:bg-slate-200 transition">Reset mật khẩu</button>
+              <button onClick={() => handleDeleteUser(selectedUser)} className="px-4 py-2 rounded-full bg-red-50 text-red-600 text-sm font-semibold hover:bg-red-100 transition">Xóa mềm</button>
+              <button onClick={() => setSelectedUser(null)} className="px-4 py-2 rounded-full bg-primary text-white text-sm font-semibold hover:brightness-110 transition">Đóng</button>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-8">
-            <div className="bg-surface-container-low rounded-2xl p-5">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Email</p>
-              <p className="text-sm font-bold text-on-surface mt-2">{selectedUser.email}</p>
-            </div>
-            <div className="bg-surface-container-low rounded-2xl p-5">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Điện thoại</p>
-              <p className="text-sm font-bold text-on-surface mt-2">{selectedUser.phone}</p>
-            </div>
-            <div className="bg-surface-container-low rounded-2xl p-5">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Lần đăng nhập</p>
-              <p className="text-sm font-bold text-on-surface mt-2">{selectedUser.lastLoginAt}</p>
-            </div>
-            <div className="bg-surface-container-low rounded-2xl p-5">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Trạng thái</p>
-              <p className="text-sm font-bold text-on-surface mt-2">{statusConfig[selectedUser.status].label}</p>
-            </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: 'Email', value: selectedUser.email },
+              { label: 'Điện thoại', value: selectedUser.phone },
+              { label: 'Lần đăng nhập', value: selectedUser.lastLoginAt },
+              { label: 'Trạng thái', value: statusConfig[selectedUser.status].label },
+            ].map((item) => (
+              <div key={item.label} className="bg-slate-50 rounded-xl p-4 min-w-0">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{item.label}</p>
+                <p className="text-sm font-semibold text-on-surface mt-1 truncate">{item.value}</p>
+              </div>
+            ))}
           </div>
         </div>
       ) : null}
 
+      {/* Edit Form */}
       {editingUser ? (
-        <form onSubmit={handleSaveUser} className="bg-white rounded-[2rem] border border-surface-container-high/50 p-8 shadow-[0px_20px_40px_rgba(21,28,39,0.03)]">
-          <div className="flex items-center justify-between gap-4 mb-6">
+        <form onSubmit={handleSaveUser} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+          <div className="flex items-center justify-between gap-4 mb-5">
             <div>
-              <h2 className="text-xl font-black text-on-surface">Chỉnh sửa người dùng</h2>
-              <p className="text-sm text-on-surface-variant mt-1">Cập nhật thông tin và phân quyền cho {editingUser.name}.</p>
+              <h2 className="text-lg font-black text-on-surface">Chỉnh sửa người dùng</h2>
+              <p className="text-sm text-slate-500 mt-0.5">Cập nhật thông tin cho {editingUser.name}.</p>
             </div>
-            <button type="button" onClick={() => setEditingUser(null)} className="px-5 py-2.5 rounded-full bg-surface-container-low text-on-surface font-bold">Đóng</button>
+            <button type="button" onClick={() => setEditingUser(null)} className="px-4 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold hover:bg-slate-200 transition">Đóng</button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <input value={editForm.name} onChange={(event) => setEditForm((form) => ({ ...form, name: event.target.value }))} className="px-5 py-3 rounded-2xl bg-surface-container-low outline-none" required />
-            <input value={editForm.email} onChange={(event) => setEditForm((form) => ({ ...form, email: event.target.value }))} type="email" className="px-5 py-3 rounded-2xl bg-surface-container-low outline-none" required />
-            <input value={editForm.phone} onChange={(event) => setEditForm((form) => ({ ...form, phone: event.target.value }))} className="px-5 py-3 rounded-2xl bg-surface-container-low outline-none" />
-            <select value={editForm.role} onChange={(event) => setEditForm((form) => ({ ...form, role: event.target.value as AdminUser['role'] }))} className="px-5 py-3 rounded-2xl bg-surface-container-low outline-none">
-              {roleOptions.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
-            </select>
-            <label className="flex items-center justify-between px-5 py-3 rounded-2xl bg-surface-container-low">
-              <span className="text-sm font-semibold text-on-surface">Kích hoạt</span>
-              <input checked={editForm.isActive} onChange={(event) => setEditForm((form) => ({ ...form, isActive: event.target.checked }))} type="checkbox" className="w-4 h-4 accent-[#10B981]" />
-            </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Field label="Họ và tên" required>
+              <input value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className={inputCls} required />
+            </Field>
+            <Field label="Địa chỉ Email" required>
+              <input value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} type="email" className={inputCls} required />
+            </Field>
+            <Field label="Số điện thoại">
+              <input value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} className={inputCls} />
+            </Field>
+            <Field label="Phân quyền vai trò" required>
+              <select value={editForm.role} onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value as AdminUser['role'] }))} className={selectCls}>
+                {roleOptions.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
+              </select>
+            </Field>
+            <Field label="Trạng thái">
+              <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 cursor-pointer hover:bg-slate-50 transition">
+                <input checked={editForm.isActive} onChange={(e) => setEditForm((f) => ({ ...f, isActive: e.target.checked }))} type="checkbox" className="w-4 h-4 accent-emerald-500" />
+                <span className="text-sm font-medium text-on-surface">Kích hoạt</span>
+              </label>
+            </Field>
           </div>
-          <div className="mt-6">
-            <button type="submit" disabled={submitting} className="px-8 py-3 bg-primary-container text-white font-bold rounded-full disabled:opacity-50">
+          <div className="mt-5">
+            <button type="submit" disabled={submitting} className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-full disabled:opacity-50 hover:brightness-110 transition">
               {submitting ? 'Đang lưu...' : 'Lưu thay đổi'}
             </button>
           </div>
         </form>
       ) : null}
 
-      <div className="flex items-center justify-between pb-10">
-        <button onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPageClamped === 1} className="flex items-center gap-2 px-6 py-3 bg-surface-container-low rounded-full font-bold text-on-surface disabled:opacity-40">
+      {/* Pagination */}
+      <div className="flex items-center justify-between pb-6">
+        <button
+          onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+          disabled={currentPageClamped === 1}
+          className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 rounded-full text-sm font-semibold text-slate-700 disabled:opacity-40 hover:bg-slate-200 transition"
+        >
           <span className="material-symbols-outlined text-sm">arrow_back</span>
           Trước
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {pageNumbers.map((page) => (
-            <button key={page} onClick={() => setCurrentPage(page)} className={`w-10 h-10 flex items-center justify-center rounded-full font-medium transition-all ${currentPageClamped === page ? 'bg-primary-container text-white font-bold' : 'hover:bg-surface-container'}`}>
+            <button
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-semibold transition-all ${currentPageClamped === page ? 'bg-primary text-white shadow-sm' : 'hover:bg-slate-100 text-slate-600'}`}
+            >
               {page}
             </button>
           ))}
         </div>
-        <button onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPageClamped === totalPages} className="flex items-center gap-2 px-6 py-3 bg-surface-container-low rounded-full font-bold text-on-surface disabled:opacity-40">
+        <button
+          onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+          disabled={currentPageClamped === totalPages}
+          className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 rounded-full text-sm font-semibold text-slate-700 disabled:opacity-40 hover:bg-slate-200 transition"
+        >
           Sau
           <span className="material-symbols-outlined text-sm">arrow_forward</span>
         </button>
       </div>
+
+      {/* Guide Modal */}
+      {showGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-8 shadow-2xl ring-1 ring-black/5">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-amber-600">Hướng dẫn sử dụng</p>
+                <h3 className="mt-1 text-xl font-black text-slate-900">Vận hành Quản lý người dùng</h3>
+              </div>
+              <button type="button" onClick={() => setShowGuide(false)} className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-2 text-xs font-bold text-slate-900 transition-colors">
+                Đóng
+              </button>
+            </div>
+            <div className="mt-6 space-y-5 text-sm text-slate-600 leading-relaxed max-h-[55vh] overflow-y-auto pr-1">
+              <div className="rounded-2xl bg-amber-50 p-5 border border-amber-100">
+                <h4 className="font-bold text-amber-800 text-base">👥 Phân quyền vai trò (Roles)</h4>
+                <ul className="mt-3 list-disc list-inside space-y-2 text-amber-900 font-medium">
+                  <li><strong>Customer:</strong> Khách hàng sử dụng app di động để tìm kiếm và đặt dịch vụ.</li>
+                  <li><strong>Partner:</strong> Đối tác cung cấp khách sạn/xe, có quyền quản trị dịch vụ được phân công.</li>
+                  <li><strong>Staff:</strong> Nhân viên vận hành, phê duyệt booking, cập nhật bài viết, trả lời khách hàng.</li>
+                  <li><strong>Admin:</strong> Quản trị viên hệ thống toàn quyền truy cập toàn bộ chức năng.</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-black text-slate-900 text-base">🛡️ Nghiệp vụ Quản trị thành viên</h4>
+                <ul className="mt-2 list-disc list-inside space-y-2">
+                  <li><strong>Khóa tài khoản:</strong> Ngay lập tức chặn quyền đăng nhập và thực hiện thao tác của thành viên trên cả Web và Mobile.</li>
+                  <li><strong>Reset mật khẩu:</strong> Tạo liên kết đặt lại mật khẩu ngẫu nhiên để cung cấp cho người dùng hoặc tự động gửi email nếu hệ thống đã cấu hình.</li>
+                  <li><strong>Xóa mềm:</strong> Ẩn tài khoản khỏi danh sách hoạt động mà không làm mất lịch sử các giao dịch/booking cũ liên quan.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

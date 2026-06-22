@@ -7,4 +7,5 @@ public enum TripStatus
     Paid = 3,
     Cancelled = 4,
     BookingOnly = 5,
+    DepositPaid = 6,
 }

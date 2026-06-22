@@ -11,6 +11,7 @@ class UserProfile {
   final String memberTier;
   final int tripsCount;
   final int coins;
+  final double walletBalance;
   final int vouchers;
 
   UserProfile({
@@ -26,6 +27,7 @@ class UserProfile {
     required this.memberTier,
     required this.tripsCount,
     required this.coins,
+    required this.walletBalance,
     required this.vouchers,
   });
 
@@ -42,6 +44,7 @@ class UserProfile {
     String? memberTier,
     int? tripsCount,
     int? coins,
+    double? walletBalance,
     int? vouchers,
   }) {
     return UserProfile(
@@ -61,6 +64,7 @@ class UserProfile {
       memberTier: memberTier ?? this.memberTier,
       tripsCount: tripsCount ?? this.tripsCount,
       coins: coins ?? this.coins,
+      walletBalance: walletBalance ?? this.walletBalance,
       vouchers: vouchers ?? this.vouchers,
     );
   }
@@ -77,10 +81,30 @@ class UserProfile {
       memberTier: json['memberTier'] ?? 'Thành viên mới',
       tripsCount: json['tripsCount'] ?? 0,
       coins: json['coins'] ?? 0,
+      walletBalance: (json['walletBalance'] as num?)?.toDouble() ?? 0.0,
       vouchers: json['vouchers'] ?? 0,
       birthDate: json['birthDate'] ?? '',
       identityNumber: json['identityNumber'] as String?,
       identityCardPhotoUrl: json['identityCardPhotoUrl'] as String?,
+    );
+  }
+
+  factory UserProfile.mock() {
+    return UserProfile(
+      id: '1',
+      name: 'Nguyễn Văn A',
+      email: 'user@smarttrip.vn',
+      phone: '0901234567',
+      birthDate: '1995-01-01',
+      avatarUrl: '',
+      isEmailVerified: true,
+      memberTier: 'Gold Member',
+      tripsCount: 5,
+      coins: 320,
+      walletBalance: 500000.0,
+      vouchers: 3,
+      identityNumber: null,
+      identityCardPhotoUrl: null,
     );
   }
 
@@ -96,6 +120,7 @@ class UserProfile {
       'memberTier': memberTier,
       'tripsCount': tripsCount,
       'coins': coins,
+      'walletBalance': walletBalance,
       'vouchers': vouchers,
       'birthDate': birthDate,
       'identityNumber': identityNumber,

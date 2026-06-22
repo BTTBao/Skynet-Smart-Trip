@@ -33,6 +33,10 @@ public class AdminTransportScheduleDto
     public string Status { get; set; } = string.Empty;
     public string TicketPrice { get; set; } = string.Empty;
     public string AffiliateProfit { get; set; } = string.Empty;
+    public string ActualRevenue { get; set; } = string.Empty;
+    public decimal ActualRevenueValue { get; set; }
+    public string ActualProfit { get; set; } = string.Empty;
+    public decimal ActualProfitValue { get; set; }
     public decimal PriceValue { get; set; }
     public double CommissionRate { get; set; }
     public int OccupiedSeats { get; set; }
@@ -53,6 +57,7 @@ public class AdminTransportCompanyDto
     public string Name { get; set; } = string.Empty;
     public string Hotline { get; set; } = string.Empty;
     public string LogoUrl { get; set; } = string.Empty;
+    public double CommissionRate { get; set; }
     public int ScheduleCount { get; set; }
     public double AverageCommissionRate { get; set; }
 }
@@ -78,6 +83,7 @@ public class AdminCreateTransportCompanyRequest
     public string Name { get; set; } = string.Empty;
     public string Hotline { get; set; } = string.Empty;
     public string LogoUrl { get; set; } = string.Empty;
+    public double CommissionRate { get; set; }
 }
 
 public class AdminUpdateTransportCompanyRequest : AdminCreateTransportCompanyRequest

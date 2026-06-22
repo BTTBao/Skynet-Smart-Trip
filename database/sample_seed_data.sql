@@ -500,6 +500,233 @@ BEGIN
 END
 GO
 
+/* =========================
+   13A. EXPLORE POSTS
+   ========================= */
+IF OBJECT_ID(N'ExplorePosts', N'U') IS NOT NULL
+BEGIN
+    DECLARE @ExploreAdminUserId INT = (SELECT Id FROM Users WHERE Email = 'admin@smarttrip.vn');
+    DECLARE @ExploreDemoUserId INT = (SELECT Id FROM Users WHERE Email = 'test@example.com');
+    DECLARE @ExploreTravelerUserId INT = (SELECT Id FROM Users WHERE Email = 'traveler01@smarttrip.vn');
+
+    IF @ExploreAdminUserId IS NOT NULL AND @ExploreDemoUserId IS NOT NULL
+    BEGIN
+        DECLARE @ExploreSeeds TABLE
+        (
+            Title NVARCHAR(200) NOT NULL,
+            Excerpt NVARCHAR(500) NOT NULL,
+            Content NVARCHAR(MAX) NOT NULL,
+            ThumbnailUrl VARCHAR(500) NOT NULL,
+            Location NVARCHAR(120) NOT NULL,
+            CitySlug VARCHAR(80) NOT NULL,
+            Province NVARCHAR(120) NOT NULL,
+            Region VARCHAR(20) NOT NULL,
+            Latitude FLOAT NULL,
+            Longitude FLOAT NULL,
+            CostLevel INT NOT NULL,
+            AverageRating DECIMAL(3,2) NOT NULL,
+            RatingCount INT NOT NULL,
+            ViewCount INT NOT NULL,
+            IsVisible BIT NOT NULL,
+            Tags NVARCHAR(500) NULL,
+            AuthorId INT NOT NULL,
+            CreatedAt DATETIME NOT NULL
+        );
+
+        INSERT INTO @ExploreSeeds
+        (
+            Title, Excerpt, Content, ThumbnailUrl, Location, CitySlug, Province, Region,
+            Latitude, Longitude, CostLevel, AverageRating, RatingCount, ViewCount, IsVisible,
+            Tags, AuthorId, CreatedAt
+        )
+        VALUES
+            (N'Ha Long cruise 2N1D co gi hay?', N'Goi y lich trinh cruise, hang dong va dia diem ngam hoang hon dep de chup anh.',
+             N'Neu di Ha Long lan dau, nen chon cruise 2 ngay 1 dem de co du thoi gian ghe Sung Sot, Titop va cheo kayak. Buoi chieu nen len boong tau som de ngam hoang hon.',
+             'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80',
+             N'Ha Long', 'ha-long', N'Quang Ninh', 'north', 20.9101, 107.1839, 3, 4.70, 3, 1820, 1,
+             N'bien,dao,ha-long,cruise', @ExploreAdminUserId, DATEADD(DAY, -10, GETDATE())),
+            (N'Hoi An buoi toi nen di dau?', N'Pho co, den long, quan cafe ven song va lich trinh di bo trong 1 dem.',
+             N'Hoi An dep nhat tu 17h den 21h. Ban co the bat dau tu Chua Cau, di bo ven song Hoai, an cao lau va ket thuc bang mot quan cafe nho trong hem.',
+             'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=1200&q=80',
+             N'Hoi An', 'hoi-an', N'Quang Nam', 'central', 15.8801, 108.3380, 2, 4.80, 3, 2410, 1,
+             N'pho-co,hoi-an,den-long,am-thuc', @ExploreDemoUserId, DATEADD(DAY, -8, GETDATE())),
+            (N'Phu Quoc 3 ngay 2 dem cho cap doi', N'Combo bien, sunset, seafood va resort cho lich trinh nghi duong nhe.',
+             N'Neu uu tien nghi duong, ngay dau nen o resort va ngam sunset. Ngay hai di cano 4 dao. Ngay cuoi ghe Grand World hoac cho dem truoc khi ra san bay.',
+             'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
+             N'Phu Quoc', 'phu-quoc', N'Kien Giang', 'south', 10.2899, 103.9840, 3, 4.90, 3, 3650, 1,
+             N'phu-quoc,bien,resort,sunset', @ExploreAdminUserId, DATEADD(DAY, -6, GETDATE())),
+            (N'Da Nang di 4 diem trong 1 ngay', N'Lich trinh toi uu cho cau Rong, Son Tra, My Khe va an toi hai san.',
+             N'Buoi sang di Son Tra, trua an mon dac san, chieu tam bien My Khe va toi ghe cau Rong hoac rooftop bar de ngam thanh pho.',
+             'https://images.unsplash.com/photo-1493558103817-58b2924bce98?auto=format&fit=crop&w=1200&q=80',
+             N'Da Nang', 'da-nang', N'Da Nang', 'central', 16.0544, 108.2022, 2, 4.60, 3, 2890, 1,
+             N'da-nang,my-khe,son-tra,cau-rong', @ExploreDemoUserId, DATEADD(DAY, -4, GETDATE())),
+            (N'Ha Giang loop can chuan bi gi?', N'Duong deo dep nhung can chuan bi ky ve thoi tiet, xang xe va suc khoe.',
+             N'Ha Giang loop phu hop cho ai me canh dep va di chuyen nhieu. Nen di ao khoac, gang tay, giay bam tot va dat phong truoc neu di cuoi tuan.',
+             'https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=1200&q=80',
+             N'Ha Giang', 'ha-giang', N'Ha Giang', 'north', 22.8233, 104.9836, 2, 4.70, 2, 1575, 1,
+             N'ha-giang,loop,deo,nui', @ExploreAdminUserId, DATEADD(DAY, -2, GETDATE()));
+
+        INSERT INTO ExplorePosts
+        (
+            AuthorId, Title, Excerpt, Content, ThumbnailUrl, Location, CitySlug, Province, Region,
+            Latitude, Longitude, CostLevel, AverageRating, RatingCount, ViewCount, IsVisible, Tags, CreatedAt, UpdatedAt
+        )
+        SELECT
+            seed.AuthorId, seed.Title, seed.Excerpt, seed.Content, seed.ThumbnailUrl, seed.Location, seed.CitySlug, seed.Province, seed.Region,
+            seed.Latitude, seed.Longitude, seed.CostLevel, seed.AverageRating, seed.RatingCount, seed.ViewCount, seed.IsVisible, seed.Tags,
+            seed.CreatedAt, seed.CreatedAt
+        FROM @ExploreSeeds seed
+        WHERE NOT EXISTS (SELECT 1 FROM ExplorePosts post WHERE post.Title = seed.Title);
+
+        DECLARE @ExploreImages TABLE
+        (
+            PostTitle NVARCHAR(200) NOT NULL,
+            ImageUrl VARCHAR(500) NOT NULL,
+            SortOrder INT NOT NULL
+        );
+
+        INSERT INTO @ExploreImages (PostTitle, ImageUrl, SortOrder)
+        VALUES
+            (N'Ha Long cruise 2N1D co gi hay?', 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80', 0),
+            (N'Ha Long cruise 2N1D co gi hay?', 'https://images.unsplash.com/photo-1573270689103-d7a4e42b609c?auto=format&fit=crop&w=1200&q=80', 1),
+            (N'Ha Long cruise 2N1D co gi hay?', 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80', 2),
+            (N'Hoi An buoi toi nen di dau?', 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=1200&q=80', 0),
+            (N'Hoi An buoi toi nen di dau?', 'https://images.unsplash.com/photo-1522542550221-31fd19575a2d?auto=format&fit=crop&w=1200&q=80', 1),
+            (N'Hoi An buoi toi nen di dau?', 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?auto=format&fit=crop&w=1200&q=80', 2),
+            (N'Phu Quoc 3 ngay 2 dem cho cap doi', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80', 0),
+            (N'Phu Quoc 3 ngay 2 dem cho cap doi', 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1200&q=80', 1),
+            (N'Phu Quoc 3 ngay 2 dem cho cap doi', 'https://images.unsplash.com/photo-1519046904884-53103b34b206?auto=format&fit=crop&w=1200&q=80', 2),
+            (N'Da Nang di 4 diem trong 1 ngay', 'https://images.unsplash.com/photo-1493558103817-58b2924bce98?auto=format&fit=crop&w=1200&q=80', 0),
+            (N'Da Nang di 4 diem trong 1 ngay', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80', 1),
+            (N'Da Nang di 4 diem trong 1 ngay', 'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=1200&q=80', 2),
+            (N'Ha Giang loop can chuan bi gi?', 'https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=1200&q=80', 0),
+            (N'Ha Giang loop can chuan bi gi?', 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&q=80', 1),
+            (N'Ha Giang loop can chuan bi gi?', 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=80', 2);
+
+        INSERT INTO ExplorePostImages (ExplorePostId, ImageUrl, SortOrder)
+        SELECT post.Id, imageSeed.ImageUrl, imageSeed.SortOrder
+        FROM @ExploreImages imageSeed
+        INNER JOIN ExplorePosts post ON post.Title = imageSeed.PostTitle
+        WHERE NOT EXISTS
+        (
+            SELECT 1
+            FROM ExplorePostImages image
+            WHERE image.ExplorePostId = post.Id
+              AND image.SortOrder = imageSeed.SortOrder
+        );
+
+        INSERT INTO ExplorePostRatings (ExplorePostId, UserId, Rating, CreatedAt, UpdatedAt)
+        SELECT post.Id, @ExploreDemoUserId, post.AverageRating, DATEADD(HOUR, 2, post.CreatedAt), DATEADD(HOUR, 2, post.CreatedAt)
+        FROM ExplorePosts post
+        INNER JOIN @ExploreSeeds seed ON seed.Title = post.Title
+        WHERE NOT EXISTS
+        (
+            SELECT 1 FROM ExplorePostRatings rating
+            WHERE rating.ExplorePostId = post.Id AND rating.UserId = @ExploreDemoUserId
+        );
+
+        INSERT INTO ExplorePostRatings (ExplorePostId, UserId, Rating, CreatedAt, UpdatedAt)
+        SELECT post.Id, @ExploreAdminUserId, post.AverageRating, DATEADD(HOUR, 3, post.CreatedAt), DATEADD(HOUR, 3, post.CreatedAt)
+        FROM ExplorePosts post
+        INNER JOIN @ExploreSeeds seed ON seed.Title = post.Title
+        WHERE NOT EXISTS
+        (
+            SELECT 1 FROM ExplorePostRatings rating
+            WHERE rating.ExplorePostId = post.Id AND rating.UserId = @ExploreAdminUserId
+        );
+
+        IF @ExploreTravelerUserId IS NOT NULL
+        BEGIN
+            INSERT INTO ExplorePostRatings (ExplorePostId, UserId, Rating, CreatedAt, UpdatedAt)
+            SELECT post.Id, @ExploreTravelerUserId, post.AverageRating, DATEADD(HOUR, 4, post.CreatedAt), DATEADD(HOUR, 4, post.CreatedAt)
+            FROM ExplorePosts post
+            INNER JOIN @ExploreSeeds seed ON seed.Title = post.Title
+            WHERE NOT EXISTS
+            (
+                SELECT 1 FROM ExplorePostRatings rating
+                WHERE rating.ExplorePostId = post.Id AND rating.UserId = @ExploreTravelerUserId
+            );
+        END;
+
+        INSERT INTO ExplorePostLikes (ExplorePostId, UserId, CreatedAt)
+        SELECT post.Id, @ExploreDemoUserId, DATEADD(HOUR, 5, post.CreatedAt)
+        FROM ExplorePosts post
+        INNER JOIN @ExploreSeeds seed ON seed.Title = post.Title
+        WHERE NOT EXISTS
+        (
+            SELECT 1 FROM ExplorePostLikes likeItem
+            WHERE likeItem.ExplorePostId = post.Id AND likeItem.UserId = @ExploreDemoUserId
+        );
+
+        INSERT INTO ExplorePostSaves (ExplorePostId, UserId, CreatedAt)
+        SELECT post.Id, @ExploreDemoUserId, DATEADD(HOUR, 6, post.CreatedAt)
+        FROM ExplorePosts post
+        INNER JOIN @ExploreSeeds seed ON seed.Title = post.Title
+        WHERE post.Id % 2 = 0
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM ExplorePostSaves saveItem
+              WHERE saveItem.ExplorePostId = post.Id AND saveItem.UserId = @ExploreDemoUserId
+          );
+
+        INSERT INTO ExploreComments (ExplorePostId, UserId, Content, ImageUrl, LikeCount, CreatedAt, ParentCommentId)
+        SELECT post.Id, @ExploreDemoUserId,
+               N'Bai viet de hieu, minh da luu lai de len lich trinh thuc te.',
+               post.ThumbnailUrl,
+               8,
+               DATEADD(HOUR, 7, post.CreatedAt),
+               NULL
+        FROM ExplorePosts post
+        INNER JOIN @ExploreSeeds seed ON seed.Title = post.Title
+        WHERE NOT EXISTS
+        (
+            SELECT 1 FROM ExploreComments commentItem
+            WHERE commentItem.ExplorePostId = post.Id
+              AND commentItem.UserId = @ExploreDemoUserId
+              AND commentItem.Content = N'Bai viet de hieu, minh da luu lai de len lich trinh thuc te.'
+        );
+
+        INSERT INTO ExploreComments (ExplorePostId, UserId, Content, ImageUrl, LikeCount, CreatedAt, ParentCommentId)
+        SELECT post.Id, @ExploreAdminUserId,
+               N'Neu can, ban co the ket hop bai viet nay voi combo hotel va xe de toi uu chi phi.',
+               NULL,
+               4,
+               DATEADD(HOUR, 9, post.CreatedAt),
+               parentComment.Id
+        FROM ExplorePosts post
+        INNER JOIN @ExploreSeeds seed ON seed.Title = post.Title
+        INNER JOIN ExploreComments parentComment
+            ON parentComment.ExplorePostId = post.Id
+           AND parentComment.UserId = @ExploreDemoUserId
+           AND parentComment.Content = N'Bai viet de hieu, minh da luu lai de len lich trinh thuc te.'
+        WHERE NOT EXISTS
+        (
+            SELECT 1 FROM ExploreComments commentItem
+            WHERE commentItem.ParentCommentId = parentComment.Id
+              AND commentItem.UserId = @ExploreAdminUserId
+                AND commentItem.Content = N'Neu can, ban co the ket hop bai viet nay voi combo hotel va xe de toi uu chi phi.'
+        );
+
+        UPDATE post
+        SET
+            post.AverageRating = ratingData.AverageRating,
+            post.RatingCount = ratingData.RatingCount,
+            post.UpdatedAt = GETDATE()
+        FROM ExplorePosts post
+        INNER JOIN
+        (
+            SELECT
+                rating.ExplorePostId,
+                CAST(AVG(CAST(rating.Rating AS DECIMAL(10,2))) AS DECIMAL(3,2)) AS AverageRating,
+                COUNT(*) AS RatingCount
+            FROM ExplorePostRatings rating
+            GROUP BY rating.ExplorePostId
+        ) ratingData ON ratingData.ExplorePostId = post.Id
+        INNER JOIN @ExploreSeeds seed ON seed.Title = post.Title;
+    END;
+END
+GO
+
 IF NOT EXISTS (SELECT 1 FROM Notifications)
 BEGIN
     INSERT INTO Notifications (UserId, Title, Message, IsRead, CreatedAt)

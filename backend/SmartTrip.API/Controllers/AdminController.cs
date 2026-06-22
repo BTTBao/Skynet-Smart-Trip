@@ -80,6 +80,24 @@ public class AdminController : ControllerBase
         });
     }
 
+    [HttpPost("uploads/vehicle-rental-images")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> UploadVehicleRentalImage([FromForm] AdminImageUploadRequest request)
+    {
+        var validationError = ValidateImageFile(request.File, "anh thue xe");
+        if (validationError != null) return validationError;
+
+        var upload = await UploadImageAsync(request.File!, "vehicle-rental/shops");
+        return Ok(new
+        {
+            imageUrl = upload.ImageUrl,
+            imagePath = upload.ImagePath,
+            fileName = upload.FileName,
+            relativeUrl = upload.ImagePath
+        });
+    }
+
     [HttpGet("dashboard")]
     public async Task<IActionResult> GetDashboardStats([FromQuery] DateOnly? startDate, [FromQuery] DateOnly? endDate)
     {
@@ -325,6 +343,41 @@ public class AdminController : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("vehicle-rental/shops")]
+    public async Task<IActionResult> GetVehicleRentalShops()
+    {
+        var shops = await _adminService.GetVehicleRentalShopsAsync();
+        return Ok(shops);
+    }
+
+    [HttpGet("vehicle-rental/shops/{shopId:int}")]
+    public async Task<IActionResult> GetVehicleRentalShopDetail(int shopId)
+    {
+        var shop = await _adminService.GetVehicleRentalShopDetailAsync(shopId);
+        return Ok(shop);
+    }
+
+    [HttpPost("vehicle-rental/shops")]
+    public async Task<IActionResult> CreateVehicleRentalShop([FromBody] AdminVehicleRentalShopRequest request)
+    {
+        var shop = await _adminService.CreateVehicleRentalShopAsync(request);
+        return Ok(shop);
+    }
+
+    [HttpPut("vehicle-rental/shops/{shopId:int}")]
+    public async Task<IActionResult> UpdateVehicleRentalShop(int shopId, [FromBody] AdminVehicleRentalShopRequest request)
+    {
+        var shop = await _adminService.UpdateVehicleRentalShopAsync(shopId, request);
+        return Ok(shop);
+    }
+
+    [HttpDelete("vehicle-rental/shops/{shopId:int}")]
+    public async Task<IActionResult> DeleteVehicleRentalShop(int shopId)
+    {
+        await _adminService.DeleteVehicleRentalShopAsync(shopId);
+        return NoContent();
+    }
+
     [HttpGet("reports/summary")]
     public async Task<IActionResult> GetReportSummary()
     {
@@ -379,6 +432,27 @@ public class AdminController : ControllerBase
     {
         var result = await _adminService.SendNotificationAsync(request);
         return Ok(result);
+    }
+
+    [HttpGet("payments")]
+    public async Task<IActionResult> GetPayments()
+    {
+        var payments = await _adminService.GetPaymentHistoryAsync();
+        return Ok(payments);
+    }
+
+    [HttpGet("reviews")]
+    public async Task<IActionResult> GetReviews()
+    {
+        var reviews = await _adminService.GetReviewsAsync();
+        return Ok(reviews);
+    }
+
+    [HttpDelete("reviews/{reviewId:int}")]
+    public async Task<IActionResult> DeleteReview(int reviewId)
+    {
+        await _adminService.DeleteReviewAsync(reviewId);
+        return NoContent();
     }
 
     private async Task<ImageStorageUploadResult> UploadImageAsync(IFormFile file, string folder)

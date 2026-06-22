@@ -76,4 +76,5 @@ public class PaymentHistoryItemDto
     public string? InvoiceNumber { get; set; }
     public string? InvoicePdfUrl { get; set; }
     public bool IsBookingOnly { get; set; }
+    public int? UsedCoins { get; set; }
 }

@@ -203,6 +203,7 @@ class PaymentHistoryItem {
   final String? invoiceNumber;
   final String? invoicePdfUrl;
   final bool isBookingOnly;
+  final int? usedCoins;
 
   const PaymentHistoryItem({
     required this.paymentId,
@@ -216,6 +217,7 @@ class PaymentHistoryItem {
     required this.invoiceNumber,
     required this.invoicePdfUrl,
     required this.isBookingOnly,
+    this.usedCoins,
   });
 
   factory PaymentHistoryItem.fromJson(Map<String, dynamic> json) {
@@ -231,6 +233,7 @@ class PaymentHistoryItem {
       invoiceNumber: json['invoiceNumber'],
       invoicePdfUrl: json['invoicePdfUrl'],
       isBookingOnly: json['isBookingOnly'] ?? false,
+      usedCoins: json['usedCoins'],
     );
   }
 }

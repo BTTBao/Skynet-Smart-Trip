@@ -21,6 +21,7 @@ class ExplorePost {
   final bool isBookmarked;
   final List<ExploreComment> comments;
   final List<String> tags;
+  final String? linkedTripCode;
 
   const ExplorePost({
     required this.id,
@@ -45,6 +46,7 @@ class ExplorePost {
     required this.isBookmarked,
     required this.comments,
     required this.tags,
+    this.linkedTripCode,
   });
 
   factory ExplorePost.fromJson(Map<String, dynamic> json) {
@@ -86,6 +88,7 @@ class ExplorePost {
       tags: (json['tags'] as List<dynamic>? ?? [])
           .map((item) => item.toString())
           .toList(),
+      linkedTripCode: json['linkedTripCode'] as String?,
     );
   }
 
@@ -119,6 +122,7 @@ class ExplorePost {
       isBookmarked: isBookmarked ?? this.isBookmarked,
       comments: comments ?? this.comments,
       tags: tags,
+      linkedTripCode: linkedTripCode,
     );
   }
 }

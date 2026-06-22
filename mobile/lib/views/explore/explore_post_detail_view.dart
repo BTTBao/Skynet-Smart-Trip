@@ -12,6 +12,7 @@ import '../../utils/app_text.dart';
 import '../../utils/relative_time_formatter.dart';
 import 'explore_map_sheet.dart';
 import 'explore_ui_constants.dart';
+import '../trip/trip_itinerary_detail_view.dart';
 
 class ExplorePostDetailView extends StatefulWidget {
   const ExplorePostDetailView({super.key, required this.postId});
@@ -104,6 +105,7 @@ class _ExplorePostDetailViewState extends State<ExplorePostDetailView>
                 ),
               ),
               SliverToBoxAdapter(child: _LocationWidget(post: post)),
+              SliverToBoxAdapter(child: _LinkedTripWidget(post: post)),
               SliverToBoxAdapter(
                 child: _CommentsSection(
                   postId: post.id,
@@ -1384,5 +1386,102 @@ class _Divider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(width: 1, height: 28, color: ExploreColors.border);
+  }
+}
+
+class _LinkedTripWidget extends StatelessWidget {
+  const _LinkedTripWidget({required this.post});
+
+  final ExplorePost post;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = post.linkedTripCode?.trim();
+    if (code == null || code.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFF6FF), // soft blue background
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFBFDBFE)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.card_travel_outlined,
+                color: Colors.blueAccent,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.tr(vi: 'Lịch trình đính kèm', en: 'Linked Itinerary'),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: ExploreColors.textMuted,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    code,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: ExploreColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => TripItineraryDetailView(
+                      tripId: 0,
+                      shareCode: code,
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.blueAccent,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  context.tr(vi: 'Xem chi tiết', en: 'View detail'),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -17,9 +17,11 @@ const initialForm: AdminHotelRequest = {
   starRating: 4,
   description: '',
   isAvailable: true,
+  commissionRate: 10,
 };
 
-const formatCurrency = (value: number) => `${value.toLocaleString('vi-VN')} VND`;
+const formatCurrency = (value: number) =>
+  `${new Intl.NumberFormat('vi-VN', { notation: 'compact', maximumFractionDigits: 1 }).format(value)}đ`;
 
 export default function HotelsAdminPage() {
   const navigate = useNavigate();
@@ -31,6 +33,7 @@ export default function HotelsAdminPage() {
   const [editingHotel, setEditingHotel] = useState<AdminHotel | null>(null);
   const [form, setForm] = useState<AdminHotelRequest>(initialForm);
   const [submitting, setSubmitting] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   const loadHotels = async () => {
     const [hotelData, destinationData] = await Promise.all([
@@ -115,6 +118,7 @@ export default function HotelsAdminPage() {
       starRating: hotel.starRating,
       description: hotel.description,
       isAvailable: hotel.isAvailable,
+      commissionRate: hotel.commissionRate || 10,
     });
   };
 
@@ -133,25 +137,33 @@ export default function HotelsAdminPage() {
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Catalog quản trị</p>
           <h1 className="mt-3 text-4xl font-black text-on-surface">Khách sạn</h1>
           <p className="mt-3 max-w-3xl text-sm text-on-surface-variant">
-            Tạo khách sạn trước, sau đó đi thẳng vào màn hình chi tiết để thêm từng loại phòng và điều chỉnh số lượng còn bán thật tự nhiên.
+            Quản lý danh mục khách sạn hệ thống, cấu hình tỉ lệ hoa hồng và điều chỉnh thông tin vận hành.
           </p>
         </div>
-        <button
-          onClick={() =>
-            downloadCsv('hotels.csv', filteredHotels, [
-              { key: 'name', header: 'Khách sạn' },
-              { key: 'destinationName', header: 'Điểm đến' },
-              { key: 'address', header: 'Địa chỉ' },
-              { key: 'starRating', header: 'Sao' },
-              { key: 'roomCount', header: 'Loại phòng' },
-              { key: 'availableRoomQty', header: 'Còn bán' },
-              { key: 'totalRevenue', header: 'Doanh thu' },
-            ])
-          }
-          className="rounded-full bg-primary-container px-6 py-3 text-sm font-bold text-white"
-        >
-          Xuất CSV
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setShowGuide(true)}
+            className="rounded-full bg-amber-500 hover:bg-amber-600 px-6 py-3 text-sm font-bold text-white transition-all shadow-sm"
+          >
+            💡 Hướng dẫn vận hành
+          </button>
+          <button
+            onClick={() =>
+              downloadCsv('hotels.csv', filteredHotels, [
+                { key: 'name', header: 'Khách sạn' },
+                { key: 'destinationName', header: 'Điểm đến' },
+                { key: 'address', header: 'Địa chỉ' },
+                { key: 'starRating', header: 'Sao' },
+                { key: 'roomCount', header: 'Loại phòng' },
+                { key: 'availableRoomQty', header: 'Còn bán' },
+                { key: 'totalRevenue', header: 'Doanh thu' },
+              ])
+            }
+            className="rounded-full bg-primary-container px-6 py-3 text-sm font-bold text-white"
+          >
+            Xuất CSV
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
@@ -182,7 +194,7 @@ export default function HotelsAdminPage() {
               {editingHotel ? 'Cập nhật khách sạn' : 'Tạo khách sạn mới'}
             </h2>
             <p className="mt-1 text-sm text-on-surface-variant">
-              Sau khi tạo xong, hệ thống sẽ đưa bạn sang màn hình chi tiết để thêm phòng ngay.
+              Thiết lập thông tin cơ bản cho khách sạn mới.
             </p>
           </div>
           {editingHotel ? (
@@ -199,48 +211,76 @@ export default function HotelsAdminPage() {
           ) : null}
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
-          <select
-            value={form.destinationId}
-            onChange={(event) => setForm((current) => ({ ...current, destinationId: Number(event.target.value) }))}
-            className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none"
-            required
-          >
-            <option value={0}>Điểm đến</option>
-            {destinations.map((destination) => (
-              <option key={destination.id} value={destination.id}>
-                {destination.name}
-              </option>
-            ))}
-          </select>
-          <input
-            value={form.name}
-            onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-            placeholder="Tên khách sạn"
-            className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none"
-            required
-          />
-          <input
-            value={form.address}
-            onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
-            placeholder="Địa chỉ"
-            className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none"
-          />
-          <input
-            value={form.starRating}
-            onChange={(event) => setForm((current) => ({ ...current, starRating: Number(event.target.value) }))}
-            type="number"
-            min={1}
-            max={5}
-            placeholder="Số sao"
-            className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none"
-          />
-          <input
-            value={form.description}
-            onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-            placeholder="Mô tả"
-            className="rounded-2xl bg-surface-container-low px-5 py-3 outline-none xl:col-span-2"
-          />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Điểm đến</span>
+            <select
+              value={form.destinationId}
+              onChange={(event) => setForm((current) => ({ ...current, destinationId: Number(event.target.value) }))}
+              className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none cursor-pointer"
+              required
+            >
+              <option value={0}>Chọn điểm đến</option>
+              {destinations.map((destination) => (
+                <option key={destination.id} value={destination.id}>
+                  {destination.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Tên khách sạn</span>
+            <input
+              value={form.name}
+              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+              placeholder="Nhập tên khách sạn"
+              className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none"
+              required
+            />
+          </label>
+          <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Địa chỉ</span>
+            <input
+              value={form.address}
+              onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
+              placeholder="Nhập địa chỉ khách sạn"
+              className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none"
+            />
+          </label>
+          <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Số sao</span>
+            <input
+              value={form.starRating}
+              onChange={(event) => setForm((current) => ({ ...current, starRating: Number(event.target.value) }))}
+              type="number"
+              min={1}
+              max={5}
+              placeholder="Từ 1 đến 5 sao"
+              className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none"
+            />
+          </label>
+          <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Hoa hồng %</span>
+            <input
+              value={form.commissionRate}
+              onChange={(event) => setForm((current) => ({ ...current, commissionRate: Number(event.target.value) }))}
+              type="number"
+              min={0}
+              max={100}
+              placeholder="Tỉ lệ phần trăm hoa hồng"
+              className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none"
+              required
+            />
+          </label>
+          <label className="flex flex-col rounded-2xl bg-surface-container-low px-5 py-3">
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-on-surface-variant">Mô tả ngắn</span>
+            <input
+              value={form.description}
+              onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+              placeholder="Mô tả tóm tắt khách sạn"
+              className="mt-2 w-full bg-transparent text-base font-bold text-on-surface outline-none"
+            />
+          </label>
         </div>
 
         <label className="mt-4 inline-flex items-center gap-3 rounded-full bg-surface-container-low px-5 py-3">
@@ -257,13 +297,10 @@ export default function HotelsAdminPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-full bg-primary-container px-8 py-3 text-sm font-bold text-white disabled:opacity-50"
+            className="rounded-full bg-primary px-8 py-3 text-sm font-bold text-white disabled:opacity-50"
           >
             {submitting ? 'Đang lưu...' : editingHotel ? 'Lưu thay đổi' : 'Tạo khách sạn'}
           </button>
-          <p className="text-xs text-on-surface-variant">
-            Xóa khách sạn đã bị khóa hoàn toàn. Nếu cần dừng bán, hãy sửa trạng thái trong màn hình chi tiết.
-          </p>
         </div>
       </form>
 
@@ -287,12 +324,11 @@ export default function HotelsAdminPage() {
                 <tr key={hotel.id}>
                   <td className="px-8 py-6">
                     <p className="text-sm font-bold text-on-surface">{hotel.name}</p>
-                    <p className="mt-1 text-xs text-on-surface-variant">{hotel.description || 'Chưa có mô tả'}</p>
                   </td>
                   <td className="px-8 py-6 text-sm font-medium text-on-surface">{hotel.destinationName}</td>
                   <td className="px-8 py-6 text-sm text-on-surface-variant">{hotel.address || 'Chưa có địa chỉ'}</td>
                   <td className="px-8 py-6 text-sm font-medium text-on-surface">
-                    {hotel.starRating} sao • {hotel.roomCount} loại phòng
+                    {hotel.starRating} sao • {hotel.roomCount} loại phòng • {hotel.commissionRate}%
                   </td>
                   <td className="px-8 py-6">
                     <span
@@ -300,7 +336,7 @@ export default function HotelsAdminPage() {
                         hotel.isAvailable ? 'bg-primary-container/10 text-primary-container' : 'bg-error-container text-error'
                       }`}
                     >
-                      {hotel.isAvailable ? 'Hoạt_động' : 'Tạm_dừng'}
+                      {hotel.isAvailable ? 'Hoạt động' : 'Tạm dừng'}
                     </span>
                   </td>
                   <td className="px-8 py-6 text-sm text-on-surface-variant">
@@ -332,6 +368,44 @@ export default function HotelsAdminPage() {
           </table>
         </div>
       </div>
+
+      {showGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl rounded-[2.5rem] bg-white p-8 shadow-2xl ring-1 ring-black/5 animate-in slide-in-from-bottom-8 duration-350">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-amber-600">Hướng dẫn sử dụng</p>
+                <h3 className="mt-1 text-2xl font-black text-slate-900">Vận hành Khách sạn & Phòng</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGuide(false)}
+                className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-2 text-xs font-bold text-slate-900 transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+            <div className="mt-6 space-y-6 text-sm text-slate-600 leading-relaxed max-h-[50vh] overflow-y-auto pr-2">
+              <div className="rounded-[1.4rem] bg-amber-500/5 p-5 border border-amber-500/10">
+                <h4 className="font-bold text-amber-800 text-base">📌 Nguyên tắc hoạt động cốt lõi</h4>
+                <ul className="mt-3 list-disc list-inside space-y-2 text-amber-950 font-medium">
+                  <li><strong>Không xóa dữ liệu:</strong> Để đảm bảo tính toàn vẹn của lịch sử đặt phòng (bookings), hệ thống không hỗ trợ xóa khách sạn hoặc phòng.</li>
+                  <li><strong>Tạm dừng bán khách sạn:</strong> Tắt checkbox <em>"Hoạt động"</em> hoặc chuyển trạng thái khách sạn sang ngừng bán.</li>
+                  <li><strong>Tạm dừng bán loại phòng:</strong> Nhấp vào chi tiết khách sạn và đổi số lượng sẵn có của loại phòng đó về <code>0</code>.</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-black text-slate-900 text-base">🏨 Chi tiết cấu hình</h4>
+                <ul className="mt-2 list-disc list-inside space-y-2">
+                  <li><strong>Điểm đến (Destination):</strong> Điểm đến được liên kết cố định khi tạo khách sạn mới và được khóa để tránh làm sai lệch ngữ cảnh.</li>
+                  <li><strong>Hoa hồng khách sạn:</strong> Cấu hình tỷ lệ hoa hồng ở cấp độ khách sạn. Tất cả các phòng sẽ tự động thừa hưởng tỷ lệ này.</li>
+                  <li><strong>Doanh thu & Lợi nhuận:</strong> Giá trị doanh thu và lợi nhuận hiển thị tự động tích lũy dựa trên các giao dịch thực tế đã thanh toán thành công (Paid).</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
