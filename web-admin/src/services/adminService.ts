@@ -88,6 +88,10 @@ export interface AdminTransportSchedule {
   status: 'running' | 'upcoming' | 'completed';
   ticketPrice: string;
   affiliateProfit: string;
+  actualRevenue: string;
+  actualRevenueValue: number;
+  actualProfit: string;
+  actualProfitValue: number;
   priceValue: number;
   commissionRate: number;
   occupiedSeats: number;
@@ -166,6 +170,8 @@ export interface AdminHotel {
   availableRoomQty: number;
   lowestPrice: number;
   totalRevenue: number;
+  totalProfit: number;
+  bookedRoomQty: number;
 }
 
 export interface AdminHotelRequest {
@@ -187,6 +193,10 @@ export interface AdminRoom {
   availableQty: number;
   isSelling: boolean;
   imageUrls: string[];
+  totalRevenue: number;
+  totalProfit: number;
+  bookedRoomQty: number;
+  bookingCount: number;
 }
 
 export interface AdminHotelDetail extends AdminHotel {

@@ -205,7 +205,8 @@ export default function TransportAdminPage() {
       { key: 'departureTime', header: 'Giờ khởi hành' },
       { key: 'status', header: 'Trạng thái' },
       { key: 'ticketPrice', header: 'Giá vé' },
-      { key: 'affiliateProfit', header: 'Lợi nhuận affiliate' },
+      { key: 'actualRevenue', header: 'Doanh thu' },
+      { key: 'actualProfit', header: 'Lợi nhuận' },
     ]);
 
     showToast({
@@ -428,11 +429,11 @@ export default function TransportAdminPage() {
           <MetricCard label="Tổng chuyến tháng này" value={stats.totalSchedulesThisMonth.toLocaleString()} icon="directions_bus" iconClass="bg-primary-fixed/30 text-primary" accent="text-primary bg-primary-fixed/50" helper={`${stats.totalCompanies} nhà xe`} />
         </div>
         <div className="xl:col-span-3">
-          <MetricCard label="Doanh thu dự kiến" value={formatCompactCurrency(stats.expectedRevenueThisMonth)} icon="payments" iconClass="bg-secondary-fixed/50 text-secondary" accent="text-secondary bg-secondary-fixed" helper={`${stats.averageOccupancyRate.toFixed(1)}% lấp đầy`} />
+          <MetricCard label="Doanh thu thực tế" value={formatCompactCurrency(stats.expectedRevenueThisMonth)} icon="payments" iconClass="bg-secondary-fixed/50 text-secondary" accent="text-secondary bg-secondary-fixed" helper={`${stats.averageOccupancyRate.toFixed(1)}% lấp đầy`} />
         </div>
         <div className="xl:col-span-6 bg-surface-container-lowest p-8 rounded-xl shadow-sm border border-outline-variant/5 relative overflow-hidden flex items-center">
           <div className="relative z-10">
-            <p className="text-outline text-xs font-bold uppercase tracking-wider mb-1">Hiệu suất Affiliate</p>
+            <p className="text-outline text-xs font-bold uppercase tracking-wider mb-1">Lợi nhuận thực tế</p>
             <h3 className="text-3xl font-black text-on-surface tracking-tighter mb-2">{formatCompactCurrency(stats.affiliateRevenueThisMonth)}</h3>
             <p className="text-sm text-on-surface-variant mb-4">Tăng trưởng {stats.affiliateGrowthRate >= 0 ? '+' : ''}{stats.affiliateGrowthRate.toFixed(1)}% so với tháng trước.</p>
             <div className="flex flex-wrap gap-4">
@@ -588,6 +589,7 @@ export default function TransportAdminPage() {
                 <th className="px-8 py-4 text-[11px] font-black text-outline uppercase tracking-widest text-center">Khởi hành</th>
                 <th className="px-8 py-4 text-[11px] font-black text-outline uppercase tracking-widest text-center">Trạng thái</th>
                 <th className="px-8 py-4 text-[11px] font-black text-outline uppercase tracking-widest text-right">Giá vé</th>
+                <th className="px-8 py-4 text-[11px] font-black text-outline uppercase tracking-widest text-right">Doanh thu</th>
                 <th className="px-8 py-4 text-[11px] font-black text-outline uppercase tracking-widest text-right">Lợi nhuận</th>
                 <th className="px-8 py-4 text-[11px] font-black text-outline uppercase tracking-widest text-center">Ghế</th>
                 <th className="px-8 py-4 text-[11px] font-black text-outline uppercase tracking-widest text-right">Hành động</th>
@@ -624,7 +626,10 @@ export default function TransportAdminPage() {
                       <span className="text-sm font-medium text-on-surface">{schedule.ticketPrice}</span>
                     </td>
                     <td className="px-8 py-6 text-right">
-                      <span className="text-sm font-bold text-[#10B981]">{schedule.affiliateProfit}</span>
+                      <span className="text-sm font-bold text-[#10B981]">{schedule.actualRevenue}</span>
+                    </td>
+                    <td className="px-8 py-6 text-right">
+                      <span className="text-sm font-bold text-sky-600 dark:text-sky-400">{schedule.actualProfit}</span>
                     </td>
                     <td className="px-8 py-6 text-center">
                       <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-surface-container-low text-on-surface text-xs font-bold">{schedule.occupiedSeats}/{schedule.totalSeats}</span>

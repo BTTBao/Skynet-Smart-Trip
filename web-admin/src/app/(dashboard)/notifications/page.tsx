@@ -8,7 +8,7 @@ import {
   type AdminSendNotificationRequest,
   type AdminUser,
 } from '@/services/adminService';
-import { downloadCsv } from '@/utils/adminActions';
+import { downloadCsv, getPageNumbers } from '@/utils/adminActions';
 import { toast } from 'sonner';
 import {
   Card,
@@ -48,6 +48,8 @@ import {
   Search,
   Download,
   Info,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 const initialForm: AdminSendNotificationRequest = {
@@ -94,6 +96,8 @@ export default function NotificationsAdminPage() {
   const [stats, setStats] = useState<AdminNotificationStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const PAGE_SIZE = 6;
+  const [currentPage, setCurrentPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<AdminSendNotificationRequest>(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -141,7 +145,16 @@ export default function NotificationsAdminPage() {
     return () => window.clearTimeout(handle);
   }, [query]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query]);
+
   const filteredNotifications = useMemo(() => stats?.notifications ?? [], [stats]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredNotifications.length / PAGE_SIZE));
+  const currentPageClamped = Math.min(currentPage, totalPages);
+  const paginatedNotifications = filteredNotifications.slice((currentPageClamped - 1) * PAGE_SIZE, currentPageClamped * PAGE_SIZE);
+  const pageNumbers = getPageNumbers(currentPageClamped, totalPages);
 
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
@@ -531,7 +544,7 @@ export default function NotificationsAdminPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredNotifications.map((notif) => (
+                  paginatedNotifications.map((notif) => (
                     <TableRow key={notif.id} className="hover:bg-muted/30">
                       <TableCell className="pl-6 py-4">
                         <div>
@@ -569,6 +582,40 @@ export default function NotificationsAdminPage() {
                 )}
               </TableBody>
             </Table>
+          </div>
+          {/* Pagination Footer */}
+          <div className="flex items-center justify-between px-6 py-4 border-t">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPageClamped === 1}
+              className="gap-1 cursor-pointer h-8 text-xs"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" /> Trước
+            </Button>
+            <div className="flex items-center gap-1.5">
+              {pageNumbers.map((page) => (
+                <Button
+                  key={page}
+                  size="sm"
+                  variant={currentPageClamped === page ? 'default' : 'ghost'}
+                  onClick={() => setCurrentPage(page)}
+                  className="w-8 h-8 p-0 text-xs cursor-pointer"
+                >
+                  {page}
+                </Button>
+              ))}
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              disabled={currentPageClamped === totalPages}
+              className="gap-1 cursor-pointer h-8 text-xs"
+            >
+              Sau <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
           </div>
         </CardContent>
       </Card>

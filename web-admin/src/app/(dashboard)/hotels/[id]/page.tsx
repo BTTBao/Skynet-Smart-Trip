@@ -65,11 +65,7 @@ const emptyRoomForm: AdminRoomRequest = {
 };
 
 function formatCurrency(value: number) {
-  return `${value.toLocaleString('vi-VN')} VND`;
-}
-
-function calculateRoomProfitPerNight(room: AdminRoom) {
-  return room.pricePerNight * (room.commissionRate / 100);
+  return `${new Intl.NumberFormat('vi-VN', { notation: 'compact', maximumFractionDigits: 1 }).format(value)}đ`;
 }
 
 interface PageProps {
@@ -250,10 +246,18 @@ export default function HotelDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 min-w-[280px]">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 min-w-[280px]">
             <div className="rounded-xl bg-white/5 p-4 border border-white/10">
               <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Doanh thu phòng</span>
               <span className="text-lg font-black block mt-1">{formatCurrency(hotel.totalRevenue)}</span>
+            </div>
+            <div className="rounded-xl bg-white/5 p-4 border border-white/10">
+              <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Lợi nhuận</span>
+              <span className="text-lg font-black block mt-1">{formatCurrency(hotel.totalProfit)}</span>
+            </div>
+            <div className="rounded-xl bg-white/5 p-4 border border-white/10">
+              <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Đã đặt</span>
+              <span className="text-lg font-black block mt-1">{hotel.bookedRoomQty} phòng</span>
             </div>
             <div className="rounded-xl bg-white/5 p-4 border border-white/10">
               <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Tổng còn bán</span>
@@ -515,7 +519,9 @@ export default function HotelDetailPage({ params }: PageProps) {
                   <TableHead>Sức chứa</TableHead>
                   <TableHead>Giá phòng / đêm</TableHead>
                   <TableHead>Chiết khấu</TableHead>
-                  <TableHead>Lợi nhuận ước tính</TableHead>
+                  <TableHead>Đã đặt</TableHead>
+                  <TableHead>Doanh thu</TableHead>
+                  <TableHead>Lợi nhuận</TableHead>
                   <TableHead>Còn bán (Qty)</TableHead>
                   <TableHead>Hình ảnh</TableHead>
                   <TableHead>Trạng thái</TableHead>
@@ -525,7 +531,7 @@ export default function HotelDetailPage({ params }: PageProps) {
               <TableBody>
                 {hotel.rooms.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12 text-sm text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center py-12 text-sm text-muted-foreground">
                       Khách sạn này chưa được cấu hình loại phòng nào.
                     </TableCell>
                   </TableRow>
@@ -541,8 +547,13 @@ export default function HotelDetailPage({ params }: PageProps) {
                       <TableCell className="text-xs font-semibold">{room.capacity} khách</TableCell>
                       <TableCell className="text-xs font-bold">{formatCurrency(room.pricePerNight)}</TableCell>
                       <TableCell className="text-xs">{room.commissionRate}%</TableCell>
+                      <TableCell className="text-xs">
+                        <p className="font-bold">{room.bookedRoomQty} phòng</p>
+                        <p className="text-[10px] text-muted-foreground">{room.bookingCount} lượt đặt</p>
+                      </TableCell>
+                      <TableCell className="text-xs font-bold">{formatCurrency(room.totalRevenue)}</TableCell>
                       <TableCell className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                        {formatCurrency(calculateRoomProfitPerNight(room))}
+                        {formatCurrency(room.totalProfit)}
                       </TableCell>
                       <TableCell className="text-xs font-bold">{room.availableQty} phòng</TableCell>
                       <TableCell>
