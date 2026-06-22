@@ -110,9 +110,18 @@ class CatalogService extends ApiService {
     }
   }
 
+  Future<List<CatalogPromotion>> getPromotions() async {
+    final response = await _get('/catalog/promotions');
+    final rawList = List<dynamic>.from(handleResponse(response));
+    return rawList
+        .map((item) => CatalogPromotion.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList();
+  }
+
   String _formatDate(DateTime date) => DateTime(
         date.year,
         date.month,
         date.day,
       ).toIso8601String().split('T').first;
 }
+

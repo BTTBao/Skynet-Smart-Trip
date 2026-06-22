@@ -45,11 +45,14 @@ public class UserService : IUserService
 
         if (user == null) return null;
 
-        var loyaltyPoints = await _context.UserWallets
+        var walletInfo = await _context.UserWallets
             .AsNoTracking()
             .Where(w => w.UserId == userId)
-            .Select(w => w.LoyaltyPoints ?? 0)
+            .Select(w => new { LoyaltyPoints = w.LoyaltyPoints ?? 0, Balance = w.Balance ?? 0m })
             .FirstOrDefaultAsync();
+
+        var loyaltyPoints = walletInfo?.LoyaltyPoints ?? 0;
+        var walletBalance = walletInfo?.Balance ?? 0m;
 
         var tripsCount = await _context.Trips
             .AsNoTracking()
@@ -72,6 +75,7 @@ public class UserService : IUserService
             MemberTier = GetMemberTier(loyaltyPoints),
             TripsCount = tripsCount,
             Coins = loyaltyPoints,
+            WalletBalance = walletBalance,
             Vouchers = vouchersCount,
             BirthDate = user.BirthDate?.ToString("yyyy-MM-dd"),
             IdentityNumber = user.IdentityNumber,

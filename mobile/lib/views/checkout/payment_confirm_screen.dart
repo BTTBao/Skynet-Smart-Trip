@@ -68,11 +68,50 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
   int? _pendingItineraryId;
 
   double _discountAmount = 0.0;
+  bool _isCoinsSelected = false;
+
+  double get _coinsDiscountAmount {
+    if (!_isCoinsSelected) return 0.0;
+    final user = context.read<ProfileProvider>().profileData;
+    final int coins = user?.coins ?? 0;
+    final double cashBeforeCoins = widget.totalPrice - _discountAmount;
+    final double maxCoinsValue = coins * 1000.0;
+    return cashBeforeCoins > maxCoinsValue ? maxCoinsValue : (cashBeforeCoins < 0 ? 0.0 : cashBeforeCoins);
+  }
+
+  int get _usedCoinsCount {
+    if (!_isCoinsSelected) return 0;
+    final user = context.read<ProfileProvider>().profileData;
+    final int coins = user?.coins ?? 0;
+    final double cashBeforeCoins = widget.totalPrice - _discountAmount;
+    final double maxCoinsValue = coins * 1000.0;
+    if (cashBeforeCoins >= maxCoinsValue) {
+      return coins;
+    } else {
+      return (cashBeforeCoins / 1000.0).ceil();
+    }
+  }
+
+  double get finalPayPrice {
+    final basePrice = widget.totalPrice - _discountAmount - _coinsDiscountAmount;
+    return basePrice < 0 ? 0.0 : basePrice;
+  }
+
+  double get amountToPay => finalPayPrice;
+
   String? _appliedPromoCode;
   final TextEditingController _promoController = TextEditingController();
   String? _promoError;
   String? _promoSuccessMessage;
   bool _proceededWithOverlap = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ProfileProvider>().fetchProfile(forceRefresh: true);
+    });
+  }
 
   @override
   void dispose() {
@@ -477,9 +516,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         if (status == 'FAILED' ||
             status == 'CANCELLED' ||
             status == 'EXPIRED') {
-          final finalPayPrice = (widget.totalPrice - _discountAmount)
-              .clamp(0, double.infinity)
-              .toDouble();
+          final finalPayPrice = this.finalPayPrice;
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -508,7 +545,8 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         context.read<ProfileProvider>().useVoucher(_appliedPromoCode!);
       }
 
-      final double finalPayPrice = widget.totalPrice - _discountAmount;
+      final double finalPayPrice = this.finalPayPrice;
+      final double amountToPay = this.amountToPay;
 
       await _syncAfterConfirmedPayment();
       Navigator.pushAndRemoveUntil(
@@ -528,7 +566,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
             roomInfo:
                 '${widget.adultCount} Nguoi lon, ${widget.selectedRoom?.roomType ?? "Phong Standard"}',
             imageUrl: widget.hotel.coverImageUrl,
-            totalPrice: finalPayPrice < 0 ? 0 : finalPayPrice,
+            totalPrice: amountToPay < 0 ? 0 : amountToPay,
             paymentMethod: 'PayOS',
             paymentTime: payment.paidAt ?? DateTime.now(),
           ),
@@ -582,9 +620,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       if (!payment.isPaid) {
         final status = payment.status.toUpperCase();
         if (payment.isFailed) {
-          final finalPayPrice = (widget.totalPrice - _discountAmount)
-              .clamp(0, double.infinity)
-              .toDouble();
+          final finalPayPrice = this.finalPayPrice;
           final failureMessage = payment.message?.trim().isNotEmpty == true
               ? payment.message!
               : 'VNPAY da tra ve trang thai $status. Chua co khoan tien nao duoc ghi nhan.';
@@ -617,7 +653,8 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         context.read<ProfileProvider>().useVoucher(_appliedPromoCode!);
       }
 
-      final double finalPayPrice = widget.totalPrice - _discountAmount;
+      final double finalPayPrice = this.finalPayPrice;
+      final double amountToPay = this.amountToPay;
 
       await _syncAfterConfirmedPayment();
       Navigator.pushAndRemoveUntil(
@@ -637,7 +674,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
             roomInfo:
                 '${widget.adultCount} Nguoi lon, ${widget.selectedRoom?.roomType ?? "Phong Standard"}',
             imageUrl: widget.hotel.coverImageUrl,
-            totalPrice: finalPayPrice < 0 ? 0 : finalPayPrice,
+            totalPrice: amountToPay < 0 ? 0 : amountToPay,
             paymentMethod: 'VNPAY',
             paymentTime: payment.paidAt ?? DateTime.now(),
           ),
@@ -888,7 +925,8 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       final tripProvider = context.read<TripProvider>();
       int currentTripId;
 
-      final double finalPayPrice = widget.totalPrice - _discountAmount;
+      final double finalPayPrice = this.finalPayPrice;
+      final double amountToPay = this.amountToPay;
       final tripDateBlockReason = _existingTripDateBlockReason();
       if (tripDateBlockReason != null) {
         throw Exception(tripDateBlockReason);
@@ -953,6 +991,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
           transactionId:
               'TXN-FREE-$currentTripId-${DateTime.now().millisecondsSinceEpoch}',
           amount: 0,
+          usedCoins: _isCoinsSelected ? _usedCoinsCount : null,
         );
 
         if (!paymentSuccess) {
@@ -993,14 +1032,68 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         return;
       }
 
+      if (selectedPaymentMethod == 4) {
+        final walletBalance = context.read<ProfileProvider>().profileData?.walletBalance ?? 0.0;
+        if (walletBalance < amountToPay) {
+          throw Exception('Số dư ví không đủ để thực hiện giao dịch.');
+        }
+
+        final payResult = await PaymentService().payWithWallet(
+          tripId: currentTripId,
+          amount: amountToPay,
+          isDeposit: false,
+          usedCoins: _isCoinsSelected ? _usedCoinsCount : null,
+        );
+
+        if (payResult['success'] != true) {
+          throw Exception(payResult['message'] ?? 'Thanh toán bằng ví thất bại.');
+        }
+
+        if (_appliedPromoCode != null) {
+          context.read<ProfileProvider>().useVoucher(_appliedPromoCode!);
+        }
+
+        await context.read<ProfileProvider>().fetchProfile(forceRefresh: true);
+        await _syncAfterConfirmedPayment();
+
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PaymentSuccessScreen(
+                bookingId: currentTripId,
+                itineraryId: widget.existingTripId == null
+                    ? _pendingItineraryId
+                    : null,
+                destinationId: widget.hotel.destinationId,
+                destinationName: _hotelDestinationName,
+                checkIn: widget.checkIn,
+                checkOut: widget.checkOut,
+                hotelName: widget.hotel.name,
+                dateRange: _formatDateRange(),
+                roomInfo:
+                    '${widget.adultCount} Người lớn, ${widget.roomQuantity} phòng, ${widget.selectedRoom?.roomType ?? "Phòng Standard"}',
+                imageUrl: widget.hotel.coverImageUrl,
+                totalPrice: amountToPay,
+                paymentMethod: 'Ví SmartTrip',
+                paymentTime: DateTime.now(),
+              ),
+            ),
+            (route) => false,
+          );
+        }
+        return;
+      }
+
       if (selectedPaymentMethod == 0) {
         // PayOS - Thẻ tín dụng/Ghi nợ
         final orderCode = _generateOrderCode(currentTripId);
         final payment = await PaymentService().createPayOsPayment(
           tripId: currentTripId,
-          amount: finalPayPrice,
+          amount: amountToPay,
           description: 'Dat phong $currentTripId',
           orderCode: orderCode,
+          usedCoins: _isCoinsSelected ? _usedCoinsCount : null,
           metadata: {
             'type': 'HOTEL',
             'hotelId': widget.hotel.id,
@@ -1024,8 +1117,9 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       if (selectedPaymentMethod == 1) {
         final payment = await PaymentService().createVnPayPayment(
           tripId: currentTripId,
-          amount: finalPayPrice,
+          amount: amountToPay,
           description: 'Dat phong $currentTripId',
+          usedCoins: _isCoinsSelected ? _usedCoinsCount : null,
           metadata: {
             'type': 'HOTEL',
             'hotelId': widget.hotel.id,
@@ -1056,7 +1150,9 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         paymentMethod: paymentMethodStr,
         transactionId:
             'TXN-HOTEL-$currentTripId-${DateTime.now().millisecondsSinceEpoch}',
-        amount: finalPayPrice,
+        amount: amountToPay,
+        isDeposit: false,
+        usedCoins: _isCoinsSelected ? _usedCoinsCount : null,
       );
 
       if (!paymentSuccess) {
@@ -1086,7 +1182,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
               roomInfo:
                   '${widget.adultCount} Người lớn, ${widget.roomQuantity} phòng, ${widget.selectedRoom?.roomType ?? "Phòng Standard"}',
               imageUrl: widget.hotel.coverImageUrl,
-              totalPrice: finalPayPrice,
+              totalPrice: amountToPay,
               paymentMethod: paymentMethodStr,
               paymentTime: DateTime.now(),
             ),
@@ -1102,9 +1198,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
             backgroundColor: Colors.red,
           ),
         );
-        final finalPayPrice = (widget.totalPrice - _discountAmount)
-            .clamp(0, double.infinity)
-            .toDouble();
+        final finalPayPrice = this.finalPayPrice;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -1128,7 +1222,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
     final guestsText =
         '${widget.adultCount} Người lớn${widget.childCount > 0 ? ', ${widget.childCount} Trẻ em' : ''}${widget.infantCount > 0 ? ', ${widget.infantCount} Em bé' : ''}, ${widget.roomQuantity} phòng';
 
-    final double finalPayPrice = widget.totalPrice - _discountAmount;
+    final double finalPayPrice = this.finalPayPrice;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
@@ -1230,6 +1324,49 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                       title: 'Chuyển khoản ngân hàng',
                       subtitle: 'Vietcombank, Techcombank...',
                     ),
+                    Consumer<ProfileProvider>(
+                      builder: (context, profileProvider, _) {
+                        final walletBalance = profileProvider.profileData?.walletBalance ?? 0.0;
+                        final double finalPayPrice = this.finalPayPrice;
+                        final double amountToPay = finalPayPrice;
+                        final isInsufficient = walletBalance < amountToPay;
+                        
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildPaymentMethodOption(
+                              index: 4,
+                              icon: Icons.wallet_outlined,
+                              iconColor: Colors.teal,
+                              title: 'Ví SmartTrip',
+                              subtitle: 'Số dư: ${_formatPriceFull(walletBalance)}',
+                            ),
+                            if (selectedPaymentMethod == 4 && isInsufficient)
+                              Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[50],
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.red[100]!),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.warning_amber_rounded, color: Colors.red[700], size: 20),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Số dư ví không đủ để thanh toán. Vui lòng nạp thêm tiền vào ví từ Hồ sơ hoặc chọn phương thức thanh toán khác.',
+                                        style: TextStyle(color: Colors.red[900], fontSize: 12, fontWeight: FontWeight.w500),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
                   ],
                   const SizedBox(height: 24),
                   _buildPriceDetails(),
@@ -1296,6 +1433,8 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
       ),
     );
   }
+
+
 
   Widget _buildPaymentMethodOption({
     required int index,
@@ -1372,7 +1511,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
   }
 
   Widget _buildPriceDetails() {
-    final double finalPayPrice = widget.totalPrice - _discountAmount;
+    final double finalPayPrice = this.finalPayPrice;
     final selectedCapacity = widget.selectedRoom?.capacity ?? 2;
     final roomCapacity = selectedCapacity > 0 ? selectedCapacity : 1;
     final standardCapacity = roomCapacity * widget.roomQuantity;
@@ -1523,6 +1662,88 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
             padding: EdgeInsets.symmetric(vertical: 14.0),
             child: Divider(color: Color(0xFFEEEEEE), thickness: 1),
           ),
+          Consumer<ProfileProvider>(
+            builder: (context, profileProvider, _) {
+              final user = profileProvider.profileData;
+              final int coins = user?.coins ?? 0;
+              final double coinsValue = coins * 1000.0;
+              final coinsValueFormatted = _formatPriceFull(coinsValue);
+              
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFB2F2EC), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.01),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D9488).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.monetization_on,
+                        color: Color(0xFF0D9488),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Dùng Xu tích lũy (Có $coins Xu)',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Color(0xFF0F766E),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Quy đổi thành -$coinsValueFormatted',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _isCoinsSelected,
+                      activeColor: const Color(0xFF0D9488),
+                      activeTrackColor: const Color(0xFF99F6E4),
+                      inactiveThumbColor: Colors.grey[300],
+                      inactiveTrackColor: Colors.grey[200],
+                      onChanged: coins > 0
+                          ? (value) {
+                              setState(() {
+                                _isCoinsSelected = value;
+                              });
+                            }
+                          : null,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14.0),
+            child: Divider(color: Color(0xFFEEEEEE), thickness: 1),
+          ),
           const Text(
             'Chi tiết giá',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -1587,6 +1808,30 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
               ],
             ),
           ],
+          if (_isCoinsSelected && _coinsDiscountAmount > 0) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Dùng xu tích lũy (Giảm ${_usedCoinsCount} xu)',
+                  style: const TextStyle(
+                    color: Color(0xFF0D9488),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  '-${_formatPriceFull(_coinsDiscountAmount)}',
+                  style: const TextStyle(
+                    color: Color(0xFF0D9488),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 16.0),
             child: Divider(color: Color(0xFFEEEEEE), thickness: 1),
@@ -1614,7 +1859,10 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
   }
 
   Widget _buildBottomBar(BuildContext context) {
-    final double finalPayPrice = widget.totalPrice - _discountAmount;
+    final double finalPayPrice = this.finalPayPrice;
+    final walletBalance = context.watch<ProfileProvider>().profileData?.walletBalance ?? 0.0;
+    final double amountToPay = finalPayPrice;
+    final bool isWalletInsufficient = selectedPaymentMethod == 4 && walletBalance < amountToPay;
 
     return Container(
       color: const Color(0xFFFAFAFA),
@@ -1626,9 +1874,10 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _handlePayment,
+                onPressed: isWalletInsufficient ? null : _handlePayment,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[300],
+                  backgroundColor: isWalletInsufficient ? Colors.grey[300] : Colors.green[300],
+                  disabledBackgroundColor: Colors.grey[300],
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -1639,19 +1888,21 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      finalPayPrice <= 0
-                          ? 'Xác nhận đặt miễn phí'
-                          : 'Xác nhận & Thanh toán',
-                      style: const TextStyle(
-                        color: Colors.black,
+                      isWalletInsufficient
+                          ? 'Số dư Ví không đủ'
+                          : finalPayPrice <= 0
+                              ? 'Xác nhận đặt miễn phí'
+                              : 'Xác nhận & Thanh toán',
+                      style: TextStyle(
+                        color: isWalletInsufficient ? Colors.grey[600] : Colors.black,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(
+                    Icon(
                       Icons.arrow_forward,
-                      color: Colors.black,
+                      color: isWalletInsufficient ? Colors.grey[600] : Colors.black,
                       size: 20,
                     ),
                   ],

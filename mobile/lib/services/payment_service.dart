@@ -10,6 +10,7 @@ class PaymentService extends ApiService {
     required String description,
     required int orderCode,
     Map<String, dynamic>? metadata,
+    int? usedCoins,
   }) async {
     final returnUrl =
         '$configuredBaseUrl/payments/payos/return?orderCode=$orderCode';
@@ -25,7 +26,11 @@ class PaymentService extends ApiService {
         'orderCode': orderCode,
         'returnUrl': returnUrl,
         'cancelUrl': cancelUrl,
-        'metadata': {'tripId': tripId, if (metadata != null) ...metadata},
+        'metadata': {
+          'tripId': tripId,
+          if (usedCoins != null) 'usedCoins': usedCoins,
+          if (metadata != null) ...metadata
+        },
       }),
     );
 
@@ -39,6 +44,7 @@ class PaymentService extends ApiService {
     required String description,
     String locale = 'vn',
     Map<String, dynamic>? metadata,
+    int? usedCoins,
   }) async {
     final response = await postWithFallback(
       '/payments/vnpay/create',
@@ -47,7 +53,11 @@ class PaymentService extends ApiService {
         'amount': amount.round(),
         'description': description,
         'locale': locale,
-        'metadata': {'tripId': tripId, if (metadata != null) ...metadata},
+        'metadata': {
+          'tripId': tripId,
+          if (usedCoins != null) 'usedCoins': usedCoins,
+          if (metadata != null) ...metadata
+        },
       }),
     );
 
@@ -63,5 +73,62 @@ class PaymentService extends ApiService {
 
     final data = Map<String, dynamic>.from(handleResponse(response));
     return PaymentResult.fromJson(data);
+  }
+
+  Future<PaymentResult> createWalletDeposit({
+    required double amount,
+    String locale = 'vn',
+  }) async {
+    final response = await postWithFallback(
+      '/payments/wallet/deposit',
+      requireAuth: true,
+      body: jsonEncode({
+        'amount': amount.round(),
+        'locale': locale,
+      }),
+    );
+
+    final data = Map<String, dynamic>.from(handleResponse(response));
+    return PaymentResult.fromJson(data);
+  }
+
+  Future<Map<String, dynamic>> withdrawFromWallet({
+    required double amount,
+    required String bankName,
+    required String accountNumber,
+    required String accountName,
+  }) async {
+    final response = await postWithFallback(
+      '/payments/wallet/withdraw',
+      requireAuth: true,
+      body: jsonEncode({
+        'amount': amount,
+        'bankName': bankName,
+        'accountNumber': accountNumber,
+        'accountName': accountName,
+      }),
+    );
+
+    return Map<String, dynamic>.from(handleResponse(response));
+  }
+
+  Future<Map<String, dynamic>> payWithWallet({
+    required int tripId,
+    required double amount,
+    required bool isDeposit,
+    int? usedCoins,
+  }) async {
+    final response = await postWithFallback(
+      '/payments/wallet/pay',
+      requireAuth: true,
+      body: jsonEncode({
+        'tripId': tripId,
+        'amount': amount,
+        'isDeposit': isDeposit,
+        if (usedCoins != null) 'usedCoins': usedCoins,
+      }),
+    );
+
+    return Map<String, dynamic>.from(handleResponse(response));
   }
 }

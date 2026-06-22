@@ -584,7 +584,51 @@ public class CatalogService : ICatalogService
         {
             Code = promotion.Code ?? string.Empty,
             DiscountPercent = promotion.DiscountPercent ?? 0,
-            MaxDiscountAmount = promotion.MaxDiscountAmount ?? 0
+            MaxDiscountAmount = promotion.MaxDiscountAmount ?? 0,
+            Title = GetPromotionTitle(promotion),
+            Description = GetPromotionDescription(promotion)
         };
+    }
+
+    public async Task<List<CatalogPromotionDto>> GetPromotionsAsync()
+    {
+        var now = DateTime.UtcNow;
+        var promotions = await _context.Promotions
+            .AsNoTracking()
+            .Where(p => (!p.ValidUntil.HasValue || p.ValidUntil.Value >= now) &&
+                        (!p.UsageLimit.HasValue || !p.UsedCount.HasValue || p.UsedCount.Value < p.UsageLimit.Value))
+            .ToListAsync();
+
+        return promotions.Select(p => new CatalogPromotionDto
+        {
+            Code = p.Code ?? string.Empty,
+            DiscountPercent = p.DiscountPercent ?? 0,
+            MaxDiscountAmount = p.MaxDiscountAmount ?? 0,
+            Title = GetPromotionTitle(p),
+            Description = GetPromotionDescription(p)
+        }).ToList();
+    }
+
+    private static string GetPromotionTitle(Promotion p)
+    {
+        if (p.Code == "WELCOME10") return "Mừng Bạn Mới";
+        if (p.Code == "SUMMER20") return "Chào Hè Rực Rỡ";
+        if (p.Code == "HOTEL5") return "Ưu Đãi Đặt Phòng";
+        
+        return p.DiscountPercent.HasValue && p.DiscountPercent > 0 
+            ? $"Giảm Giá {p.DiscountPercent.Value}%" 
+            : "Khuyến Mãi Đặc Biệt";
+    }
+
+    private static string GetPromotionDescription(Promotion p)
+    {
+        if (p.Code == "WELCOME10") return "Giảm ngay 10% cho khách hàng mới đăng ký trải nghiệm.";
+        if (p.Code == "SUMMER20") return "Giảm 20% đặt khách sạn và vé xe, tối đa 250k.";
+        if (p.Code == "HOTEL5") return "Giảm 5% cho tất cả phòng khách sạn trong tháng này.";
+        
+        var maxDesc = p.MaxDiscountAmount.HasValue && p.MaxDiscountAmount.Value > 0 
+            ? $" tối đa {p.MaxDiscountAmount.Value:N0}đ" 
+            : "";
+        return $"Áp dụng giảm {p.DiscountPercent ?? 0}%{maxDesc} cho đơn hàng.";
     }
 }

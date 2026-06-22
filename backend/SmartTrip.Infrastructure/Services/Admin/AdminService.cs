@@ -491,6 +491,7 @@ public async Task<AdminTransportStatsDto> GetTransportStatsAsync()
         {
             TripStatus.Paid => "paid",
             TripStatus.Cancelled => "cancelled",
+            TripStatus.DepositPaid => "depositpaid",
             _ => "pending"
         };
     }
@@ -609,6 +610,7 @@ public async Task<AdminTransportStatsDto> GetTransportStatsAsync()
         {
             TripStatus.Paid => "paid",
             TripStatus.Cancelled => "cancelled",
+            TripStatus.DepositPaid => "depositpaid",
             _ => "pending"
         };
     }

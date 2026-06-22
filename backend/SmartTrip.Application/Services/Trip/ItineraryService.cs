@@ -455,6 +455,21 @@ public class ItineraryService : IItineraryService
             throw new InvalidOperationException($"Only {totalRooms} room(s) are available for the selected room type.");
         }
 
+        var thirtyMinutesAgo = DateTime.UtcNow.AddMinutes(-30);
+        
+        // Auto-cancel expired pending bookings to free up rooms in the database
+        var expiredTrips = await _context.Trips
+            .Where(t => t.Status == TripStatus.Pending && t.CreatedAt < thirtyMinutesAgo)
+            .ToListAsync();
+        if (expiredTrips.Any())
+        {
+            foreach (var t in expiredTrips)
+            {
+                t.Status = TripStatus.Cancelled;
+            }
+            await _context.SaveChangesAsync();
+        }
+
         var overlappingBookings = await _context.TripItineraries
             .AsNoTracking()
             .Include(item => item.Trip)
@@ -464,6 +479,7 @@ public class ItineraryService : IItineraryService
                 (existingHotelItinerary == null || item.Id != existingHotelItinerary.Id) &&
                 item.Trip != null &&
                 item.Trip.Status != TripStatus.Cancelled &&
+                !(item.Trip.Status == TripStatus.Pending && item.Trip.CreatedAt < thirtyMinutesAgo) &&
                 item.Trip.StartDate.HasValue &&
                 item.Trip.EndDate.HasValue)
             .ToListAsync();

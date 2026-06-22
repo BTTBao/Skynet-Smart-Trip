@@ -1,6 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
+import '../../models/catalog_models.dart';
+import '../../services/catalog_service.dart';
 
 import '../../models/explore_post.dart';
 import '../../providers/destination_provider.dart';
@@ -849,114 +853,159 @@ class _PromotionSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final promos = [
-      {
-        'title': 'Mùa Hè Rực Rỡ',
-        'subtitle': 'Giảm ngay 15% đặt phòng khách sạn',
-        'code': 'SUMMER15',
-        'gradient': const LinearGradient(
-          colors: [Color(0xFF0D6B42), Color(0xFF1E8D5C)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      },
-      {
-        'title': 'Đặt Xe Limousine',
-        'subtitle': 'Ưu đãi đặt sớm giảm 30k chuyến đi',
-        'code': 'LIMOSMART',
-        'gradient': const LinearGradient(
-          colors: [Color(0xFF1F4E3D), Color(0xFF0D6B42)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      },
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 0, 28),
-      child: SizedBox(
-        height: 120,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          itemCount: promos.length,
-          itemBuilder: (context, index) {
-            final promo = promos[index];
-            final gradient = promo['gradient'] as LinearGradient;
-            return Container(
-              width: 280,
-              margin: const EdgeInsets.only(right: 16),
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                gradient: gradient,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: gradient.colors.first.withValues(alpha: 0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+    return FutureBuilder<List<CatalogPromotion>>(
+      future: CatalogService().getPromotions(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(ExploreColors.primary),
               ),
-              child: Stack(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        promo['title'] as String,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+            ),
+          );
+        }
+
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final promotions = snapshot.data!;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 0, 28),
+          child: SizedBox(
+            height: 130,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: promotions.length,
+              itemBuilder: (context, index) {
+                final promo = promotions[index];
+
+                final gradients = [
+                  const LinearGradient(
+                    colors: [Color(0xFF0D6B42), Color(0xFF1E8D5C)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  const LinearGradient(
+                    colors: [Color(0xFF1F4E3D), Color(0xFF0D6B42)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  const LinearGradient(
+                    colors: [Color(0xFF0D6B42), Color(0xFF2E7D32)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ];
+
+                final gradient = gradients[index % gradients.length];
+
+                return GestureDetector(
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: promo.code));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Đã sao chép mã giảm giá: ${promo.code}'),
+                        backgroundColor: const Color(0xFF0D6B42),
+                        duration: const Duration(seconds: 2),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        promo['subtitle'] as String,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
+                    );
+                  },
+                  child: Container(
+                    width: 280,
+                    margin: const EdgeInsets.only(right: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: gradient,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: gradient.colors.first.withValues(alpha: 0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              promo.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              promo.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'Code: ${promo.code}',
+                                    style: TextStyle(
+                                      color: gradient.colors.first,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(
+                                  Icons.copy_rounded,
+                                  color: Colors.white70,
+                                  size: 14,
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Code: ${promo['code']}',
-                          style: TextStyle(
-                            color: gradient.colors.first,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                            letterSpacing: 0.5,
+                        Positioned(
+                          right: -10,
+                          bottom: -10,
+                          child: Icon(
+                            Icons.card_giftcard,
+                            color: Colors.white.withValues(alpha: 0.12),
+                            size: 80,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  Positioned(
-                    right: -10,
-                    bottom: -10,
-                    child: Icon(
-                      Icons.card_giftcard,
-                      color: Colors.white.withValues(alpha: 0.12),
-                      size: 80,
+                      ],
                     ),
                   ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }

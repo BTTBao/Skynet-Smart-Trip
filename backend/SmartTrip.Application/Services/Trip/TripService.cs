@@ -20,6 +20,7 @@ public class TripService : ITripService
     private const string PaidStatus = "PAID";
     private const string CancelledStatus = "CANCELLED";
     private const string BookingOnlyStatus = "BOOKING_ONLY";
+    private const string DepositPaidStatus = "DEPOSIT_PAID";
 
     private readonly IApplicationDbContext _context;
     private readonly IItineraryService _itineraryService;
@@ -532,6 +533,7 @@ public class TripService : ITripService
                 TripStatus.Paid => PaidStatus,
                 TripStatus.Cancelled => CancelledStatus,
                 TripStatus.BookingOnly => BookingOnlyStatus,
+                TripStatus.DepositPaid => DepositPaidStatus,
                 _ => DraftStatus
             };
         }
@@ -543,6 +545,7 @@ public class TripService : ITripService
             PaidStatus => PaidStatus,
             CancelledStatus => CancelledStatus,
             BookingOnlyStatus => BookingOnlyStatus,
+            DepositPaidStatus => DepositPaidStatus,
             _ => DraftStatus
         };
     }
@@ -561,6 +564,7 @@ public class TripService : ITripService
             PaidStatus => TripStatus.Paid,
             CancelledStatus => TripStatus.Cancelled,
             BookingOnlyStatus => TripStatus.BookingOnly,
+            DepositPaidStatus => TripStatus.DepositPaid,
             _ => TripStatus.Draft
         };
     }

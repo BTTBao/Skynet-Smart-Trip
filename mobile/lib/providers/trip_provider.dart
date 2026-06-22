@@ -311,4 +311,27 @@ class TripProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<bool> cancelBooking(int tripId) async {
+    _isSubmitting = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _tripService.cancelBooking(tripId);
+      await fetchTrips(silent: true);
+      if (_currentTripId == tripId) {
+        await fetchTripDetail(tripId);
+      }
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      _isSubmitting = false;
+      notifyListeners();
+      return false;
+    } finally {
+      _isSubmitting = false;
+      notifyListeners();
+    }
+  }
 }

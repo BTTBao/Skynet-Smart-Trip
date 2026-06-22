@@ -82,6 +82,12 @@ public class CatalogController : ControllerBase
         return schedule is null ? NotFound() : Ok(schedule);
     }
 
+    [HttpGet("promotions")]
+    public async Task<IActionResult> GetPromotions()
+    {
+        return Ok(await _catalogService.GetPromotionsAsync());
+    }
+
     [HttpGet("promotions/validate/{code}")]
     public async Task<IActionResult> ValidatePromotion(string code)
     {

@@ -11,6 +11,7 @@ public class UserDto
     public string MemberTier { get; set; } = "Member";
     public int TripsCount { get; set; }
     public int Coins { get; set; }
+    public decimal WalletBalance { get; set; }
     public int Vouchers { get; set; }
     public string? BirthDate { get; set; }
     public string? IdentityNumber { get; set; }

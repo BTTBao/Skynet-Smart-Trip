@@ -24,4 +24,5 @@ public interface ICatalogService
         string? sort);
     Task<CatalogBusDetailDto?> GetBusDetailAsync(int scheduleId);
     Task<CatalogPromotionDto?> ValidatePromotionAsync(string code);
+    Task<List<CatalogPromotionDto>> GetPromotionsAsync();
 }

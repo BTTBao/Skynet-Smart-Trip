@@ -428,6 +428,7 @@ public partial class AdminService
             "paid" => TripStatus.Paid,
             "cancelled" => TripStatus.Cancelled,
             "draft" => TripStatus.Draft,
+            "depositpaid" => TripStatus.DepositPaid,
             _ => TripStatus.Pending
         };
     }
