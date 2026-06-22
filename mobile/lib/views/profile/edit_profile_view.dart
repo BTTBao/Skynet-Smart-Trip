@@ -264,10 +264,13 @@ class _EditProfileViewState extends State<EditProfileView> {
                       validator: (value) {
                         final text = (value ?? '').trim();
                         if (text.isEmpty) {
-                          return context.trRead(
-                            vi: 'Vui lòng nhập số CCCD/CMND.',
-                            en: 'Please enter your ID number.',
-                          );
+                          if (widget.requiredForBooking) {
+                            return context.trRead(
+                              vi: 'Vui lòng nhập số CCCD/CMND.',
+                              en: 'Please enter your ID number.',
+                            );
+                          }
+                          return null;
                         }
                         if (!RegExp(r'^\d+$').hasMatch(text)) {
                           return context.trRead(

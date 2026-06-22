@@ -95,9 +95,6 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
     if (!RegExp(r'^(\d{9}|\d{12})$').hasMatch(identityNumber)) {
       missing.add('so CCCD/CMND');
     }
-    if ((profile?.identityCardPhotoUrl?.trim() ?? '').isEmpty) {
-      missing.add('anh mat truoc CCCD');
-    }
 
     return missing;
   }
@@ -124,7 +121,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Vui lòng cập nhật đầy đủ thông tin cá nhân và ảnh CCCD để đặt phòng.',
+            'Vui lòng cập nhật đầy đủ thông tin cá nhân để đặt phòng.',
           ),
         ),
       );
@@ -145,7 +142,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Vui lòng hoàn tất thông tin cá nhân và chụp ảnh CCCD trong hồ sơ.',
+            'Vui lòng hoàn tất thông tin cá nhân trong hồ sơ.',
           ),
         ),
       );
@@ -162,7 +159,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Hồ sơ vẫn thiếu thông tin liên hệ hoặc ảnh chụp CCCD.',
+              'Hồ sơ vẫn thiếu thông tin liên hệ.',
             ),
           ),
         );
@@ -292,7 +289,6 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                     isRequired: true,
                   ),
                   _buildPhoneField(_phoneController),
-                  _buildIdentityCardSection(),
                   const SizedBox(height: 32),
                 ],
               ),

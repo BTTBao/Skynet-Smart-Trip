@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -28,17 +29,92 @@ class ProfileView extends StatefulWidget {
   State<ProfileView> createState() => _ProfileViewState();
 }
 
-class _ProfileViewState extends State<ProfileView> {
+class _ProfileViewState extends State<ProfileView> with WidgetsBindingObserver {
   static const primaryColor = Color(0xFF80ED99);
   bool _handledSessionExpired = false;
+
+  int? _pendingDepositOrderCode;
+  String? _pendingDepositPaymentMethod;
+  bool _isDepositPendingDialogOpen = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProfileProvider>().fetchProfile(forceRefresh: false);
       context.read<NotificationProvider>().fetchUnreadCount();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (_pendingDepositOrderCode != null) {
+        _checkPendingDepositStatus();
+      }
+    }
+  }
+
+  Future<void> _checkPendingDepositStatus() async {
+    final orderCode = _pendingDepositOrderCode;
+    final paymentMethod = _pendingDepositPaymentMethod;
+    if (orderCode == null) return;
+
+    // Reset immediately to avoid double checking if lifecycle state changes rapidly
+    _pendingDepositOrderCode = null;
+    _pendingDepositPaymentMethod = null;
+
+    // Show loading dialog
+    if (mounted) {
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => const Center(
+          child: CircularProgressIndicator(color: primaryColor),
+        ),
+      );
+    }
+
+    try {
+      final status = await PaymentService().getPaymentByOrderCode(orderCode);
+      if (!mounted) return;
+      
+      Navigator.of(context).pop(); // Close loading dialog
+
+      if (_isDepositPendingDialogOpen) {
+        Navigator.of(context).pop(); // Close the pending instruction dialog
+        _isDepositPendingDialogOpen = false;
+      }
+
+      if (status.isPaid) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Nạp tiền vào ví qua $paymentMethod thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Giao dịch qua $paymentMethod chưa hoàn tất hoặc thất bại.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      context.read<ProfileProvider>().fetchProfile(forceRefresh: true);
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+        context.read<ProfileProvider>().fetchProfile(forceRefresh: true);
+      }
+    }
   }
 
   @override
@@ -525,6 +601,17 @@ class _ProfileViewState extends State<ProfileView> {
                                   ),
                                 );
                                 return;
+                              } else if (amount > 50000000) {
+                                ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                  SnackBar(
+                                    content: Text(context.tr(
+                                      vi: 'Số tiền nạp tối đa là 50.000.000 VND.',
+                                      en: 'Maximum deposit amount is 50,000,000 VND.',
+                                    )),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
                               }
 
                               setSheetState(() => isDepositing = true);
@@ -544,6 +631,8 @@ class _ProfileViewState extends State<ProfileView> {
                                 }
 
                                 Navigator.pop(sheetContext); // Close sheet
+                                _pendingDepositOrderCode = orderCode;
+                                _pendingDepositPaymentMethod = paymentMethodStr;
                                 await launchUrl(Uri.parse(checkoutUrl), mode: LaunchMode.externalApplication);
                                 if (context.mounted) {
                                   _showDepositPendingDialog(context, orderCode ?? 0, paymentMethodStr);
@@ -573,48 +662,6 @@ class _ProfileViewState extends State<ProfileView> {
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                             ),
                     ),
-                    if (kDebugMode) ...[
-                      const SizedBox(height: 12),
-                      OutlinedButton(
-                        onPressed: isDepositing
-                            ? null
-                            : () async {
-                                final amountStr = amountController.text.replaceAll('.', '').replaceAll(',', '').trim();
-                                final amount = double.tryParse(amountStr) ?? 10000000.0; // default 10M if empty
-                                setSheetState(() => isDepositing = true);
-                                try {
-                                  final result = await PaymentService().simulateWalletDeposit(amount);
-                                  Navigator.pop(sheetContext); // Close sheet
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(result['message'] ?? 'Nạp tiền demo thành công!'),
-                                        backgroundColor: Colors.green,
-                                      ),
-                                    );
-                                    context.read<ProfileProvider>().fetchProfile(forceRefresh: true);
-                                  }
-                                } catch (e) {
-                                  setSheetState(() => isDepositing = false);
-                                  ScaffoldMessenger.of(sheetContext).showSnackBar(
-                                    SnackBar(content: Text('Lỗi nạp tiền demo: ${e.toString()}')),
-                                  );
-                                }
-                              },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.orange.shade800,
-                          side: BorderSide(color: Colors.orange.shade300),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          context.tr(vi: 'Nạp Demo (Cộng tiền ngay)', en: 'Deposit Demo (Instant Credit)'),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -626,6 +673,7 @@ class _ProfileViewState extends State<ProfileView> {
   }
 
   Future<void> _showDepositPendingDialog(BuildContext context, int orderCode, String paymentMethod) async {
+    _isDepositPendingDialogOpen = true;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -637,11 +685,17 @@ class _ProfileViewState extends State<ProfileView> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
+              onPressed: () {
+                _pendingDepositOrderCode = null;
+                _pendingDepositPaymentMethod = null;
+                Navigator.of(dialogContext).pop();
+              },
               child: const Text('Để sau'),
             ),
             FilledButton(
               onPressed: () async {
+                _pendingDepositOrderCode = null;
+                _pendingDepositPaymentMethod = null;
                 Navigator.of(dialogContext).pop();
                 try {
                   final status = await PaymentService().getPaymentByOrderCode(orderCode);
@@ -678,6 +732,7 @@ class _ProfileViewState extends State<ProfileView> {
         );
       },
     );
+    _isDepositPendingDialogOpen = false;
   }
 
   void _showWithdrawBottomSheet(BuildContext context, ProfileProvider provider) {
@@ -686,6 +741,11 @@ class _ProfileViewState extends State<ProfileView> {
     final TextEditingController accountController = TextEditingController();
     final TextEditingController nameController = TextEditingController();
     bool isWithdrawing = false;
+
+    String? bankError;
+    String? accountError;
+    String? nameError;
+    String? amountError;
 
     final Map<String, String> bankList = {
       'VCB': 'Vietcombank',
@@ -745,10 +805,9 @@ class _ProfileViewState extends State<ProfileView> {
                           Text(
                             context.tr(vi: 'Rút tiền về tài khoản', en: 'Withdraw from wallet'),
                             style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87),
                           ),
                           IconButton(
                             icon: const Icon(Icons.close, color: Colors.grey),
@@ -775,6 +834,7 @@ class _ProfileViewState extends State<ProfileView> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           prefixIcon: const Icon(Icons.account_balance_outlined),
+                          errorText: bankError,
                         ),
                         items: bankList.entries.map((e) {
                           return DropdownMenuItem<String>(
@@ -783,30 +843,49 @@ class _ProfileViewState extends State<ProfileView> {
                           );
                         }).toList(),
                         onChanged: (value) {
-                          setSheetState(() => selectedBankCode = value);
+                          setSheetState(() {
+                            selectedBankCode = value;
+                            bankError = null;
+                          });
                         },
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: accountController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         decoration: InputDecoration(
-                          labelText: context.tr(vi: 'Số tài khoản / Số điện thoại', en: 'Account Number / Phone'),
+                          labelText: context.tr(vi: 'Số tài khoản', en: 'Account Number'),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                           prefixIcon: const Icon(Icons.badge_outlined),
+                          errorText: accountError,
                         ),
+                        onChanged: (value) {
+                          if (accountError != null) {
+                            setSheetState(() => accountError = null);
+                          }
+                        },
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: nameController,
+                        inputFormatters: [UpperUnaccentedFormatter()],
+                        textCapitalization: TextCapitalization.characters,
                         decoration: InputDecoration(
-                          labelText: context.tr(vi: 'Tên chủ tài khoản', en: 'Account Name'),
+                          labelText: context.tr(vi: 'Tên chủ tài khoản (Viết hoa không dấu)', en: 'Account Name (Uppercase without tone)'),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                           prefixIcon: const Icon(Icons.person_outline),
+                          errorText: nameError,
                         ),
+                        onChanged: (value) {
+                          if (nameError != null) {
+                            setSheetState(() => nameError = null);
+                          }
+                        },
                       ),
                       const SizedBox(height: 12),
                       TextField(
@@ -818,44 +897,71 @@ class _ProfileViewState extends State<ProfileView> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           prefixIcon: const Icon(Icons.monetization_on_outlined),
+                          errorText: amountError,
                         ),
+                        onChanged: (value) {
+                          if (amountError != null) {
+                            setSheetState(() => amountError = null);
+                          }
+                        },
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton(
                         onPressed: isWithdrawing
                             ? null
                             : () async {
+                                setSheetState(() {
+                                  bankError = null;
+                                  accountError = null;
+                                  nameError = null;
+                                  amountError = null;
+                                });
+
+                                bool hasError = false;
+
+                                if (selectedBankCode == null) {
+                                  setSheetState(() => bankError = 'Vui lòng chọn ngân hàng đích.');
+                                  hasError = true;
+                                }
+
+                                final accountNumber = accountController.text.trim();
+                                if (accountNumber.isEmpty) {
+                                  setSheetState(() => accountError = 'Vui lòng nhập số tài khoản.');
+                                  hasError = true;
+                                } else if (!RegExp(r'^\d{6,18}$').hasMatch(accountNumber)) {
+                                  setSheetState(() => accountError = 'Số tài khoản không hợp lệ (từ 6 đến 18 chữ số).');
+                                  hasError = true;
+                                }
+
+                                final accountName = nameController.text.trim().toUpperCase();
+                                if (accountName.isEmpty) {
+                                  setSheetState(() => nameError = 'Vui lòng nhập tên chủ tài khoản.');
+                                  hasError = true;
+                                } else if (!RegExp(r'^[A-Z ]+$').hasMatch(accountName)) {
+                                  setSheetState(() => nameError = 'Tên chủ tài khoản phải viết hoa không dấu.');
+                                  hasError = true;
+                                }
+
                                 final amountStr = amountController.text.replaceAll('.', '').replaceAll(',', '').trim();
                                 final amount = double.tryParse(amountStr) ?? 0.0;
-                                final bankName = selectedBankCode ?? '';
-                                final accountNumber = accountController.text.trim();
-                                final accountName = nameController.text.trim();
-
-                                if (bankName.isEmpty || accountNumber.isEmpty || accountName.isEmpty) {
-                                  ScaffoldMessenger.of(sheetContext).showSnackBar(
-                                    SnackBar(content: Text(context.tr(vi: 'Vui lòng điền đầy đủ thông tin rút tiền.', en: 'Please fill in all withdrawal details.'))),
-                                  );
-                                  return;
+                                if (amountStr.isEmpty) {
+                                  setSheetState(() => amountError = 'Vui lòng nhập số tiền rút.');
+                                  hasError = true;
+                                } else if (amount < 50000) {
+                                  setSheetState(() => amountError = 'Số tiền rút tối thiểu là 50.000 VND.');
+                                  hasError = true;
+                                } else if (amount > balance) {
+                                  setSheetState(() => amountError = 'Số dư ví không đủ.');
+                                  hasError = true;
                                 }
 
-                                if (amount <= 0 || amount > balance) {
-                                  ScaffoldMessenger.of(sheetContext).showSnackBar(
-                                    SnackBar(
-                                      content: Text(context.tr(
-                                        vi: 'Số tiền rút phải lớn hơn 0 và không vượt quá số dư ví.',
-                                        en: 'Amount must be greater than 0 and not exceed wallet balance.',
-                                      )),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                  return;
-                                }
+                                if (hasError) return;
 
                                 setSheetState(() => isWithdrawing = true);
                                 try {
                                   final result = await PaymentService().withdrawFromWallet(
                                     amount: amount,
-                                    bankName: bankName,
+                                    bankName: selectedBankCode!,
                                     accountNumber: accountNumber,
                                     accountName: accountName,
                                   );
@@ -1367,6 +1473,45 @@ class _WalletCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class UpperUnaccentedFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final newText = removeDiacritics(newValue.text).toUpperCase();
+    return TextEditingValue(
+      text: newText,
+      selection: newValue.selection.copyWith(
+        baseOffset: newValue.selection.baseOffset > newText.length ? newText.length : newValue.selection.baseOffset,
+        extentOffset: newValue.selection.extentOffset > newText.length ? newText.length : newValue.selection.extentOffset,
+      ),
+    );
+  }
+
+  String removeDiacritics(String str) {
+    const vietnamese = 'aAeEoOuUiIdDyY';
+    const vietnameseRegex = [
+      '[àáạảãâầấậẩẫăằắặẳẵ]',
+      '[ÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴ]',
+      '[èéẹẻẽêềếệểễ]',
+      '[ÈÉẸẺẼÊỀẾỆỂỄ]',
+      '[òóọỏõôồốộổỗơờớợởỡ]',
+      '[ÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠ]',
+      '[ùúụủũưừứựửữ]',
+      '[ÙÚỤỦŨƯỪỨỰỬỮ]',
+      '[ìíịỉĩ]',
+      '[ÌÍỊỈĨ]',
+      '[đ]',
+      '[Đ]',
+      '[ỳýỵỷỹ]',
+      '[ỲÝỴỶỸ]'
+    ];
+
+    for (var i = 0; i < vietnameseRegex.length; i++) {
+      str = str.replaceAll(RegExp(vietnameseRegex[i]), vietnamese[i]);
+    }
+    return str;
   }
 }
 

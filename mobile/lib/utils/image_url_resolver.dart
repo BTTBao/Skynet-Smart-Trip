@@ -1,8 +1,9 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../services/api_service_base.dart';
 
 class ImageUrlResolver {
   static const String _defaultApiBaseUrl =
-      'https://5qqxj86m-5110.asse.devtunnels.ms/api';
+      'https://lmz1ft37-5110.asse.devtunnels.ms/api';
 
   static String resolve(String? rawUrl, {String? apiBaseUrl}) {
     final value = rawUrl?.trim() ?? '';
@@ -11,6 +12,16 @@ class ImageUrlResolver {
     }
 
     if (_isAbsoluteHttpUrl(value) || value.startsWith('data:')) {
+      if (value.contains('localhost') || value.contains('127.0.0.1')) {
+        final uri = Uri.tryParse(value);
+        if (uri != null) {
+          final origin = _resolveOrigin(apiBaseUrl);
+          final path = uri.path;
+          final query = uri.hasQuery ? '?${uri.query}' : '';
+          final fragment = uri.hasFragment ? '#${uri.fragment}' : '';
+          return '$origin$path$query$fragment';
+        }
+      }
       return value;
     }
 
@@ -31,7 +42,10 @@ class ImageUrlResolver {
   }
 
   static String _resolveOrigin(String? apiBaseUrl) {
-    final configuredBaseUrl = _firstConfiguredApiBaseUrl();
+    final healthyUrl = ApiService.cachedHealthyBaseUrl;
+    final configuredBaseUrl = (healthyUrl != null && healthyUrl.isNotEmpty)
+        ? healthyUrl
+        : _firstConfiguredApiBaseUrl();
     final source = (apiBaseUrl != null && apiBaseUrl.trim().isNotEmpty)
         ? apiBaseUrl.trim()
         : configuredBaseUrl;

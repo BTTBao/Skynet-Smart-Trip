@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -25,9 +25,11 @@ class ApiException implements Exception {
 
 abstract class ApiService {
   static const String _defaultDevTunnelBaseUrl =
-      'https://5qqxj86m-5110.asse.devtunnels.ms/api';
+      'https://lmz1ft37-5110.asse.devtunnels.ms/api';
   static const int _defaultLocalApiPort = 5110;
   static String? _cachedHealthyBaseUrl;
+
+  static String? get cachedHealthyBaseUrl => _cachedHealthyBaseUrl;
 
   static const String _configuredBaseUrlFromDefine = String.fromEnvironment(
     'API_BASE_URL',
