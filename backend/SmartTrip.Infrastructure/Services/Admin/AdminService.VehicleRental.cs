@@ -15,6 +15,7 @@ public partial class AdminService
     public async Task<List<AdminVehicleRentalShopDto>> GetVehicleRentalShopsAsync()
     {
         var shops = await _context.VehicleRentalShops
+            .Where(shop => !shop.IsDeleted)
             .Include(shop => shop.Destination)
             .Include(shop => shop.VehicleOptions)
             .OrderByDescending(shop => shop.CreatedAt)
@@ -27,6 +28,7 @@ public partial class AdminService
     public async Task<AdminVehicleRentalShopDto> GetVehicleRentalShopDetailAsync(int shopId)
     {
         var shop = await _context.VehicleRentalShops
+            .Where(item => !item.IsDeleted)
             .Include(item => item.Destination)
             .Include(item => item.VehicleOptions)
             .FirstOrDefaultAsync(item => item.Id == shopId);
@@ -58,6 +60,10 @@ public partial class AdminService
             Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
             ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl.Trim(),
             IsActive = request.IsActive,
+            MonthlyAgreementFee = request.MonthlyAgreementFee,
+            IsMonthlyFeePaid = request.IsMonthlyFeePaid,
+            MonthlyFeePaidAt = request.IsMonthlyFeePaid ? DateTime.UtcNow : null,
+            IsDeleted = false,
             CreatedAt = DateTime.UtcNow,
             VehicleOptions = BuildVehicleRentalOptions(request.VehicleOptions)
         };
@@ -78,6 +84,7 @@ public partial class AdminService
         ValidateVehicleRentalShopRequest(request);
 
         var shop = await _context.VehicleRentalShops
+            .Where(item => !item.IsDeleted)
             .Include(item => item.Destination)
             .Include(item => item.VehicleOptions)
             .FirstOrDefaultAsync(item => item.Id == shopId);
@@ -100,9 +107,48 @@ public partial class AdminService
         shop.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
         shop.ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl.Trim();
         shop.IsActive = request.IsActive;
+        shop.MonthlyAgreementFee = request.MonthlyAgreementFee;
+        if (request.IsMonthlyFeePaid)
+        {
+            shop.IsMonthlyFeePaid = true;
+            shop.MonthlyFeePaidAt ??= DateTime.UtcNow;
+        }
+        else
+        {
+            shop.IsMonthlyFeePaid = false;
+            shop.MonthlyFeePaidAt = null;
+        }
 
         _context.VehicleRentalOptions.RemoveRange(shop.VehicleOptions);
         shop.VehicleOptions = BuildVehicleRentalOptions(request.VehicleOptions);
+
+        await _context.SaveChangesAsync();
+
+        return MapVehicleRentalShop(shop);
+    }
+
+    public async Task<AdminVehicleRentalShopDto> UpdateVehicleRentalShopPaymentAsync(int shopId, AdminVehicleRentalShopPaymentRequest request)
+    {
+        var shop = await _context.VehicleRentalShops
+            .Include(item => item.Destination)
+            .Include(item => item.VehicleOptions)
+            .FirstOrDefaultAsync(item => item.Id == shopId && !item.IsDeleted);
+
+        if (shop is null)
+        {
+            throw new BadHttpRequestException("Không tìm thấy cửa hàng thuê xe.");
+        }
+
+        if (request.IsMonthlyFeePaid)
+        {
+            shop.IsMonthlyFeePaid = true;
+            shop.MonthlyFeePaidAt = DateTime.UtcNow;
+        }
+        else
+        {
+            shop.IsMonthlyFeePaid = false;
+            shop.MonthlyFeePaidAt = null;
+        }
 
         await _context.SaveChangesAsync();
 
@@ -113,15 +159,16 @@ public partial class AdminService
     {
         var shop = await _context.VehicleRentalShops
             .Include(item => item.VehicleOptions)
-            .FirstOrDefaultAsync(item => item.Id == shopId);
+            .FirstOrDefaultAsync(item => item.Id == shopId && !item.IsDeleted);
 
         if (shop is null)
         {
             throw new BadHttpRequestException("Không tìm thấy cửa hàng thuê xe.");
         }
 
-        _context.VehicleRentalOptions.RemoveRange(shop.VehicleOptions);
-        _context.VehicleRentalShops.Remove(shop);
+        shop.IsDeleted = true;
+        shop.IsActive = false;
+        shop.DeletedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
     }
 
@@ -167,6 +214,10 @@ public partial class AdminService
             Description = shop.Description ?? string.Empty,
             ImageUrl = shop.ImageUrl ?? string.Empty,
             IsActive = shop.IsActive,
+            MonthlyAgreementFee = shop.MonthlyAgreementFee,
+            IsMonthlyFeePaid = shop.IsMonthlyFeePaid,
+            MonthlyFeePaidAt = shop.MonthlyFeePaidAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm"),
+            IsDeleted = shop.IsDeleted,
             CreatedAt = shop.CreatedAt.ToString("yyyy-MM-dd"),
             OptionCount = options.Count,
             MinPricePerDay = options.Count == 0 ? 0 : options.Min(option => option.PricePerDay),
@@ -225,6 +276,11 @@ public partial class AdminService
         if (request.VehicleOptions is null || request.VehicleOptions.Count == 0)
         {
             throw new BadHttpRequestException("Cần ít nhất một loại xe cho thuê.");
+        }
+
+        if (request.MonthlyAgreementFee < 0)
+        {
+            throw new BadHttpRequestException("Chi phí thỏa thuận hàng tháng không được nhỏ hơn 0.");
         }
 
         foreach (var option in request.VehicleOptions)

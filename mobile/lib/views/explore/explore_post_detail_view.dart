@@ -10,6 +10,8 @@ import '../../providers/explore_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../utils/app_text.dart';
 import '../../utils/relative_time_formatter.dart';
+import '../../utils/image_url_resolver.dart';
+import '../../widgets/app_network_image.dart';
 import 'explore_map_sheet.dart';
 import 'explore_ui_constants.dart';
 import '../trip/trip_itinerary_detail_view.dart';
@@ -199,8 +201,8 @@ class _DetailSliverAppBar extends StatelessWidget {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            Image.network(
-              post.thumbnailUrl,
+            AppNetworkImage(
+              imageUrl: post.thumbnailUrl,
               fit: BoxFit.cover,
               errorBuilder: (_, error, stackTrace) => Container(
                 color: const Color(0xFF1F2937),
@@ -361,8 +363,8 @@ class _PostBody extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
-          child: Image.network(
-            block.content,
+          child: AppNetworkImage(
+            imageUrl: ImageUrlResolver.resolve(block.content),
             fit: BoxFit.cover,
             errorBuilder: (_, error, stackTrace) => Container(
               height: 160,
@@ -1138,8 +1140,8 @@ class _CommentBubble extends StatelessWidget {
                   const SizedBox(height: 8),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      comment.imageUrl!,
+                    child: AppNetworkImage(
+                      imageUrl: comment.imageUrl!,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                     ),
@@ -1211,8 +1213,8 @@ class _ReplyBubble extends StatelessWidget {
                         const SizedBox(height: 6),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(10),
-                          child: Image.network(
-                            reply.imageUrl!,
+                          child: AppNetworkImage(
+                            imageUrl: reply.imageUrl!,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) =>
                                 const SizedBox.shrink(),

@@ -257,6 +257,10 @@ export interface AdminVehicleRentalShop {
   description: string;
   imageUrl: string;
   isActive: boolean;
+  monthlyAgreementFee: number;
+  isMonthlyFeePaid: boolean;
+  monthlyFeePaidAt?: string | null;
+  isDeleted: boolean;
   createdAt: string;
   optionCount: number;
   minPricePerDay: number;
@@ -279,7 +283,13 @@ export interface AdminVehicleRentalShopRequest {
   description: string;
   imageUrl: string;
   isActive: boolean;
+  monthlyAgreementFee: number;
+  isMonthlyFeePaid: boolean;
   vehicleOptions: AdminVehicleRentalOptionRequest[];
+}
+
+export interface AdminVehicleRentalShopPaymentRequest {
+  isMonthlyFeePaid: boolean;
 }
 
 export interface AdminReportBreakdown {
@@ -598,7 +608,7 @@ export const adminService = {
 
   getDestinations: async (): Promise<AdminDestination[]> => {
     const data = await fetchClient.get<AdminDestination[]>('/admin/destinations');
-    return Array.isArray(data) ? data.map((item) => normalizeDestination(item as Record<string, unknown>)) : [];
+    return Array.isArray(data) ? data.map((item) => normalizeDestination(item as unknown as Record<string, unknown>)) : [];
   },
 
   createDestination: async (payload: AdminDestinationRequest): Promise<AdminDestination> => {
@@ -674,6 +684,13 @@ export const adminService = {
     payload: AdminVehicleRentalShopRequest
   ): Promise<AdminVehicleRentalShop> => {
     return fetchClient.put<AdminVehicleRentalShop>(`/admin/vehicle-rental/shops/${shopId}`, payload);
+  },
+
+  updateVehicleRentalShopPayment: async (
+    shopId: number,
+    payload: AdminVehicleRentalShopPaymentRequest
+  ): Promise<AdminVehicleRentalShop> => {
+    return fetchClient.patch<AdminVehicleRentalShop>(`/admin/vehicle-rental/shops/${shopId}/payment`, payload);
   },
 
   deleteVehicleRentalShop: async (shopId: number): Promise<void> => {

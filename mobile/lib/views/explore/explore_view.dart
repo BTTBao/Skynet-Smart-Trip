@@ -10,6 +10,7 @@ import '../../models/explore_post.dart';
 import '../../providers/destination_provider.dart';
 import '../../providers/explore_provider.dart';
 import '../../utils/app_text.dart';
+import '../../widgets/app_network_image.dart';
 import '../main_shell.dart';
 import '../resort_search/resort_search_screen.dart';
 import '../catalog/search_view.dart';
@@ -1308,8 +1309,8 @@ class _DestinationCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.network(
-                imageUrl,
+              AppNetworkImage(
+                imageUrl: imageUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => Container(
                   color: Colors.grey[200],

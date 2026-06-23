@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../app_network_image.dart';
+
 class ResortSummaryCard extends StatelessWidget {
   final String resortName;
   final String dateRange;
@@ -34,8 +36,8 @@ class ResortSummaryCard extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              imageUrl,
+            child: AppNetworkImage(
+              imageUrl: imageUrl,
               width: 80,
               height: 80,
               fit: BoxFit.cover,

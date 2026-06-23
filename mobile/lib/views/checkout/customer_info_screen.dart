@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../../models/resort_model.dart';
 import '../../providers/profile_provider.dart';
+import '../../widgets/app_network_image.dart';
 import '../../widgets/checkout/checkout_stepper.dart';
 import '../profile/edit_profile_view.dart';
 import 'payment_confirm_screen.dart';
@@ -76,7 +76,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (m) => '${m[1]}.',
         );
-    return '$formattedđ';
+    return '$formatted₫';
   }
 
   List<String> _missingProfileFields() {
@@ -121,7 +121,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Vui lòng cập nhật đầy đủ thông tin cá nhân và số CCCD để đặt phòng.',
+            'Vui lòng cập nhật đầy đủ thông tin cá nhân để đặt phòng.',
           ),
         ),
       );
@@ -142,7 +142,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Vui lòng hoàn tất thông tin cá nhân và số CCCD trong hồ sơ.',
+            'Vui lòng hoàn tất thông tin cá nhân trong hồ sơ.',
           ),
         ),
       );
@@ -159,7 +159,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Hồ sơ vẫn thiếu thông tin liên hệ hoặc số CCCD.',
+              'Hồ sơ vẫn thiếu thông tin liên hệ.',
             ),
           ),
         );
@@ -289,7 +289,6 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                     isRequired: true,
                   ),
                   _buildPhoneField(_phoneController),
-                  _buildIdentityCardSection(),
                   const SizedBox(height: 32),
                 ],
               ),
@@ -302,10 +301,15 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
     final profile = context.watch<ProfileProvider>().profileData;
     if (profile == null) return const SizedBox.shrink();
 
-    final hasCCCD = RegExp(r'^(\d{9}|\d{12})$')
-        .hasMatch(profile.identityNumber?.trim() ?? '');
+    final hasCCCD = RegExp(
+      r'^(\d{9}|\d{12})$',
+    ).hasMatch(profile.identityNumber?.trim() ?? '');
+    final hasCCCDPhoto =
+        profile.identityCardPhotoUrl != null &&
+        profile.identityCardPhotoUrl!.trim().isNotEmpty;
     final birthDate = DateTime.tryParse(profile.birthDate.trim());
-    final hasBirthDate = birthDate != null && birthDate.isBefore(DateTime.now());
+    final hasBirthDate =
+        birthDate != null && birthDate.isBefore(DateTime.now());
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -315,7 +319,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: hasCCCD && hasBirthDate
+            color: hasCCCD && hasCCCDPhoto && hasBirthDate
                 ? const Color(0xFF0D6B42).withOpacity(0.2)
                 : Colors.orange.withOpacity(0.3),
             width: 1.5,
@@ -328,7 +332,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
               children: [
                 Icon(
                   Icons.badge_outlined,
-                  color: hasCCCD && hasBirthDate
+                  color: hasCCCD && hasCCCDPhoto && hasBirthDate
                       ? const Color(0xFF0D6B42)
                       : Colors.orange,
                   size: 20,
@@ -343,7 +347,7 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                   ),
                 ),
                 const Spacer(),
-                if (hasCCCD && hasBirthDate)
+                if (hasCCCD && hasCCCDPhoto && hasBirthDate)
                   const Row(
                     children: [
                       Icon(
@@ -384,11 +388,11 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Ngày sinh:',
+                  'Ngay sinh:',
                   style: TextStyle(color: Colors.grey[600], fontSize: 13),
                 ),
                 Text(
-                  hasBirthDate ? profile.birthDate : 'Trống',
+                  hasBirthDate ? profile.birthDate : 'Trong',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: hasBirthDate ? Colors.black87 : Colors.red,
@@ -415,7 +419,52 @@ class _CustomerInfoScreenState extends State<CustomerInfoScreen> {
                 ),
               ],
             ),
-            if (!hasCCCD || !hasBirthDate) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Ảnh chụp mặt trước CCCD:',
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            if (hasCCCDPhoto)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: AppNetworkImage(
+                  imageUrl: profile.identityCardPhotoUrl!,
+                  height: 120,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 120,
+                    color: Colors.grey[100],
+                    child: const Center(
+                      child: Icon(
+                        Icons.broken_image_outlined,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                height: 80,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.grey[200]!,
+                    style: BorderStyle.solid,
+                  ),
+                ),
+                child: const Center(
+                  child: Text(
+                    'Chưa có ảnh chụp CCCD',
+                    style: TextStyle(color: Colors.orange, fontSize: 12),
+                  ),
+                ),
+              ),
+            if (!hasCCCD || !hasCCCDPhoto || !hasBirthDate) ...[
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,

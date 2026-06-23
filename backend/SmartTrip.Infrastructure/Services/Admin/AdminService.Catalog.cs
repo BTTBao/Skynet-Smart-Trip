@@ -91,7 +91,11 @@ public partial class AdminService
             throw new BadHttpRequestException("Không tìm thấy điểm đến.");
         }
 
-        if (destination.Hotels.Any() || destination.Trips.Any() || destination.BusScheduleFromDests.Any() || destination.BusScheduleToDests.Any() || destination.VehicleRentalShops.Any())
+        if (destination.Hotels.Any() ||
+            destination.Trips.Any() ||
+            destination.BusScheduleFromDests.Any() ||
+            destination.BusScheduleToDests.Any() ||
+            destination.VehicleRentalShops.Any(shop => !shop.IsDeleted))
         {
             throw new BadHttpRequestException("Không thể xóa điểm đến đang được sử dụng bởi khách sạn, chuyến đi, lịch xe hoặc cửa hàng thuê xe.");
         }

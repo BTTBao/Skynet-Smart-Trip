@@ -1,3 +1,5 @@
+import '../utils/image_url_resolver.dart';
+
 class Destination {
   final int id;
   final String name;
@@ -18,7 +20,7 @@ class Destination {
       id: json['id'] ?? 0,
       name: json['name'] ?? '',
       description: json['description'] ?? '',
-      coverImageUrl: json['coverImageUrl'] ?? '',
+      coverImageUrl: ImageUrlResolver.resolve(json['coverImageUrl']?.toString()),
       isHot: json['isHot'] ?? false,
     );
   }

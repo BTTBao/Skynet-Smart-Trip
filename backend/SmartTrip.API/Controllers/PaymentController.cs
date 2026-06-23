@@ -185,6 +185,7 @@ public class PaymentController : ControllerBase
         var transactionStatus = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(result.TransactionStatus) ? "-" : result.TransactionStatus);
         var stateClass = result.IsSuccess ? "success" : "warning";
         var icon = result.IsSuccess ? "✓" : "!";
+        var isSuccessStr = result.IsSuccess.ToString().ToLowerInvariant();
 
         return $$"""
 <!DOCTYPE html>
@@ -193,6 +194,16 @@ public class PaymentController : ControllerBase
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{heading}}</title>
+  <script>
+    window.addEventListener('load', function() {
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      setTimeout(function() {
+        window.location.href = "smarttrip://vnpay-callback?orderCode={{orderCode}}&isSuccess={{isSuccessStr}}";
+      }, 1500);
+    });
+  </script>
   <style>
     :root {
       --ink: #07162f;
@@ -356,6 +367,32 @@ public class PaymentController : ControllerBase
       font-weight: 800;
     }
 
+    .btn-primary {
+      display: inline-block;
+      margin-top: 24px;
+      padding: 14px 28px;
+      background: linear-gradient(135deg, var(--blue), #08439b);
+      color: white !important;
+      text-decoration: none;
+      font-weight: 800;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(10, 87, 200, .25);
+      transition: all 0.2s ease;
+      text-align: center;
+      width: 100%;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px rgba(10, 87, 200, .35);
+    }
+    .success .btn-primary {
+      background: linear-gradient(135deg, var(--success), #0c824c);
+      box-shadow: 0 8px 20px rgba(22, 160, 93, .25);
+    }
+    .success .btn-primary:hover {
+      box-shadow: 0 12px 24px rgba(22, 160, 93, .35);
+    }
+
     .footer {
       display: flex;
       align-items: center;
@@ -420,8 +457,13 @@ public class PaymentController : ControllerBase
             <span class="value">{{transactionStatus}}</span>
           </div>
         </div>
+        
+        <div>
+          <a href="smarttrip://vnpay-callback?orderCode={{orderCode}}&isSuccess={{isSuccessStr}}" class="btn-primary">Quay lại ứng dụng SmartTrip</a>
+        </div>
+
         <div class="footer">
-          <span><span class="brand">SmartTrip</span> sẽ đồng bộ đơn sau khi bạn kiểm tra trong ứng dụng.</span>
+          <span>SmartTrip sẽ đồng bộ đơn sau khi bạn kiểm tra trong ứng dụng.</span>
           <span>Powered by VNPAY</span>
         </div>
       </div>
@@ -569,13 +611,37 @@ public class PaymentController : ControllerBase
                 return BadRequest(new { message = "Số dư ví không đủ để thực hiện giao dịch." });
             }
 
+            if (string.IsNullOrWhiteSpace(request.BankName))
+            {
+                return BadRequest(new { message = "Vui lòng chọn ngân hàng đích." });
+            }
+
+            var allowedBanks = new HashSet<string>(StringComparer.OrdinalIgnoreCase) 
+            { 
+                "VCB", "TCB", "MB", "VIB", "ACB", "VPB", "BIDV", "CTG", "STB", "HDB", "TPB" 
+            };
+            if (!allowedBanks.Contains(request.BankName.Trim()))
+            {
+                return BadRequest(new { message = "Ngân hàng được chọn không hợp lệ." });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.AccountNumber) || !System.Text.RegularExpressions.Regex.IsMatch(request.AccountNumber.Trim(), @"^\d{6,18}$"))
+            {
+                return BadRequest(new { message = "Số tài khoản không hợp lệ. Số tài khoản chỉ được chứa chữ số (từ 6 đến 18 số)." });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.AccountName) || !System.Text.RegularExpressions.Regex.IsMatch(request.AccountName.Trim(), @"^[A-Z ]+$"))
+            {
+                return BadRequest(new { message = "Tên chủ tài khoản không hợp lệ. Tên chủ tài khoản phải viết hoa không dấu (ví dụ: NGUYEN VAN A)." });
+            }
+
             var payoutRequest = new CreatePayoutRequestDto
             {
                 Amount = request.Amount,
-                BankCode = request.BankName, // Frontend will send BankCode here
-                AccountNumber = request.AccountNumber,
-                AccountName = request.AccountName,
-                Description = $"Rut tien SmartTrip - {request.AccountNumber}"
+                BankCode = request.BankName.Trim().ToUpperInvariant(),
+                AccountNumber = request.AccountNumber.Trim(),
+                AccountName = request.AccountName.Trim().ToUpperInvariant(),
+                Description = $"Rut tien SmartTrip - {request.AccountNumber.Trim()}"
             };
 
             var payoutResult = await _paymentService.CreatePayoutAsync(payoutRequest);
@@ -593,7 +659,7 @@ public class PaymentController : ControllerBase
                 PaymentMethod = PaymentMethod.BankTransfer,
                 Status = PaymentStatus.Paid,
                 TransactionId = string.IsNullOrEmpty(payoutResult.TransactionId) ? $"WITHDRAW-{userId}-{DateTime.UtcNow:yyyyMMddHHmmss}" : payoutResult.TransactionId,
-                Description = $"Rút tiền về tài khoản: {request.BankName} - {request.AccountNumber}",
+                Description = $"Rút tiền về tài khoản: {request.BankName.Trim().ToUpperInvariant()} - {request.AccountNumber.Trim()}",
                 PaidAt = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow

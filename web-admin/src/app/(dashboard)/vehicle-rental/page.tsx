@@ -81,6 +81,8 @@ const initialForm: AdminVehicleRentalShopRequest = {
   description: '',
   imageUrl: '',
   isActive: true,
+  monthlyAgreementFee: 0,
+  isMonthlyFeePaid: false,
   vehicleOptions: [createEmptyOption()],
 };
 
@@ -97,6 +99,7 @@ export default function VehicleRentalAdminPage() {
   const [form, setForm] = useState<AdminVehicleRentalShopRequest>(initialForm);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [updatingPaymentShopId, setUpdatingPaymentShopId] = useState<number | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [shopToDelete, setShopToDelete] = useState<AdminVehicleRentalShop | null>(null);
 
@@ -172,6 +175,11 @@ export default function VehicleRentalAdminPage() {
       return;
     }
 
+    if (form.monthlyAgreementFee < 0) {
+      toast.warning('Chi phí thỏa thuận hàng tháng không được nhỏ hơn 0.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -198,6 +206,20 @@ export default function VehicleRentalAdminPage() {
     setDeleteConfirmOpen(true);
   };
 
+  const handleToggleMonthlyFeePaid = async (shop: AdminVehicleRentalShop, isMonthlyFeePaid: boolean) => {
+    setUpdatingPaymentShopId(shop.id);
+
+    try {
+      await adminService.updateVehicleRentalShopPayment(shop.id, { isMonthlyFeePaid });
+      await loadData();
+      toast.success(isMonthlyFeePaid ? 'Đã đánh dấu phí tháng này là đã trả' : 'Đã bỏ đánh dấu phí tháng này');
+    } catch (error: any) {
+      toast.error('Không thể cập nhật trạng thái phí: ' + (error?.message || 'Có lỗi xảy ra'));
+    } finally {
+      setUpdatingPaymentShopId(null);
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!shopToDelete) return;
 
@@ -208,7 +230,7 @@ export default function VehicleRentalAdminPage() {
         setEditingShop(null);
         setForm(initialForm);
       }
-      toast.success('Đã xóa cửa hàng thuê xe thành công');
+      toast.success('Đã xóa mềm cửa hàng thuê xe thành công');
     } catch (error: any) {
       toast.error('Không thể xóa cửa hàng: ' + (error?.message || 'Có lỗi xảy ra'));
     } finally {
@@ -243,6 +265,8 @@ export default function VehicleRentalAdminPage() {
       description: shop.description,
       imageUrl: shop.imageUrl,
       isActive: shop.isActive,
+      monthlyAgreementFee: shop.monthlyAgreementFee,
+      isMonthlyFeePaid: shop.isMonthlyFeePaid,
       vehicleOptions: shop.vehicleOptions.length > 0
         ? shop.vehicleOptions.map((option) => ({
             vehicleType: option.vehicleType,
@@ -286,6 +310,8 @@ export default function VehicleRentalAdminPage() {
       { key: 'destinationName', header: 'Điểm đến' },
       { key: 'phoneNumber', header: 'Số điện thoại' },
       { key: 'address', header: 'Địa chỉ' },
+      { key: 'monthlyAgreementFee', header: 'Phí tháng' },
+      { key: 'isMonthlyFeePaid', header: 'Đã trả phí' },
       { key: 'optionCount', header: 'Số loại xe' },
       { key: 'minPricePerDay', header: 'Giá từ' },
       { key: 'isActive', header: 'Hoạt động' },
@@ -422,6 +448,31 @@ export default function VehicleRentalAdminPage() {
                     />
                     <Label htmlFor="shop-active" className="font-bold">
                       Cửa hàng đang hoạt động
+                    </Label>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="shop-monthly-fee">Chi phí thỏa thuận hàng tháng (VNĐ)</Label>
+                    <Input
+                      id="shop-monthly-fee"
+                      type="number"
+                      min={0}
+                      value={form.monthlyAgreementFee || ''}
+                      onChange={(e) => setForm((c) => ({ ...c, monthlyAgreementFee: Number(e.target.value) || 0 }))}
+                      placeholder="3000000"
+                    />
+                  </div>
+
+                  <div className="flex items-center space-x-2 pt-8">
+                    <Switch
+                      id="shop-fee-paid"
+                      checked={form.isMonthlyFeePaid}
+                      onCheckedChange={(checked) => setForm((c) => ({ ...c, isMonthlyFeePaid: checked }))}
+                    />
+                    <Label htmlFor="shop-fee-paid" className="font-bold">
+                      Đã trả phí tháng này
                     </Label>
                   </div>
                 </div>
@@ -615,6 +666,12 @@ export default function VehicleRentalAdminPage() {
                       </Badge>
                     );
                   })}
+                  <Badge variant="secondary" className="text-[10px]">
+                    Phí tháng: {form.monthlyAgreementFee > 0 ? formatCurrency(form.monthlyAgreementFee) : '0đ'}
+                  </Badge>
+                  <Badge variant={form.isMonthlyFeePaid ? 'default' : 'outline'} className="text-[10px]">
+                    {form.isMonthlyFeePaid ? 'Đã trả phí tháng này' : 'Chưa trả phí tháng này'}
+                  </Badge>
                 </div>
               </div>
               <div className="text-[10px] text-muted-foreground font-semibold pt-4">
@@ -636,7 +693,8 @@ export default function VehicleRentalAdminPage() {
                   <TableHead>Điểm đến</TableHead>
                   <TableHead>Liên hệ</TableHead>
                   <TableHead>Loại xe</TableHead>
-                  <TableHead className="text-right">Giá từ</TableHead>
+                  <TableHead className="text-right">Phí tháng</TableHead>
+                  <TableHead className="text-center">Đã trả phí</TableHead>
                   <TableHead className="text-center">Trạng thái</TableHead>
                   <TableHead className="pr-6 text-right">Thao tác</TableHead>
                 </TableRow>
@@ -644,7 +702,7 @@ export default function VehicleRentalAdminPage() {
               <TableBody>
                 {filteredShops.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12 text-sm text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-12 text-sm text-muted-foreground">
                       Không tìm thấy cửa hàng thuê xe nào.
                     </TableCell>
                   </TableRow>
@@ -686,7 +744,15 @@ export default function VehicleRentalAdminPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right text-xs font-bold">
-                        {shop.minPricePerDay > 0 ? formatCurrency(shop.minPricePerDay) : '--'}
+                        {shop.monthlyAgreementFee > 0 ? formatCurrency(shop.monthlyAgreementFee) : '--'}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Switch
+                          aria-label="Đánh dấu đã trả phí tháng này"
+                          checked={shop.isMonthlyFeePaid}
+                          disabled={updatingPaymentShopId === shop.id}
+                          onCheckedChange={(checked) => handleToggleMonthlyFeePaid(shop, checked)}
+                        />
                       </TableCell>
                       <TableCell className="text-center">
                         {shop.isActive ? (

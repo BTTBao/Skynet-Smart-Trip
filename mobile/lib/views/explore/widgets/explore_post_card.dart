@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/explore_post.dart';
+import '../../../widgets/app_network_image.dart';
 import '../explore_ui_constants.dart';
 
 class ExplorePostCard extends StatelessWidget {
@@ -60,8 +61,8 @@ class _ThumbnailSection extends StatelessWidget {
         SizedBox(
           height: 220,
           width: double.infinity,
-          child: Image.network(
-            post.thumbnailUrl,
+          child: AppNetworkImage(
+            imageUrl: post.thumbnailUrl,
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => Container(
               color: const Color(0xFFE5E7EB),

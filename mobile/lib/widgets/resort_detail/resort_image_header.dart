@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../app_network_image.dart';
 
 class ResortImageHeader extends StatefulWidget {
   final List<String> imageUrls;
@@ -36,8 +37,8 @@ class _ResortImageHeaderState extends State<ResortImageHeader> {
             itemCount: images.length,
             onPageChanged: (index) => setState(() => _currentIndex = index),
             itemBuilder: (context, index) {
-              return Image.network(
-                images[index],
+              return AppNetworkImage(
+                imageUrl: images[index],
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) => Container(
                   color: Colors.grey[300],

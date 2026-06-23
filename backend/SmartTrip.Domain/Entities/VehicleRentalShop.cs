@@ -20,6 +20,16 @@ public class VehicleRentalShop
 
     public bool IsActive { get; set; } = true;
 
+    public decimal MonthlyAgreementFee { get; set; }
+
+    public bool IsMonthlyFeePaid { get; set; }
+
+    public DateTime? MonthlyFeePaidAt { get; set; }
+
+    public bool IsDeleted { get; set; }
+
+    public DateTime? DeletedAt { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public virtual Destination Destination { get; set; } = null!;

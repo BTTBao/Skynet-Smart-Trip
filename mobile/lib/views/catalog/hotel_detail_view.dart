@@ -13,6 +13,7 @@ import '../../providers/profile_provider.dart';
 import '../../providers/trip_provider.dart';
 import '../../services/catalog_service.dart';
 import '../../utils/app_currency_formatter.dart';
+import '../../widgets/app_network_image.dart';
 
 class HotelDetailView extends StatefulWidget {
   const HotelDetailView({
@@ -1742,8 +1743,8 @@ class _GalleryHeaderState extends State<_GalleryHeader> {
             controller: _controller,
             itemCount: widget.detail.imageUrls.length,
             onPageChanged: (value) => setState(() => _currentPage = value),
-            itemBuilder: (context, index) => Image.network(
-              widget.detail.imageUrls[index],
+            itemBuilder: (context, index) => AppNetworkImage(
+              imageUrl: widget.detail.imageUrls[index],
               fit: BoxFit.cover,
               width: double.infinity,
               errorBuilder: (_, _, _) =>
