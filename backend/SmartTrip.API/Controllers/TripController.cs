@@ -1096,11 +1096,6 @@ public class TripController : ControllerBase
             missingFields.Add("identityNumber");
         }
 
-        if (string.IsNullOrWhiteSpace(user.IdentityCardPhotoUrl))
-        {
-            missingFields.Add("identityCardPhoto");
-        }
-
         return missingFields;
     }
 

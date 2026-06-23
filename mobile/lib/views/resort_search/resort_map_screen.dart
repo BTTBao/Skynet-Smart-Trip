@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../models/resort_model.dart';
 import '../../services/openstreetmap_geocoding_service.dart';
+import '../../widgets/app_network_image.dart';
 import '../resort_detail/resort_detail_screen.dart';
 
 class ResortMapScreen extends StatefulWidget {
@@ -246,8 +247,8 @@ class _ResortMapScreenState extends State<ResortMapScreen> {
                         color: Colors.grey[200],
                         child: const Icon(Icons.hotel),
                       )
-                    : Image.network(
-                        hotel.coverImageUrl,
+                    : AppNetworkImage(
+                        imageUrl: hotel.coverImageUrl,
                         width: 88,
                         height: 88,
                         fit: BoxFit.cover,

@@ -13,6 +13,12 @@ public class CatalogController : ControllerBase
     {
         _catalogService = catalogService;
     }
+    
+    [HttpGet("home")]
+    public async Task<IActionResult> GetHome()
+    {
+        return Ok(await _catalogService.GetHomeAsync());
+    }
 
     [HttpGet("popular-destinations")]
     public async Task<IActionResult> GetPopularDestinations()

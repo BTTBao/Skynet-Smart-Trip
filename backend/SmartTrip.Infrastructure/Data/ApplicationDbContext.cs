@@ -394,10 +394,16 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.ImageUrl).HasMaxLength(500).IsUnicode(false);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.MonthlyAgreementFee).HasColumnType("decimal(18, 2)").HasDefaultValue(0m);
+            entity.Property(e => e.IsMonthlyFeePaid).HasDefaultValue(false);
+            entity.Property(e => e.MonthlyFeePaidAt).HasColumnType("datetime");
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()").HasColumnType("datetime");
 
             entity.HasIndex(e => e.DestinationId);
             entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => e.IsDeleted);
 
             entity.HasOne(e => e.Destination)
                 .WithMany(d => d.VehicleRentalShops)
@@ -437,6 +443,11 @@ public partial class ApplicationDbContext : DbContext, IApplicationDbContext
             entity.Property(e => e.ResponseType).HasMaxLength(50);
             entity.Property(e => e.DetectedIntent).HasMaxLength(50);
             entity.Property(e => e.SessionId).HasMaxLength(100).IsUnicode(false);
+            entity.Property(e => e.LatencyMs);
+            entity.Property(e => e.IsJsonValid);
+            entity.Property(e => e.IsFallbackUsed);
+            entity.Property(e => e.ErrorLog).HasMaxLength(1000);
+            entity.Property(e => e.ClassifierDetails).HasColumnType("nvarchar(max)");
 
             entity.HasOne(d => d.User).WithMany().HasForeignKey(d => d.UserId);
         });

@@ -8,6 +8,7 @@ import '../../providers/bus_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../providers/destination_provider.dart';
 import '../../utils/app_currency_formatter.dart';
+import '../../widgets/app_network_image.dart';
 import '../transport/transport_checkout_screen.dart';
 import 'hotel_detail_view.dart';
 
@@ -1412,8 +1413,8 @@ class _SearchViewState extends State<SearchView> {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(10),
                             child: schedule.companyLogoUrl.isNotEmpty
-                                ? Image.network(
-                                    schedule.companyLogoUrl,
+                                ? AppNetworkImage(
+                                    imageUrl: schedule.companyLogoUrl,
                                     width: 48,
                                     height: 48,
                                     fit: BoxFit.cover,
@@ -2055,8 +2056,8 @@ class _HotelCard extends StatelessWidget {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(28),
                   ),
-                  child: Image.network(
-                    hotel.imageUrl,
+                  child: AppNetworkImage(
+                    imageUrl: hotel.imageUrl,
                     height: 250,
                     width: double.infinity,
                     fit: BoxFit.cover,

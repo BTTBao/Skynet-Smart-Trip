@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/resort_model.dart';
 import '../../providers/hotel_provider.dart';
+import '../../widgets/app_network_image.dart';
 import '../../widgets/checkout/checkout_stepper.dart';
 import 'customer_info_screen.dart';
 
@@ -531,8 +532,8 @@ class _BookingDateGuestScreenState extends State<BookingDateGuestScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: widget.hotel.coverImageUrl.isNotEmpty
-                ? Image.network(
-                    widget.hotel.coverImageUrl,
+                ? AppNetworkImage(
+                    imageUrl: widget.hotel.coverImageUrl,
                     width: 60,
                     height: 60,
                     fit: BoxFit.cover,

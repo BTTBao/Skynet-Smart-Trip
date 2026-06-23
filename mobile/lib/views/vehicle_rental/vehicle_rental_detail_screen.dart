@@ -6,6 +6,7 @@ import '../../core/app_theme.dart';
 import '../../models/catalog_models.dart';
 import '../../providers/catalog_provider.dart';
 import '../../utils/app_currency_formatter.dart';
+import '../../widgets/app_network_image.dart';
 
 class VehicleRentalDetailScreen extends StatefulWidget {
   const VehicleRentalDetailScreen({super.key, required this.shopId});
@@ -84,8 +85,8 @@ class _VehicleRentalDetailScreenState extends State<VehicleRentalDetailScreen> {
                   background: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.network(
-                        detail.imageUrl,
+                      AppNetworkImage(
+                        imageUrl: detail.imageUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (_, _, _) => Container(
                           color: const Color(0xFFDDEEE0),

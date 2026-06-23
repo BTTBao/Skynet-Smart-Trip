@@ -77,6 +77,21 @@ public async Task<AdminDashboardDto> GetDashboardStatsAsync(DateOnly? startDate 
             .OrderByDescending(p => p.PaidAt)
             .ToListAsync();
 
+        var vehicleRentalFeeEntries = await _context.VehicleRentalShops
+            .AsNoTracking()
+            .Where(shop =>
+                shop.IsMonthlyFeePaid &&
+                shop.MonthlyAgreementFee > 0m &&
+                shop.MonthlyFeePaidAt.HasValue &&
+                shop.MonthlyFeePaidAt.Value >= resolvedStart &&
+                shop.MonthlyFeePaidAt.Value <= resolvedEnd)
+            .Select(shop => new
+            {
+                shop.MonthlyAgreementFee,
+                PaidAt = shop.MonthlyFeePaidAt!.Value
+            })
+            .ToListAsync();
+
         // Load paid trips with itineraries for revenue/profit calculation.
         // We use the SAME formula as each sub-page:
         //   Hotel items  → BookedPrice × Quantity          (mirrors BuildHotelRevenueLookupAsync)
@@ -133,7 +148,18 @@ public async Task<AdminDashboardDto> GetDashboardStatsAsync(DateOnly? startDate 
             return (revenue, profit);
         }
 
-        var (totalRevenue, totalProfit) = ComputeRevenueAndProfit(paidTripsWithItineraries);
+        decimal ComputeVehicleRentalRevenue(DateTime bucketStart, DateTime bucketEnd)
+        {
+            return vehicleRentalFeeEntries
+                .Where(entry => entry.PaidAt >= bucketStart && entry.PaidAt <= bucketEnd)
+                .Sum(entry => entry.MonthlyAgreementFee);
+        }
+
+        var (baseRevenue, baseProfit) = ComputeRevenueAndProfit(paidTripsWithItineraries);
+        var vehicleRentalRevenue = vehicleRentalFeeEntries.Sum(entry => entry.MonthlyAgreementFee);
+        var vehicleRentalProfit = vehicleRentalRevenue;
+        var totalRevenue = baseRevenue + vehicleRentalRevenue;
+        var totalProfit = baseProfit + vehicleRentalProfit;
 
         var useMonthlyBucket = (resolvedEnd - resolvedStart).TotalDays > 62;
         var chartSeries = new List<AdminDashboardChartPointDto>();
@@ -153,12 +179,14 @@ public async Task<AdminDashboardDto> GetDashboardStatsAsync(DateOnly? startDate 
                 .ToList();
 
             var (bucketRevenue, bucketProfit) = ComputeRevenueAndProfit(bucketTrips);
+            var bucketVehicleRentalRevenue = ComputeVehicleRentalRevenue(bucketStart, bucketEnd);
+            var bucketVehicleRentalProfit = bucketVehicleRentalRevenue;
 
             chartSeries.Add(new AdminDashboardChartPointDto
             {
                 Label = useMonthlyBucket ? cursor.ToString("MMM").ToUpperInvariant() : cursor.ToString("dd/MM"),
-                Revenue = bucketRevenue,
-                Profit = bucketProfit,
+                Revenue = bucketRevenue + bucketVehicleRentalRevenue,
+                Profit = bucketProfit + bucketVehicleRentalProfit,
                 Bookings = tripsInRange.Count(t => t.CreatedAt.HasValue && t.CreatedAt.Value >= bucketStart && t.CreatedAt.Value <= bucketEnd)
             });
 

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartTrip.Application.DTOs.Chat;
 using SmartTrip.Application.Interfaces.Chat;
@@ -82,12 +82,12 @@ public class ChatController : ControllerBase
     {
         var suggestions = new List<QuickActionDto>
         {
-            new() { Label = "🏖 Gợi ý điểm đến", Icon = "explore", ActionPayload = "Gợi ý cho tôi 3 điểm đến đẹp ở Việt Nam" },
-            new() { Label = "📋 Lập lịch trình", Icon = "calendar", ActionPayload = "Lập lịch trình du lịch Đà Lạt 3 ngày 2 đêm" },
-            new() { Label = "🏨 Tìm khách sạn", Icon = "hotel", ActionPayload = "Tìm khách sạn tốt nhất ở Phú Quốc" },
-            new() { Label = "☀️ Xem thời tiết", Icon = "weather", ActionPayload = "Thời tiết Đà Nẵng hôm nay thế nào?" },
-            new() { Label = "🍜 Ẩm thực", Icon = "restaurant", ActionPayload = "Món ăn ngon nhất Hội An" },
-            new() { Label = "💰 Du lịch tiết kiệm", Icon = "explore", ActionPayload = "Du lịch Việt Nam giá rẻ dưới 3 triệu" }
+            new() { Label = "Gợi ý điểm đến", Icon = "explore", ActionPayload = "Gợi ý cho tôi 3 điểm đến đẹp ở Việt Nam" },
+            new() { Label = "Lập lịch trình", Icon = "calendar", ActionPayload = "Lập lịch trình du lịch Đà Lạt 3 ngày 2 đêm" },
+            new() { Label = "Tìm khách sạn", Icon = "hotel", ActionPayload = "Tìm khách sạn tốt nhất ở Phú Quốc" },
+            new() { Label = "Xem thời tiết", Icon = "weather", ActionPayload = "Thời tiết Đà Nẵng hôm nay thế nào?" },
+            new() { Label = "Ẩm thực", Icon = "restaurant", ActionPayload = "Món ăn ngon nhất Hội An" },
+            new() { Label = "Du lịch tiết kiệm", Icon = "explore", ActionPayload = "Du lịch Việt Nam giá rẻ dưới 3 triệu" }
         };
 
         return Ok(suggestions);
@@ -108,3 +108,4 @@ public class ChatController : ControllerBase
         return null;
     }
 }
+

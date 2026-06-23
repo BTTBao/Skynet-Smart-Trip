@@ -1,3 +1,5 @@
+import '../utils/image_url_resolver.dart';
+
 class ExplorePost {
   final int id;
   final String title;
@@ -55,9 +57,10 @@ class ExplorePost {
       title: json['title'] as String? ?? '',
       excerpt: json['excerpt'] as String? ?? '',
       content: json['content'] as String? ?? '',
-      thumbnailUrl: json['thumbnailUrl'] as String? ?? '',
+      thumbnailUrl: ImageUrlResolver.resolve(json['thumbnailUrl']?.toString()),
       imageUrls: (json['imageUrls'] as List<dynamic>? ?? [])
-          .map((item) => item.toString())
+          .map((item) => ImageUrlResolver.resolve(item.toString()))
+          .where((item) => item.isNotEmpty)
           .toList(),
       location:
           json['location'] as String? ?? json['province'] as String? ?? '',
@@ -66,7 +69,7 @@ class ExplorePost {
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       authorName: json['authorName'] as String? ?? '',
-      authorAvatar: json['authorAvatar'] as String? ?? '',
+      authorAvatar: ImageUrlResolver.resolve(json['authorAvatar']?.toString()),
       publishedAt:
           DateTime.tryParse(json['publishedAt']?.toString() ?? '') ??
           DateTime.now(),
@@ -155,9 +158,9 @@ class ExploreComment {
       id: json['id'] as int? ?? 0,
       parentCommentId: json['parentCommentId'] as int?,
       authorName: json['authorName'] as String? ?? '',
-      authorAvatar: json['authorAvatar'] as String? ?? '',
+      authorAvatar: ImageUrlResolver.resolve(json['authorAvatar']?.toString()),
       content: json['content'] as String? ?? '',
-      imageUrl: json['imageUrl'] as String?,
+      imageUrl: ImageUrlResolver.resolve(json['imageUrl']?.toString()),
       createdAt:
           DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
           DateTime.now(),

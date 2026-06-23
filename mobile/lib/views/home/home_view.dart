@@ -5,6 +5,7 @@ import '../../core/app_theme.dart';
 import '../../models/catalog_models.dart';
 import '../../providers/catalog_provider.dart';
 import '../../utils/app_currency_formatter.dart';
+import '../../widgets/app_network_image.dart';
 import 'package:intl/intl.dart';
 import '../transport/transport_search_screen.dart';
 import '../catalog/search_view.dart';
@@ -787,8 +788,8 @@ class _DestinationCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.network(
-                item.coverImageUrl,
+              AppNetworkImage(
+                imageUrl: item.coverImageUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) =>
                     Container(color: const Color(0xFFDDEEE0)),
@@ -856,8 +857,8 @@ class _FeaturedHotelCard extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(24),
               ),
-              child: Image.network(
-                hotel.imageUrl,
+              child: AppNetworkImage(
+                imageUrl: hotel.imageUrl,
                 height: 172,
                 width: double.infinity,
                 fit: BoxFit.cover,
@@ -991,8 +992,8 @@ class _BusCard extends StatelessWidget {
                           Icons.directions_bus_rounded,
                           color: Color(0xFFF97316),
                         )
-                      : Image.network(
-                          bus.imageUrl,
+                      : AppNetworkImage(
+                          imageUrl: bus.imageUrl,
                           fit: BoxFit.cover,
                           errorBuilder: (_, _, _) => const Icon(
                             Icons.directions_bus_rounded,
@@ -1099,8 +1100,8 @@ class _VehicleRentalShopCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.network(
-                shop.imageUrl,
+              child: AppNetworkImage(
+                imageUrl: shop.imageUrl,
                 height: 96,
                 width: double.infinity,
                 fit: BoxFit.cover,
@@ -1174,8 +1175,8 @@ class _SuggestedHotelCard extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(22),
               ),
-              child: Image.network(
-                hotel.imageUrl,
+              child: AppNetworkImage(
+                imageUrl: hotel.imageUrl,
                 height: 126,
                 width: double.infinity,
                 fit: BoxFit.cover,

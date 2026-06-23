@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/explore_post.dart';
 import '../../providers/destination_provider.dart';
+import '../../utils/image_url_resolver.dart';
 import '../catalog/search_view.dart';
 import '../destination/destination_article_screen.dart';
+import '../../widgets/app_network_image.dart';
 import '../explore/explore_view.dart';
 import '../main_shell.dart';
 import '../resort_search/resort_search_screen.dart';
@@ -510,7 +512,7 @@ class _SearchScreenState extends State<SearchScreen> {
       itemBuilder: (context, index) {
         final destination = filteredDestinations[index];
         
-        String imageUrl = destination.coverImageUrl.trim();
+        String imageUrl = ImageUrlResolver.resolve(destination.coverImageUrl);
         if (imageUrl.isEmpty ||
             !imageUrl.startsWith('http') ||
             imageUrl.contains('example.com')) {
@@ -571,8 +573,8 @@ class _SearchScreenState extends State<SearchScreen> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.network(
-                imageUrl,
+              AppNetworkImage(
+                imageUrl: imageUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
@@ -782,8 +784,8 @@ class _SearchScreenState extends State<SearchScreen> {
                     children: [
                       ClipRRect(
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                        child: Image.network(
-                          article['image']!,
+                        child: AppNetworkImage(
+                          imageUrl: article['image']!,
                           height: 100,
                           width: double.infinity,
                           fit: BoxFit.cover,

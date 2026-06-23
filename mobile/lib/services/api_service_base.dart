@@ -25,8 +25,11 @@ class ApiException implements Exception {
 
 abstract class ApiService {
   static const String _defaultDevTunnelBaseUrl =
-      'https://5qqxj86m-5110.asse.devtunnels.ms/api';
+      'https://lmz1ft37-5110.asse.devtunnels.ms/api';
   static const int _defaultLocalApiPort = 5110;
+  static String? _cachedHealthyBaseUrl;
+
+  static String? get cachedHealthyBaseUrl => _cachedHealthyBaseUrl;
 
   static const String _configuredBaseUrlFromDefine = String.fromEnvironment(
     'API_BASE_URL',
@@ -83,7 +86,7 @@ abstract class ApiService {
     } else if (requireAuth) {
       throw ApiException(
         401,
-        'Phien dang nhap da het han. Vui long dang nhap lai.',
+        'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
       );
     }
 
@@ -120,7 +123,7 @@ abstract class ApiService {
             buildUri(baseUrl, path, queryParameters: queryParameters),
             headers: requestHeaders,
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 12));
     });
   }
 
@@ -138,7 +141,7 @@ abstract class ApiService {
     return _sendWithFallback((baseUrl) {
       return http
           .post(buildUri(baseUrl, path), headers: requestHeaders, body: body)
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 12));
     });
   }
 
@@ -156,7 +159,7 @@ abstract class ApiService {
     return _sendWithFallback((baseUrl) {
       return http
           .put(buildUri(baseUrl, path), headers: requestHeaders, body: body)
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 12));
     });
   }
 
@@ -174,7 +177,7 @@ abstract class ApiService {
     return _sendWithFallback((baseUrl) {
       return http
           .delete(buildUri(baseUrl, path), headers: requestHeaders, body: body)
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 12));
     });
   }
 
@@ -217,7 +220,7 @@ abstract class ApiService {
       }
 
       final streamedResponse = await request.send().timeout(
-        const Duration(seconds: 40),
+        const Duration(seconds: 20),
       );
 
       return http.Response.fromStream(streamedResponse);
@@ -227,13 +230,15 @@ abstract class ApiService {
   Future<http.Response> _sendWithFallback(
     Future<http.Response> Function(String baseUrl) send,
   ) async {
-    final candidates = configuredBaseUrls;
+    final candidates = _orderedCandidates();
     Object? lastError;
 
     for (var i = 0; i < candidates.length; i++) {
       final baseUrl = candidates[i];
       try {
-        return await send(baseUrl);
+        final response = await send(baseUrl);
+        _cachedHealthyBaseUrl = baseUrl;
+        return response;
       } on TimeoutException catch (e) {
         lastError = e;
         if (i < candidates.length - 1) {
@@ -266,6 +271,21 @@ abstract class ApiService {
     throw Exception(
       'Khong the ket noi backend qua cac endpoint: $tried. $lastError',
     );
+  }
+
+  List<String> _orderedCandidates() {
+    final candidates = configuredBaseUrls;
+    final cached = _cachedHealthyBaseUrl;
+
+    if (cached == null || cached.trim().isEmpty) {
+      return candidates;
+    }
+
+    final normalizedCached = _normalizeBaseUrl(cached);
+    return _dedupe([
+      normalizedCached,
+      ...candidates.where((value) => _normalizeBaseUrl(value) != normalizedCached),
+    ]);
   }
 
   dynamic handleResponse(http.Response response) {
@@ -330,7 +350,7 @@ abstract class ApiService {
         _readConfigValue('API_TUNNEL_BASE_URL') ?? _defaultDevTunnelBaseUrl;
     final tunnel = _normalizeBaseUrl(tunnelBaseUrl);
     if (tunnel.isNotEmpty) {
-      localCandidates.add(tunnel);
+      localCandidates.insert(0, tunnel);
     }
 
     return localCandidates;
@@ -403,7 +423,7 @@ abstract class ApiService {
 
   String _extractErrorMessage(http.Response response) {
     if (response.body.isEmpty) {
-      return 'Loi API: ${response.statusCode}';
+      return 'Lỗi API: ${response.statusCode}';
     }
 
     try {
@@ -417,7 +437,7 @@ abstract class ApiService {
       }
     } catch (_) {}
 
-    return 'Loi API: ${response.statusCode} - ${response.body}';
+    return 'Lỗi API: ${response.statusCode} - ${response.body}';
   }
 
   MediaType? _resolveImageContentType(XFile file) {
@@ -443,3 +463,6 @@ abstract class ApiService {
     return null;
   }
 }
+
+
+

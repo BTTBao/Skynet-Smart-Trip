@@ -1,3 +1,5 @@
+import '../utils/image_url_resolver.dart';
+
 class ResortModel {
   final int id;
   final int? destinationId;
@@ -52,9 +54,10 @@ class ResortModel {
       avgRating: (json['avgRating'] ?? 0.0).toDouble(),
       reviewCount: json['reviewCount'] ?? 0,
       minPricePerNight: (json['minPricePerNight'] ?? 0.0).toDouble(),
-      coverImageUrl: json['coverImageUrl'] ?? '',
+      coverImageUrl: ImageUrlResolver.resolve(json['coverImageUrl']?.toString()),
       imageUrls: (json['imageUrls'] as List? ?? [])
-          .map((e) => e.toString())
+          .map((e) => ImageUrlResolver.resolve(e.toString()))
+          .where((e) => e.isNotEmpty)
           .toList(),
       amenities: (json['amenities'] as List? ?? [])
           .map((e) => AmenityModel.fromJson(e as Map<String, dynamic>))
@@ -78,7 +81,7 @@ class AmenityModel {
   factory AmenityModel.fromJson(Map<String, dynamic> json) {
     return AmenityModel(
       name: json['name'] ?? '',
-      iconUrl: json['iconUrl'] ?? '',
+      iconUrl: ImageUrlResolver.resolve(json['iconUrl']?.toString()),
     );
   }
 }
@@ -108,7 +111,7 @@ class RoomModel {
       pricePerNight: (json['pricePerNight'] ?? 0.0).toDouble(),
       availableQty: json['availableQty'] ?? 0,
       imageUrls: (json['imageUrls'] as List? ?? [])
-          .map((e) => e.toString())
+          .map((e) => ImageUrlResolver.resolve(e.toString()))
           .where((e) => e.isNotEmpty)
           .toList(),
     );
@@ -136,7 +139,7 @@ class ReviewModel {
     return ReviewModel(
       id: json['id'] ?? 0,
       userName: json['userName'] ?? 'Khách',
-      userAvatar: json['userAvatar'],
+      userAvatar: ImageUrlResolver.resolve(json['userAvatar']?.toString()),
       rating: json['rating'] ?? 5,
       comment: json['comment'],
       createdAt: json['createdAt'],

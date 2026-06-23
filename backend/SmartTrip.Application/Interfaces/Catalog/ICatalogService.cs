@@ -4,6 +4,7 @@ namespace SmartTrip.Application.Interfaces.Catalog;
 
 public interface ICatalogService
 {
+    Task<CatalogHomeDto> GetHomeAsync();
     Task<List<CatalogDestinationDto>> GetPopularDestinationsAsync();
     Task<List<CatalogHotelCardDto>> GetFeaturedHotelsAsync();
     Task<CatalogHotelSearchResultDto> SearchHotelsAsync(

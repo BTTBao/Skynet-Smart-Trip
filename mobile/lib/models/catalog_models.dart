@@ -1,3 +1,5 @@
+import '../utils/image_url_resolver.dart';
+
 class CatalogHomeData {
   const CatalogHomeData({
     required this.popularDestinations,
@@ -74,7 +76,7 @@ class CatalogDestination {
       id: json['id'] as int? ?? 0,
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
-      coverImageUrl: json['coverImageUrl'] as String? ?? '',
+      coverImageUrl: ImageUrlResolver.resolve(json['coverImageUrl']?.toString()),
       isHot: json['isHot'] as bool? ?? false,
     );
   }
@@ -144,7 +146,7 @@ class CatalogHotelCard {
       pricePerNight: (json['pricePerNight'] as num?)?.toDouble() ?? 0,
       rating: (json['rating'] as num?)?.toDouble() ?? 0,
       reviewCount: json['reviewCount'] as int? ?? 0,
-      imageUrl: json['imageUrl'] as String? ?? '',
+      imageUrl: ImageUrlResolver.resolve(json['imageUrl']?.toString()),
       isAvailable: json['isAvailable'] as bool? ?? false,
       tag: json['tag'] as String?,
     );
@@ -206,7 +208,7 @@ class CatalogHotelDetail {
       latitude: (json['latitude'] as num?)?.toDouble() ?? 0,
       longitude: (json['longitude'] as num?)?.toDouble() ?? 0,
       imageUrls: (json['imageUrls'] as List<dynamic>? ?? [])
-          .map((item) => item as String? ?? '')
+          .map((item) => ImageUrlResolver.resolve(item.toString()))
           .where((item) => item.isNotEmpty)
           .toList(),
       amenities: (json['amenities'] as List<dynamic>? ?? [])
@@ -255,7 +257,7 @@ class CatalogRoomOption {
       pricePerNight: (json['pricePerNight'] as num?)?.toDouble() ?? 0,
       availableQty: json['availableQty'] as int? ?? 0,
       imageUrls: (json['imageUrls'] as List<dynamic>? ?? [])
-          .map((item) => item as String? ?? '')
+          .map((item) => ImageUrlResolver.resolve(item.toString()))
           .where((item) => item.isNotEmpty)
           .toList(),
     );
@@ -350,7 +352,7 @@ class CatalogBusCard {
       totalSeats: json['totalSeats'] as int? ?? 0,
       rating: (json['rating'] as num?)?.toDouble() ?? 0,
       reviewCount: json['reviewCount'] as int? ?? 0,
-      imageUrl: json['imageUrl'] as String? ?? '',
+      imageUrl: ImageUrlResolver.resolve(json['imageUrl']?.toString()),
     );
   }
 }
@@ -402,7 +404,7 @@ class CatalogBusDetail {
       totalSeats: json['totalSeats'] as int? ?? 0,
       rating: (json['rating'] as num?)?.toDouble() ?? 0,
       reviewCount: json['reviewCount'] as int? ?? 0,
-      imageUrl: json['imageUrl'] as String? ?? '',
+      imageUrl: ImageUrlResolver.resolve(json['imageUrl']?.toString()),
       reviews: (json['reviews'] as List<dynamic>? ?? [])
           .map(
             (item) =>
@@ -520,7 +522,7 @@ class CatalogVehicleRentalShopCard {
       destinationId: json['destinationId'] as int? ?? 0,
       destinationName: json['destinationName'] as String? ?? '',
       description: json['description'] as String?,
-      imageUrl: json['imageUrl'] as String? ?? '',
+      imageUrl: ImageUrlResolver.resolve(json['imageUrl']?.toString()),
       minPricePerDay: (json['minPricePerDay'] as num?)?.toDouble() ?? 0,
       vehicleTypeLabels: (json['vehicleTypeLabels'] as List<dynamic>? ?? [])
           .map((item) => item as String? ?? '')
@@ -562,7 +564,7 @@ class CatalogVehicleRentalShopDetail {
       destinationId: json['destinationId'] as int? ?? 0,
       destinationName: json['destinationName'] as String? ?? '',
       description: json['description'] as String?,
-      imageUrl: json['imageUrl'] as String? ?? '',
+      imageUrl: ImageUrlResolver.resolve(json['imageUrl']?.toString()),
       vehicleOptions: (json['vehicleOptions'] as List<dynamic>? ?? [])
           .map(
             (item) => CatalogVehicleRentalOption.fromJson(
